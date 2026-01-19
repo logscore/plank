@@ -6,7 +6,8 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
   import Input from '$lib/components/ui/Input.svelte';
-  import { uiState } from '$lib/ui-state.svelte';
+  import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
+  import { uiState, confirmDelete } from '$lib/ui-state.svelte';
 
   let { data } = $props<{ data: PageData }>();
   let deleting = $state(false);
@@ -175,19 +176,23 @@
   }
 
   async function handleDelete() {
-    if (!confirm('Are you sure you want to delete this movie?')) return;
-
-    deleting = true;
-    try {
-      const res = await fetch(`/api/movies/${data.movie.id}`, { method: 'DELETE' });
-      if (res.ok) {
-        goto('/');
-      }
-    } catch (e) {
-      console.error('Failed to delete movie:', e);
-    } finally {
-      deleting = false;
-    }
+    confirmDelete(
+        'Delete Movie',
+        'Are you sure you want to delete this movie? This action cannot be undone.',
+        async () => {
+            deleting = true;
+            try {
+                const res = await fetch(`/api/movies/${data.movie.id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    goto('/');
+                }
+            } catch (e) {
+                console.error('Failed to delete movie:', e);
+            } finally {
+                deleting = false;
+            }
+        }
+    );
   }
 </script>
 
@@ -440,3 +445,11 @@
     </Button>
   </div>
 </Dialog>
+
+<DeleteConfirmationModal 
+    bind:open={uiState.deleteConfirmation.open}
+    title={uiState.deleteConfirmation.title}
+    description={uiState.deleteConfirmation.description}
+    onConfirm={uiState.deleteConfirmation.confirmAction}
+    loading={deleting}
+/>

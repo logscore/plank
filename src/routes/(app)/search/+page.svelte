@@ -5,7 +5,8 @@
   import MovieCard from '$lib/components/MovieCard.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import { uiState } from '$lib/ui-state.svelte';
+  import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
+  import { uiState, confirmDelete } from '$lib/ui-state.svelte';
 
   let query = $state('');
   let results: Movie[] = $state([]);
@@ -41,19 +42,29 @@
     debounceTimer = setTimeout(performSearch, 200);
   }
 
+  let deletingId = $state<string|null>(null);
+
   async function deleteMovie(id: string, event: Event) {
     event.preventDefault();
     event.stopPropagation();
-    if (!confirm('Are you sure you want to remove this movie?')) return;
-
-    try {
-      const res = await fetch(`/api/movies/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        results = results.filter(m => m.id !== id);
-      }
-    } catch (e) {
-      console.error('Failed to delete movie:', e);
-    }
+    
+    confirmDelete(
+        'Delete Movie',
+        'Are you sure you want to remove this movie? This action cannot be undone.',
+        async () => {
+             try {
+                deletingId = id;
+                const res = await fetch(`/api/movies/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    results = results.filter(m => m.id !== id);
+                }
+            } catch (e) {
+                console.error('Failed to delete movie:', e);
+            } finally {
+                deletingId = null;
+            }
+        }
+    );
   }
 
   async function addMagnet() {
@@ -162,4 +173,12 @@
     </Button>
   </div>
 </Dialog>
+
+<DeleteConfirmationModal 
+    bind:open={uiState.deleteConfirmation.open}
+    title={uiState.deleteConfirmation.title}
+    description={uiState.deleteConfirmation.description}
+    onConfirm={uiState.deleteConfirmation.confirmAction}
+    loading={!!deletingId}
+/>
 
