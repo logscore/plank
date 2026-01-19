@@ -85,10 +85,132 @@ deploy_docker() {
 deploy_bare_metal() {
     echo -e "\n${YELLOW}=== Bare Metal Deployment ===${NC}"
 
-    # Check dependencies
+    # Detect OS
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$ID
+    elif [ "$(uname)" == "Darwin" ]; then
+        OS="macos"
+    else
+        OS="unknown"
+    fi
+
+    echo "Detected OS: $OS"
+
+    # Function to install dependencies
+    install_deps() {
+        echo -e "\n${YELLOW}Installing missing dependencies...${NC}"
+        
+        case $OS in
+            debian|ubuntu)
+                echo "Using apt package manager..."
+                apt-get update
+                
+                # Install curl if not available (needed for NodeSource)
+                if ! command_exists curl; then
+                    echo "Installing curl..."
+                    apt-get install -y curl
+                fi
+                
+                if ! command_exists node; then
+                    echo "Installing Node.js..."
+                    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+                    apt-get install -y nodejs
+                fi
+                
+                if ! command_exists ffmpeg; then
+                    echo "Installing ffmpeg..."
+                    apt-get install -y ffmpeg
+                fi
+                ;;
+            fedora|rhel|centos)
+                echo "Using dnf/yum package manager..."
+                
+                if ! command_exists node; then
+                    echo "Installing Node.js..."
+                    curl -fsSL https://rpm.nodesource.com/setup_22.x | bash -
+                    dnf install -y nodejs || yum install -y nodejs
+                fi
+                
+                if ! command_exists ffmpeg; then
+                    echo "Installing ffmpeg..."
+                    dnf install -y ffmpeg || yum install -y ffmpeg
+                fi
+                ;;
+            arch|manjaro)
+                echo "Using pacman package manager..."
+                
+                if ! command_exists node; then
+                    echo "Installing Node.js..."
+                    pacman -S --noconfirm nodejs npm
+                fi
+                
+                if ! command_exists ffmpeg; then
+                    echo "Installing ffmpeg..."
+                    pacman -S --noconfirm ffmpeg
+                fi
+                ;;
+            alpine)
+                echo "Using apk package manager..."
+                
+                if ! command_exists node; then
+                    echo "Installing Node.js..."
+                    apk add --no-cache nodejs npm
+                fi
+                
+                if ! command_exists ffmpeg; then
+                    echo "Installing ffmpeg..."
+                    apk add --no-cache ffmpeg
+                fi
+                ;;
+            macos)
+                if ! command_exists brew; then
+                    echo -e "${RED}Homebrew is required for macOS. Install it from https://brew.sh${NC}"
+                    exit 1
+                fi
+                
+                if ! command_exists node; then
+                    echo "Installing Node.js..."
+                    brew install node
+                fi
+                
+                if ! command_exists ffmpeg; then
+                    echo "Installing ffmpeg..."
+                    brew install ffmpeg
+                fi
+                ;;
+            *)
+                echo -e "${RED}Unsupported OS. Please install Node.js and ffmpeg manually.${NC}"
+                exit 1
+                ;;
+        esac
+    }
+
+    # Check and install dependencies
+    MISSING_DEPS=false
     for cmd in node npm ffmpeg; do
         if ! command_exists $cmd; then
-            echo -e "${RED}Error: $cmd is not installed.${NC}"
+            echo -e "${YELLOW}$cmd is not installed.${NC}"
+            MISSING_DEPS=true
+        fi
+    done
+
+    if [ "$MISSING_DEPS" = true ]; then
+        read -p "Would you like to install missing dependencies? (Y/n): " INSTALL_DEPS
+        INSTALL_DEPS=${INSTALL_DEPS:-Y}
+        
+        if [[ "$INSTALL_DEPS" == "y" || "$INSTALL_DEPS" == "Y" ]]; then
+            install_deps
+        else
+            echo -e "${RED}Cannot proceed without required dependencies.${NC}"
+            exit 1
+        fi
+    fi
+
+    # Verify all dependencies are now available
+    for cmd in node npm ffmpeg; do
+        if ! command_exists $cmd; then
+            echo -e "${RED}Error: $cmd is still not available after installation attempt.${NC}"
             exit 1
         fi
     done
@@ -145,10 +267,10 @@ WantedBy=multi-user.target
 EOF
             echo -e "${GREEN}Service file '$SERVICE_FILE' generated!${NC}"
             echo "To install:"
-            echo "  sudo mv $SERVICE_FILE /etc/systemd/system/"
-            echo "  sudo systemctl daemon-reload"
-            echo "  sudo systemctl enable plank"
-            echo "  sudo systemctl start plank"
+            echo "  mv $SERVICE_FILE /etc/systemd/system/"
+            echo "  systemctl daemon-reload"
+            echo "  systemctl enable plank"
+            echo "  systemctl start plank"
         fi
     fi
 
