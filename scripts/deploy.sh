@@ -18,6 +18,33 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Repository URL
+REPO_URL="https://github.com/logscore/plank.git"
+INSTALL_DIR="plank"
+
+# Function to clone or update repository
+clone_repo() {
+    if [ -d "$INSTALL_DIR" ]; then
+        echo -e "${YELLOW}Directory '$INSTALL_DIR' already exists.${NC}"
+        read -p "Update existing installation? (Y/n): " UPDATE_REPO
+        UPDATE_REPO=${UPDATE_REPO:-Y}
+        
+        if [[ "$UPDATE_REPO" == "y" || "$UPDATE_REPO" == "Y" ]]; then
+            echo "Updating repository..."
+            cd "$INSTALL_DIR"
+            git pull
+        else
+            cd "$INSTALL_DIR"
+        fi
+    else
+        echo "Cloning Plank repository..."
+        git clone "$REPO_URL" "$INSTALL_DIR"
+        cd "$INSTALL_DIR"
+    fi
+    
+    echo -e "${GREEN}Repository ready at: $(pwd)${NC}"
+}
+
 # Function to prompt for environment variables
 setup_env() {
     echo -e "\n${YELLOW}=== Configuration ===${NC}"
@@ -61,12 +88,120 @@ EOF
 
 deploy_docker() {
     echo -e "\n${YELLOW}=== Docker Deployment ===${NC}"
-    
-    if ! command_exists docker; then
-        echo -e "${RED}Error: docker is not installed.${NC}"
-        exit 1
+
+    # Detect OS for package installation
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$ID
+    elif [ "$(uname)" == "Darwin" ]; then
+        OS="macos"
+    else
+        OS="unknown"
     fi
 
+    echo "Detected OS: $OS"
+
+    # Install missing dependencies
+    MISSING_DOCKER_DEPS=false
+    for cmd in git docker; do
+        if ! command_exists $cmd; then
+            echo -e "${YELLOW}$cmd is not installed.${NC}"
+            MISSING_DOCKER_DEPS=true
+        fi
+    done
+
+    if [ "$MISSING_DOCKER_DEPS" = true ]; then
+        read -p "Would you like to install missing dependencies? (Y/n): " INSTALL_DEPS
+        INSTALL_DEPS=${INSTALL_DEPS:-Y}
+        
+        if [[ "$INSTALL_DEPS" == "y" || "$INSTALL_DEPS" == "Y" ]]; then
+            case $OS in
+                debian|ubuntu)
+                    echo "Using apt package manager..."
+                    apt-get update
+                    
+                    if ! command_exists git; then
+                        echo "Installing git..."
+                        apt-get install -y git
+                    fi
+                    
+                    if ! command_exists curl; then
+                        echo "Installing curl..."
+                        apt-get install -y curl
+                    fi
+                    
+                    if ! command_exists docker; then
+                        echo "Installing Docker..."
+                        curl -fsSL https://get.docker.com | sh
+                    fi
+                    ;;
+                fedora|rhel|centos)
+                    echo "Using dnf/yum package manager..."
+                    
+                    if ! command_exists git; then
+                        echo "Installing git..."
+                        dnf install -y git || yum install -y git
+                    fi
+                    
+                    if ! command_exists docker; then
+                        echo "Installing Docker..."
+                        curl -fsSL https://get.docker.com | sh
+                    fi
+                    ;;
+                arch|manjaro)
+                    echo "Using pacman package manager..."
+                    
+                    if ! command_exists git; then
+                        echo "Installing git..."
+                        pacman -S --noconfirm git
+                    fi
+                    
+                    if ! command_exists docker; then
+                        echo "Installing Docker..."
+                        pacman -S --noconfirm docker
+                        systemctl enable docker
+                        systemctl start docker
+                    fi
+                    ;;
+                alpine)
+                    echo "Using apk package manager..."
+                    
+                    if ! command_exists git; then
+                        echo "Installing git..."
+                        apk add --no-cache git
+                    fi
+                    
+                    if ! command_exists docker; then
+                        echo "Installing Docker..."
+                        apk add --no-cache docker
+                        rc-update add docker boot
+                        service docker start
+                    fi
+                    ;;
+                macos)
+                    echo -e "${RED}Please install Docker Desktop from https://docker.com/products/docker-desktop${NC}"
+                    exit 1
+                    ;;
+                *)
+                    echo -e "${RED}Unsupported OS. Please install git and Docker manually.${NC}"
+                    exit 1
+                    ;;
+            esac
+        else
+            echo -e "${RED}Cannot proceed without required dependencies.${NC}"
+            exit 1
+        fi
+    fi
+
+    # Verify dependencies
+    for cmd in git docker; do
+        if ! command_exists $cmd; then
+            echo -e "${RED}Error: $cmd is still not available.${NC}"
+            exit 1
+        fi
+    done
+
+    clone_repo
     setup_env
 
     # Load env vars to ensure they are available for Docker Compose interpolation
@@ -105,6 +240,12 @@ deploy_bare_metal() {
             debian|ubuntu)
                 echo "Using apt package manager..."
                 apt-get update
+                
+                # Install git if not available
+                if ! command_exists git; then
+                    echo "Installing git..."
+                    apt-get install -y git
+                fi
                 
                 # Install curl if not available (needed for NodeSource)
                 if ! command_exists curl; then
@@ -188,7 +329,7 @@ deploy_bare_metal() {
 
     # Check and install dependencies
     MISSING_DEPS=false
-    for cmd in node npm ffmpeg; do
+    for cmd in git node npm ffmpeg; do
         if ! command_exists $cmd; then
             echo -e "${YELLOW}$cmd is not installed.${NC}"
             MISSING_DEPS=true
@@ -208,7 +349,7 @@ deploy_bare_metal() {
     fi
 
     # Verify all dependencies are now available
-    for cmd in node npm ffmpeg; do
+    for cmd in node npm ffmpeg git; do
         if ! command_exists $cmd; then
             echo -e "${RED}Error: $cmd is still not available after installation attempt.${NC}"
             exit 1
@@ -218,6 +359,7 @@ deploy_bare_metal() {
     echo "Node version: $(node -v)"
     echo "NPM version: $(npm -v)"
 
+    clone_repo
     setup_env
 
     # Load env vars for bare metal execution
