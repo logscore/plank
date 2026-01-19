@@ -28,7 +28,7 @@ clone_repo() {
         echo -e "${YELLOW}Directory '$INSTALL_DIR' already exists.${NC}"
         read -p "Update existing installation? (Y/n): " UPDATE_REPO
         UPDATE_REPO=${UPDATE_REPO:-Y}
-        
+
         if [[ "$UPDATE_REPO" == "y" || "$UPDATE_REPO" == "Y" ]]; then
             echo "Updating repository..."
             cd "$INSTALL_DIR"
@@ -41,14 +41,14 @@ clone_repo() {
         git clone "$REPO_URL" "$INSTALL_DIR"
         cd "$INSTALL_DIR"
     fi
-    
+
     echo -e "${GREEN}Repository ready at: $(pwd)${NC}"
 }
 
 # Function to prompt for environment variables
 setup_env() {
     echo -e "\n${YELLOW}=== Configuration ===${NC}"
-    
+
     if [ -f .env ]; then
         echo -e "${YELLOW}Found existing .env file. Skipping generation unless you want to overwrite.${NC}"
         read -p "Overwrite existing .env? (y/N): " OVERWRITE
@@ -58,7 +58,7 @@ setup_env() {
     fi
 
     echo "Generating .env file..."
-    
+
     # Generate random secret
     BETTER_AUTH_SECRET=$(openssl rand -hex 32)
     echo -e "Generated auth secret: ${GREEN}${BETTER_AUTH_SECRET:0:16}...${NC}"
@@ -66,10 +66,10 @@ setup_env() {
     read -p "Enter TMDB API Key (optional): " TMDB_API_KEY
     read -p "Enter Base URL (e.g., http://localhost:3000): " BETTER_AUTH_URL
     BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
-    
+
     read -p "Enable File Storage (for uploads)? (true/false) [true]: " ENABLE_FILE_STORAGE
     ENABLE_FILE_STORAGE=${ENABLE_FILE_STORAGE:-true}
-    
+
     read -p "Enter Port [3000]: " PORT
     PORT=${PORT:-3000}
 
@@ -79,7 +79,7 @@ BETTER_AUTH_URL=${BETTER_AUTH_URL}
 TMDB_API_KEY=${TMDB_API_KEY}
 ENABLE_FILE_STORAGE=${ENABLE_FILE_STORAGE}
 PORT=${PORT}
-DATABASE_URL=file:./plank.db
+DATABASE_URL=./plank.db
 EOF
 # Note: DATABASE_URL might need adjustment for Docker vs Bare Metal, handled in docker-compose usually, but good to have base
 
@@ -113,23 +113,23 @@ deploy_docker() {
     if [ "$MISSING_DOCKER_DEPS" = true ]; then
         read -p "Would you like to install missing dependencies? (Y/n): " INSTALL_DEPS
         INSTALL_DEPS=${INSTALL_DEPS:-Y}
-        
+
         if [[ "$INSTALL_DEPS" == "y" || "$INSTALL_DEPS" == "Y" ]]; then
             case $OS in
                 debian|ubuntu)
                     echo "Using apt package manager..."
                     apt-get update
-                    
+
                     if ! command_exists git; then
                         echo "Installing git..."
                         apt-get install -y git
                     fi
-                    
+
                     if ! command_exists curl; then
                         echo "Installing curl..."
                         apt-get install -y curl
                     fi
-                    
+
                     if ! command_exists docker; then
                         echo "Installing Docker..."
                         curl -fsSL https://get.docker.com | sh
@@ -137,12 +137,12 @@ deploy_docker() {
                     ;;
                 fedora|rhel|centos)
                     echo "Using dnf/yum package manager..."
-                    
+
                     if ! command_exists git; then
                         echo "Installing git..."
                         dnf install -y git || yum install -y git
                     fi
-                    
+
                     if ! command_exists docker; then
                         echo "Installing Docker..."
                         curl -fsSL https://get.docker.com | sh
@@ -150,12 +150,12 @@ deploy_docker() {
                     ;;
                 arch|manjaro)
                     echo "Using pacman package manager..."
-                    
+
                     if ! command_exists git; then
                         echo "Installing git..."
                         pacman -S --noconfirm git
                     fi
-                    
+
                     if ! command_exists docker; then
                         echo "Installing Docker..."
                         pacman -S --noconfirm docker
@@ -165,12 +165,12 @@ deploy_docker() {
                     ;;
                 alpine)
                     echo "Using apk package manager..."
-                    
+
                     if ! command_exists git; then
                         echo "Installing git..."
                         apk add --no-cache git
                     fi
-                    
+
                     if ! command_exists docker; then
                         echo "Installing Docker..."
                         apk add --no-cache docker
@@ -235,30 +235,30 @@ deploy_bare_metal() {
     # Function to install dependencies
     install_deps() {
         echo -e "\n${YELLOW}Installing missing dependencies...${NC}"
-        
+
         case $OS in
             debian|ubuntu)
                 echo "Using apt package manager..."
                 apt-get update
-                
+
                 # Install git if not available
                 if ! command_exists git; then
                     echo "Installing git..."
                     apt-get install -y git
                 fi
-                
+
                 # Install curl if not available (needed for NodeSource)
                 if ! command_exists curl; then
                     echo "Installing curl..."
                     apt-get install -y curl
                 fi
-                
+
                 if ! command_exists node; then
                     echo "Installing Node.js..."
                     curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
                     apt-get install -y nodejs
                 fi
-                
+
                 if ! command_exists ffmpeg; then
                     echo "Installing ffmpeg..."
                     apt-get install -y ffmpeg
@@ -266,13 +266,13 @@ deploy_bare_metal() {
                 ;;
             fedora|rhel|centos)
                 echo "Using dnf/yum package manager..."
-                
+
                 if ! command_exists node; then
                     echo "Installing Node.js..."
                     curl -fsSL https://rpm.nodesource.com/setup_22.x | bash -
                     dnf install -y nodejs || yum install -y nodejs
                 fi
-                
+
                 if ! command_exists ffmpeg; then
                     echo "Installing ffmpeg..."
                     dnf install -y ffmpeg || yum install -y ffmpeg
@@ -280,12 +280,12 @@ deploy_bare_metal() {
                 ;;
             arch|manjaro)
                 echo "Using pacman package manager..."
-                
+
                 if ! command_exists node; then
                     echo "Installing Node.js..."
                     pacman -S --noconfirm nodejs npm
                 fi
-                
+
                 if ! command_exists ffmpeg; then
                     echo "Installing ffmpeg..."
                     pacman -S --noconfirm ffmpeg
@@ -293,12 +293,12 @@ deploy_bare_metal() {
                 ;;
             alpine)
                 echo "Using apk package manager..."
-                
+
                 if ! command_exists node; then
                     echo "Installing Node.js..."
                     apk add --no-cache nodejs npm
                 fi
-                
+
                 if ! command_exists ffmpeg; then
                     echo "Installing ffmpeg..."
                     apk add --no-cache ffmpeg
@@ -309,12 +309,12 @@ deploy_bare_metal() {
                     echo -e "${RED}Homebrew is required for macOS. Install it from https://brew.sh${NC}"
                     exit 1
                 fi
-                
+
                 if ! command_exists node; then
                     echo "Installing Node.js..."
                     brew install node
                 fi
-                
+
                 if ! command_exists ffmpeg; then
                     echo "Installing ffmpeg..."
                     brew install ffmpeg
@@ -339,7 +339,7 @@ deploy_bare_metal() {
     if [ "$MISSING_DEPS" = true ]; then
         read -p "Would you like to install missing dependencies? (Y/n): " INSTALL_DEPS
         INSTALL_DEPS=${INSTALL_DEPS:-Y}
-        
+
         if [[ "$INSTALL_DEPS" == "y" || "$INSTALL_DEPS" == "Y" ]]; then
             install_deps
         else
@@ -379,20 +379,20 @@ deploy_bare_metal() {
     echo -e "\n${GREEN}Build Complete!${NC}"
 
     echo -e "\n${YELLOW}How would you like to run the server?${NC}"
-    
+
     # Check if systemd is available
     if [ -d "/etc/systemd/system" ]; then
         server_options=("Install as systemd service (recommended)" "Start foreground (node build)" "Start development (npm run dev)" "Do not start now")
     else
         server_options=("Start foreground (node build)" "Start development (npm run dev)" "Do not start now")
     fi
-    
+
     select s_opt in "${server_options[@]}"
     do
         case $s_opt in
             "Install as systemd service (recommended)")
                 echo -e "${GREEN}Installing systemd service...${NC}"
-                
+
                 SERVICE_FILE="/etc/systemd/system/plank.service"
                 USER=$(whoami)
                 WORKDIR=$(pwd)
@@ -407,6 +407,7 @@ After=network.target
 Type=simple
 User=$USER
 WorkingDirectory=$WORKDIR
+ExecStartPre=$(which npx) drizzle-kit migrate
 ExecStart=$NODE_PATH build
 Restart=on-failure
 RestartSec=5
@@ -419,7 +420,7 @@ EOF
                 systemctl daemon-reload
                 systemctl enable plank
                 systemctl start plank
-                
+
                 echo -e "\n${GREEN}Plank service installed and started!${NC}"
                 echo -e "Service status: $(systemctl is-active plank)"
                 echo ""
