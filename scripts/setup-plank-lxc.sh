@@ -126,17 +126,9 @@ apt update && apt upgrade -y
 echo "=== Installing dependencies ==="
 apt install -y ffmpeg git curl xz-utils
 
-echo "=== Installing Node.js 22.22.0 ==="
-cd /opt
-curl -fsSL https://nodejs.org/dist/v22.22.0/node-v22.22.0-linux-x64.tar.xz -o node.tar.xz
-tar -xJf node.tar.xz
-rm node.tar.xz
-mv node-v22.22.0-linux-x64 /opt/node
-
-# Add node to PATH via symlinks
-ln -sf /opt/node/bin/node /usr/local/bin/node
-ln -sf /opt/node/bin/npm /usr/local/bin/npm
-ln -sf /opt/node/bin/npx /usr/local/bin/npx
+echo "=== Installing Node.js 22.x ==="
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+apt-get install -y nodejs
 
 # Verify installation
 node --version
