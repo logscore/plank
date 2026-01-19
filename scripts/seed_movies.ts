@@ -2,7 +2,6 @@
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
 import * as schema from '../src/lib/server/db/schema';
-import { eq } from 'drizzle-orm';
 
 // Connect to the database
 // Assuming the script is run from the project root or we can handle relative path
@@ -41,7 +40,7 @@ async function seed() {
     for (let i = 1; i <= 100; i++) {
         const status = statuses[Math.floor(Math.random() * statuses.length)];
         const progress = status === 'complete' ? 100 : status === 'downloading' ? Math.random() * 100 : 0;
-        
+
         moviesToInsert.push({
             id: crypto.randomUUID(),
             userId: user.id,

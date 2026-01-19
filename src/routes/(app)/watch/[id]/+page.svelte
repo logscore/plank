@@ -23,7 +23,7 @@
   let progressInterval: ReturnType<typeof setInterval> | null = null;
   let showControls = $state(true);
   let controlsTimeout: ReturnType<typeof setTimeout> | null = null;
-  
+
   // Menu State
   let showMenu = $state(false);
   let showStats = $state(false);
@@ -86,7 +86,7 @@
     if (controlsTimeout) clearTimeout(controlsTimeout);
     document.removeEventListener('click', handleGlobalClick);
   });
-  
+
   function handleGlobalClick(e: MouseEvent) {
     if (showMenu && !(e.target as HTMLElement).closest('#player-menu')) {
         showMenu = false;
@@ -134,16 +134,16 @@
       }
     }, 3000);
   }
-  
+
   function toggleStats() {
     showStats = !showStats;
     showMenu = false;
   }
 </script>
 
-<div 
-    class="relative w-screen h-screen bg-black overflow-hidden group" 
-    onmousemove={handleMouseMove} 
+<div
+    class="relative w-screen h-screen bg-black overflow-hidden group"
+    onmousemove={handleMouseMove}
     role="presentation"
 >
   {#if loading}
@@ -168,21 +168,21 @@
             <ArrowLeft class="w-6 h-6" />
         </button>
       </a>
-      
+
       <!-- Menu Button -->
       <div class="relative" id="player-menu">
-        <button 
+        <button
             onclick={(e) => { e.stopPropagation(); showMenu = !showMenu; }}
             class="bg-black/50 hover:bg-black/70 text-white rounded-full p-3 backdrop-blur-sm transition-all hover:scale-105"
         >
             <MoreVertical class="w-6 h-6" />
         </button>
-        
+
         <!-- Menu Dropdown -->
         {#if showMenu}
             <div class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-black/90 border border-white/10 ring-1 ring-black ring-opacity-5 backdrop-blur-md overflow-hidden">
                 <div class="py-1" role="menu" aria-orientation="vertical">
-                    <button 
+                    <button
                         onclick={toggleStats}
                         class="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-white/10 flex items-center justify-between"
                         role="menuitem"
@@ -214,9 +214,9 @@
         <div class="relative w-full h-full">
              <!-- Background Poster blurred -->
              {#if movie?.backdropUrl || movie?.posterUrl}
-                <img 
-                    src={movie?.backdropUrl || movie?.posterUrl} 
-                    alt="Background" 
+                <img
+                    src={movie?.backdropUrl || movie?.posterUrl}
+                    alt="Background"
                     class="absolute inset-0 w-full h-full object-cover blur-2xl opacity-30"
                 />
              {/if}
@@ -227,7 +227,7 @@
                 </div>
                 <div class="text-center space-y-2">
                     <h2 class="text-2xl font-bold text-white">Buffering {movie?.title}...</h2>
-                    <p class="text-zinc-400">Waiting for peers and initial data</p>
+                    <p class="text-zinc-400">Waiting for movie to stream in from space</p>
                 </div>
              </div>
         </div>
@@ -246,7 +246,7 @@
                 <span>{progressInfo.peers} peers</span>
              </div>
               <div class="w-48 h-1.5 bg-zinc-800 rounded-full overflow-hidden mt-2">
-                 <div 
+                 <div
                     class="h-full bg-primary transition-all duration-500 ease-out"
                     style="width: {progressInfo.progress * 100}%"
                  ></div>

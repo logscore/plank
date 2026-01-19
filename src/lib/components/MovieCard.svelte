@@ -63,7 +63,7 @@
         <img
             src={movie.posterUrl}
             alt={movie.title}
-            class="w-full h-full object-cover transition-opacity duration-1000 group-hover:opacity-20 group-hover:blur-md"
+            class="w-full h-full object-cover transition-opacity duration-500 group-hover:blur-md"
         />
     {:else}
         <div class="w-full h-full flex items-center justify-center bg-accent text-muted-foreground">
@@ -72,7 +72,7 @@
     {/if}
 
     <!-- Details Overlay (Visible on Hover) -->
-    <div class="absolute inset-0 p-4 flex flex-col justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/60 backdrop-blur-sm">
+    <div class="absolute inset-0 p-4 flex flex-col justify-between opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 ease-out bg-black/60 backdrop-blur-sm">
         <div class="space-y-2 overflow-hidden flex-1 min-h-0 flex flex-col">
             <h4 class="font-bold text-lg leading-tight text-white shrink-0">{movie.title}</h4>
             <div class="flex items-center gap-2 text-xs text-zinc-300 shrink-0">
