@@ -1,6 +1,9 @@
 <script lang="ts">
   import { authClient } from '$lib/auth-client';
   import { goto } from '$app/navigation';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Input from '$lib/components/ui/Input.svelte';
+  import { Tv } from 'lucide-svelte';
 
   let email = $state('');
   let password = $state('');
@@ -31,54 +34,55 @@
   }
 </script>
 
-<div class="bg-zinc-900 rounded-xl p-8 shadow-2xl border border-zinc-800">
-  <div class="text-center mb-8">
-    <h1 class="text-3xl font-bold text-red-500">Plank</h1>
-    <p class="text-zinc-400 mt-2">Sign in to your account</p>
+<div class="w-full max-w-md bg-card/50 backdrop-blur-xl rounded-xl p-8 border border-white/10 shadow-2xl">
+  <div class="text-center mb-8 flex flex-col items-center">
+    <div class="w-12 h-12 rounded-lg bg-primary flex items-center justify-center mb-4">
+        <Tv class="text-primary-foreground w-7 h-7" />
+    </div>
+    <h1 class="text-3xl font-bold tracking-tight">Welcome back</h1>
+    <p class="text-muted-foreground mt-2">Sign in to your account</p>
   </div>
 
   <form onsubmit={handleSubmit} class="space-y-4">
     {#if error}
-      <div class="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">
+      <div class="p-3 bg-destructive/15 border border-destructive/50 rounded-lg text-destructive text-sm text-center">
         {error}
       </div>
     {/if}
 
-    <div>
-      <label for="email" class="block text-sm font-medium text-zinc-300 mb-1">Email</label>
-      <input
-        type="email"
-        id="email"
-        bind:value={email}
-        required
-        class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-red-500 transition"
-        placeholder="you@example.com"
-      />
+    <div class="space-y-4">
+      <div class="space-y-2">
+        <label for="email" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Email</label>
+        <Input
+          type="email"
+          id="email"
+          bind:value={email}
+          required
+          placeholder="name@example.com"
+          class="bg-background/50"
+        />
+      </div>
+
+      <div class="space-y-2">
+        <label for="password" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Password</label>
+        <Input
+          type="password"
+          id="password"
+          bind:value={password}
+          required
+          placeholder="••••••••"
+          class="bg-background/50"
+        />
+      </div>
     </div>
 
-    <div>
-      <label for="password" class="block text-sm font-medium text-zinc-300 mb-1">Password</label>
-      <input
-        type="password"
-        id="password"
-        bind:value={password}
-        required
-        class="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-red-500 transition"
-        placeholder="••••••••"
-      />
-    </div>
-
-    <button
-      type="submit"
-      disabled={loading}
-      class="w-full py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium text-white disabled:opacity-50 transition"
-    >
+    <Button type="submit" disabled={loading} class="w-full" size="lg">
       {loading ? 'Signing in...' : 'Sign In'}
-    </button>
+    </Button>
   </form>
 
-  <p class="mt-6 text-center text-zinc-400 text-sm">
+  <p class="mt-6 text-center text-muted-foreground text-sm">
     Don't have an account?
-    <a href="/register" class="text-red-400 hover:text-red-300 transition">Create one</a>
+    <a href="/register" class="text-primary hover:text-primary/80 transition font-medium hover:underline underline-offset-4">Create account</a>
   </p>
 </div>
