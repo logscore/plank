@@ -378,20 +378,27 @@ deploy_bare_metal() {
 
     echo -e "\n${GREEN}Build Complete!${NC}"
 
-
-    # Systemd Service Offer
+    echo -e "\n${YELLOW}How would you like to run the server?${NC}"
+    
+    # Check if systemd is available
     if [ -d "/etc/systemd/system" ]; then
-        echo -e "\n${YELLOW}Would you like to generate a systemd service file? (Linux only)${NC}"
-        read -p "(y/n) [y]: " GEN_SERVICE
-        GEN_SERVICE=${GEN_SERVICE:-y}
+        server_options=("Install as systemd service (recommended)" "Start foreground (node build)" "Start development (npm run dev)" "Do not start now")
+    else
+        server_options=("Start foreground (node build)" "Start development (npm run dev)" "Do not start now")
+    fi
+    
+    select s_opt in "${server_options[@]}"
+    do
+        case $s_opt in
+            "Install as systemd service (recommended)")
+                echo -e "${GREEN}Installing systemd service...${NC}"
+                
+                SERVICE_FILE="/etc/systemd/system/plank.service"
+                USER=$(whoami)
+                WORKDIR=$(pwd)
+                NODE_PATH=$(which node)
 
-        if [[ "$GEN_SERVICE" == "y" || "$GEN_SERVICE" == "Y" ]]; then
-            SERVICE_FILE="plank.service"
-            USER=$(whoami)
-            WORKDIR=$(pwd)
-            NODE_PATH=$(which node)
-
-            cat > $SERVICE_FILE << EOF
+                cat > $SERVICE_FILE << EOF
 [Unit]
 Description=Plank Media Server
 After=network.target
@@ -402,36 +409,42 @@ User=$USER
 WorkingDirectory=$WORKDIR
 ExecStart=$NODE_PATH build
 Restart=on-failure
+RestartSec=5
 EnvironmentFile=$WORKDIR/.env
 
 [Install]
 WantedBy=multi-user.target
 EOF
-            echo -e "${GREEN}Service file '$SERVICE_FILE' generated!${NC}"
-            echo "To install:"
-            echo "  mv $SERVICE_FILE /etc/systemd/system/"
-            echo "  systemctl daemon-reload"
-            echo "  systemctl enable plank"
-            echo "  systemctl start plank"
-        fi
-    fi
 
-    echo -e "\n${YELLOW}Would you like to start the server now?${NC}"
-    server_options=("Start Production (node build)" "Start Development (npm run dev)" "Do not start now")
-    select s_opt in "${server_options[@]}"
-    do
-        case $s_opt in
-            "Start Production (node build)")
-                echo -e "${GREEN}Starting production server...${NC}"
+                systemctl daemon-reload
+                systemctl enable plank
+                systemctl start plank
+                
+                echo -e "\n${GREEN}Plank service installed and started!${NC}"
+                echo -e "Service status: $(systemctl is-active plank)"
+                echo ""
+                echo "Useful commands:"
+                echo "  systemctl status plank   - Check status"
+                echo "  systemctl stop plank     - Stop server"
+                echo "  systemctl restart plank  - Restart server"
+                echo "  journalctl -u plank -f   - View logs"
+                break
+                ;;
+            "Start foreground (node build)")
+                echo -e "${GREEN}Starting production server in foreground...${NC}"
+                echo "Press Ctrl+C to stop"
                 node build
                 break
                 ;;
-            "Start Development (npm run dev)")
+            "Start development (npm run dev)")
                 echo -e "${GREEN}Starting development server...${NC}"
                 npm run dev
                 break
                 ;;
             "Do not start now")
+                echo -e "${YELLOW}Server not started. To start manually:${NC}"
+                echo "  node build              - Production"
+                echo "  npm run dev             - Development"
                 break
                 ;;
             *) echo "invalid option $REPLY";;
