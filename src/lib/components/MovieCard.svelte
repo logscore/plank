@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Movie } from '$lib/types';
-  import { Play, Trash2, Info } from 'lucide-svelte';
+  import { Play, MoreVertical, Trash2, Info } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
 
   let { movie, onDelete } = $props<{
@@ -8,8 +8,27 @@
     onDelete: (id: string, e: Event) => void;
   }>();
 
+  let showMenu = $state(false);
 
+  function handleMenuClick(e: Event) {
+    e.preventDefault();
+    e.stopPropagation();
+    showMenu = !showMenu;
+  }
+
+  function handleDelete(e: Event) {
+    showMenu = false;
+    onDelete(movie.id, e);
+  }
+
+  function handleClickOutside(e: MouseEvent) {
+    if (showMenu && !(e.target as HTMLElement).closest('.movie-menu')) {
+      showMenu = false;
+    }
+  }
 </script>
+
+<svelte:document onclick={handleClickOutside} />
 
 <div
     class="relative aspect-2/3 rounded-lg overflow-hidden group shadow-lg border border-border/50 bg-card hover:scale-[1.02] hover:z-20 hover:border-red-500 transition-all duration-500"
@@ -49,15 +68,43 @@
                 </Button>
             </a>
 
-            <Button
-                variant="ghost"
-                size="icon"
-                class="text-white hover:bg-neutral-900 shrink-0"
-                onclick={(e) => onDelete(movie.id, e)}
-                title="Remove"
-            >
-                <Trash2 class="w-4 h-4" />
-            </Button>
+            <!-- Three-dot Menu -->
+            <div class="relative movie-menu">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    class="text-white hover:bg-neutral-800 shrink-0"
+                    onclick={handleMenuClick}
+                    title="Options"
+                >
+                    <MoreVertical class="w-4 h-4" />
+                </Button>
+
+                <!-- Context Menu Dropdown -->
+                {#if showMenu}
+                    <div class="absolute right-0 bottom-full mb-2 w-36 rounded-md shadow-lg bg-black/95 border border-white/10 ring-1 ring-black ring-opacity-5 backdrop-blur-md overflow-hidden z-50">
+                        <div class="py-1" role="menu">
+                            <a
+                                href="/movie/{movie.id}"
+                                class="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-2"
+                                role="menuitem"
+                                onclick={() => showMenu = false}
+                            >
+                                <Info class="w-4 h-4" />
+                                Details
+                            </a>
+                            <button
+                                onclick={handleDelete}
+                                class="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-white/10 flex items-center gap-2"
+                                role="menuitem"
+                            >
+                                <Trash2 class="w-4 h-4" />
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                {/if}
+            </div>
         </div>
     </div>
 </div>

@@ -101,6 +101,7 @@ const TRACKERS = [
 
 async function getClient(): Promise<WebTorrentClient> {
   if (!client) {
+    console.log('[WebTorrent] Initializing client...');
     const WebTorrent = await import('webtorrent');
     client = new WebTorrent.default({
       maxConns: 100,
@@ -108,7 +109,12 @@ async function getClient(): Promise<WebTorrentClient> {
       uploadLimit: -1,
     }) as unknown as WebTorrentClient;
 
-    console.log('WebTorrent client initialized');
+    // Add global error handler
+    (client as any).on('error', (err: Error) => {
+      console.error('[WebTorrent] Global client error:', err);
+    });
+
+    console.log('[WebTorrent] Client initialized successfully');
   }
   return client;
 }
@@ -151,6 +157,13 @@ async function ensureDirectories(): Promise<void> {
 
 async function fetchAndUpdateMetadata(movieId: string, fileName: string): Promise<void> {
   try {
+    // Check if movie already has TMDB data - skip if so
+    const existingMovie = movies.get(movieId, '');
+    if (existingMovie?.tmdbId) {
+      console.log(`[${movieId}] Movie already has TMDB data (tmdbId: ${existingMovie.tmdbId}), skipping metadata fetch`);
+      return;
+    }
+
     // Parse title and year from file name
     const parsed = ptt.parse(fileName);
     console.log(`[${movieId}] Parsed filename: title="${parsed.title}", year=${parsed.year}`);
@@ -160,11 +173,13 @@ async function fetchAndUpdateMetadata(movieId: string, fileName: string): Promis
       return;
     }
 
-    // Update title immediately
-    movies.updateMetadata(movieId, { title: parsed.title, year: parsed.year || null });
+    // Only update title if we don't already have TMDB poster data
+    if (!existingMovie?.posterUrl) {
+      movies.updateMetadata(movieId, { title: parsed.title, year: parsed.year || null });
+    }
 
-    // Search TMDB if API key is configured
-    if (config.tmdb.apiKey) {
+    // Search TMDB if API key is configured and we don't have poster
+    if (config.tmdb.apiKey && !existingMovie?.posterUrl) {
       console.log(`[${movieId}] Searching TMDB for: "${parsed.title}" (${parsed.year || 'no year'})`);
       const results = await searchMovie(parsed.title, parsed.year);
       console.log(`[${movieId}] TMDB returned ${results.length} results`);
@@ -218,17 +233,21 @@ async function initializeDownload(movieId: string, magnetLink: string): Promise<
   const downloadPath = path.join(config.paths.temp, movieId);
   await fs.mkdir(downloadPath, { recursive: true });
 
-  console.log(`Starting download for movie ${movieId}`);
-  console.log(`Magnet: ${magnetLink.substring(0, 60)}...`);
+  console.log(`[${movieId}] Starting download...`);
+  console.log(`[${movieId}] Magnet: ${magnetLink.substring(0, 80)}...`);
+  console.log(`[${movieId}] Using ${TRACKERS.length} trackers`);
   movies.updateProgress(movieId, 0, 'downloading');
 
   const torrentClient = await getClient();
+  console.log(`[${movieId}] Got WebTorrent client, adding torrent...`);
 
   return new Promise((resolve, reject) => {
     const torrent = torrentClient.add(magnetLink, {
       path: downloadPath,
       announce: TRACKERS,
     });
+    
+    console.log(`[${movieId}] Torrent added, waiting for metadata...`);
 
     const download: ActiveDownload = {
       movieId,
