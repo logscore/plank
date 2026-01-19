@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
-  import { ArrowLeft, Play, Calendar, Clock, HardDrive, Film, Folder, Database, Trash2, RotateCcw } from 'lucide-svelte';
+  import { ArrowLeft, Play, Calendar, Clock, HardDrive, Film, Folder, Database, Trash2, RotateCcw, Copy, Check } from 'lucide-svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
   import Input from '$lib/components/ui/Input.svelte';
@@ -11,6 +11,7 @@
   let { data } = $props<{ data: PageData }>();
   let deleting = $state(false);
   let retrying = $state(false);
+  let copied = $state(false);
 
   // Add Movie Dialog state
   let magnetInput = $state('');
@@ -46,6 +47,17 @@
       hour: '2-digit',
       minute: '2-digit'
     });
+  }
+
+  async function copyFilePath() {
+    if (!data.movie.filePath) return;
+    try {
+      await navigator.clipboard.writeText(data.movie.filePath);
+      copied = true;
+      setTimeout(() => copied = false, 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
   }
 
   let eventSource: EventSource | null = null;
@@ -194,7 +206,7 @@
         {/if}
 
         <!-- Back Button -->
-        <div class="sticky top-6 left-6 z-10">
+        <div class="fixed top-6 left-6 z-50">
             <a href="/">
                 <Button variant="ghost" class="bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm">
                     <ArrowLeft class="w-5 h-5 mr-2" />
@@ -344,7 +356,22 @@
                 <div class="space-y-3 text-sm">
                     <div>
                         <span class="text-muted-foreground block mb-1">File Path</span>
-                        <code class="text-xs bg-accent px-2 py-1 rounded break-all block">{data.movie.filePath || 'Not yet downloaded'}</code>
+                         <div class="flex items-center gap-2 relative overflow-hidden group">
+                            <div class="relative flex-1 overflow-hidden">
+                                <code class="text-xs bg-accent px-2 py-1 rounded whitespace-nowrap overflow-x-auto block w-full no-scrollbar pr-6">{data.movie.filePath || 'Not yet downloaded'}</code>
+                                <!-- Fade/Blur effect on the right -->
+                                <div class="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-accent to-transparent pointer-events-none"></div>
+                            </div>
+                            {#if data.movie.filePath}
+                                <Button variant="ghost" size="icon" class="h-6 w-6 shrink-0 bg-background/50 backdrop-blur-sm" onclick={copyFilePath}>
+                                    {#if copied}
+                                        <Check class="h-3 w-3 text-green-500" />
+                                    {:else}
+                                        <Copy class="h-3 w-3" />
+                                    {/if}
+                                </Button>
+                            {/if}
+                        </div>
                     </div>
                     <div>
                         <span class="text-muted-foreground block mb-1">Infohash</span>

@@ -1,5 +1,20 @@
 import { auth } from '$lib/server/auth';
 import { redirect, type Handle } from '@sveltejs/kit';
+import cron from 'node-cron';
+import fs from 'node:fs/promises';
+import { config } from '$lib/config';
+
+// Schedule temp folder cleanup daily at midnight
+cron.schedule('0 0 * * *', async () => {
+  console.log('[Cron] Starting daily temp folder cleanup...');
+  try {
+    await fs.rm(config.paths.temp, { recursive: true, force: true });
+    await fs.mkdir(config.paths.temp, { recursive: true });
+    console.log('[Cron] Temp folder cleaned successfully');
+  } catch (e) {
+    console.error('[Cron] Failed to clean temp folder:', e);
+  }
+});
 
 export const handle: Handle = async ({ event, resolve }) => {
   const session = await auth.api.getSession({
