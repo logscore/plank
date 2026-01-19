@@ -22,15 +22,60 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const sqlite = (db as any).$client;
     
     // Hybrid search: FTS5 first, then LIKE fallback
+    // Explicitly select columns with camelCase aliases to match frontend types
     const results = sqlite.prepare(`
-      SELECT m.*, fts.rank as fts_rank, 1 as priority
+      SELECT 
+        m.id,
+        m.user_id as userId,
+        m.title,
+        m.year,
+        m.poster_url as posterUrl,
+        m.backdrop_url as backdropUrl,
+        m.overview,
+        m.magnet_link as magnetLink,
+        m.infohash,
+        m.file_path as filePath,
+        m.file_size as fileSize,
+        m.status,
+        m.progress,
+        m.tmdb_id as tmdbId,
+        m.runtime,
+        m.genres,
+        m.original_language as originalLanguage,
+        m.certification,
+        m.added_at as addedAt,
+        m.last_played_at as lastPlayedAt,
+        fts.rank as fts_rank,
+        1 as priority
       FROM movies_fts fts
       JOIN movies m ON fts.movie_id = m.id
       WHERE fts.user_id = ? AND movies_fts MATCH ? || '*'
       
       UNION ALL
       
-      SELECT m.*, NULL as fts_rank, 2 as priority
+      SELECT 
+        m.id,
+        m.user_id as userId,
+        m.title,
+        m.year,
+        m.poster_url as posterUrl,
+        m.backdrop_url as backdropUrl,
+        m.overview,
+        m.magnet_link as magnetLink,
+        m.infohash,
+        m.file_path as filePath,
+        m.file_size as fileSize,
+        m.status,
+        m.progress,
+        m.tmdb_id as tmdbId,
+        m.runtime,
+        m.genres,
+        m.original_language as originalLanguage,
+        m.certification,
+        m.added_at as addedAt,
+        m.last_played_at as lastPlayedAt,
+        NULL as fts_rank,
+        2 as priority
       FROM movies m
       WHERE m.user_id = ? AND m.title LIKE '%' || ? || '%'
         AND NOT EXISTS (

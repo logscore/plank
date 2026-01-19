@@ -113,6 +113,7 @@
       placeholder="magnet:?xt=urn:btih:..."
       bind:value={magnetInput}
       onkeydown={(e) => e.key === 'Enter' && addMagnet()}
+      autofocus
     />
     {#if error}
       <p class="text-sm text-destructive">{error}</p>

@@ -105,6 +105,7 @@
                 oninput={handleInput}
                 placeholder="Search your library..."
                 autocomplete="off"
+                autofocus
                 class="w-full h-14 rounded-full border border-border bg-card pl-12 pr-6 text-lg outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/50 transition-all"
             />
         </div>
@@ -148,6 +149,7 @@
       placeholder="magnet:?xt=urn:btih:..."
       bind:value={magnetInput}
       onkeydown={(e) => e.key === 'Enter' && addMagnet()}
+      autofocus
     />
     {#if error}
       <p class="text-sm text-destructive">{error}</p>
