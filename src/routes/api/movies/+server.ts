@@ -37,7 +37,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     console.log(`[POST /api/movies] Movie already exists (id: ${existing.id}), returning existing`);
     // Return existing movie instead of error - allows retry of failed downloads
     if (existing.status === 'added' || existing.status === 'downloading') {
-      startDownload(existing.id, magnetLink);
+      startDownload(existing.id, magnetLink).catch(e => {
+        console.error(`Failed to resume download for ${existing.id}:`, e);
+        movies.updateProgress(existing.id, 0, 'error');
+      });
     }
     return json(existing, { status: 200 });
   }
@@ -76,13 +79,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       if (results.length > 0) {
         const basicResult = results[0];
         console.log(`[POST /api/movies] Using TMDB result: "${basicResult.title}" (${basicResult.year}), fetching details...`);
-        
+
         // Fetch full details for additional metadata
         const { getMovieDetails } = await import('$lib/server/tmdb');
         const details = await getMovieDetails(basicResult.tmdbId);
-        
-        metadata = { 
-          ...metadata, 
+
+        metadata = {
+          ...metadata,
           ...details,
         };
         console.log(`[POST /api/movies] Got details: runtime=${metadata.runtime}min, cert=${metadata.certification}`);
@@ -112,7 +115,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   });
 
   // Start server-side download
-  startDownload(movie.id, magnetLink);
+  startDownload(movie.id, magnetLink).catch(e => {
+    console.error(`Failed to start download for ${movie.id}:`, e);
+    movies.updateProgress(movie.id, 0, 'error');
+  });
 
   return json(movie, { status: 201 });
 };

@@ -1,11 +1,11 @@
 TODO:
-- Pretty up the UI
-- Find a way to make scrubbing on MKV/AVI formats work better
-- Subtitles
-- Search your library
-- How to handle shows? 
-  - The initial view is just a link to the list of episodes?
-- Pick where you want the movies saved. S3, Google Drive, file server, local drive, etc.
-- Search other torrent aggregators and have an instant "add to library" and "watch now" button
-- In the movie view, clicking the image flips to display the metadata descripton, movie length, title, year release, etc. There is a play button in the bottom right corner (not visible when viewing metadata)
-- 
+- [x] Pretty up the UI
+- [ ] Find a way to make scrubbing on MKV/AVI formats work better
+- [ ] Subtitles
+- [x] Search your library
+- [ ] How to handle shows? 
+  - [ ] The initial view is just a link to the list of episodes?
+  - [ ] The ui should be a context menu thats wide with a scrollable list of the episodes with a play icon to the left of each entry
+- [ ] Pick where you want the movies saved. S3, Google Drive, file server, local drive, etc.
+- [ ] Search other torrent aggregators and have an instant "add to library" and "watch now" button
+- [x] In the movie view, clicking the image flips to display the metadata descripton, movie length, title, year release, etc. There is a play button in the bottom right corner (not visible when viewing metadata)

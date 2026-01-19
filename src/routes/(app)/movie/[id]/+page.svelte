@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
-  import { ArrowLeft, Play, Calendar, Clock, HardDrive, Film, Folder, Database, Trash2, RotateCcw, Copy, Check } from 'lucide-svelte';
+  import { ArrowLeft, Play, Calendar, Film, Folder, Database, Trash2, RotateCcw, Copy, Check } from 'lucide-svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
   import Input from '$lib/components/ui/Input.svelte';

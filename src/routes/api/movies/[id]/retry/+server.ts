@@ -11,7 +11,16 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 
   // Reset status and start fresh download
   movies.updateProgress(movie.id, 0, 'added');
-  startDownload(movie.id, movie.magnetLink);
+  
+  try {
+    await startDownload(movie.id, movie.magnetLink);
+  } catch (e) {
+    console.error(`Failed to restart download for ${movie.id}:`, e);
+    // Revert status to error
+    movies.updateProgress(movie.id, 0, 'error');
+    // If it's a magnet link error, we could return 400
+    return json({ success: false, message: 'Failed to restart download: ' + (e as Error).message }, { status: 400 });
+  }
 
   return json({ success: true, message: 'Download restarted' });
 };

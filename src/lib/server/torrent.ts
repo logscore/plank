@@ -1,3 +1,4 @@
+import parseTorrent from 'parse-torrent';
 import { config } from '$lib/config';
 import { movies } from './db';
 import { searchMovie } from './tmdb';
@@ -241,13 +242,44 @@ async function initializeDownload(movieId: string, magnetLink: string): Promise<
   const torrentClient = await getClient();
   console.log(`[${movieId}] Got WebTorrent client, adding torrent...`);
 
-  return new Promise((resolve, reject) => {
-    const torrent = torrentClient.add(magnetLink, {
-      path: downloadPath,
-      announce: TRACKERS,
-    });
+  return new Promise(async (resolve, reject) => {
+    let torrent: Torrent;
     
-    console.log(`[${movieId}] Torrent added, waiting for metadata...`);
+    try {
+      // Check for existing torrent with same infoHash
+      // This prevents "Cannot add duplicate torrent" crash
+      let infoHash: string | undefined;
+      try {
+        const parsed = parseTorrent(magnetLink);
+        // parseTorrent can return an object with infoHash or just the infoHash string if it's a simple magnet
+        // Types might be tricky but at runtime it has infoHash property if it's an object
+        if (typeof parsed === 'string') {
+            infoHash = parsed;
+        } else if (parsed && typeof parsed === 'object' && 'infoHash' in parsed) {
+            infoHash = parsed.infoHash;
+        }
+      } catch (e) {
+        console.warn(`[${movieId}] Failed to parse magnet link for infoHash check`, e);
+      }
+
+      const existing = infoHash ? torrentClient.get(infoHash) : null;
+      
+      if (existing) {
+        console.log(`[${movieId}] Torrent already exists (cached), reusing: ${infoHash}`);
+        torrent = existing;
+      } else {
+         torrent = torrentClient.add(magnetLink, {
+          path: downloadPath,
+          announce: TRACKERS,
+        });
+      }
+    } catch (e) {
+      console.error(`[${movieId}] Failed to add torrent:`, e);
+      reject(e);
+      return;
+    }
+    
+    console.log(`[${movieId}] Torrent added (or reused), waiting for metadata...`);
 
     const download: ActiveDownload = {
       movieId,
