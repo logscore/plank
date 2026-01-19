@@ -27,7 +27,9 @@ The script will install dependencies, clone the repo, configure environment, and
 ```bash
 git clone https://github.com/logscore/plank.git
 cd plank
-docker compose -f docker/docker-compose.selfhosted.yml up -d --build
+cp .env.example .env
+# Edit your .env file with your environment variables
+docker compose -f docker/docker-compose.yml --env-file .env up -d
 ```
 
 ### Bare Metal
@@ -35,6 +37,8 @@ docker compose -f docker/docker-compose.selfhosted.yml up -d --build
 ```bash
 git clone https://github.com/logscore/plank.git
 cd plank
+cp .env.example .env
+# Edit your .env file with your environment variables
 npm install
 npm run build
 npx drizzle-kit migrate
@@ -60,4 +64,3 @@ npm run dev
 
 ## License
 
-MIT
