@@ -27,7 +27,8 @@ if ! command -v pct &> /dev/null; then
 fi
 
 # Get next available CT ID
-CTID=$(pvesh get /cluster/nextid)
+read -p "Enter container ID [plank]: " CTID
+CTID=${CTID:-plank}
 echo -e "${YELLOW}Using Container ID: ${CTID}${NC}"
 
 # Configuration prompts
