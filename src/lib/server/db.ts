@@ -1,4 +1,4 @@
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { db, movies as moviesTable, type Movie, type NewMovie } from './db/index';
 
 export const movies = {
@@ -8,6 +8,17 @@ export const movies = {
       .from(moviesTable)
       .where(eq(moviesTable.userId, userId))
       .orderBy(desc(moviesTable.addedAt))
+      .all();
+  },
+
+  // Get all movies with incomplete download status (for recovery on startup)
+  getIncompleteDownloads(): Movie[] {
+    return db
+      .select()
+      .from(moviesTable)
+      .where(
+        sql`${moviesTable.status} IN ('downloading', 'added')`
+      )
       .all();
   },
 

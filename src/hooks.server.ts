@@ -3,6 +3,12 @@ import { redirect, type Handle } from '@sveltejs/kit';
 import cron from 'node-cron';
 import fs from 'node:fs/promises';
 import { config } from '$lib/config';
+import { recoverDownloads } from '$lib/server/torrent';
+
+// Recover incomplete downloads on server startup
+recoverDownloads().catch(e => {
+  console.error('[Startup] Failed to recover downloads:', e);
+});
 
 // Schedule temp folder cleanup daily at midnight
 cron.schedule('0 0 * * *', async () => {

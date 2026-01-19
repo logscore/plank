@@ -676,3 +676,131 @@ export async function deleteMovieFiles(movieId: string): Promise<void> {
     }
   }
 }
+
+/**
+ * Finalize a download from the temp directory.
+ * Called during recovery when a video file already exists in temp but wasn't moved to library.
+ */
+async function finalizeFromTemp(movieId: string, videoPath: string, fileName: string): Promise<boolean> {
+  const destDir = path.join(config.paths.library, movieId);
+  const destPath = path.join(destDir, fileName);
+
+  try {
+    await fs.mkdir(destDir, { recursive: true });
+    await fs.copyFile(videoPath, destPath);
+    
+    const stats = await fs.stat(destPath);
+    const fileSize = stats.size;
+    
+    movies.updateFilePath(movieId, destPath, fileSize);
+    movies.updateProgress(movieId, 1, 'complete');
+    console.log(`[Recovery] [${movieId}] Finalized from temp: ${destPath} (${fileSize} bytes)`);
+
+    // Clean up temp directory
+    const tempDir = path.join(config.paths.temp, movieId);
+    try {
+      await fs.rm(tempDir, { recursive: true, force: true });
+      console.log(`[Recovery] [${movieId}] Cleaned up temp directory`);
+    } catch {
+      // Ignore cleanup errors
+    }
+
+    return true;
+  } catch (e) {
+    console.error(`[Recovery] [${movieId}] Failed to finalize from temp:`, e);
+    return false;
+  }
+}
+
+/**
+ * Find the largest video file in a directory (recursively).
+ */
+async function findVideoInDirectory(dirPath: string): Promise<{ path: string; name: string; size: number } | null> {
+  try {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    let bestVideo: { path: string; name: string; size: number } | null = null;
+
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name);
+      
+      if (entry.isDirectory()) {
+        const nested = await findVideoInDirectory(fullPath);
+        if (nested && (!bestVideo || nested.size > bestVideo.size)) {
+          bestVideo = nested;
+        }
+      } else if (entry.isFile() && isSupportedFormat(entry.name)) {
+        const stats = await fs.stat(fullPath);
+        if (!bestVideo || stats.size > bestVideo.size) {
+          bestVideo = { path: fullPath, name: entry.name, size: stats.size };
+        }
+      }
+    }
+
+    return bestVideo;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Recover incomplete downloads on server startup.
+ * Checks for movies stuck in 'downloading' or 'added' status and either:
+ * - Finalizes them if the video file exists in temp
+ * - Restarts the download if no file is found
+ */
+export async function recoverDownloads(): Promise<void> {
+  console.log('[Recovery] Checking for incomplete downloads...');
+  
+  const incompleteMovies = movies.getIncompleteDownloads();
+  
+  if (incompleteMovies.length === 0) {
+    console.log('[Recovery] No incomplete downloads found');
+    return;
+  }
+
+  console.log(`[Recovery] Found ${incompleteMovies.length} incomplete download(s)`);
+
+  for (const movie of incompleteMovies) {
+    const movieId = movie.id;
+    const tempDir = path.join(config.paths.temp, movieId);
+
+    // Skip if already being processed
+    if (activeDownloads.has(movieId) || pendingDownloads.has(movieId)) {
+      console.log(`[Recovery] [${movieId}] Already active, skipping`);
+      continue;
+    }
+
+    // Check if file exists in library (might already be complete but status not updated)
+    if (movie.filePath && existsSync(movie.filePath)) {
+      console.log(`[Recovery] [${movieId}] File already in library, marking complete`);
+      movies.updateProgress(movieId, 1, 'complete');
+      continue;
+    }
+
+    // Check if temp directory exists with video file
+    if (existsSync(tempDir)) {
+      const videoInfo = await findVideoInDirectory(tempDir);
+      
+      if (videoInfo && videoInfo.size >= MIN_VIDEO_SIZE) {
+        console.log(`[Recovery] [${movieId}] Found video in temp: ${videoInfo.name} (${(videoInfo.size / 1024 / 1024).toFixed(2)} MB)`);
+        
+        const success = await finalizeFromTemp(movieId, videoInfo.path, videoInfo.name);
+        if (success) {
+          continue;
+        }
+      }
+    }
+
+    // No file found - restart download if magnet link is available
+    if (movie.magnetLink) {
+      console.log(`[Recovery] [${movieId}] No file found, restarting download`);
+      startDownload(movieId, movie.magnetLink).catch(e => {
+        console.error(`[Recovery] [${movieId}] Failed to restart download:`, e);
+        movies.updateProgress(movieId, 0, 'error');
+      });
+    } else {
+      console.log(`[Recovery] [${movieId}] No magnet link, marking as error`);
+      movies.updateProgress(movieId, 0, 'error');
+    }
+  }
+}

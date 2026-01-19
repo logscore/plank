@@ -4,6 +4,10 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [tailwindcss(), sveltekit()],
+  server: {
+    host: '0.0.0.0',
+    port: parseInt(process.env.PORT || '3300')
+  },
   build: {
     rollupOptions: {
       external: ['webtorrent']

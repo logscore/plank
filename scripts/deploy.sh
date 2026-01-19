@@ -42,12 +42,16 @@ setup_env() {
     
     read -p "Enable File Storage (for uploads)? (true/false) [true]: " ENABLE_FILE_STORAGE
     ENABLE_FILE_STORAGE=${ENABLE_FILE_STORAGE:-true}
+    
+    read -p "Enter Port [3000]: " PORT
+    PORT=${PORT:-3000}
 
     cat > .env << EOF
 BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
 BETTER_AUTH_URL=${BETTER_AUTH_URL}
 TMDB_API_KEY=${TMDB_API_KEY}
 ENABLE_FILE_STORAGE=${ENABLE_FILE_STORAGE}
+PORT=${PORT}
 DATABASE_URL=file:./plank.db
 EOF
 # Note: DATABASE_URL might need adjustment for Docker vs Bare Metal, handled in docker-compose usually, but good to have base
@@ -94,6 +98,11 @@ deploy_bare_metal() {
 
     setup_env
 
+    # Load env vars for bare metal execution
+    set -a
+    source .env
+    set +a
+
     echo -e "\n${YELLOW}Installing dependencies...${NC}"
     npm install
 
@@ -104,7 +113,7 @@ deploy_bare_metal() {
     npx drizzle-kit migrate
 
     echo -e "\n${GREEN}Build Complete!${NC}"
-    echo "You can run the server using: npm run dev (dev) or node build (prod)"
+
 
     # Systemd Service Offer
     if [ -d "/etc/systemd/system" ]; then
@@ -142,6 +151,28 @@ EOF
             echo "  sudo systemctl start plank"
         fi
     fi
+
+    echo -e "\n${YELLOW}Would you like to start the server now?${NC}"
+    server_options=("Start Production (node build)" "Start Development (npm run dev)" "Do not start now")
+    select s_opt in "${server_options[@]}"
+    do
+        case $s_opt in
+            "Start Production (node build)")
+                echo -e "${GREEN}Starting production server...${NC}"
+                node build
+                break
+                ;;
+            "Start Development (npm run dev)")
+                echo -e "${GREEN}Starting development server...${NC}"
+                npm run dev
+                break
+                ;;
+            "Do not start now")
+                break
+                ;;
+            *) echo "invalid option $REPLY";;
+        esac
+    done
 }
 
 # Main Menu
