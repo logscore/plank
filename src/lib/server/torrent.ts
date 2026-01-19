@@ -158,10 +158,16 @@ async function ensureDirectories(): Promise<void> {
 
 async function fetchAndUpdateMetadata(movieId: string, fileName: string): Promise<void> {
   try {
-    // Check if movie already has TMDB data - skip if so
-    const existingMovie = movies.get(movieId, '');
+    // Check if movie already has TMDB data - skip entirely if so
+    const existingMovie = movies.getById(movieId);
     if (existingMovie?.tmdbId) {
       console.log(`[${movieId}] Movie already has TMDB data (tmdbId: ${existingMovie.tmdbId}), skipping metadata fetch`);
+      return;
+    }
+
+    // Also skip if we already have a poster URL (means TMDB data was fetched successfully during creation)
+    if (existingMovie?.posterUrl) {
+      console.log(`[${movieId}] Movie already has poster data, skipping metadata fetch`);
       return;
     }
 
@@ -174,13 +180,11 @@ async function fetchAndUpdateMetadata(movieId: string, fileName: string): Promis
       return;
     }
 
-    // Only update title if we don't already have TMDB poster data
-    if (!existingMovie?.posterUrl) {
-      movies.updateMetadata(movieId, { title: parsed.title, year: parsed.year || null });
-    }
+    // Update title from filename (only if we don't have TMDB data)
+    movies.updateMetadata(movieId, { title: parsed.title, year: parsed.year || null });
 
-    // Search TMDB if API key is configured and we don't have poster
-    if (config.tmdb.apiKey && !existingMovie?.posterUrl) {
+    // Search TMDB if API key is configured
+    if (config.tmdb.apiKey) {
       console.log(`[${movieId}] Searching TMDB for: "${parsed.title}" (${parsed.year || 'no year'})`);
       const results = await searchMovie(parsed.title, parsed.year);
       console.log(`[${movieId}] TMDB returned ${results.length} results`);
@@ -467,7 +471,7 @@ export async function getVideoStream(
   start?: number,
   end?: number
 ): Promise<StreamInfo | null> {
-  const movie = movies.get(movieId, '');
+  const movie = movies.getById(movieId);
 
   // First check if file exists in library (completed downloads)
   if (movie?.filePath && existsSync(movie.filePath)) {
@@ -541,7 +545,7 @@ export function getDownloadStatus(movieId: string): {
 
   if (!download) {
     // Check database for completed downloads
-    const movie = movies.get(movieId, '');
+    const movie = movies.getById(movieId);
     if (movie?.status === 'complete') {
       return {
         progress: 1,
@@ -583,7 +587,7 @@ export async function waitForVideoReady(movieId: string, timeoutMs: number = 300
     }
 
     // Check if file exists in library
-    const movie = movies.get(movieId, '');
+    const movie = movies.getById(movieId);
     if (movie?.filePath && existsSync(movie.filePath)) {
       return true;
     }

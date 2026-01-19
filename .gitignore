@@ -8,3 +8,4 @@ build
 *.db-shm
 .DS_Store
 data
+docker/media

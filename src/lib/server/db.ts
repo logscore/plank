@@ -27,6 +27,15 @@ export const movies = {
       .get();
   },
 
+  // Get movie by ID only (for internal server use, e.g., during download)
+  getById(id: string): Movie | undefined {
+    return db
+      .select()
+      .from(moviesTable)
+      .where(eq(moviesTable.id, id))
+      .get();
+  },
+
   create(movie: Omit<NewMovie, 'id' | 'addedAt' | 'status' | 'progress'>): Movie {
     const id = crypto.randomUUID();
     const now = new Date();
