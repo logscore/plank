@@ -6,7 +6,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     ports:
-      - "3000:3000"
+      - "3300:3000"
     environment:
       - ENABLE_FILE_STORAGE=false
       - DATABASE_URL=/app/db/plank.db

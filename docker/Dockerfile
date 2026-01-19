@@ -29,7 +29,7 @@ RUN chmod +x /app/docker/entrypoint.sh
 
 ENV NODE_ENV=production
 
-EXPOSE 3000
+EXPOSE 3300
 EXPOSE 6881
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]

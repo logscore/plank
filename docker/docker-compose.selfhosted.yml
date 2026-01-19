@@ -4,7 +4,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     ports:
-      - "3000:3000"
+      - "3300:3000"
       - "6881:6881"
       - "6881:6881/udp"
     environment:
