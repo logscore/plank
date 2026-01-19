@@ -5,7 +5,7 @@ services:
       dockerfile: docker/Dockerfile
     ports:
       - "3300:3000"
-      - "6881:6881"
+      - "6881:6881/tcp"
       - "6881:6881/udp"
     environment:
       - ENABLE_FILE_STORAGE=true
