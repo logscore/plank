@@ -10,6 +10,8 @@
 
   let showMenu = $state(false);
   let retrying = $state(false);
+  let isMobileActive = $state(false);
+  let rootEl: HTMLElement | undefined = $state();
 
   function handleMenuClick(e: Event) {
     e.preventDefault();
@@ -40,8 +42,28 @@
   }
 
   function handleClickOutside(e: MouseEvent) {
-    if (showMenu && !(e.target as HTMLElement).closest('.movie-menu')) {
+    const target = e.target as HTMLElement;
+    if (showMenu && !target.closest('.movie-menu')) {
       showMenu = false;
+    }
+    // Close mobile overlay if clicked outside
+    if (isMobileActive && rootEl && !rootEl.contains(target)) {
+      isMobileActive = false;
+    }
+  }
+
+  function toggleMobileActive(e: Event) {
+    // Don't toggle if we clicked an interactive element inside
+    if ((e.target as HTMLElement).closest('button, a')) {
+      return;
+    }
+    isMobileActive = !isMobileActive;
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleMobileActive(e);
     }
   }
 
@@ -56,7 +78,12 @@
 <svelte:document onclick={handleClickOutside} />
 
 <div
-    class="relative aspect-2/3 rounded-lg overflow-hidden group shadow-lg border border-border/50 bg-card hover:scale-[1.02] hover:z-20 hover:border-red-500 transition-all duration-500"
+    bind:this={rootEl}
+    onclick={toggleMobileActive}
+    onkeydown={handleKeydown}
+    role="button"
+    tabindex="0"
+    class="relative aspect-2/3 rounded-lg overflow-hidden group shadow-lg border border-border/50 bg-card hover:scale-[1.02] hover:z-20 hover:border-red-500 transition-all duration-500 outline-none"
 >
     <!-- Poster Image -->
     {#if movie.posterUrl}
@@ -71,8 +98,13 @@
         </div>
     {/if}
 
-    <!-- Details Overlay (Visible on Hover) -->
-    <div class="absolute inset-0 p-4 flex flex-col justify-between opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 ease-out bg-black/60 backdrop-blur-sm">
+    <!-- Details Overlay (Visible on Hover or Mobile Active) -->
+    <div 
+        class="absolute inset-0 p-4 flex flex-col justify-between transition-all duration-300 ease-out bg-black/60 backdrop-blur-sm
+        {isMobileActive 
+            ? 'opacity-100 translate-y-0 pointer-events-auto' 
+            : 'opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto'}"
+    >
         <div class="space-y-2 overflow-hidden flex-1 min-h-0 flex flex-col">
             <h4 class="font-bold text-lg leading-tight text-white shrink-0">{movie.title}</h4>
             <div class="flex items-center gap-2 text-xs text-zinc-300 shrink-0">
