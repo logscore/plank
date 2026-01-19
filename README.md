@@ -3,6 +3,10 @@ TODO:
 - [ ] Find a way to make scrubbing on MKV/AVI formats work better
 - [ ] Subtitles
 - [x] Search your library
+  - [ ] Search by title
+  - [ ] Search by year
+  - [ ] Search by genre
+  - [ ] Search by rating
 - [ ] How to handle shows? 
   - [ ] The initial view is just a link to the list of episodes?
   - [ ] The ui should be a context menu thats wide with a scrollable list of the episodes with a play icon to the left of each entry
