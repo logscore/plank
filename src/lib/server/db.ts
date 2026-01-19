@@ -42,6 +42,10 @@ export const movies = {
       magnetLink: movie.magnetLink,
       infohash: movie.infohash,
       tmdbId: movie.tmdbId,
+      runtime: movie.runtime,
+      genres: movie.genres,
+      originalLanguage: movie.originalLanguage,
+      certification: movie.certification,
       status: 'added',
       progress: 0,
       addedAt: now,
@@ -93,6 +97,10 @@ export const movies = {
       backdropUrl?: string | null;
       overview?: string | null;
       tmdbId?: number | null;
+      runtime?: number | null;
+      genres?: string | null;
+      originalLanguage?: string | null;
+      certification?: string | null;
     }
   ) {
     const updates: Record<string, unknown> = {};
@@ -102,6 +110,10 @@ export const movies = {
     if (metadata.backdropUrl !== undefined) updates.backdropUrl = metadata.backdropUrl;
     if (metadata.overview !== undefined) updates.overview = metadata.overview;
     if (metadata.tmdbId !== undefined) updates.tmdbId = metadata.tmdbId;
+    if (metadata.runtime !== undefined) updates.runtime = metadata.runtime;
+    if (metadata.genres !== undefined) updates.genres = metadata.genres;
+    if (metadata.originalLanguage !== undefined) updates.originalLanguage = metadata.originalLanguage;
+    if (metadata.certification !== undefined) updates.certification = metadata.certification;
 
     if (Object.keys(updates).length > 0) {
       db.update(moviesTable)

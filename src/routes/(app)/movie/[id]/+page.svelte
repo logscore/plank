@@ -1,11 +1,18 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { goto } from '$app/navigation';
+  import { onMount, onDestroy } from 'svelte';
   import { ArrowLeft, Play, Calendar, Clock, HardDrive, Film, Folder, Database, Trash2 } from 'lucide-svelte';
   import Button from '$lib/components/ui/Button.svelte';
 
   let { data } = $props<{ data: PageData }>();
   let deleting = $state(false);
+  
+  // Live stats (updated via SSE)
+  let liveStatus = $state(data.movie.status);
+  let liveProgress = $state(data.movie.progress);
+  let downloadSpeed = $state(0);
+  let peers = $state(0);
 
   function formatFileSize(bytes: number | null): string {
     if (!bytes) return 'Unknown';
@@ -13,6 +20,12 @@
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
     return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+  }
+
+  function formatSpeed(bytesPerSecond: number): string {
+    if (bytesPerSecond < 1024) return `${bytesPerSecond} B/s`;
+    if (bytesPerSecond < 1024 * 1024) return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
+    return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
   }
 
   function formatDate(date: Date | null): string {
@@ -25,6 +38,54 @@
       minute: '2-digit'
     });
   }
+
+  let eventSource: EventSource | null = null;
+
+  function startStream() {
+    if (eventSource) return;
+    
+    eventSource = new EventSource(`/api/movies/${data.movie.id}/progress/stream`);
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const info = JSON.parse(event.data);
+        liveStatus = info.status;
+        liveProgress = info.progress;
+        downloadSpeed = info.downloadSpeed || 0;
+        peers = info.peers || 0;
+        
+        // SSE will auto-close when complete, but we stop listening too
+        if (info.status === 'complete') {
+          stopStream();
+        }
+      } catch (e) {
+        console.error('Failed to parse SSE data:', e);
+      }
+    };
+
+    eventSource.onerror = () => {
+      // Connection closed or error - stop listening
+      stopStream();
+    };
+  }
+
+  function stopStream() {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+  }
+
+  onMount(() => {
+    // Only stream if not complete
+    if (data.movie.status !== 'complete') {
+      startStream();
+    }
+  });
+
+  onDestroy(() => {
+    stopStream();
+  });
 
   async function handleDelete() {
     if (!confirm('Are you sure you want to delete this movie?')) return;
@@ -88,13 +149,42 @@
 
             <!-- Details -->
             <div class="flex-1 space-y-6">
-                <!-- Title & Year -->
+                <!-- Title -->
                 <div>
                     <h1 class="text-3xl md:text-4xl font-bold text-white">{data.movie.title}</h1>
+                </div>
+
+                <!-- Meta Badges -->
+                <div class="flex flex-wrap items-center gap-3 text-sm">
+                    {#if data.movie.certification}
+                        <span class="px-3 py-1 rounded-full border border-white/30 text-white font-semibold">
+                            {data.movie.certification}
+                        </span>
+                    {/if}
                     {#if data.movie.year}
-                        <p class="text-lg text-muted-foreground mt-1">{data.movie.year}</p>
+                        <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">{data.movie.year}</span>
+                    {/if}
+                    {#if data.movie.runtime}
+                        <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">
+                            {Math.floor(data.movie.runtime / 60)}h {data.movie.runtime % 60}m
+                        </span>
+                    {/if}
+                    {#if data.movie.originalLanguage}
+                        <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground uppercase">
+                            {data.movie.originalLanguage}
+                        </span>
                     {/if}
                 </div>
+
+                <!-- Genres -->
+                {#if data.movie.genres}
+                    {@const genreList = JSON.parse(data.movie.genres) as string[]}
+                    <div class="flex flex-wrap gap-2">
+                        {#each genreList as genre}
+                            <span class="px-3 py-1 rounded-full border border-white/20 text-sm text-muted-foreground">{genre}</span>
+                        {/each}
+                    </div>
+                {/if}
 
                 <!-- Action Buttons -->
                 <div class="flex items-center gap-3">
@@ -136,12 +226,22 @@
                 <div class="space-y-3 text-sm">
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">Status</span>
-                        <span class="capitalize font-medium {data.movie.status === 'complete' ? 'text-green-400' : data.movie.status === 'downloading' ? 'text-yellow-400' : 'text-muted-foreground'}">{data.movie.status}</span>
+                        <span class="capitalize font-medium {liveStatus === 'complete' ? 'text-green-400' : liveStatus === 'downloading' ? 'text-yellow-400' : 'text-muted-foreground'}">{liveStatus}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">Progress</span>
-                        <span class="font-medium">{(data.movie.progress * 100).toFixed(1)}%</span>
+                        <span class="font-medium">{(liveProgress * 100).toFixed(1)}%</span>
                     </div>
+                    {#if liveStatus === 'downloading'}
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">Download Speed</span>
+                            <span class="font-medium text-blue-400">{formatSpeed(downloadSpeed)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">Peers</span>
+                            <span class="font-medium text-green-400">{peers}</span>
+                        </div>
+                    {/if}
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">File Size</span>
                         <span class="font-medium">{formatFileSize(data.movie.fileSize)}</span>

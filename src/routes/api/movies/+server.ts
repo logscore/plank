@@ -50,6 +50,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     backdropUrl: string | null;
     overview: string | null;
     tmdbId: number | null;
+    runtime: number | null;
+    genres: string | null;
+    originalLanguage: string | null;
+    certification: string | null;
   } = {
     title: title || 'Unknown',
     year: year || null,
@@ -57,6 +61,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     backdropUrl: null,
     overview: null,
     tmdbId: null,
+    runtime: null,
+    genres: null,
+    originalLanguage: null,
+    certification: null,
   };
 
   console.log(`[POST /api/movies] TMDB API key configured: ${!!config.tmdb.apiKey}`);
@@ -66,8 +74,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       const results = await searchMovie(title, year);
       console.log(`[POST /api/movies] TMDB returned ${results.length} results`);
       if (results.length > 0) {
-        console.log(`[POST /api/movies] Using TMDB result: "${results[0].title}" (${results[0].year}), poster: ${results[0].posterUrl}`);
-        metadata = { ...metadata, ...results[0] };
+        const basicResult = results[0];
+        console.log(`[POST /api/movies] Using TMDB result: "${basicResult.title}" (${basicResult.year}), fetching details...`);
+        
+        // Fetch full details for additional metadata
+        const { getMovieDetails } = await import('$lib/server/tmdb');
+        const details = await getMovieDetails(basicResult.tmdbId);
+        
+        metadata = { 
+          ...metadata, 
+          ...details,
+        };
+        console.log(`[POST /api/movies] Got details: runtime=${metadata.runtime}min, cert=${metadata.certification}`);
       }
     } catch (e) {
       console.error('[POST /api/movies] TMDB search failed:', e);
@@ -87,6 +105,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     magnetLink,
     infohash,
     tmdbId: metadata.tmdbId,
+    runtime: metadata.runtime,
+    genres: metadata.genres,
+    originalLanguage: metadata.originalLanguage,
+    certification: metadata.certification,
   });
 
   // Start server-side download

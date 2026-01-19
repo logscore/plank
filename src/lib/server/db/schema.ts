@@ -134,6 +134,11 @@ export const movies = sqliteTable(
     status: text('status', { enum: ['added', 'downloading', 'complete'] }).default('added'),
     progress: real('progress').default(0),
     tmdbId: integer('tmdb_id'),
+    // Additional TMDB metadata
+    runtime: integer('runtime'), // Runtime in minutes
+    genres: text('genres'), // JSON array of genre names
+    originalLanguage: text('original_language'),
+    certification: text('certification'), // MPAA rating (G, PG, PG-13, R, NC-17)
     addedAt: integer('added_at', { mode: 'timestamp_ms' })
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),
