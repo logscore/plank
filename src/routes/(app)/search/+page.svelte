@@ -3,11 +3,19 @@
   import type { Movie } from '$lib/types';
   import Input from '$lib/components/ui/Input.svelte';
   import MovieCard from '$lib/components/MovieCard.svelte';
+  import Dialog from '$lib/components/ui/Dialog.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
+  import { uiState } from '$lib/ui-state.svelte';
 
   let query = $state('');
   let results: Movie[] = $state([]);
   let searching = $state(false);
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  
+  // Add Movie Dialog state
+  let magnetInput = $state('');
+  let error = $state('');
+  let adding = $state(false);
 
   async function performSearch() {
     if (query.trim().length < 2) {
@@ -45,6 +53,42 @@
       }
     } catch (e) {
       console.error('Failed to delete movie:', e);
+    }
+  }
+
+  async function addMagnet() {
+    if (!magnetInput.trim()) {
+      error = 'Please enter a magnet link';
+      return;
+    }
+    if (!magnetInput.startsWith('magnet:')) {
+      error = 'Invalid magnet link format';
+      return;
+    }
+
+    error = '';
+    adding = true;
+    try {
+      const res = await fetch('/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ magnetLink: magnetInput }),
+      });
+      if (res.ok) {
+        magnetInput = '';
+        uiState.addMovieDialogOpen = false;
+        // Refresh search if there's a query
+        if (query.trim().length >= 2) {
+          performSearch();
+        }
+      } else {
+        const data = await res.json();
+        error = data.message || 'Failed to add movie';
+      }
+    } catch (e) {
+      error = 'Failed to add movie';
+    } finally {
+      adding = false;
     }
   }
 </script>
@@ -92,3 +136,28 @@
         </div>
     {/if}
 </div>
+
+<!-- Add Movie Dialog - Controlled by Global Store -->
+<Dialog
+  bind:open={uiState.addMovieDialogOpen}
+  title="Add Movie"
+  description="Paste a magnet link to start downloading."
+>
+  <div class="grid gap-4 py-4">
+    <Input
+      placeholder="magnet:?xt=urn:btih:..."
+      bind:value={magnetInput}
+      onkeydown={(e) => e.key === 'Enter' && addMagnet()}
+    />
+    {#if error}
+      <p class="text-sm text-destructive">{error}</p>
+    {/if}
+  </div>
+  <div class="flex justify-end gap-2">
+    <Button variant="ghost" onclick={() => uiState.addMovieDialogOpen = false}>Cancel</Button>
+    <Button onclick={addMagnet} disabled={adding}>
+      {adding ? 'Adding...' : 'Add Movie'}
+    </Button>
+  </div>
+</Dialog>
+

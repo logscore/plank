@@ -131,7 +131,7 @@ export const movies = sqliteTable(
     infohash: text('infohash').notNull(),
     filePath: text('file_path'),
     fileSize: integer('file_size'),
-    status: text('status', { enum: ['added', 'downloading', 'complete'] }).default('added'),
+    status: text('status', { enum: ['added', 'downloading', 'complete', 'error'] }).default('added'),
     progress: real('progress').default(0),
     tmdbId: integer('tmdb_id'),
     // Additional TMDB metadata

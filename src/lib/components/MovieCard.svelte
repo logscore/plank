@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Movie } from '$lib/types';
-  import { Play, MoreVertical, Trash2, Info } from 'lucide-svelte';
+  import { Play, MoreVertical, Trash2, Info, RotateCcw } from 'lucide-svelte';
   import Button from './ui/Button.svelte';
 
   let { movie, onDelete } = $props<{
@@ -9,6 +9,7 @@
   }>();
 
   let showMenu = $state(false);
+  let retrying = $state(false);
 
   function handleMenuClick(e: Event) {
     e.preventDefault();
@@ -21,10 +22,34 @@
     onDelete(movie.id, e);
   }
 
+  async function handleRetry(e: Event) {
+    e.preventDefault();
+    e.stopPropagation();
+    retrying = true;
+    try {
+      const res = await fetch(`/api/movies/${movie.id}/retry`, { method: 'POST' });
+      if (res.ok) {
+        // Status will update via polling/SSE; for now reload
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('Failed to retry download:', err);
+    } finally {
+      retrying = false;
+    }
+  }
+
   function handleClickOutside(e: MouseEvent) {
     if (showMenu && !(e.target as HTMLElement).closest('.movie-menu')) {
       showMenu = false;
     }
+  }
+
+  function formatRuntime(minutes: number | null) {
+    if (!minutes) return '';
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${h}h ${m}m`;
   }
 </script>
 
@@ -50,8 +75,14 @@
     <div class="absolute inset-0 p-4 flex flex-col justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/60 backdrop-blur-sm">
         <div class="space-y-2 overflow-hidden flex-1 min-h-0 flex flex-col">
             <h4 class="font-bold text-lg leading-tight text-white shrink-0">{movie.title}</h4>
-            <div class="flex items-center justify-between text-xs text-zinc-300 shrink-0">
+            <div class="flex items-center gap-2 text-xs text-zinc-300 shrink-0">
                 <span>{movie.year || ''}</span>
+                {#if movie.certification}
+                    <span class="px-1 border border-zinc-600 rounded text-[10px]">{movie.certification}</span>
+                {/if}
+                {#if movie.runtime}
+                    <span>• {formatRuntime(movie.runtime)}</span>
+                {/if}
             </div>
             {#if movie.overview}
                 <p class="text-xs text-zinc-400 leading-relaxed overflow-y-auto pr-1">
@@ -61,12 +92,23 @@
         </div>
 
         <div class="flex items-center gap-2 pt-2 shrink-0">
-            <a href="/watch/{movie.id}" class="flex-1">
-                <Button size="sm" class="w-full">
-                    <Play class="w-4 h-4 mr-2 fill-current" />
-                    Play
-                </Button>
-            </a>
+            {#if movie.status === 'error'}
+                <button
+                    onclick={handleRetry}
+                    disabled={retrying}
+                    class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-yellow-600 hover:bg-yellow-500 text-white font-medium text-sm transition disabled:opacity-50"
+                >
+                    <RotateCcw class="w-4 h-4" />
+                    {retrying ? 'Retrying...' : 'Download'}
+                </button>
+            {:else}
+                <a href="/watch/{movie.id}" class="flex-1">
+                    <Button size="sm" class="w-full">
+                        <Play class="w-4 h-4 mr-2 fill-current" />
+                        Play
+                    </Button>
+                </a>
+            {/if}
 
             <!-- Three-dot Menu -->
             <div class="relative movie-menu">

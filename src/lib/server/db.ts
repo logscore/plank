@@ -61,16 +61,16 @@ export const movies = {
     } as Movie;
   },
 
-  updateProgress(id: string, progress: number, status: 'added' | 'downloading' | 'complete') {
+  updateProgress(id: string, progress: number, status: 'added' | 'downloading' | 'complete' | 'error') {
     db.update(moviesTable)
       .set({ progress, status })
       .where(eq(moviesTable.id, id))
       .run();
   },
 
-  updateFilePath(id: string, filePath: string) {
+  updateFilePath(id: string, filePath: string, fileSize?: number) {
     db.update(moviesTable)
-      .set({ filePath, status: 'complete' })
+      .set({ filePath, fileSize: fileSize ?? null, status: 'complete' })
       .where(eq(moviesTable.id, id))
       .run();
   },

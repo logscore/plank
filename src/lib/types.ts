@@ -15,6 +15,10 @@ export interface Movie {
   status: 'added' | 'downloading' | 'complete' | null;
   progress: number | null;
   tmdbId: number | null;
+  runtime: number | null;
+  genres: string | null;
+  originalLanguage: string | null;
+  certification: string | null;
   addedAt: Date;
   lastPlayedAt: Date | null;
 }

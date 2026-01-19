@@ -1,19 +1,69 @@
 <script lang="ts">
   import { cn } from '$lib/utils';
   import { page } from '$app/stores';
-  import { Film, LogOut, Search, Plus } from 'lucide-svelte';
+  import { Film, LogOut, Search, Plus, User } from 'lucide-svelte';
   import { uiState } from '$lib/ui-state.svelte';
   import { fade, fly } from 'svelte/transition';
 
   let { children, logout } = $props();
 
+  let showAccountMenu = $state(false);
+
   const navItems = [
     { href: '/', icon: Film, label: 'Browse' },
     { href: '/search', icon: Search, label: 'Search' },
   ];
+
+  function handleClickOutside(e: MouseEvent) {
+    if (showAccountMenu && !(e.target as HTMLElement).closest('.account-menu')) {
+      showAccountMenu = false;
+    }
+  }
 </script>
 
+<svelte:document onclick={handleClickOutside} />
+
 <div class="min-h-screen bg-background text-foreground flex flex-col relative pb-24">
+  <!-- Account Button - Bottom Right Corner -->
+  {#if !$page.url.pathname.startsWith('/watch')}
+    <div class="fixed bottom-8 right-8 z-50 account-menu" transition:fly={{ y: 20, duration: 300 }}>
+      <div class="p-1.5 rounded-full border border-white/10 bg-black/80 backdrop-blur-xl shadow-2xl">
+        <button
+          onclick={() => showAccountMenu = !showAccountMenu}
+          class="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 text-zinc-400 hover:text-white hover:bg-white/10"
+          aria-label="Account"
+        >
+          <User class="w-6 h-6" />
+        </button>
+      </div>
+
+      <!-- Context Menu -->
+      {#if showAccountMenu}
+        <div class="absolute bottom-full right-0 mb-4 w-40 rounded-md shadow-lg bg-black/95 border border-white/10 ring-1 ring-black ring-opacity-5 backdrop-blur-md overflow-hidden z-50" transition:fly={{ y: 10, duration: 150 }}>
+          <div class="py-1" role="menu">
+            <a
+              href="/account"
+              class="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-3"
+              role="menuitem"
+              onclick={() => showAccountMenu = false}
+            >
+              <User class="w-4 h-4" />
+              View Account
+            </a>
+            <button
+              onclick={() => { showAccountMenu = false; logout(); }}
+              class="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-white/10 flex items-center gap-3"
+              role="menuitem"
+            >
+              <LogOut class="w-4 h-4" />
+              Sign Out
+            </button>
+          </div>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
   <!-- Main Content -->
   <main class="flex-1 relative">
     <div class="absolute inset-0 bg-linear from-background via-background/95 to-background pointer-events-none -z-10"></div>
@@ -24,7 +74,7 @@
   {#if !$page.url.pathname.startsWith('/watch')}
     <div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50" transition:fly={{ y: 20, duration: 300 }}>
         <nav class="flex items-center gap-1 p-1.5 rounded-full border border-white/10 bg-black/80 backdrop-blur-xl shadow-2xl">
-    
+
             <!-- Browse & Search -->
             {#each navItems as item}
                 {@const isActive = $page.url.pathname === item.href}
@@ -42,17 +92,17 @@
                             <div class="absolute bottom-2 w-1 h-1 bg-primary rounded-full" transition:fade></div>
                         {/if}
                     </a>
-    
+
                     <!-- Tooltip -->
                     <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-900 border border-white/10 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
                         {item.label}
                     </div>
                 </div>
             {/each}
-    
+
             <!-- Divider -->
             <div class="w-px h-8 bg-white/10 mx-1"></div>
-    
+
             <!-- Add Movie -->
             <div class="group relative">
                 <button
@@ -67,7 +117,7 @@
                     Add Movie
                 </div>
             </div>
-    
+
         </nav>
       </div>
   {/if}

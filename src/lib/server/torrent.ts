@@ -314,8 +314,10 @@ async function initializeDownload(movieId: string, magnetLink: string): Promise<
         // Use the video file's specific progress
         download.progress = download.videoFile.progress;
 
-        // Update DB
-        movies.updateProgress(movieId, download.progress, 'downloading');
+        // Update DB only if not already complete (prevent race condition)
+        if (download.status !== 'complete') {
+          movies.updateProgress(movieId, download.progress, 'downloading');
+        }
       }
     });
 
@@ -365,16 +367,26 @@ async function moveToLibrary(movieId: string, download: ActiveDownload): Promise
 
     // Copy instead of move to avoid issues with active streams
     await fs.copyFile(sourcePath, destPath);
-    movies.updateFilePath(movieId, destPath);
+    
+    // Get file size from the copied file
+    const stats = await fs.stat(destPath);
+    const fileSize = stats.size;
+    
+    movies.updateFilePath(movieId, destPath, fileSize);
     movies.updateProgress(movieId, 1, 'complete');
-    console.log(`[${movieId}] File copied to library: ${destPath}`);
+    console.log(`[${movieId}] File copied to library: ${destPath} (${fileSize} bytes)`);
 
     // Schedule cleanup after ensuring no active streams
     scheduleCleanup(movieId);
   } catch (e) {
     console.error(`[${movieId}] Failed to copy file to library:`, e);
-    // Keep using temp location
-    movies.updateFilePath(movieId, sourcePath);
+    // Keep using temp location - try to get file size from source
+    try {
+      const stats = await fs.stat(sourcePath);
+      movies.updateFilePath(movieId, sourcePath, stats.size);
+    } catch {
+      movies.updateFilePath(movieId, sourcePath);
+    }
     movies.updateProgress(movieId, 1, 'complete');
   }
 }

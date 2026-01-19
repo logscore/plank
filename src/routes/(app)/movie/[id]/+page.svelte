@@ -2,12 +2,21 @@
   import type { PageData } from './$types';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
-  import { ArrowLeft, Play, Calendar, Clock, HardDrive, Film, Folder, Database, Trash2 } from 'lucide-svelte';
+  import { ArrowLeft, Play, Calendar, Clock, HardDrive, Film, Folder, Database, Trash2, RotateCcw } from 'lucide-svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import Dialog from '$lib/components/ui/Dialog.svelte';
+  import Input from '$lib/components/ui/Input.svelte';
+  import { uiState } from '$lib/ui-state.svelte';
 
   let { data } = $props<{ data: PageData }>();
   let deleting = $state(false);
-  
+  let retrying = $state(false);
+
+  // Add Movie Dialog state
+  let magnetInput = $state('');
+  let magnetError = $state('');
+  let adding = $state(false);
+
   // Live stats (updated via SSE)
   let liveStatus = $state(data.movie.status);
   let liveProgress = $state(data.movie.progress);
@@ -43,9 +52,9 @@
 
   function startStream() {
     if (eventSource) return;
-    
+
     eventSource = new EventSource(`/api/movies/${data.movie.id}/progress/stream`);
-    
+
     eventSource.onmessage = (event) => {
       try {
         const info = JSON.parse(event.data);
@@ -53,7 +62,7 @@
         liveProgress = info.progress;
         downloadSpeed = info.downloadSpeed || 0;
         peers = info.peers || 0;
-        
+
         // SSE will auto-close when complete, but we stop listening too
         if (info.status === 'complete') {
           stopStream();
@@ -67,6 +76,24 @@
       // Connection closed or error - stop listening
       stopStream();
     };
+  }
+
+  function getColorForCertification(cert: string | null): string {
+    if (!cert) return 'border-white/30 text-white';
+    switch (cert.toUpperCase()) {
+      case 'G':
+        return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'PG':
+        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'PG-13':
+        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      case 'R':
+        return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case 'NC-17':
+        return 'bg-red-900/20 text-red-600 border-red-900/30';
+      default:
+        return 'border-white/30 text-white';
+    }
   }
 
   function stopStream() {
@@ -86,6 +113,54 @@
   onDestroy(() => {
     stopStream();
   });
+
+  async function handleRetry() {
+    retrying = true;
+    try {
+      const res = await fetch(`/api/movies/${data.movie.id}/retry`, { method: 'POST' });
+      if (res.ok) {
+        liveStatus = 'added';
+        liveProgress = 0;
+        startStream();
+      }
+    } catch (e) {
+      console.error('Failed to retry download:', e);
+    } finally {
+      retrying = false;
+    }
+  }
+
+  async function addMagnet() {
+    if (!magnetInput.trim()) {
+      magnetError = 'Please enter a magnet link';
+      return;
+    }
+    if (!magnetInput.startsWith('magnet:')) {
+      magnetError = 'Invalid magnet link format';
+      return;
+    }
+
+    magnetError = '';
+    adding = true;
+    try {
+      const res = await fetch('/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ magnetLink: magnetInput }),
+      });
+      if (res.ok) {
+        magnetInput = '';
+        uiState.addMovieDialogOpen = false;
+      } else {
+        const data = await res.json();
+        magnetError = data.message || 'Failed to add movie';
+      }
+    } catch (e) {
+      magnetError = 'Failed to add movie';
+    } finally {
+      adding = false;
+    }
+  }
 
   async function handleDelete() {
     if (!confirm('Are you sure you want to delete this movie?')) return;
@@ -113,13 +188,13 @@
                 alt={data.movie.title}
                 class="absolute inset-0 w-full h-full object-cover"
             />
-            <div class="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent"></div>
+            <div class="absolute inset-0 bg-linear-to-t from-background via-background/80 to-transparent"></div>
         {:else}
-            <div class="absolute inset-0 bg-gradient-to-b from-accent/20 to-background"></div>
+            <div class="absolute inset-0 bg-linear-to-b from-accent/20 to-background"></div>
         {/if}
 
         <!-- Back Button -->
-        <div class="absolute top-6 left-6 z-10">
+        <div class="sticky top-6 left-6 z-10">
             <a href="/">
                 <Button variant="ghost" class="bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm">
                     <ArrowLeft class="w-5 h-5 mr-2" />
@@ -141,7 +216,7 @@
                         class="w-48 md:w-64 rounded-lg shadow-2xl border border-white/10"
                     />
                 {:else}
-                    <div class="w-48 md:w-64 aspect-[2/3] rounded-lg bg-accent flex items-center justify-center border border-white/10">
+                    <div class="w-48 md:w-64 aspect-2/3 rounded-lg bg-accent flex items-center justify-center border border-white/10">
                         <Film class="w-16 h-16 text-muted-foreground" />
                     </div>
                 {/if}
@@ -157,7 +232,7 @@
                 <!-- Meta Badges -->
                 <div class="flex flex-wrap items-center gap-3 text-sm">
                     {#if data.movie.certification}
-                        <span class="px-3 py-1 rounded-full border border-white/30 text-white font-semibold">
+                        <span class="px-3 py-1 rounded-full border font-bold {getColorForCertification(data.movie.certification)}">
                             {data.movie.certification}
                         </span>
                     {/if}
@@ -188,12 +263,24 @@
 
                 <!-- Action Buttons -->
                 <div class="flex items-center gap-3">
-                    <a href="/watch/{data.movie.id}">
-                        <Button size="lg" class="px-8">
-                            <Play class="w-5 h-5 mr-2 fill-current" />
-                            Play Movie
+                    {#if liveStatus === 'error'}
+                        <Button
+                            size="lg"
+                            class="px-8 bg-yellow-600 hover:bg-yellow-500"
+                            onclick={handleRetry}
+                            disabled={retrying}
+                        >
+                            <RotateCcw class="w-5 h-5 mr-2" />
+                            {retrying ? 'Retrying...' : 'Retry Download'}
                         </Button>
-                    </a>
+                    {:else}
+                        <a href="/watch/{data.movie.id}">
+                            <Button size="lg" class="px-8">
+                                <Play class="w-5 h-5 mr-2 fill-current" />
+                                Play Movie
+                            </Button>
+                        </a>
+                    {/if}
                     <Button
                         variant="ghost"
                         size="lg"
@@ -302,3 +389,27 @@
         </div>
     </div>
 </div>
+
+<!-- Add Movie Dialog - Controlled by Global Store -->
+<Dialog
+  bind:open={uiState.addMovieDialogOpen}
+  title="Add Movie"
+  description="Paste a magnet link to start downloading."
+>
+  <div class="grid gap-4 py-4">
+    <Input
+      placeholder="magnet:?xt=urn:btih:..."
+      bind:value={magnetInput}
+      onkeydown={(e) => e.key === 'Enter' && addMagnet()}
+    />
+    {#if magnetError}
+      <p class="text-sm text-destructive">{magnetError}</p>
+    {/if}
+  </div>
+  <div class="flex justify-end gap-2">
+    <Button variant="ghost" onclick={() => uiState.addMovieDialogOpen = false}>Cancel</Button>
+    <Button onclick={addMagnet} disabled={adding}>
+      {adding ? 'Adding...' : 'Add Movie'}
+    </Button>
+  </div>
+</Dialog>
