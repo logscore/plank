@@ -214,7 +214,7 @@ deploy_docker() {
 
     echo "Starting Docker Compose..."
     # Explicitly pass .env file to ensure variables are picked up
-    docker compose -f docker/docker-compose.selfhosted.yml up -d --build
+    docker compose -f docker/docker-compose.yml up -d --build
 
     echo -e "\n${GREEN}Deployment Complete!${NC}"
     echo -e "Access Plank at: ${GREEN}http://localhost:3300${NC} (or your server IP)"
