@@ -24,6 +24,9 @@ RUN npm prune --production && npm install drizzle-kit
 # Create necessary directories
 RUN mkdir -p /app/db /app/data/library /app/data/temp
 
+# Install curl for healthcheck
+RUN apk add --no-cache curl
+
 # Make entrypoint executable (already copied via COPY . .)
 RUN chmod +x /app/docker/entrypoint.sh
 
@@ -31,5 +34,8 @@ ENV NODE_ENV=production
 
 EXPOSE 3300
 EXPOSE 6881
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]
