@@ -73,13 +73,16 @@ setup_env() {
     read -p "Enter Port [3000]: " PORT
     PORT=${PORT:-3000}
 
+    # Use absolute path for database
+    DB_PATH="$(pwd)/plank.db"
+    
     cat > .env << EOF
 BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
 BETTER_AUTH_URL=${BETTER_AUTH_URL}
 TMDB_API_KEY=${TMDB_API_KEY}
 ENABLE_FILE_STORAGE=${ENABLE_FILE_STORAGE}
 PORT=${PORT}
-DATABASE_URL=./plank.db
+DATABASE_URL=${DB_PATH}
 EOF
 # Note: DATABASE_URL might need adjustment for Docker vs Bare Metal, handled in docker-compose usually, but good to have base
 
