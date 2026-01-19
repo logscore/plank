@@ -546,3 +546,53 @@ export async function shutdownTorrents(): Promise<void> {
     });
   }
 }
+
+// Cancel an active download for a movie
+export async function cancelDownload(movieId: string): Promise<void> {
+  console.log(`[${movieId}] Cancelling download...`);
+
+  // Remove from pending downloads if waiting
+  pendingDownloads.delete(movieId);
+
+  // If actively downloading, destroy the torrent
+  const download = activeDownloads.get(movieId);
+  if (download) {
+    return new Promise<void>(resolve => {
+      download.torrent.destroy({ destroyStore: true }, () => {
+        console.log(`[${movieId}] Download cancelled and torrent destroyed`);
+        activeDownloads.delete(movieId);
+        resolve();
+      });
+    });
+  }
+}
+
+// Delete all files associated with a movie from the file system
+export async function deleteMovieFiles(movieId: string): Promise<void> {
+  console.log(`[${movieId}] Deleting movie files...`);
+
+  const libraryPath = path.join(config.paths.library, movieId);
+  const tempPath = path.join(config.paths.temp, movieId);
+
+  // Delete library directory
+  try {
+    await fs.rm(libraryPath, { recursive: true, force: true });
+    console.log(`[${movieId}] Deleted library directory: ${libraryPath}`);
+  } catch (e) {
+    // Directory may not exist, that's fine
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.error(`[${movieId}] Error deleting library directory:`, e);
+    }
+  }
+
+  // Delete temp directory
+  try {
+    await fs.rm(tempPath, { recursive: true, force: true });
+    console.log(`[${movieId}] Deleted temp directory: ${tempPath}`);
+  } catch (e) {
+    // Directory may not exist, that's fine
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.error(`[${movieId}] Error deleting temp directory:`, e);
+    }
+  }
+}
