@@ -10,23 +10,25 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   if (!movie) throw error(404, 'Movie not found');
 
   const encoder = new TextEncoder();
+  
+  // Track state outside the stream so cancel() can access it
+  let isClosed = false;
+  let interval: ReturnType<typeof setInterval> | null = null;
+
+  const cleanup = () => {
+    isClosed = true;
+    if (interval) {
+      clearInterval(interval);
+      interval = null;
+    }
+  };
 
   const stream = new ReadableStream({
     start(controller) {
       let isComplete = movie.status === 'complete';
-      let isClosed = false;
-      let interval: ReturnType<typeof setInterval> | null = null;
-
-      const cleanup = () => {
-        if (interval) {
-          clearInterval(interval);
-          interval = null;
-        }
-      };
 
       const closeStream = () => {
         if (isClosed) return;
-        isClosed = true;
         cleanup();
         try {
           controller.close();
@@ -36,6 +38,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
       };
       
       const sendData = () => {
+        // Check if closed before doing anything
         if (isClosed) return;
         
         try {
@@ -53,6 +56,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             error: downloadStatus?.error,
           };
           
+          // Double-check not closed before enqueue
+          if (isClosed) return;
+          
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
           
           // Stop streaming when complete
@@ -62,7 +68,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             setTimeout(closeStream, 500);
           }
         } catch (e) {
-          console.error('SSE error:', e);
+          // Only log if not a "controller closed" error (which is expected during cleanup)
+          if (!(e instanceof TypeError && (e as any).code === 'ERR_INVALID_STATE')) {
+            console.error('SSE error:', e);
+          }
           closeStream();
         }
       };
@@ -80,7 +89,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
       interval = setInterval(sendData, 1000);
     },
     cancel() {
-      // Stream was cancelled by client
+      // Stream was cancelled by client - cleanup interval
+      cleanup();
     }
   });
 

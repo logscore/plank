@@ -412,8 +412,8 @@ async function moveToLibrary(movieId: string, download: ActiveDownload): Promise
     movies.updateProgress(movieId, 1, 'complete');
     console.log(`[${movieId}] File copied to library: ${destPath} (${fileSize} bytes)`);
 
-    // Schedule cleanup after ensuring no active streams
-    scheduleCleanup(movieId);
+    // Immediately cleanup the torrent (we have the file in library now)
+    cleanupDownload(movieId, true);
   } catch (e) {
     console.error(`[${movieId}] Failed to copy file to library:`, e);
     // Keep using temp location - try to get file size from source
@@ -424,6 +424,8 @@ async function moveToLibrary(movieId: string, download: ActiveDownload): Promise
       movies.updateFilePath(movieId, sourcePath);
     }
     movies.updateProgress(movieId, 1, 'complete');
+    // Keep temp files but still cleanup the torrent (don't delete temp files since they're in use)
+    scheduleCleanup(movieId);
   }
 }
 
@@ -556,6 +558,17 @@ export function getDownloadStatus(movieId: string): {
       };
     }
     return null;
+  }
+
+  // If download is complete, return clean status (no speeds/peers since we're done)
+  if (download.status === 'complete') {
+    return {
+      progress: 1,
+      downloadSpeed: 0,
+      uploadSpeed: 0,
+      peers: 0,
+      status: 'complete',
+    };
   }
 
   return {
