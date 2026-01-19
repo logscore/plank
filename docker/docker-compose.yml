@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  plank:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - ENABLE_FILE_STORAGE=false
+      - DATABASE_URL=/app/db/plank.db
+      - TMDB_API_KEY=${TMDB_API_KEY}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+    volumes:
+      - plank-db:/app/db
+
+volumes:
+  plank-db:

@@ -1,0 +1,28 @@
+// Client-safe types (these match the Drizzle schema but don't import server modules)
+
+export interface Movie {
+  id: string;
+  userId: string;
+  title: string;
+  year: number | null;
+  posterUrl: string | null;
+  backdropUrl: string | null;
+  overview: string | null;
+  magnetLink: string;
+  infohash: string;
+  filePath: string | null;
+  fileSize: number | null;
+  status: 'added' | 'downloading' | 'complete' | null;
+  progress: number | null;
+  tmdbId: number | null;
+  addedAt: Date;
+  lastPlayedAt: Date | null;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  emailVerified: boolean;
+  image: string | null;
+}
