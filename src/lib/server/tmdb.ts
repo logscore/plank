@@ -117,3 +117,46 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 // Alias for backwards compatibility
 export const getMovieById = getMovieDetails;
 
+import { imageStorage } from '$lib/server/storage';
+
+export async function saveTmdbImages(
+  metadata: TMDBMetadata,
+  category: string,
+  id: string
+): Promise<{ posterUrl: string | null; backdropUrl: string | null }> {
+  const result = {
+    posterUrl: metadata.posterUrl,
+    backdropUrl: metadata.backdropUrl,
+  };
+
+  if (metadata.posterUrl) {
+    try {
+      const storedPath = await imageStorage.saveFromUrl(
+        category,
+        id,
+        'poster.jpg',
+        metadata.posterUrl
+      );
+      result.posterUrl = `/images/${storedPath}`;
+    } catch (e) {
+      console.error(`Failed to save poster for ${id}:`, e);
+    }
+  }
+
+  if (metadata.backdropUrl) {
+    try {
+      const storedPath = await imageStorage.saveFromUrl(
+        category,
+        id,
+        'backdrop.jpg',
+        metadata.backdropUrl
+      );
+      result.backdropUrl = `/images/${storedPath}`;
+    } catch (e) {
+      console.error(`Failed to save backdrop for ${id}:`, e);
+    }
+  }
+
+  return result;
+}
+

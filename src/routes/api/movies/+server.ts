@@ -114,6 +114,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     certification: metadata.certification,
   });
 
+  // Save images locally in the background
+  (async () => {
+    if (metadata.posterUrl || metadata.backdropUrl) {
+      try {
+        const { saveTmdbImages } = await import('$lib/server/tmdb');
+        const updatedImages = await saveTmdbImages(metadata, 'library', movie.id);
+        
+        movies.updateMetadata(movie.id, {
+          posterUrl: updatedImages.posterUrl,
+          backdropUrl: updatedImages.backdropUrl,
+        });
+        console.log(`[POST /api/movies] Saved local images for ${movie.id}`);
+      } catch (e) {
+        console.error(`[POST /api/movies] Failed to save local images for ${movie.id}:`, e);
+      }
+    }
+  })();
+
   // Start server-side download
   startDownload(movie.id, magnetLink).catch(e => {
     console.error(`Failed to start download for ${movie.id}:`, e);

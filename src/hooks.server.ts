@@ -33,6 +33,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   // Protect app routes
   const isAppRoute = event.url.pathname.startsWith('/watch') ||
                      event.url.pathname.startsWith('/search') ||
+                     event.url.pathname.startsWith('/account') ||
                      event.url.pathname === '/';
   const isAuthRoute = event.url.pathname.startsWith('/login') ||
                       event.url.pathname.startsWith('/register');
@@ -45,6 +46,12 @@ export const handle: Handle = async ({ event, resolve }) => {
   // Redirect logged-in users away from auth pages
   if (isAuthRoute && event.locals.user) {
     throw redirect(302, '/');
+  }
+
+  // Protect API routes
+  if (isApiRoute && !event.locals.user) {
+    // Return 401 for API requests instead of redirect
+    return new Response('Unauthorized', { status: 401 });
   }
 
   return resolve(event);
