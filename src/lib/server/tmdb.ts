@@ -47,7 +47,18 @@ export async function searchMovie(query: string, year?: number | null): Promise<
 	}
 
 	const res = await fetch(`${config.tmdb.baseUrl}/search/movie?${params}`);
+
+	if (!res.ok) {
+		console.error(`[TMDB] Search failed with status ${res.status}: ${res.statusText}`);
+		return [];
+	}
+
 	const data: TMDBSearchResult = await res.json();
+
+	if (!(data.results && Array.isArray(data.results))) {
+		console.error('[TMDB] Invalid response - no results array:', data);
+		return [];
+	}
 
 	return data.results.map((movie) => ({
 		tmdbId: movie.id,
@@ -55,7 +66,7 @@ export async function searchMovie(query: string, year?: number | null): Promise<
 		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
 		posterUrl: movie.poster_path ? `${config.tmdb.imageBaseUrl}${movie.poster_path}` : null,
 		backdropUrl: movie.backdrop_path ? `${config.tmdb.imageBaseUrl}${movie.backdrop_path}` : null,
-		overview: movie.overview,
+		overview: movie.overview ?? null,
 	}));
 }
 
@@ -72,7 +83,18 @@ interface TMDBReleaseDates {
 export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 	// Fetch movie details
 	const res = await fetch(`${config.tmdb.baseUrl}/movie/${tmdbId}?api_key=${config.tmdb.apiKey}`);
+
+	if (!res.ok) {
+		console.error(`[TMDB] Failed to fetch movie details for ${tmdbId}: ${res.status}`);
+		throw new Error(`TMDB API error: ${res.status}`);
+	}
+
 	const movie: TMDBMovie = await res.json();
+
+	if (!movie?.id) {
+		console.error(`[TMDB] Invalid movie response for ${tmdbId}:`, movie);
+		throw new Error('Invalid TMDB response');
+	}
 
 	// Fetch US certification from release_dates
 	let certification: string | null = null;
@@ -80,16 +102,18 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 		const certRes = await fetch(
 			`${config.tmdb.baseUrl}/movie/${tmdbId}/release_dates?api_key=${config.tmdb.apiKey}`
 		);
-		const certData: TMDBReleaseDates = await certRes.json();
-		const usRelease = certData.results.find((r) => r.iso_3166_1 === 'US');
-		if (usRelease) {
-			// Prefer theatrical release (type 3), then any with certification
-			const theatrical = usRelease.release_dates.find((r) => r.type === 3 && r.certification);
-			const any = usRelease.release_dates.find((r) => r.certification);
-			certification = theatrical?.certification || any?.certification || null;
+		if (certRes.ok) {
+			const certData: TMDBReleaseDates = await certRes.json();
+			const usRelease = certData.results?.find((r) => r.iso_3166_1 === 'US');
+			if (usRelease) {
+				// Prefer theatrical release (type 3), then any with certification
+				const theatrical = usRelease.release_dates.find((r) => r.type === 3 && r.certification);
+				const anyCert = usRelease.release_dates.find((r) => r.certification);
+				certification = theatrical?.certification || anyCert?.certification || null;
+			}
 		}
 	} catch (e) {
-		console.error(`Failed to fetch certification for ${tmdbId}:`, e);
+		console.error(`[TMDB] Failed to fetch certification for ${tmdbId}:`, e);
 	}
 
 	return {
@@ -98,7 +122,7 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
 		posterUrl: movie.poster_path ? `${config.tmdb.imageBaseUrl}${movie.poster_path}` : null,
 		backdropUrl: movie.backdrop_path ? `${config.tmdb.imageBaseUrl}${movie.backdrop_path}` : null,
-		overview: movie.overview,
+		overview: movie.overview ?? null,
 		runtime: movie.runtime ?? null,
 		genres: movie.genres ? JSON.stringify(movie.genres.map((g) => g.name)) : null,
 		originalLanguage: movie.original_language ?? null,
