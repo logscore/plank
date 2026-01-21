@@ -1,9 +1,9 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
-import fs from 'fs/promises';
+import type { Readable } from 'node:stream';
 import parseTorrent from 'parse-torrent';
 import ptt from 'parse-torrent-title';
-import type { Readable } from 'stream';
 import { config } from '$lib/config';
 import { movies } from './db';
 import { searchMovie } from './tmdb';
@@ -37,15 +37,11 @@ interface Torrent {
 	ready: boolean;
 	paused: boolean;
 	destroy(opts?: { destroyStore?: boolean }, callback?: () => void): void;
-	on(event: 'ready', callback: () => void): void;
-	on(event: 'metadata', callback: () => void): void;
-	on(event: 'done', callback: () => void): void;
-	on(event: 'download', callback: (bytes: number) => void): void;
-	on(event: 'upload', callback: (bytes: number) => void): void;
+	on(event: 'done' | 'metadata' | 'ready', callback: () => void): void;
+	on(event: 'upload' | 'download', callback: (bytes: number) => void): void;
 	on(event: 'wire', callback: (wire: unknown) => void): void;
 	on(event: 'noPeers', callback: (announceType: string) => void): void;
-	on(event: 'error', callback: (err: Error) => void): void;
-	on(event: 'warning', callback: (err: Error) => void): void;
+	on(event: 'warning' | 'error', callback: (err: Error) => void): void;
 	on(event: string, callback: (...args: unknown[]) => void): void;
 }
 
@@ -115,9 +111,12 @@ async function getClient(): Promise<WebTorrentClient> {
 		}) as unknown as WebTorrentClient;
 
 		// Add global error handler
-		(client as any).on('error', (err: Error) => {
-			console.error('[WebTorrent] Global client error:', err);
-		});
+		(client as unknown as { on: (event: string, handler: (err: Error) => void) => void }).on(
+			'error',
+			(err: Error) => {
+				console.error('[WebTorrent] Global client error:', err);
+			}
+		);
 
 		console.log('[WebTorrent] Client initialized successfully');
 	}
@@ -256,7 +255,7 @@ async function initializeDownload(movieId: string, magnetLink: string): Promise<
 	const torrentClient = await getClient();
 	console.log(`[${movieId}] Got WebTorrent client, adding torrent...`);
 
-	return new Promise(async (resolve, reject) => {
+	return new Promise((resolve, reject) => {
 		let torrent: Torrent;
 
 		try {
@@ -350,7 +349,9 @@ async function initializeDownload(movieId: string, magnetLink: string): Promise<
 			fetchAndUpdateMetadata(movieId, videoFile.name);
 
 			// Deselect all files, then select only the video
-			torrent.files.forEach((f) => f.deselect());
+			for (const f of torrent.files) {
+				f.deselect();
+			}
 			videoFile.select();
 
 			download.videoFile = videoFile;
@@ -378,7 +379,9 @@ async function initializeDownload(movieId: string, magnetLink: string): Promise<
 			download.progress = 1;
 
 			// Stop seeding - deselect all files to prevent uploading
-			torrent.files.forEach((f) => f.deselect());
+			for (const f of torrent.files) {
+				f.deselect();
+			}
 			console.log(`[${movieId}] Stopped seeding`);
 
 			await moveToLibrary(movieId, download);
@@ -409,7 +412,9 @@ async function initializeDownload(movieId: string, magnetLink: string): Promise<
 }
 
 async function moveToLibrary(movieId: string, download: ActiveDownload): Promise<void> {
-	if (!download.videoFile) return;
+	if (!download.videoFile) {
+		return;
+	}
 
 	const sourcePath = path.join(download.torrent.path, download.videoFile.path);
 	const destDir = path.join(config.paths.library, movieId);
@@ -448,11 +453,15 @@ async function moveToLibrary(movieId: string, download: ActiveDownload): Promise
 
 function scheduleCleanup(movieId: string): void {
 	const download = activeDownloads.get(movieId);
-	if (!download) return;
+	if (!download) {
+		return;
+	}
 
 	const checkAndCleanup = () => {
 		const current = activeDownloads.get(movieId);
-		if (!current) return;
+		if (!current) {
+			return;
+		}
 
 		if (current.activeStreams === 0 && current.status === 'complete') {
 			console.log(`[${movieId}] Cleaning up torrent`);
@@ -468,7 +477,9 @@ function scheduleCleanup(movieId: string): void {
 
 function cleanupDownload(movieId: string, removeFiles: boolean): void {
 	const download = activeDownloads.get(movieId);
-	if (!download) return;
+	if (!download) {
+		return;
+	}
 
 	download.torrent.destroy({ destroyStore: removeFiles }, () => {
 		console.log(`[${movieId}] Torrent destroyed`);
@@ -500,8 +511,12 @@ export async function getVideoStream(
 			const fileName = path.basename(movie.filePath);
 
 			const streamOptions: { start?: number; end?: number } = {};
-			if (start !== undefined) streamOptions.start = start;
-			if (end !== undefined) streamOptions.end = end;
+			if (start !== undefined) {
+				streamOptions.start = start;
+			}
+			if (end !== undefined) {
+				streamOptions.end = end;
+			}
 
 			return {
 				stream: createReadStream(movie.filePath, streamOptions),
@@ -526,8 +541,12 @@ export async function getVideoStream(
 		download.activeStreams++;
 
 		const streamOptions: { start?: number; end?: number } = {};
-		if (start !== undefined) streamOptions.start = start;
-		if (end !== undefined) streamOptions.end = end;
+		if (start !== undefined) {
+			streamOptions.start = start;
+		}
+		if (end !== undefined) {
+			streamOptions.end = end;
+		}
 
 		const torrentStream = videoFile.createReadStream(streamOptions);
 
@@ -608,12 +627,14 @@ export async function waitForVideoReady(movieId: string, timeoutMs = 30_000): Pr
 	while (Date.now() - startTime < timeoutMs) {
 		const download = activeDownloads.get(movieId);
 
-		if (download?.videoFile && download.status !== 'initializing') {
-			// For streaming, we need some data downloaded
-			// Check if at least 2% is downloaded or status is complete
-			if (download.progress >= 0.02 || download.status === 'complete') {
-				return true;
-			}
+		// For streaming, we need some data downloaded
+		// Check if at least 2% is downloaded or status is complete
+		if (
+			download?.videoFile &&
+			download.status !== 'initializing' &&
+			(download.progress >= 0.02 || download.status === 'complete')
+		) {
+			return true;
 		}
 
 		// Check if file exists in library
@@ -634,7 +655,7 @@ export async function shutdownTorrents(): Promise<void> {
 
 	if (client) {
 		return new Promise<void>((resolve) => {
-			client!.destroy(() => {
+			client?.destroy(() => {
 				activeDownloads.clear();
 				client = null;
 				console.log('WebTorrent client destroyed');
@@ -765,6 +786,55 @@ async function findVideoInDirectory(
 	}
 }
 
+/** Process a single incomplete movie during recovery */
+async function recoverSingleMovie(movie: {
+	id: string;
+	filePath: string | null;
+	magnetLink: string;
+}): Promise<void> {
+	const movieId = movie.id;
+	const tempDir = path.join(config.paths.temp, movieId);
+
+	// Skip if already being processed
+	if (activeDownloads.has(movieId) || pendingDownloads.has(movieId)) {
+		console.log(`[Recovery] [${movieId}] Already active, skipping`);
+		return;
+	}
+
+	// Check if file exists in library
+	if (movie.filePath && existsSync(movie.filePath)) {
+		console.log(`[Recovery] [${movieId}] File already in library, marking complete`);
+		movies.updateProgress(movieId, 1, 'complete');
+		return;
+	}
+
+	// Check if temp directory exists with video file
+	if (existsSync(tempDir)) {
+		const videoInfo = await findVideoInDirectory(tempDir);
+		if (videoInfo && videoInfo.size >= MIN_VIDEO_SIZE) {
+			console.log(
+				`[Recovery] [${movieId}] Found video in temp: ${videoInfo.name} (${(videoInfo.size / 1024 / 1024).toFixed(2)} MB)`
+			);
+			const success = await finalizeFromTemp(movieId, videoInfo.path, videoInfo.name);
+			if (success) {
+				return;
+			}
+		}
+	}
+
+	// No file found - restart download if magnet link is available
+	if (movie.magnetLink) {
+		console.log(`[Recovery] [${movieId}] No file found, restarting download`);
+		startDownload(movieId, movie.magnetLink).catch((e) => {
+			console.error(`[Recovery] [${movieId}] Failed to restart download:`, e);
+			movies.updateProgress(movieId, 0, 'error');
+		});
+	} else {
+		console.log(`[Recovery] [${movieId}] No magnet link, marking as error`);
+		movies.updateProgress(movieId, 0, 'error');
+	}
+}
+
 /**
  * Recover incomplete downloads on server startup.
  * Checks for movies stuck in 'downloading' or 'added' status and either:
@@ -784,48 +854,6 @@ export async function recoverDownloads(): Promise<void> {
 	console.log(`[Recovery] Found ${incompleteMovies.length} incomplete download(s)`);
 
 	for (const movie of incompleteMovies) {
-		const movieId = movie.id;
-		const tempDir = path.join(config.paths.temp, movieId);
-
-		// Skip if already being processed
-		if (activeDownloads.has(movieId) || pendingDownloads.has(movieId)) {
-			console.log(`[Recovery] [${movieId}] Already active, skipping`);
-			continue;
-		}
-
-		// Check if file exists in library (might already be complete but status not updated)
-		if (movie.filePath && existsSync(movie.filePath)) {
-			console.log(`[Recovery] [${movieId}] File already in library, marking complete`);
-			movies.updateProgress(movieId, 1, 'complete');
-			continue;
-		}
-
-		// Check if temp directory exists with video file
-		if (existsSync(tempDir)) {
-			const videoInfo = await findVideoInDirectory(tempDir);
-
-			if (videoInfo && videoInfo.size >= MIN_VIDEO_SIZE) {
-				console.log(
-					`[Recovery] [${movieId}] Found video in temp: ${videoInfo.name} (${(videoInfo.size / 1024 / 1024).toFixed(2)} MB)`
-				);
-
-				const success = await finalizeFromTemp(movieId, videoInfo.path, videoInfo.name);
-				if (success) {
-					continue;
-				}
-			}
-		}
-
-		// No file found - restart download if magnet link is available
-		if (movie.magnetLink) {
-			console.log(`[Recovery] [${movieId}] No file found, restarting download`);
-			startDownload(movieId, movie.magnetLink).catch((e) => {
-				console.error(`[Recovery] [${movieId}] Failed to restart download:`, e);
-				movies.updateProgress(movieId, 0, 'error');
-			});
-		} else {
-			console.log(`[Recovery] [${movieId}] No magnet link, marking as error`);
-			movies.updateProgress(movieId, 0, 'error');
-		}
+		await recoverSingleMovie(movie);
 	}
 }

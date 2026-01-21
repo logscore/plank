@@ -1,17 +1,17 @@
-# pre-commit:
-#   parallel: true
+pre-commit:
+  parallel: true
 
-#   jobs:
-#     - run: npx ultracite fix
-#       glob:
-#         - "*.js"
-#         - "*.jsx"
-#         - "*.ts"
-#         - "*.tsx"
-#         - "*.json"
-#         - "*.jsonc"
-#         - "*.css"
-#       stage_fixed: true
+  jobs:
+    - run: npx ultracite fix
+      glob:
+        - "*.js"
+        - "*.jsx"
+        - "*.ts"
+        - "*.tsx"
+        - "*.json"
+        - "*.jsonc"
+        - "*.css"
+      stage_fixed: true
 
-#     - run: npm svelte-check-rs
-#       stage_fixed: true
+    - run: svelte-check-rs
+      stage_fixed: true

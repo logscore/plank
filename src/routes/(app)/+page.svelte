@@ -31,7 +31,9 @@
   }
 
   async function addMagnet() {
-    if (!magnetInput.trim()) return;
+    if (!magnetInput.trim()) {
+      return;
+    }
 
     adding = true;
     error = '';

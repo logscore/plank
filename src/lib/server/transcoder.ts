@@ -1,7 +1,7 @@
+import type { Readable } from 'node:stream';
+import { PassThrough } from 'node:stream';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import ffmpeg from 'fluent-ffmpeg';
-import type { Readable } from 'stream';
-import { PassThrough } from 'stream';
 
 // Set ffmpeg path
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
@@ -62,10 +62,14 @@ export function createTransmuxStream(options: TransmuxOptions): Readable {
 		.on('start', (cmd) => {
 			console.log('[Transcoder] Starting FFmpeg:', cmd);
 		})
-		.on('error', (err: Error, stdout, stderr) => {
+		.on('error', (err: Error, _stdout, stderr) => {
 			console.error('[Transcoder] FFmpeg error:', err.message);
-			if (stderr) console.error('[Transcoder] FFmpeg stderr:', stderr);
-			if (onError) onError(err);
+			if (stderr) {
+				console.error('[Transcoder] FFmpeg stderr:', stderr);
+			}
+			if (onError) {
+				onError(err);
+			}
 			outputStream.destroy(err);
 		})
 		.on('end', () => {
@@ -107,7 +111,9 @@ export async function probeFile(filePath: string): Promise<{
 
 // Check if video codec is browser-compatible
 export function isBrowserCompatibleCodec(codec: string | null): boolean {
-	if (!codec) return false;
+	if (!codec) {
+		return false;
+	}
 	const compatibleCodecs = ['h264', 'avc1', 'vp8', 'vp9', 'av1'];
 	return compatibleCodecs.includes(codec.toLowerCase());
 }

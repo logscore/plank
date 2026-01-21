@@ -29,8 +29,12 @@
   let showStats = $state(false);
 
   function formatSpeed(bytesPerSecond: number): string {
-    if (bytesPerSecond < 1024) return `${bytesPerSecond} B/s`;
-    if (bytesPerSecond < 1024 * 1024) return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
+    if (bytesPerSecond < 1024) {
+      return `${bytesPerSecond} B/s`;
+    }
+    if (bytesPerSecond < 1024 * 1024) {
+      return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
+    }
     return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
   }
 
@@ -50,7 +54,9 @@
   }
 
   async function fetchProgress() {
-    if (!movie) return;
+    if (!movie) {
+      return;
+    }
 
     try {
       const res = await fetch(`/api/movies/${movie.id}/progress`);
@@ -83,7 +89,9 @@
 
   onDestroy(() => {
     stopProgressPolling();
-    if (controlsTimeout) clearTimeout(controlsTimeout);
+    if (controlsTimeout) {
+      clearTimeout(controlsTimeout);
+    }
     document.removeEventListener('click', handleGlobalClick);
   });
 
@@ -126,7 +134,9 @@
   }
 
   function resetControlsTimeout() {
-    if (controlsTimeout) clearTimeout(controlsTimeout);
+    if (controlsTimeout) {
+      clearTimeout(controlsTimeout);
+    }
     controlsTimeout = setTimeout(() => {
       // Hide controls if video is playing and menu is closed
       if (videoElement && !videoElement.paused && !showMenu) {

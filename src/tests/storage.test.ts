@@ -13,7 +13,6 @@ vi.mock('$lib/config', () => ({
 }));
 
 vi.mock('node:fs/promises', () => {
-	const mockFiles = new Map<string, Buffer>();
 	return {
 		default: {
 			access: vi.fn(),

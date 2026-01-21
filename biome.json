@@ -57,7 +57,8 @@
         "useImportType": "warn"
       },
       "suspicious": {
-        "recommended": true
+        "recommended": true,
+        "useAwait": "off"
       }
     }
   },
@@ -76,6 +77,67 @@
       "includes": ["**/*.svelte"],
       "formatter": {
         "indentStyle": "space"
+      },
+      "linter": {
+        "rules": {
+          "style": {
+            "useFilenamingConvention": "off"
+          },
+          "correctness": {
+            "noUndeclaredVariables": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/app.d.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNamespace": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["scripts/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useFilenamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/tests/**/*.ts", "**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "performance": {
+            "noNamespaceImport": "off",
+            "useTopLevelRegex": "off"
+          },
+          "correctness": {
+            "noConstructorReturn": "off",
+            "noUnusedVariables": "off"
+          },
+          "complexity": {
+            "noBannedTypes": "off"
+          },
+          "suspicious": {
+            "noEmptyBlockStatements": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/types/**/*.d.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
       }
     }
   ],

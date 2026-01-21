@@ -4,7 +4,9 @@ class UIState {
 		open: false,
 		title: '',
 		description: '',
-		confirmAction: async () => {},
+		confirmAction: async () => {
+			// Default no-op action
+		},
 	});
 
 	toggleAddMovieDialog() {

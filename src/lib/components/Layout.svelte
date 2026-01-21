@@ -1,11 +1,18 @@
 <script lang="ts">
   import { Film, LogOut, Plus, Search, User } from 'lucide-svelte';
+  import type { Snippet } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import { page } from '$app/stores';
   import { uiState } from '$lib/ui-state.svelte';
   import { cn } from '$lib/utils';
 
-  let { children, logout } = $props();
+  let {
+    children,
+    logout,
+  }: {
+    children: Snippet;
+    logout: () => void;
+  } = $props();
 
   let showAccountMenu = $state(false);
 

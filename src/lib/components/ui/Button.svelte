@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import type { HTMLButtonAttributes } from 'svelte/elements';
   import { cn } from '$lib/utils';
 
@@ -11,6 +12,7 @@
   }: HTMLButtonAttributes & {
     variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
     size?: 'default' | 'sm' | 'lg' | 'icon';
+    children?: Snippet;
   } = $props();
 
   const variants = {
@@ -39,5 +41,7 @@
   )}
   {...props}
 >
-  {@render children()}
+  {#if children}
+    {@render children()}
+  {/if}
 </button>

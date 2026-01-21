@@ -42,7 +42,7 @@ const mockTorrent = {
 		{ name: 'sample.txt', length: 100, select: vi.fn(), deselect: vi.fn() },
 	],
 	on: vi.fn(),
-	destroy: vi.fn((opts, cb) => cb && cb()),
+	destroy: vi.fn((_opts, cb) => cb?.()),
 	downloadSpeed: 1000,
 	uploadSpeed: 100,
 	numPeers: 5,
@@ -52,7 +52,7 @@ const mockTorrent = {
 const mockClient = {
 	add: vi.fn().mockReturnValue(mockTorrent),
 	get: vi.fn().mockReturnValue(null),
-	destroy: vi.fn((cb) => cb && cb()),
+	destroy: vi.fn((cb) => cb?.()),
 	on: vi.fn(),
 };
 
@@ -68,7 +68,9 @@ vi.mock('webtorrent', () => {
 
 vi.mock('parse-torrent', () => ({
 	default: vi.fn((link) => {
-		if (link.includes('invalid')) throw new Error('Invalid torrent identifier');
+		if (link.includes('invalid')) {
+			throw new Error('Invalid torrent identifier');
+		}
 		return { infoHash: 'abc1234567890123456789012345678901234567' };
 	}),
 }));
@@ -90,7 +92,7 @@ describe('Torrent Service', () => {
 	describe('startDownload', () => {
 		it('should initialize download and add to client', async () => {
 			// Mock events on torrent.on
-			mockClient.add.mockImplementation((link, opts, cb) => {
+			mockClient.add.mockImplementation((_link, _opts, _cb) => {
 				// Trigger ready immediately to resolve promise
 				// BUT torrent.ts waits for 'ready' event
 				const handlers: Record<string, Function> = {};
@@ -122,7 +124,9 @@ describe('Torrent Service', () => {
 				setTimeout(() => {
 					// Find the ready callback
 					const readyCall = mockTorrent.on.mock.calls.find((call) => call[0] === 'ready');
-					if (readyCall) readyCall[1]();
+					if (readyCall) {
+						readyCall[1]();
+					}
 				}, 10);
 				return mockTorrent;
 			});
@@ -138,7 +142,9 @@ describe('Torrent Service', () => {
 			mockClient.add.mockImplementation(() => {
 				setTimeout(() => {
 					const readyCall = mockTorrent.on.mock.calls.find((call) => call[0] === 'ready');
-					if (readyCall) readyCall[1]();
+					if (readyCall) {
+						readyCall[1]();
+					}
 				}, 0);
 				return mockTorrent;
 			});
@@ -163,7 +169,9 @@ describe('Torrent Service', () => {
 			mockClient.add.mockImplementation(() => {
 				setTimeout(() => {
 					const readyCall = mockTorrent.on.mock.calls.find((call) => call[0] === 'ready');
-					if (readyCall) readyCall[1]();
+					if (readyCall) {
+						readyCall[1]();
+					}
 				}, 0);
 				return mockTorrent;
 			});
@@ -183,7 +191,9 @@ describe('Torrent Service', () => {
 			mockClient.add.mockImplementation(() => {
 				setTimeout(() => {
 					const readyCall = mockTorrent.on.mock.calls.find((call) => call[0] === 'ready');
-					if (readyCall) readyCall[1]();
+					if (readyCall) {
+						readyCall[1]();
+					}
 				}, 0);
 				return mockTorrent;
 			});

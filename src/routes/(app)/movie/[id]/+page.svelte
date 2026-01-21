@@ -31,27 +31,47 @@
   let adding = $state(false);
 
   // Live stats (updated via SSE)
-  let liveStatus = $state(data.movie.status);
-  let liveProgress = $state(data.movie.progress);
+  let liveStatus = $state<string | null>(null);
+  let liveProgress = $state<number | null>(null);
   let downloadSpeed = $state(0);
   let peers = $state(0);
 
+  // Sync initial values from data when component mounts or data changes
+  $effect(() => {
+    liveStatus = data.movie.status;
+    liveProgress = data.movie.progress;
+  });
+
   function formatFileSize(bytes: number | null): string {
-    if (!bytes) return 'Unknown';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    if (!bytes) {
+      return 'Unknown';
+    }
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    if (bytes < 1024 * 1024 * 1024) {
+      return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    }
     return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
   }
 
   function formatSpeed(bytesPerSecond: number): string {
-    if (bytesPerSecond < 1024) return `${bytesPerSecond} B/s`;
-    if (bytesPerSecond < 1024 * 1024) return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
+    if (bytesPerSecond < 1024) {
+      return `${bytesPerSecond} B/s`;
+    }
+    if (bytesPerSecond < 1024 * 1024) {
+      return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
+    }
     return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
   }
 
   function formatDate(date: Date | null): string {
-    if (!date) return 'Unknown';
+    if (!date) {
+      return 'Unknown';
+    }
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -62,11 +82,15 @@
   }
 
   async function copyFilePath() {
-    if (!data.movie.filePath) return;
+    if (!data.movie.filePath) {
+      return;
+    }
     try {
       await navigator.clipboard.writeText(data.movie.filePath);
       copied = true;
-      setTimeout(() => (copied = false), 2000);
+      setTimeout(() => {
+        copied = false;
+      }, 2000);
     } catch (err) {
       console.error('Failed to copy text: ', err);
     }
@@ -75,7 +99,9 @@
   let eventSource: EventSource | null = null;
 
   function startStream() {
-    if (eventSource) return;
+    if (eventSource) {
+      return;
+    }
 
     eventSource = new EventSource(`/api/movies/${data.movie.id}/progress/stream`);
 
@@ -103,7 +129,9 @@
   }
 
   function getColorForCertification(cert: string | null): string {
-    if (!cert) return 'border-white/30 text-white';
+    if (!cert) {
+      return 'border-white/30 text-white';
+    }
     switch (cert.toUpperCase()) {
       case 'G':
         return 'bg-green-500/20 text-green-400 border-green-500/30';

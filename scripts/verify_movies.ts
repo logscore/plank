@@ -1,14 +1,14 @@
 import Database from 'better-sqlite3';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import * as schema from '../src/lib/server/db/schema';
+import { movies, schema } from '../src/lib/server/db/schema';
 
 const dbPath = './plank.db';
 const sqlite = new Database(dbPath);
 const db = drizzle(sqlite, { schema });
 
 async function verify() {
-	const result = await db.select({ count: sql<number>`count(*)` }).from(schema.movies);
+	const result = await db.select({ count: sql<number>`count(*)` }).from(movies);
 	console.log(`Total movies in DB: ${result[0].count}`);
 
 	// Check a sample

@@ -113,7 +113,7 @@ export const accountRelations = relations(account, ({ one }) => ({
 // Application tables
 // ============================================================================
 
-const movies = sqliteTable(
+export const movies = sqliteTable(
 	'movies',
 	{
 		id: text('id').primaryKey(),

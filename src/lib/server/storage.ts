@@ -30,7 +30,8 @@ export class ImageStorageService {
 		await this.ensureDir(absDir);
 
 		const filePath = path.join(absDir, filename);
-		await fs.writeFile(filePath, Buffer.from(data as any)); // Convert ArrayBuffer to Buffer if needed
+		const buffer = data instanceof Buffer ? data : Buffer.from(new Uint8Array(data));
+		await fs.writeFile(filePath, buffer);
 
 		// Return a path suitable for the serving route.
 		// Assuming we serve from /images/[...path], and we store inside data/

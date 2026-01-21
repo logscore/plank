@@ -1,5 +1,6 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
-import { db, type Movie, movies as moviesTable, type NewMovie } from './db/index';
+import { db } from './db/index';
+import { type Movie, movies as moviesTable, type NewMovie } from './db/schema';
 
 export const movies = {
 	list(userId: string): Movie[] {
@@ -116,22 +117,39 @@ export const movies = {
 		}
 	) {
 		const updates: Record<string, unknown> = {};
-		if (metadata.title !== undefined) updates.title = metadata.title;
-		if (metadata.year !== undefined) updates.year = metadata.year;
-		if (metadata.posterUrl !== undefined) updates.posterUrl = metadata.posterUrl;
-		if (metadata.backdropUrl !== undefined) updates.backdropUrl = metadata.backdropUrl;
-		if (metadata.overview !== undefined) updates.overview = metadata.overview;
-		if (metadata.tmdbId !== undefined) updates.tmdbId = metadata.tmdbId;
-		if (metadata.runtime !== undefined) updates.runtime = metadata.runtime;
-		if (metadata.genres !== undefined) updates.genres = metadata.genres;
-		if (metadata.originalLanguage !== undefined)
+		if (metadata.title !== undefined) {
+			updates.title = metadata.title;
+		}
+		if (metadata.year !== undefined) {
+			updates.year = metadata.year;
+		}
+		if (metadata.posterUrl !== undefined) {
+			updates.posterUrl = metadata.posterUrl;
+		}
+		if (metadata.backdropUrl !== undefined) {
+			updates.backdropUrl = metadata.backdropUrl;
+		}
+		if (metadata.overview !== undefined) {
+			updates.overview = metadata.overview;
+		}
+		if (metadata.tmdbId !== undefined) {
+			updates.tmdbId = metadata.tmdbId;
+		}
+		if (metadata.runtime !== undefined) {
+			updates.runtime = metadata.runtime;
+		}
+		if (metadata.genres !== undefined) {
+			updates.genres = metadata.genres;
+		}
+		if (metadata.originalLanguage !== undefined) {
 			updates.originalLanguage = metadata.originalLanguage;
-		if (metadata.certification !== undefined) updates.certification = metadata.certification;
+		}
+		if (metadata.certification !== undefined) {
+			updates.certification = metadata.certification;
+		}
 
 		if (Object.keys(updates).length > 0) {
 			db.update(moviesTable).set(updates).where(eq(moviesTable.id, id)).run();
 		}
 	},
 };
-
-export { db };

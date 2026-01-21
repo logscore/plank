@@ -1,3 +1,40 @@
+declare module 'lucide-svelte' {
+	import type { Component } from 'svelte';
+
+	interface IconProps {
+		class?: string;
+		size?: number | string;
+		color?: string;
+		strokeWidth?: number | string;
+	}
+
+	export const Play: Component<IconProps>;
+	export const ChevronDown: Component<IconProps>;
+	export const ChevronRight: Component<IconProps>;
+	export const User: Component<IconProps>;
+	export const LogOut: Component<IconProps>;
+	export const Plus: Component<IconProps>;
+	export const RotateCcw: Component<IconProps>;
+	export const Info: Component<IconProps>;
+	export const Trash2: Component<IconProps>;
+	export const X: Component<IconProps>;
+	export const Film: Component<IconProps>;
+	export const Search: Component<IconProps>;
+	export const Loader2: Component<IconProps>;
+	export const ArrowLeft: Component<IconProps>;
+	export const Calendar: Component<IconProps>;
+	export const Check: Component<IconProps>;
+	export const Copy: Component<IconProps>;
+	export const Database: Component<IconProps>;
+	export const Folder: Component<IconProps>;
+	export const AlertCircle: Component<IconProps>;
+	export const HardDrive: Component<IconProps>;
+	export const Key: Component<IconProps>;
+	export const Mail: Component<IconProps>;
+	export const MoreVertical: Component<IconProps>;
+	export const EllipsisVertical: Component<IconProps>;
+}
+
 declare module 'parse-torrent' {
 	interface ParsedTorrent {
 		infoHash?: string;
@@ -24,7 +61,7 @@ declare module 'parse-torrent-title' {
 }
 
 declare module 'webtorrent' {
-	import type { Readable } from 'stream';
+	import type { Readable } from 'node:stream';
 
 	interface TorrentFile {
 		name: string;
@@ -53,15 +90,11 @@ declare module 'webtorrent' {
 		ready: boolean;
 		paused: boolean;
 		destroy(opts?: { destroyStore?: boolean }, callback?: () => void): void;
-		on(event: 'ready', callback: () => void): void;
-		on(event: 'metadata', callback: () => void): void;
-		on(event: 'done', callback: () => void): void;
-		on(event: 'download', callback: (bytes: number) => void): void;
-		on(event: 'upload', callback: (bytes: number) => void): void;
+		on(event: 'done' | 'metadata' | 'ready', callback: () => void): void;
+		on(event: 'upload' | 'download', callback: (bytes: number) => void): void;
 		on(event: 'wire', callback: (wire: unknown) => void): void;
 		on(event: 'noPeers', callback: (announceType: string) => void): void;
-		on(event: 'error', callback: (err: Error) => void): void;
-		on(event: 'warning', callback: (err: Error) => void): void;
+		on(event: 'warning' | 'error', callback: (err: Error) => void): void;
 		on(event: string, callback: (...args: unknown[]) => void): void;
 	}
 

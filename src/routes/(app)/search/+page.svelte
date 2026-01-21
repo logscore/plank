@@ -38,7 +38,9 @@
   }
 
   function handleInput() {
-    if (debounceTimer) clearTimeout(debounceTimer);
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
     debounceTimer = setTimeout(performSearch, 200);
   }
 
@@ -108,8 +110,9 @@
   <!-- Search Header -->
   <div class="max-w-2xl mx-auto mb-12">
     <h1 class="text-3xl font-bold mb-6 text-center">Search</h1>
-    <div class="relative">
+    <div class="relative" role="search">
       <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+      <!-- svelte-ignore a11y_autofocus -->
       <input
         type="search"
         bind:value={query}
@@ -132,7 +135,7 @@
       <div class="p-4 rounded-full bg-accent/30">
         <Film class="w-8 h-8 text-muted-foreground" />
       </div>
-      <h3 class="text-lg font-semibold">No results found</h3>
+      <h2 class="text-lg font-semibold">No results found</h2>
       <p class="text-muted-foreground">Try a different search term.</p>
     </div>
   {:else if results.length > 0}

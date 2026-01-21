@@ -7,7 +7,9 @@ import { startDownload } from '$lib/server/torrent';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals }) => {
-	if (!locals.user) throw error(401, 'Unauthorized');
+	if (!locals.user) {
+		throw error(401, 'Unauthorized');
+	}
 
 	const list = movies.list(locals.user.id);
 	return json(list);
@@ -15,11 +17,13 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	console.log('[POST /api/movies] Adding new movie...');
-	if (!locals.user) throw error(401, 'Unauthorized');
+	if (!locals.user) {
+		throw error(401, 'Unauthorized');
+	}
 
 	const { magnetLink } = await request.json();
 
-	if (!(magnetLink && magnetLink.startsWith('magnet:'))) {
+	if (!magnetLink?.startsWith('magnet:')) {
 		throw error(400, 'Invalid magnet link');
 	}
 
@@ -85,13 +89,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				);
 
 				// Fetch full details for additional metadata
-				const { getMovieDetails } = await import('$lib/server/tmdb');
-				const details = await getMovieDetails(basicResult.tmdbId);
+				if (basicResult.tmdbId !== null) {
+					const { getMovieDetails } = await import('$lib/server/tmdb');
+					const details = await getMovieDetails(basicResult.tmdbId);
 
-				metadata = {
-					...metadata,
-					...details,
-				};
+					metadata = {
+						...metadata,
+						...details,
+					};
+				} else {
+					metadata = {
+						...metadata,
+						...basicResult,
+					};
+				}
 				console.log(
 					`[POST /api/movies] Got details: runtime=${metadata.runtime}min, cert=${metadata.certification}`
 				);

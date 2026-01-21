@@ -1,11 +1,27 @@
 <script lang="ts">
   import { X } from 'lucide-svelte';
-  import { cn } from '$lib/utils';
+  import type { Snippet } from 'svelte';
 
-  let { open = $bindable(false), children, title, description } = $props();
+  let {
+    open = $bindable(false),
+    children,
+    title,
+    description,
+  }: {
+    open?: boolean;
+    children?: Snippet;
+    title?: string;
+    description?: string;
+  } = $props();
 
   function close() {
     open = false;
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      close();
+    }
   }
 </script>
 
@@ -13,11 +29,14 @@
   <div
     class="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
     onclick={close}
-    role="presentation"
+    onkeydown={handleKeydown}
+    role="button"
+    tabindex="-1"
   >
     <div
       class="fixed left-[50%] top-[50%] z-50 grid w-[90%] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg"
       onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
       role="dialog"
     >
       <div class="flex flex-col space-y-1.5 text-center sm:text-left">
@@ -29,7 +48,9 @@
         {/if}
       </div>
 
-      {@render children()}
+      {#if children}
+        {@render children()}
+      {/if}
 
       <button
         class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"

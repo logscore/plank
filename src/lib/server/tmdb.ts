@@ -24,12 +24,12 @@ interface TMDBSearchResult {
 }
 
 export interface TMDBMetadata {
-	tmdbId: number;
+	tmdbId: number | null;
 	title: string;
 	year: number | null;
 	posterUrl: string | null;
 	backdropUrl: string | null;
-	overview: string;
+	overview: string | null;
 	runtime?: number | null;
 	genres?: string | null;
 	originalLanguage?: string | null;
@@ -42,7 +42,9 @@ export async function searchMovie(query: string, year?: number | null): Promise<
 		query,
 	});
 
-	if (year) params.set('year', String(year));
+	if (year) {
+		params.set('year', String(year));
+	}
 
 	const res = await fetch(`${config.tmdb.baseUrl}/search/movie?${params}`);
 	const data: TMDBSearchResult = await res.json();
@@ -50,7 +52,7 @@ export async function searchMovie(query: string, year?: number | null): Promise<
 	return data.results.map((movie) => ({
 		tmdbId: movie.id,
 		title: movie.title,
-		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4)) : null,
+		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
 		posterUrl: movie.poster_path ? `${config.tmdb.imageBaseUrl}${movie.poster_path}` : null,
 		backdropUrl: movie.backdrop_path ? `${config.tmdb.imageBaseUrl}${movie.backdrop_path}` : null,
 		overview: movie.overview,
@@ -93,7 +95,7 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 	return {
 		tmdbId: movie.id,
 		title: movie.title,
-		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4)) : null,
+		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
 		posterUrl: movie.poster_path ? `${config.tmdb.imageBaseUrl}${movie.poster_path}` : null,
 		backdropUrl: movie.backdrop_path ? `${config.tmdb.imageBaseUrl}${movie.backdrop_path}` : null,
 		overview: movie.overview,

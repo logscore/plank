@@ -1,7 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { error, type RequestHandler } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { config } from '$lib/config';
+import type { RequestHandler } from './$types';
+
+// Regex to prevent directory traversal
+const DIRECTORY_TRAVERSAL_REGEX = /^(\.\.(\/|\\|$))+/;
 
 export const GET: RequestHandler = async ({ params }) => {
 	if (!params.path) {
@@ -9,7 +13,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 
 	// Prevent directory traversal
-	const safePath = path.normalize(params.path).replace(/^(\.\.(\/|\\|$))+/, '');
+	const safePath = path.normalize(params.path).replace(DIRECTORY_TRAVERSAL_REGEX, '');
 	const filePath = path.join(config.paths.data, safePath);
 
 	try {
@@ -39,6 +43,9 @@ export const GET: RequestHandler = async ({ params }) => {
 			case '.svg':
 				contentType = 'image/svg+xml';
 				break;
+			default:
+				// Keep application/octet-stream for unknown types
+				break;
 		}
 
 		return new Response(file, {
@@ -48,7 +55,7 @@ export const GET: RequestHandler = async ({ params }) => {
 				'Cache-Control': 'public, max-age=31536000',
 			},
 		});
-	} catch (e) {
+	} catch (_e) {
 		throw error(404, 'Not Found');
 	}
 };

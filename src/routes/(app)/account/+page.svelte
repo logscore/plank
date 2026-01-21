@@ -28,9 +28,15 @@
   let showPasswordForm = $state(false);
 
   function formatFileSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    if (bytes < 1024 * 1024 * 1024) {
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
   }
 
@@ -71,7 +77,9 @@
         currentPassword = '';
         newPassword = '';
         confirmPassword = '';
-        setTimeout(() => (showPasswordForm = false), 2000);
+        setTimeout(() => {
+          showPasswordForm = false;
+        }, 2000);
       }
     } catch (e) {
       passwordError = 'Failed to change password';
@@ -153,8 +161,11 @@
     {#if showPasswordForm}
       <div class="space-y-4 max-w-md" transition:fade>
         <div>
-          <label class="block text-sm text-muted-foreground mb-2">Current Password</label>
+          <label for="current-password" class="block text-sm text-muted-foreground mb-2">
+            Current Password
+          </label>
           <Input
+            id="current-password"
             type="password"
             placeholder="Enter current password"
             bind:value={currentPassword}
@@ -162,13 +173,27 @@
         </div>
 
         <div>
-          <label class="block text-sm text-muted-foreground mb-2">New Password</label>
-          <Input type="password" placeholder="Enter new password" bind:value={newPassword} />
+          <label for="new-password" class="block text-sm text-muted-foreground mb-2">
+            New Password
+          </label>
+          <Input
+            id="new-password"
+            type="password"
+            placeholder="Enter new password"
+            bind:value={newPassword}
+          />
         </div>
 
         <div>
-          <label class="block text-sm text-muted-foreground mb-2">Confirm New Password</label>
-          <Input type="password" placeholder="Confirm new password" bind:value={confirmPassword} />
+          <label for="confirm-password" class="block text-sm text-muted-foreground mb-2">
+            Confirm New Password
+          </label>
+          <Input
+            id="confirm-password"
+            type="password"
+            placeholder="Confirm new password"
+            bind:value={confirmPassword}
+          />
         </div>
 
         {#if passwordError}

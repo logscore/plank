@@ -46,6 +46,7 @@
     "lefthook": "^2.0.15",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
+    "svelte-check-rs": "^0.6.8",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.0.0",
     "ultracite": "^7.0.12",

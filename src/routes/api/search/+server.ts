@@ -19,7 +19,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	try {
 		// Get underlying sqlite instance for raw FTS query
-		const sqlite = (db as any).$client;
+		const sqlite = (db as unknown as { $client: import('better-sqlite3').Database }).$client;
 
 		// Hybrid search: FTS5 first, then LIKE fallback
 		// Explicitly select columns with camelCase aliases to match frontend types

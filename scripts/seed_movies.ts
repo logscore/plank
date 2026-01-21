@@ -33,13 +33,30 @@ async function seed() {
 	console.log(`Using user: ${user.name} (${user.id})`);
 
 	// 2. Generate Movies
-	const moviesToInsert = [];
+	interface MovieInsert {
+		id: string;
+		userId: string;
+		title: string;
+		year: number;
+		overview: string;
+		magnetLink: string;
+		infohash: string;
+		status: 'added' | 'downloading' | 'complete' | 'error';
+		progress: number;
+		runtime: number;
+		addedAt: Date;
+	}
+	const moviesToInsert: MovieInsert[] = [];
 	const statuses = ['added', 'downloading', 'complete', 'error'] as const;
 
 	for (let i = 1; i <= 100; i++) {
 		const status = statuses[Math.floor(Math.random() * statuses.length)];
-		const progress =
-			status === 'complete' ? 100 : status === 'downloading' ? Math.random() * 100 : 0;
+		let progress = 0;
+		if (status === 'complete') {
+			progress = 100;
+		} else if (status === 'downloading') {
+			progress = Math.random() * 100;
+		}
 
 		moviesToInsert.push({
 			id: crypto.randomUUID(),

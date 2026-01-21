@@ -1,9 +1,13 @@
 import ptt from 'parse-torrent-title';
 
+// Regex patterns at top level for performance
+const INFOHASH_REGEX = /urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})/i;
+const DISPLAY_NAME_REGEX = /[?&]dn=([^&]+)/i;
+
 // Extract infohash from magnet link using regex (more reliable than parse-torrent for magnets)
 function extractInfohash(magnetLink: string): string {
 	// Match btih (BitTorrent Info Hash) in magnet link
-	const match = magnetLink.match(/urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})/i);
+	const match = magnetLink.match(INFOHASH_REGEX);
 	if (match) {
 		const hash = match[1];
 		// Convert base32 to hex if necessary
@@ -17,7 +21,7 @@ function extractInfohash(magnetLink: string): string {
 
 // Extract display name from magnet link
 function extractDisplayName(magnetLink: string): string {
-	const match = magnetLink.match(/[?&]dn=([^&]+)/i);
+	const match = magnetLink.match(DISPLAY_NAME_REGEX);
 	if (match) {
 		return decodeURIComponent(match[1].replace(/\+/g, ' '));
 	}
@@ -30,7 +34,9 @@ function base32ToHex(base32: string): string {
 	let bits = '';
 	for (const char of base32.toUpperCase()) {
 		const val = alphabet.indexOf(char);
-		if (val === -1) continue;
+		if (val === -1) {
+			continue;
+		}
 		bits += val.toString(2).padStart(5, '0');
 	}
 	let hex = '';

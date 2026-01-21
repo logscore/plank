@@ -12,7 +12,7 @@ export interface Movie {
 	infohash: string;
 	filePath: string | null;
 	fileSize: number | null;
-	status: 'added' | 'downloading' | 'complete' | null;
+	status: 'added' | 'downloading' | 'complete' | 'error' | null;
 	progress: number | null;
 	tmdbId: number | null;
 	runtime: number | null;

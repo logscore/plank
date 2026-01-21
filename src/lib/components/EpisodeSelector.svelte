@@ -64,8 +64,12 @@
   }
 
   function formatRuntime(minutes: number | null): string {
-    if (!minutes) return '';
-    if (minutes < 60) return `${minutes}m`;
+    if (!minutes) {
+      return '';
+    }
+    if (minutes < 60) {
+      return `${minutes}m`;
+    }
     return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
   }
 

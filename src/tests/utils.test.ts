@@ -12,9 +12,9 @@ describe('Utils', () => {
 		});
 
 		it('should result in tailwind merge behavior', () => {
-			// tailwind-merge should resolve conflicts
-			expect(cn('p-2 p-4')).toBe('p-2');
-			expect(cn('bg-blue-500 bg-red-500')).toBe('bg-blue-500');
+			// tailwind-merge should resolve conflicts (keeps last class)
+			expect(cn('p-2 p-4')).toBe('p-4');
+			expect(cn('bg-blue-500 bg-red-500')).toBe('bg-red-500');
 		});
 
 		it('should handle arrays and objects', () => {
