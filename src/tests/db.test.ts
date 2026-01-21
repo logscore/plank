@@ -37,6 +37,10 @@ function createTables() {
       status TEXT DEFAULT 'added',
       progress REAL DEFAULT 0,
       tmdb_id INTEGER,
+      runtime INTEGER,
+      genres TEXT,
+      original_language TEXT,
+      certification TEXT,
       added_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
       last_played_at INTEGER,
       UNIQUE(user_id, infohash)

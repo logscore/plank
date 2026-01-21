@@ -1,8 +1,7 @@
 import { config } from '$lib/config';
-import { error } from '@sveltejs/kit';
+import { error, type RequestHandler } from '@sveltejs/kit';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params }) => {
   if (!params.path) {
@@ -21,7 +20,7 @@ export const GET: RequestHandler = async ({ params }) => {
 
     const file = await fs.readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();
-    
+
     let contentType = 'application/octet-stream';
     switch (ext) {
         case '.jpg':

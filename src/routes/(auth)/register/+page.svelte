@@ -51,9 +51,6 @@
 
 <div class="w-full max-w-md bg-card/50 backdrop-blur-xl rounded-xl p-8 border border-white/10 shadow-2xl">
   <div class="text-center mb-8 flex flex-col items-center">
-    <div class="w-12 h-12 rounded-lg bg-primary flex items-center justify-center mb-4">
-        <Tv class="text-primary-foreground w-7 h-7" />
-    </div>
     <h1 class="text-3xl font-bold tracking-tight">Create an account</h1>
     <p class="text-muted-foreground mt-2">Enter your details below</p>
   </div>
