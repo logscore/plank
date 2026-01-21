@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { authClient } from '$lib/auth-client';
   import { goto } from '$app/navigation';
+  import { authClient } from '$lib/auth-client';
   import Layout from '$lib/components/Layout.svelte';
   import '../../app.css';
 
@@ -12,6 +12,4 @@
   }
 </script>
 
-<Layout logout={handleLogout}>
-  {@render children()}
-</Layout>
+<Layout logout={handleLogout}>{@render children()}</Layout>

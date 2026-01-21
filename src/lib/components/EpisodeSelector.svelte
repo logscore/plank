@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronDown, Play, ChevronRight } from 'lucide-svelte';
+  import { ChevronDown, ChevronRight, Play } from 'lucide-svelte';
   import Button from '$lib/components/ui/Button.svelte';
 
   interface Episode {
@@ -91,7 +91,9 @@
 
   <!-- Dropdown Menu -->
   {#if isOpen}
-    <div class="absolute top-full left-0 mt-2 w-72 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden">
+    <div
+      class="absolute top-full left-0 mt-2 w-72 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden"
+    >
       <!-- Seasons List -->
       <div class="max-h-96 overflow-y-auto">
         {#each seasons as season, index}
@@ -111,7 +113,9 @@
                   </span>
                 {/if}
               </div>
-              <ChevronRight class="w-4 h-4 text-muted-foreground transition-transform {selectedSeasonIndex === index ? 'rotate-90' : ''}" />
+              <ChevronRight
+                class="w-4 h-4 text-muted-foreground transition-transform {selectedSeasonIndex === index ? 'rotate-90' : ''}"
+              />
             </button>
 
             <!-- Episodes List (Expanded) -->
@@ -124,7 +128,9 @@
                     disabled={episode.fileIndex === null}
                   >
                     <!-- Episode Number -->
-                    <div class="w-8 h-8 rounded-full bg-accent flex items-center justify-center shrink-0">
+                    <div
+                      class="w-8 h-8 rounded-full bg-accent flex items-center justify-center shrink-0"
+                    >
                       <span class="text-xs font-medium">{episode.episodeNumber}</span>
                     </div>
 
@@ -163,9 +169,7 @@
         {/each}
 
         {#if seasons.length === 0}
-          <div class="px-4 py-6 text-center text-muted-foreground">
-            No seasons available
-          </div>
+          <div class="px-4 py-6 text-center text-muted-foreground">No seasons available</div>
         {/if}
       </div>
     </div>

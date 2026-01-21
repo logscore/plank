@@ -1,10 +1,20 @@
 <script lang="ts">
-  import type { PageData } from './$types';
-  import { User, Film, HardDrive, AlertCircle, ArrowLeft, Key, Mail, Check, Loader2 } from 'lucide-svelte';
+  import {
+    AlertCircle,
+    ArrowLeft,
+    Check,
+    Film,
+    HardDrive,
+    Key,
+    Loader2,
+    Mail,
+    User,
+  } from 'lucide-svelte';
+  import { fade } from 'svelte/transition';
+  import { authClient } from '$lib/auth-client';
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
-  import { authClient } from '$lib/auth-client';
-  import { fade } from 'svelte/transition';
+  import type { PageData } from './$types';
 
   let { data } = $props<{ data: PageData }>();
 
@@ -31,7 +41,7 @@
     passwordError = '';
     passwordSuccess = '';
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
+    if (!(currentPassword && newPassword && confirmPassword)) {
       passwordError = 'All fields are required';
       return;
     }
@@ -51,7 +61,7 @@
       const result = await authClient.changePassword({
         currentPassword,
         newPassword,
-        revokeOtherSessions: true
+        revokeOtherSessions: true,
       });
 
       if (result.error) {
@@ -61,7 +71,7 @@
         currentPassword = '';
         newPassword = '';
         confirmPassword = '';
-        setTimeout(() => showPasswordForm = false, 2000);
+        setTimeout(() => (showPasswordForm = false), 2000);
       }
     } catch (e) {
       passwordError = 'Failed to change password';
@@ -136,9 +146,7 @@
 
     {#if !showPasswordForm}
       <div class="mb-4">
-        <Button variant="outline" onclick={() => showPasswordForm = true}>
-          Reset Password
-        </Button>
+        <Button variant="outline" onclick={() => showPasswordForm = true}>Reset Password</Button>
       </div>
     {/if}
 
@@ -155,20 +163,12 @@
 
         <div>
           <label class="block text-sm text-muted-foreground mb-2">New Password</label>
-          <Input
-            type="password"
-            placeholder="Enter new password"
-            bind:value={newPassword}
-          />
+          <Input type="password" placeholder="Enter new password" bind:value={newPassword} />
         </div>
 
         <div>
           <label class="block text-sm text-muted-foreground mb-2">Confirm New Password</label>
-          <Input
-            type="password"
-            placeholder="Confirm new password"
-            bind:value={confirmPassword}
-          />
+          <Input type="password" placeholder="Confirm new password" bind:value={confirmPassword} />
         </div>
 
         {#if passwordError}
@@ -182,12 +182,10 @@
         <p class="text-sm text-white/70">This will sign you out of all other devices</p>
 
         <div class="flex gap-2">
-            <Button onclick={changePassword} disabled={changingPassword}>
-                {changingPassword ? 'Changing...' : 'Change Password'}
-            </Button>
-            <Button variant="ghost" onclick={() => showPasswordForm = false}>
-                Cancel
-            </Button>
+          <Button onclick={changePassword} disabled={changingPassword}>
+            {changingPassword ? 'Changing...' : 'Change Password'}
+          </Button>
+          <Button variant="ghost" onclick={() => showPasswordForm = false}>Cancel</Button>
         </div>
       </div>
     {/if}

@@ -3,17 +3,17 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  plugins: [tailwindcss(), sveltekit()],
-  server: {
-    host: '0.0.0.0',
-    port: parseInt(process.env.PORT || '3300')
-  },
-  build: {
-    rollupOptions: {
-      external: ['webtorrent']
-    }
-  },
-  ssr: {
-    external: ['webtorrent']
-  }
+	plugins: [tailwindcss(), sveltekit()],
+	server: {
+		host: '0.0.0.0',
+		port: Number.parseInt(process.env.PORT || '3300', 10),
+	},
+	build: {
+		rollupOptions: {
+			external: ['webtorrent'],
+		},
+	},
+	ssr: {
+		external: ['webtorrent'],
+	},
 });

@@ -1,19 +1,18 @@
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import Database from 'better-sqlite3';
-import { env } from '$env/dynamic/private';
-import * as schema from './schema';
-import { mkdirSync } from 'fs';
-import { dirname } from 'path';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { schema } from './schema';
 
 // Ensure database directory exists
-const dbPath = env.DATABASE_URL || './plank.db';
+const dbPath = process.env.DATABASE_URL || './plank.db';
 const dbDir = dirname(dbPath);
 if (dbDir && dbDir !== '.') {
-  try {
-    mkdirSync(dbDir, { recursive: true });
-  } catch {
-    // Directory may already exist
-  }
+	try {
+		mkdirSync(dbDir, { recursive: true });
+	} catch {
+		// Directory may already exist
+	}
 }
 
 const sqlite = new Database(dbPath);

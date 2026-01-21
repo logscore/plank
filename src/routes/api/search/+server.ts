@@ -1,29 +1,30 @@
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { and, eq, like } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
 import { movies } from '$lib/server/db/schema';
-import { eq, like, and, sql } from 'drizzle-orm';
+import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-  if (!locals.user) {
-    return json({ error: 'Unauthorized' }, { status: 401 });
-  }
+	if (!locals.user) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
 
-  const query = url.searchParams.get('q')?.trim() || '';
-  
-  if (query.length < 2) {
-    return json([]);
-  }
+	const query = url.searchParams.get('q')?.trim() || '';
 
-  const userId = locals.user.id;
+	if (query.length < 2) {
+		return json([]);
+	}
 
-  try {
-    // Get underlying sqlite instance for raw FTS query
-    const sqlite = (db as any).$client;
-    
-    // Hybrid search: FTS5 first, then LIKE fallback
-    // Explicitly select columns with camelCase aliases to match frontend types
-    const results = sqlite.prepare(`
+	const userId = locals.user.id;
+
+	try {
+		// Get underlying sqlite instance for raw FTS query
+		const sqlite = (db as any).$client;
+
+		// Hybrid search: FTS5 first, then LIKE fallback
+		// Explicitly select columns with camelCase aliases to match frontend types
+		const results = sqlite
+			.prepare(`
       SELECT 
         m.id,
         m.user_id as userId,
@@ -84,25 +85,21 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       
       ORDER BY priority, fts_rank
       LIMIT 20
-    `).all(userId, query, userId, query, query);
+    `)
+			.all(userId, query, userId, query, query);
 
-    return json(results);
-  } catch (error) {
-    console.error('Search error:', error);
-    
-    // Fallback to simple LIKE search if FTS fails
-    const fallbackResults = db
-      .select()
-      .from(movies)
-      .where(
-        and(
-          eq(movies.userId, userId),
-          like(movies.title, `%${query}%`)
-        )
-      )
-      .limit(20)
-      .all();
+		return json(results);
+	} catch (error) {
+		console.error('Search error:', error);
 
-    return json(fallbackResults);
-  }
+		// Fallback to simple LIKE search if FTS fails
+		const fallbackResults = db
+			.select()
+			.from(movies)
+			.where(and(eq(movies.userId, userId), like(movies.title, `%${query}%`)))
+			.limit(20)
+			.all();
+
+		return json(fallbackResults);
+	}
 };

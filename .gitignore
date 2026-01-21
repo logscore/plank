@@ -14,3 +14,5 @@ docker/media
 *.avi
 *.mov
 *.webm
+biome-cache/
+.lefthook-local.yml

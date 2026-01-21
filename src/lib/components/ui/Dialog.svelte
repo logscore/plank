@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { cn } from "$lib/utils";
-  import { X } from "lucide-svelte";
-  
+  import { X } from 'lucide-svelte';
+  import { cn } from '$lib/utils';
+
   let { open = $bindable(false), children, title, description } = $props();
 
   function close() {
@@ -10,21 +10,25 @@
 </script>
 
 {#if open}
-  <div class="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" onclick={close} role="presentation">
-    <div 
-        class="fixed left-[50%] top-[50%] z-50 grid w-[90%] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg"
-        onclick={(e) => e.stopPropagation()}
-        role="dialog"
+  <div
+    class="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
+    onclick={close}
+    role="presentation"
+  >
+    <div
+      class="fixed left-[50%] top-[50%] z-50 grid w-[90%] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg"
+      onclick={(e) => e.stopPropagation()}
+      role="dialog"
     >
       <div class="flex flex-col space-y-1.5 text-center sm:text-left">
         {#if title}
-            <h2 class="text-lg font-semibold leading-none tracking-tight">{title}</h2>
+          <h2 class="text-lg font-semibold leading-none tracking-tight">{title}</h2>
         {/if}
         {#if description}
-            <p class="text-sm text-muted-foreground">{description}</p>
+          <p class="text-sm text-muted-foreground">{description}</p>
         {/if}
       </div>
-      
+
       {@render children()}
 
       <button
