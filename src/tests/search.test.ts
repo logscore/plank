@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { movies } from '$lib/server/db';
+import { mediaDb } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
 import { GET } from '../routes/api/search/+server';
 import { db, testDb } from './setup';
@@ -24,8 +24,10 @@ const testUser = {
 
 describe('Search API', () => {
 	beforeEach(() => {
-		testDb.exec('DELETE FROM movies');
-		testDb.exec('DELETE FROM movies_fts'); // Ensure FTS is clean
+		testDb.exec('DELETE FROM episodes');
+		testDb.exec('DELETE FROM seasons');
+		testDb.exec('DELETE FROM media');
+		testDb.exec('DELETE FROM media_fts'); // Ensure FTS is clean
 		testDb.exec('DELETE FROM user');
 		db.insert(schema.user).values(testUser).run();
 	});
@@ -44,20 +46,22 @@ describe('Search API', () => {
 	});
 
 	it('should search by title using FTS', async () => {
-		movies.create({
+		mediaDb.create({
 			userId: testUser.id,
 			title: 'Matrix Reloaded',
 			magnetLink: 'magnet:?xt=urn:btih:1',
 			infohash: '1',
 			overview: 'Neo returns',
+			type: 'movie',
 		});
 
-		movies.create({
+		mediaDb.create({
 			userId: testUser.id,
 			title: 'Star Wars',
 			magnetLink: 'magnet:?xt=urn:btih:2',
 			infohash: '2',
 			overview: 'Space opera',
+			type: 'movie',
 		});
 
 		// Search match
@@ -71,12 +75,13 @@ describe('Search API', () => {
 	});
 
 	it('should search by overview using FTS', async () => {
-		movies.create({
+		mediaDb.create({
 			userId: testUser.id,
 			title: 'Test Movie',
 			magnetLink: 'magnet:?xt=urn:btih:1',
 			infohash: '1',
 			overview: 'Contains hidden keyword',
+			type: 'movie',
 		});
 
 		const req = createRequest('/api/search?q=hidden', testUser);
@@ -96,11 +101,12 @@ describe('Search API', () => {
 			})
 			.run();
 
-		movies.create({
+		mediaDb.create({
 			userId: 'other-user', // Different user
 			title: 'Secret User Movie',
 			magnetLink: 'magnet:?xt=urn:btih:1',
 			infohash: '1',
+			type: 'movie',
 		});
 
 		const req = createRequest('/api/search?q=Secret', testUser);

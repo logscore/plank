@@ -1,19 +1,19 @@
 <script lang="ts">
   import { Film, Loader2, Search } from 'lucide-svelte';
   import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
-  import MovieCard from '$lib/components/MovieCard.svelte';
+  import MediaCard from '$lib/components/MediaCard.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
   import Input from '$lib/components/ui/Input.svelte';
-  import type { Movie } from '$lib/types';
+  import type { Media } from '$lib/types';
   import { confirmDelete, uiState } from '$lib/ui-state.svelte';
 
   let query = $state('');
-  let results: Movie[] = $state([]);
+  let results: Media[] = $state([]);
   let searching = $state(false);
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Add Movie Dialog state
+  // Add Media Dialog state
   let magnetInput = $state('');
   let error = $state('');
   let adding = $state(false);
@@ -46,22 +46,22 @@
 
   let deletingId = $state<string | null>(null);
 
-  async function deleteMovie(id: string, event: Event) {
+  async function deleteMedia(id: string, event: Event) {
     event.preventDefault();
     event.stopPropagation();
 
     confirmDelete(
-      'Delete Movie',
-      'Are you sure you want to remove this movie? This action cannot be undone.',
+      'Delete Media',
+      'Are you sure you want to remove this item? This action cannot be undone.',
       async () => {
         try {
           deletingId = id;
-          const res = await fetch(`/api/movies/${id}`, { method: 'DELETE' });
+          const res = await fetch(`/api/media/${id}`, { method: 'DELETE' });
           if (res.ok) {
             results = results.filter((m) => m.id !== id);
           }
         } catch (e) {
-          console.error('Failed to delete movie:', e);
+          console.error('Failed to delete media:', e);
         } finally {
           deletingId = null;
         }
@@ -82,24 +82,24 @@
     error = '';
     adding = true;
     try {
-      const res = await fetch('/api/movies', {
+      const res = await fetch('/api/media', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ magnetLink: magnetInput }),
       });
       if (res.ok) {
         magnetInput = '';
-        uiState.addMovieDialogOpen = false;
+        uiState.addMediaDialogOpen = false;
         // Refresh search if there's a query
         if (query.trim().length >= 2) {
           performSearch();
         }
       } else {
         const data = await res.json();
-        error = data.message || 'Failed to add movie';
+        error = data.message || 'Failed to add media';
       }
     } catch (e) {
-      error = 'Failed to add movie';
+      error = 'Failed to add media';
     } finally {
       adding = false;
     }
@@ -140,8 +140,8 @@
     </div>
   {:else if results.length > 0}
     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-      {#each results as movie (movie.id)}
-        <MovieCard {movie} onDelete={deleteMovie} />
+      {#each results as media (media.id)}
+        <MediaCard {media} onDelete={deleteMedia} />
       {/each}
     </div>
   {:else}
@@ -154,10 +154,10 @@
   {/if}
 </div>
 
-<!-- Add Movie Dialog - Controlled by Global Store -->
+<!-- Add Media Dialog - Controlled by Global Store -->
 <Dialog
-  bind:open={uiState.addMovieDialogOpen}
-  title="Add Movie"
+  bind:open={uiState.addMediaDialogOpen}
+  title="Add Media"
   description="Paste a magnet link to start downloading."
 >
   <div class="grid gap-4 py-4">
@@ -172,8 +172,8 @@
     {/if}
   </div>
   <div class="flex justify-end gap-2">
-    <Button variant="ghost" onclick={() => uiState.addMovieDialogOpen = false}>Cancel</Button>
-    <Button onclick={addMagnet} disabled={adding}>{adding ? 'Adding...' : 'Add Movie'}</Button>
+    <Button variant="ghost" onclick={() => uiState.addMediaDialogOpen = false}>Cancel</Button>
+    <Button onclick={addMagnet} disabled={adding}>{adding ? 'Adding...' : 'Add'}</Button>
   </div>
 </Dialog>
 

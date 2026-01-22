@@ -126,12 +126,12 @@
         <!-- Divider -->
         <div class="w-px h-8 bg-white/10 mx-1"></div>
 
-        <!-- Add Movie -->
+        <!-- Add Media -->
         <div class="group relative">
           <button
-            onclick={() => uiState.toggleAddMovieDialog()}
+            onclick={() => uiState.toggleAddMediaDialog()}
             class="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 text-zinc-400 hover:text-white hover:bg-white/10"
-            aria-label="Add Movie"
+            aria-label="Add Media"
           >
             <Plus class="w-6 h-6" />
           </button>
@@ -139,7 +139,7 @@
           <div
             class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-900 border border-white/10 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap"
           >
-            Add Movie
+            Add Media
           </div>
         </div>
       </nav>

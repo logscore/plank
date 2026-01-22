@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { and, eq, like } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
-import { movies } from '$lib/server/db/schema';
+import { media } from '$lib/server/db/schema';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -21,13 +21,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		// Get underlying sqlite instance for raw FTS query
 		const sqlite = (db as unknown as { $client: import('better-sqlite3').Database }).$client;
 
-		// Hybrid search: FTS5 first, then LIKE fallback
-		// Explicitly select columns with camelCase aliases to match frontend types
+		// FTS5 content table uses rowid to reference media table
+		// First try FTS search, then fall back to LIKE
 		const results = sqlite
 			.prepare(`
       SELECT 
         m.id,
         m.user_id as userId,
+        m.type,
         m.title,
         m.year,
         m.poster_url as posterUrl,
@@ -44,19 +45,21 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         m.genres,
         m.original_language as originalLanguage,
         m.certification,
+        m.total_seasons as totalSeasons,
         m.added_at as addedAt,
         m.last_played_at as lastPlayedAt,
         fts.rank as fts_rank,
         1 as priority
-      FROM movies_fts fts
-      JOIN movies m ON fts.movie_id = m.id
-      WHERE fts.user_id = ? AND movies_fts MATCH ? || '*'
+      FROM media_fts fts
+      JOIN media m ON fts.rowid = m.rowid
+      WHERE m.user_id = ? AND media_fts MATCH ? || '*'
       
       UNION ALL
       
       SELECT 
         m.id,
         m.user_id as userId,
+        m.type,
         m.title,
         m.year,
         m.poster_url as posterUrl,
@@ -73,14 +76,15 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         m.genres,
         m.original_language as originalLanguage,
         m.certification,
+        m.total_seasons as totalSeasons,
         m.added_at as addedAt,
         m.last_played_at as lastPlayedAt,
         NULL as fts_rank,
         2 as priority
-      FROM movies m
+      FROM media m
       WHERE m.user_id = ? AND m.title LIKE '%' || ? || '%'
-        AND NOT EXISTS (
-          SELECT 1 FROM movies_fts WHERE movie_id = m.id AND movies_fts MATCH ? || '*'
+        AND m.rowid NOT IN (
+          SELECT rowid FROM media_fts WHERE media_fts MATCH ? || '*'
         )
       
       ORDER BY priority, fts_rank
@@ -95,8 +99,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		// Fallback to simple LIKE search if FTS fails
 		const fallbackResults = db
 			.select()
-			.from(movies)
-			.where(and(eq(movies.userId, userId), like(movies.title, `%${query}%`)))
+			.from(media)
+			.where(and(eq(media.userId, userId), like(media.title, `%${query}%`)))
 			.limit(20)
 			.all();
 

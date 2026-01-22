@@ -5,8 +5,9 @@ import type { Readable } from 'node:stream';
 import parseTorrent from 'parse-torrent';
 import ptt from 'parse-torrent-title';
 import { config } from '$lib/config';
-import { movies } from './db';
-import { searchMovie } from './tmdb';
+import type { MediaType } from '$lib/types';
+import { episodesDb, mediaDb, seasonsDb } from './db';
+import { searchMovie, searchTVShow } from './tmdb';
 import { isSupportedFormat, SUPPORTED_VIDEO_FORMATS } from './transcoder';
 
 // WebTorrent types
@@ -63,9 +64,13 @@ interface WebTorrentClient {
 }
 
 interface ActiveDownload {
-	movieId: string;
+	mediaId: string;
+	mediaType: MediaType;
 	torrent: Torrent;
-	videoFile: TorrentFile | null;
+	videoFile: TorrentFile | null; // Single file for movies
+	videoFiles: TorrentFile[]; // Multiple files for TV shows
+	selectedFileIndex: number | null; // Currently selected file for streaming
+	episodeMapping: Map<number, number>; // episodeKey (S*100+E) -> fileIndex
 	progress: number;
 	status: 'initializing' | 'downloading' | 'complete' | 'error';
 	activeStreams: number;
@@ -100,6 +105,10 @@ const TRACKERS = [
 	'http://tracker.openbittorrent.com:80/announce',
 	'http://tracker.opentrackr.org:1337/announce',
 ];
+
+// Regex patterns for episode parsing
+const SXXEXX_PATTERN = /S(\d{1,2})E(\d{1,2})/i;
+const NXNN_PATTERN = /(\d{1,2})x(\d{1,2})/i;
 
 async function getClient(): Promise<WebTorrentClient> {
 	if (!client) {
@@ -155,105 +164,268 @@ function findVideoFile(files: TorrentFile[]): TorrentFile | null {
 	return anyVideo || null;
 }
 
+function findVideoFiles(files: TorrentFile[]): TorrentFile[] {
+	// Filter to supported video files that meet minimum size requirement
+	const videoFiles = files
+		.filter((f) => isSupportedFormat(f.name) && f.length >= MIN_VIDEO_SIZE)
+		.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+	if (videoFiles.length > 0) {
+		return videoFiles;
+	}
+
+	// Fallback: get any supported video files regardless of size
+	return files
+		.filter((f) => isSupportedFormat(f.name))
+		.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+}
+
 async function ensureDirectories(): Promise<void> {
 	await fs.mkdir(config.paths.temp, { recursive: true });
 	await fs.mkdir(config.paths.library, { recursive: true });
 }
 
-async function fetchAndUpdateMetadata(movieId: string, fileName: string): Promise<void> {
+/**
+ * Map video files to episodes using filename parsing
+ */
+function mapFilesToEpisodes(files: TorrentFile[]): Map<number, number> {
+	const mapping = new Map<number, number>();
+
+	for (const [index, file] of files.entries()) {
+		const parsed = ptt.parse(file.name);
+
+		if (parsed.season !== undefined && parsed.episode !== undefined) {
+			// Standard S01E01 format
+			const episodeKey = parsed.season * 100 + parsed.episode;
+			mapping.set(episodeKey, index);
+		} else if (parsed.episode !== undefined) {
+			// Episode only (assume season 1)
+			const episodeKey = 100 + parsed.episode;
+			mapping.set(episodeKey, index);
+		} else {
+			// Try regex patterns directly on filename
+			const sxxexx = file.name.match(SXXEXX_PATTERN);
+			if (sxxexx) {
+				const season = Number.parseInt(sxxexx[1], 10);
+				const episode = Number.parseInt(sxxexx[2], 10);
+				const episodeKey = season * 100 + episode;
+				mapping.set(episodeKey, index);
+				continue;
+			}
+
+			const nxnn = file.name.match(NXNN_PATTERN);
+			if (nxnn) {
+				const season = Number.parseInt(nxnn[1], 10);
+				const episode = Number.parseInt(nxnn[2], 10);
+				const episodeKey = season * 100 + episode;
+				mapping.set(episodeKey, index);
+			}
+		}
+	}
+
+	return mapping;
+}
+
+/**
+ * Auto-number files sequentially when mapping fails
+ */
+function autoNumberFiles(files: TorrentFile[]): Map<number, number> {
+	const mapping = new Map<number, number>();
+
+	// Sort files by name to maintain order
+	const sortedFiles = [...files].sort((a, b) =>
+		a.name.localeCompare(b.name, undefined, { numeric: true })
+	);
+
+	for (const [index, file] of sortedFiles.entries()) {
+		// Assume season 1, episode = index + 1
+		const episodeKey = 100 + (index + 1);
+		mapping.set(episodeKey, files.indexOf(file));
+	}
+
+	return mapping;
+}
+
+/**
+ * Create episode records from file mapping
+ */
+async function createEpisodesFromMapping(
+	mediaId: string,
+	videoFiles: TorrentFile[],
+	mapping: Map<number, number>
+): Promise<void> {
+	const mediaItem = mediaDb.getById(mediaId);
+	if (!mediaItem || mediaItem.type !== 'tv') {
+		return;
+	}
+
+	// Group by season
+	const seasonEpisodes = new Map<number, Array<{ episodeNumber: number; fileIndex: number }>>();
+
+	for (const [episodeKey, fileIndex] of mapping.entries()) {
+		const season = Math.floor(episodeKey / 100);
+		const episode = episodeKey % 100;
+
+		if (!seasonEpisodes.has(season)) {
+			seasonEpisodes.set(season, []);
+		}
+		seasonEpisodes.get(season)?.push({ episodeNumber: episode, fileIndex });
+	}
+
+	// Create seasons and episodes
+	for (const [seasonNum, episodes] of seasonEpisodes.entries()) {
+		// Check if season already exists
+		let season = seasonsDb.getByMediaAndNumber(mediaId, seasonNum);
+
+		if (!season) {
+			season = seasonsDb.create({
+				mediaId,
+				seasonNumber: seasonNum,
+				name: `Season ${seasonNum}`,
+				episodeCount: episodes.length,
+			});
+		}
+
+		// Create episodes
+		for (const [displayOrder, ep] of episodes.entries()) {
+			const existingEpisode = episodesDb.getBySeasonAndNumber(season.id, ep.episodeNumber);
+
+			if (existingEpisode) {
+				// Update file info for existing episode
+				const videoFile = videoFiles[ep.fileIndex];
+				if (videoFile) {
+					episodesDb.updateFileInfo(
+						existingEpisode.id,
+						ep.fileIndex,
+						videoFile.path,
+						videoFile.length
+					);
+				}
+			} else {
+				// Create new episode
+				const videoFile = videoFiles[ep.fileIndex];
+				episodesDb.create({
+					seasonId: season.id,
+					episodeNumber: ep.episodeNumber,
+					title: `Episode ${ep.episodeNumber}`,
+					fileIndex: ep.fileIndex,
+					filePath: videoFile?.path ?? null,
+					fileSize: videoFile?.length ?? null,
+					displayOrder,
+					status: 'pending',
+				});
+			}
+		}
+
+		// Update season episode count
+		seasonsDb.updateEpisodeCount(season.id, episodes.length);
+	}
+}
+
+async function fetchAndUpdateMetadata(
+	mediaId: string,
+	fileName: string,
+	mediaType: MediaType
+): Promise<void> {
 	try {
-		// Check if movie already has TMDB data - skip entirely if so
-		const existingMovie = movies.getById(movieId);
-		if (existingMovie?.tmdbId) {
+		// Check if media already has TMDB data - skip entirely if so
+		const existingMedia = mediaDb.getById(mediaId);
+		if (existingMedia?.tmdbId) {
 			console.log(
-				`[${movieId}] Movie already has TMDB data (tmdbId: ${existingMovie.tmdbId}), skipping metadata fetch`
+				`[${mediaId}] Media already has TMDB data (tmdbId: ${existingMedia.tmdbId}), skipping metadata fetch`
 			);
 			return;
 		}
 
 		// Also skip if we already have a poster URL (means TMDB data was fetched successfully during creation)
-		if (existingMovie?.posterUrl) {
-			console.log(`[${movieId}] Movie already has poster data, skipping metadata fetch`);
+		if (existingMedia?.posterUrl) {
+			console.log(`[${mediaId}] Media already has poster data, skipping metadata fetch`);
 			return;
 		}
 
 		// Parse title and year from file name
 		const parsed = ptt.parse(fileName);
-		console.log(`[${movieId}] Parsed filename: title="${parsed.title}", year=${parsed.year}`);
+		console.log(`[${mediaId}] Parsed filename: title="${parsed.title}", year=${parsed.year}`);
 
 		if (!parsed.title) {
-			console.log(`[${movieId}] Could not parse title from filename`);
+			console.log(`[${mediaId}] Could not parse title from filename`);
 			return;
 		}
 
 		// Update title from filename (only if we don't have TMDB data)
-		movies.updateMetadata(movieId, { title: parsed.title, year: parsed.year || null });
+		mediaDb.updateMetadata(mediaId, { title: parsed.title, year: parsed.year || null });
 
 		// Search TMDB if API key is configured
 		if (config.tmdb.apiKey) {
 			console.log(
-				`[${movieId}] Searching TMDB for: "${parsed.title}" (${parsed.year || 'no year'})`
+				`[${mediaId}] Searching TMDB for: "${parsed.title}" (${parsed.year || 'no year'})`
 			);
-			const results = await searchMovie(parsed.title, parsed.year);
-			console.log(`[${movieId}] TMDB returned ${results.length} results`);
+
+			const results =
+				mediaType === 'tv'
+					? await searchTVShow(parsed.title, parsed.year)
+					: await searchMovie(parsed.title, parsed.year);
+
+			console.log(`[${mediaId}] TMDB returned ${results.length} results`);
 
 			if (results.length > 0) {
 				const tmdbData = results[0];
 				console.log(
-					`[${movieId}] Using TMDB result: "${tmdbData.title}" (${tmdbData.year}), poster: ${tmdbData.posterUrl}`
+					`[${mediaId}] Using TMDB result: "${tmdbData.title}" (${tmdbData.year}), poster: ${tmdbData.posterUrl}`
 				);
-				movies.updateMetadata(movieId, {
+				mediaDb.updateMetadata(mediaId, {
 					title: tmdbData.title,
 					year: tmdbData.year,
 					posterUrl: tmdbData.posterUrl,
 					backdropUrl: tmdbData.backdropUrl,
 					overview: tmdbData.overview,
 					tmdbId: tmdbData.tmdbId,
+					totalSeasons: tmdbData.totalSeasons,
 				});
 			}
 		}
 	} catch (e) {
-		console.error(`[${movieId}] Failed to fetch metadata:`, e);
+		console.error(`[${mediaId}] Failed to fetch metadata:`, e);
 	}
 }
 
-export async function startDownload(movieId: string, magnetLink: string): Promise<void> {
+export async function startDownload(mediaId: string, magnetLink: string): Promise<void> {
 	// Check if already active
-	if (activeDownloads.has(movieId)) {
-		console.log(`Download already active for movie ${movieId}`);
+	if (activeDownloads.has(mediaId)) {
+		console.log(`Download already active for media ${mediaId}`);
 		return;
 	}
 
 	// Check if there's a pending download promise (prevents race conditions)
-	const pending = pendingDownloads.get(movieId);
+	const pending = pendingDownloads.get(mediaId);
 	if (pending) {
-		console.log(`Download pending for movie ${movieId}, waiting...`);
+		console.log(`Download pending for media ${mediaId}, waiting...`);
 		return pending;
 	}
 
 	// Create a promise for this download initialization
-	const downloadPromise = initializeDownload(movieId, magnetLink);
-	pendingDownloads.set(movieId, downloadPromise);
+	const downloadPromise = initializeDownload(mediaId, magnetLink);
+	pendingDownloads.set(mediaId, downloadPromise);
 
 	try {
 		await downloadPromise;
 	} finally {
-		pendingDownloads.delete(movieId);
+		pendingDownloads.delete(mediaId);
 	}
 }
 
 async function handleDownloadComplete(
-	movieId: string,
+	mediaId: string,
 	download: ActiveDownload,
 	torrent: Torrent
 ): Promise<void> {
 	// Prevent double-completion
 	if (download.status === 'complete') {
-		console.log(`[${movieId}] Already marked complete, skipping`);
+		console.log(`[${mediaId}] Already marked complete, skipping`);
 		return;
 	}
 
-	console.log(`[${movieId}] Handling download completion...`);
+	console.log(`[${mediaId}] Handling download completion...`);
 	download.status = 'complete';
 	download.progress = 1;
 
@@ -261,274 +433,459 @@ async function handleDownloadComplete(
 	for (const f of torrent.files) {
 		f.deselect();
 	}
-	console.log(`[${movieId}] Stopped seeding`);
+	console.log(`[${mediaId}] Stopped seeding`);
 
-	await moveToLibrary(movieId, download);
-	console.log(`[${movieId}] moveToLibrary completed`);
+	await moveToLibrary(mediaId, download);
+	console.log(`[${mediaId}] moveToLibrary completed`);
 }
 
 // Periodically check if video file is complete (fallback for missed 'done' events)
-function startCompletionChecker(movieId: string, download: ActiveDownload, torrent: Torrent): void {
+function startCompletionChecker(mediaId: string, download: ActiveDownload, torrent: Torrent): void {
 	const checkInterval = setInterval(() => {
 		// Stop checking if download is no longer active or already complete
-		if (!activeDownloads.has(movieId) || download.status === 'complete') {
+		if (!activeDownloads.has(mediaId) || download.status === 'complete') {
 			clearInterval(checkInterval);
 			return;
 		}
 
-		// Check if video file is fully downloaded
-		if (download.videoFile && download.videoFile.progress === 1) {
-			console.log(`[${movieId}] Completion checker detected finished download`);
+		// For movies, check single file
+		if (download.mediaType === 'movie' && download.videoFile?.progress === 1) {
+			console.log(`[${mediaId}] Completion checker detected finished download`);
 			clearInterval(checkInterval);
-			handleDownloadComplete(movieId, download, torrent).catch((err) => {
-				console.error(`[${movieId}] Error in completion checker:`, err);
+			handleDownloadComplete(mediaId, download, torrent).catch((err) => {
+				console.error(`[${mediaId}] Error in completion checker:`, err);
 			});
+			return;
+		}
+
+		// For TV shows, check if all selected files are complete
+		if (download.mediaType === 'tv') {
+			const selectedComplete = download.videoFiles.every((f) => f.progress === 1);
+			if (selectedComplete) {
+				console.log(`[${mediaId}] Completion checker detected all files finished`);
+				clearInterval(checkInterval);
+				handleDownloadComplete(mediaId, download, torrent).catch((err) => {
+					console.error(`[${mediaId}] Error in completion checker:`, err);
+				});
+			}
 		}
 	}, 5000); // Check every 5 seconds
 }
 
-async function initializeDownload(movieId: string, magnetLink: string): Promise<void> {
+/** Get or add torrent to client */
+function getOrAddTorrent(
+	torrentClient: WebTorrentClient,
+	magnetLink: string,
+	downloadPath: string,
+	mediaId: string
+): Torrent | null {
+	let infoHash: string | undefined;
+	try {
+		const parsed = parseTorrent(magnetLink);
+		if (typeof parsed === 'string') {
+			infoHash = parsed;
+		} else if (parsed && typeof parsed === 'object' && 'infoHash' in parsed) {
+			infoHash = parsed.infoHash;
+		}
+	} catch (e) {
+		console.warn(`[${mediaId}] Failed to parse magnet link for infoHash check`, e);
+	}
+
+	const existing = infoHash ? torrentClient.get(infoHash) : null;
+	if (existing) {
+		console.log(`[${mediaId}] Torrent already exists (cached), reusing: ${infoHash}`);
+		return existing;
+	}
+
+	return torrentClient.add(magnetLink, {
+		path: downloadPath,
+		announce: TRACKERS,
+	});
+}
+
+/** Handle TV show torrent ready */
+async function handleTVShowReady(
+	mediaId: string,
+	download: ActiveDownload,
+	torrent: Torrent,
+	reject: (err: Error) => void
+): Promise<boolean> {
+	download.videoFiles = findVideoFiles(torrent.files);
+
+	if (download.videoFiles.length === 0) {
+		const allFiles = torrent.files.map((f) => f.name).join(', ');
+		console.error(`[${mediaId}] No supported video files found. Files: ${allFiles}`);
+		download.status = 'error';
+		download.error = `No supported video file found. Supported formats: ${SUPPORTED_VIDEO_FORMATS.join(', ')}`;
+		mediaDb.updateProgress(mediaId, 0, 'added');
+		cleanupDownload(mediaId, true);
+		reject(new Error('No supported video file found in torrent'));
+		return false;
+	}
+
+	console.log(`[${mediaId}] Found ${download.videoFiles.length} video files for TV show`);
+
+	download.episodeMapping = mapFilesToEpisodes(download.videoFiles);
+	if (download.episodeMapping.size === 0) {
+		console.log(`[${mediaId}] Episode mapping failed, using auto-number fallback`);
+		download.episodeMapping = autoNumberFiles(download.videoFiles);
+	}
+
+	try {
+		await createEpisodesFromMapping(mediaId, download.videoFiles, download.episodeMapping);
+	} catch (e) {
+		console.error(`[${mediaId}] Failed to create episodes:`, e);
+		// Continue anyway - we'll retry in moveTVShowToLibrary if needed
+	}
+
+	download.totalSize = download.videoFiles.reduce((sum, f) => sum + f.length, 0);
+
+	for (const f of torrent.files) {
+		f.deselect();
+	}
+	for (const f of download.videoFiles) {
+		f.select();
+	}
+
+	fetchAndUpdateMetadata(mediaId, download.videoFiles[0]?.name ?? torrent.name, 'tv');
+	return true;
+}
+
+/** Handle movie torrent ready */
+function handleMovieReady(
+	mediaId: string,
+	download: ActiveDownload,
+	torrent: Torrent,
+	reject: (err: Error) => void
+): boolean {
+	const videoFile = findVideoFile(torrent.files);
+
+	if (!videoFile) {
+		const allFiles = torrent.files.map((f) => f.name).join(', ');
+		console.error(`[${mediaId}] No supported video file found. Files: ${allFiles}`);
+		download.status = 'error';
+		download.error = `No supported video file found. Supported formats: ${SUPPORTED_VIDEO_FORMATS.join(', ')}`;
+		mediaDb.updateProgress(mediaId, 0, 'added');
+		cleanupDownload(mediaId, true);
+		reject(new Error('No supported video file found in torrent'));
+		return false;
+	}
+
+	console.log(
+		`[${mediaId}] Selected video: ${videoFile.name} (${(videoFile.length / 1024 / 1024).toFixed(2)} MB)`
+	);
+
+	fetchAndUpdateMetadata(mediaId, videoFile.name, 'movie');
+
+	for (const f of torrent.files) {
+		f.deselect();
+	}
+	videoFile.select();
+
+	download.videoFile = videoFile;
+	download.totalSize = videoFile.length;
+	return true;
+}
+
+/** Check if download is already complete */
+function checkAlreadyComplete(mediaId: string, download: ActiveDownload, torrent: Torrent): void {
+	if (download.mediaType === 'movie' && (download.videoFile?.progress === 1 || torrent.done)) {
+		console.log(`[${mediaId}] Video file already complete, triggering done handler`);
+		setImmediate(() => {
+			handleDownloadComplete(mediaId, download, torrent).catch((err) => {
+				console.error(`[${mediaId}] Error handling already-complete download:`, err);
+			});
+		});
+	} else if (download.mediaType === 'tv') {
+		const allComplete = download.videoFiles.every((f) => f.progress === 1);
+		if (allComplete || torrent.done) {
+			console.log(`[${mediaId}] All TV files already complete, triggering done handler`);
+			setImmediate(() => {
+				handleDownloadComplete(mediaId, download, torrent).catch((err) => {
+					console.error(`[${mediaId}] Error handling already-complete download:`, err);
+				});
+			});
+		}
+	}
+}
+
+async function initializeDownload(mediaId: string, magnetLink: string): Promise<void> {
 	await ensureDirectories();
 
-	const downloadPath = path.join(config.paths.temp, movieId);
+	const downloadPath = path.join(config.paths.temp, mediaId);
 	await fs.mkdir(downloadPath, { recursive: true });
 
-	console.log(`[${movieId}] Starting download...`);
-	console.log(`[${movieId}] Magnet: ${magnetLink.substring(0, 80)}...`);
-	console.log(`[${movieId}] Using ${TRACKERS.length} trackers`);
-	movies.updateProgress(movieId, 0, 'downloading');
+	const mediaItem = mediaDb.getById(mediaId);
+	const mediaType: MediaType = mediaItem?.type || 'movie';
+
+	console.log(`[${mediaId}] Starting download (type: ${mediaType})...`);
+	console.log(`[${mediaId}] Magnet: ${magnetLink.substring(0, 80)}...`);
+	mediaDb.updateProgress(mediaId, 0, 'downloading');
 
 	const torrentClient = await getClient();
-	console.log(`[${movieId}] Got WebTorrent client, adding torrent...`);
 
 	return new Promise((resolve, reject) => {
-		let torrent: Torrent;
+		let torrent: Torrent | null;
 
 		try {
-			// Check for existing torrent with same infoHash
-			// This prevents "Cannot add duplicate torrent" crash
-			let infoHash: string | undefined;
-			try {
-				const parsed = parseTorrent(magnetLink);
-				// parseTorrent can return an object with infoHash or just the infoHash string if it's a simple magnet
-				// Types might be tricky but at runtime it has infoHash property if it's an object
-				if (typeof parsed === 'string') {
-					infoHash = parsed;
-				} else if (parsed && typeof parsed === 'object' && 'infoHash' in parsed) {
-					infoHash = parsed.infoHash;
-				}
-			} catch (e) {
-				console.warn(`[${movieId}] Failed to parse magnet link for infoHash check`, e);
-			}
-
-			const existing = infoHash ? torrentClient.get(infoHash) : null;
-
-			if (existing) {
-				console.log(`[${movieId}] Torrent already exists (cached), reusing: ${infoHash}`);
-				torrent = existing;
-			} else {
-				torrent = torrentClient.add(magnetLink, {
-					path: downloadPath,
-					announce: TRACKERS,
-				});
+			torrent = getOrAddTorrent(torrentClient, magnetLink, downloadPath, mediaId);
+			if (!torrent) {
+				reject(new Error('Failed to add torrent'));
+				return;
 			}
 		} catch (e) {
-			console.error(`[${movieId}] Failed to add torrent:`, e);
+			console.error(`[${mediaId}] Failed to add torrent:`, e);
 			reject(e);
 			return;
 		}
 
-		console.log(`[${movieId}] Torrent added (or reused), waiting for metadata...`);
-
 		const download: ActiveDownload = {
-			movieId,
+			mediaId,
+			mediaType,
 			torrent,
 			videoFile: null,
+			videoFiles: [],
+			selectedFileIndex: null,
+			episodeMapping: new Map(),
 			progress: 0,
 			status: 'initializing',
 			activeStreams: 0,
 			totalSize: 0,
 		};
 
-		activeDownloads.set(movieId, download);
+		activeDownloads.set(mediaId, download);
 
-		// Log peer connections
 		torrent.on('wire', () => {
-			console.log(`[${movieId}] Connected to peer, total: ${torrent.numPeers}`);
+			console.log(`[${mediaId}] Connected to peer, total: ${torrent?.numPeers}`);
 		});
 
 		torrent.on('noPeers', (announceType: string) => {
-			console.log(`[${movieId}] No peers from ${announceType}`);
+			console.log(`[${mediaId}] No peers from ${announceType}`);
 		});
 
 		torrent.on('warning', (err: Error) => {
-			console.warn(`[${movieId}] Warning:`, err.message);
+			console.warn(`[${mediaId}] Warning:`, err.message);
 		});
 
-		torrent.on('ready', () => {
-			console.log(`[${movieId}] Torrent ready: ${torrent.infoHash}`);
-			console.log(
-				`[${movieId}] Files:`,
-				torrent.files.map((f) => `${f.name} (${(f.length / 1024 / 1024).toFixed(2)} MB)`)
-			);
+		torrent.on('ready', async () => {
+			if (!torrent) {
+				return;
+			}
+			console.log(`[${mediaId}] Torrent ready: ${torrent.infoHash}`);
 
-			// Find the video file
-			const videoFile = findVideoFile(torrent.files);
+			const success =
+				mediaType === 'tv'
+					? await handleTVShowReady(mediaId, download, torrent, reject)
+					: handleMovieReady(mediaId, download, torrent, reject);
 
-			if (!videoFile) {
-				const allFiles = torrent.files.map((f) => f.name).join(', ');
-				console.error(`[${movieId}] No supported video file found. Files: ${allFiles}`);
-				console.error(`[${movieId}] Supported formats: ${SUPPORTED_VIDEO_FORMATS.join(', ')}`);
-				download.status = 'error';
-				download.error = `No supported video file found. Supported formats: ${SUPPORTED_VIDEO_FORMATS.join(', ')}`;
-				movies.updateProgress(movieId, 0, 'added');
-				cleanupDownload(movieId, true);
-				reject(new Error('No supported video file found in torrent'));
+			if (!success) {
 				return;
 			}
 
-			console.log(
-				`[${movieId}] Selected video: ${videoFile.name} (${(videoFile.length / 1024 / 1024).toFixed(2)} MB)`
-			);
-
-			// Parse video file name for metadata and fetch from TMDB
-			fetchAndUpdateMetadata(movieId, videoFile.name);
-
-			// Deselect all files, then select only the video
-			for (const f of torrent.files) {
-				f.deselect();
-			}
-			videoFile.select();
-
-			download.videoFile = videoFile;
-			download.totalSize = videoFile.length;
 			download.status = 'downloading';
-
-			// Start the completion checker as a fallback
-			startCompletionChecker(movieId, download, torrent);
-
-			// Check if video file is already complete (reused torrent case)
-			if (videoFile.progress === 1 || torrent.done) {
-				console.log(`[${movieId}] Video file already complete, triggering done handler`);
-				// Use setImmediate to ensure this runs after resolve()
-				setImmediate(() => {
-					handleDownloadComplete(movieId, download, torrent).catch((err) => {
-						console.error(`[${movieId}] Error handling already-complete download:`, err);
-					});
-				});
-			}
-
+			startCompletionChecker(mediaId, download, torrent);
+			checkAlreadyComplete(mediaId, download, torrent);
 			resolve();
 		});
 
 		torrent.on('download', () => {
-			if (download.videoFile) {
-				// Use the video file's specific progress
+			if (download.mediaType === 'movie' && download.videoFile) {
 				download.progress = download.videoFile.progress;
+			} else if (download.mediaType === 'tv' && download.videoFiles.length > 0) {
+				const totalDownloaded = download.videoFiles.reduce((sum, f) => sum + f.downloaded, 0);
+				download.progress = totalDownloaded / download.totalSize;
+			}
 
-				// Update DB only if not already complete (prevent race condition)
-				if (download.status !== 'complete') {
-					movies.updateProgress(movieId, download.progress, 'downloading');
-				}
+			if (download.status !== 'complete') {
+				mediaDb.updateProgress(mediaId, download.progress, 'downloading');
 			}
 		});
 
 		torrent.on('done', () => {
-			console.log(`[${movieId}] Torrent 'done' event fired!`);
-			handleDownloadComplete(movieId, download, torrent).catch((err) => {
-				console.error(`[${movieId}] Error in done handler:`, err);
+			if (!torrent) {
+				return;
+			}
+			console.log(`[${mediaId}] Torrent 'done' event fired!`);
+			handleDownloadComplete(mediaId, download, torrent).catch((err) => {
+				console.error(`[${mediaId}] Error in done handler:`, err);
 			});
 		});
 
 		torrent.on('error', (err: Error) => {
-			console.error(`[${movieId}] Torrent error:`, err);
+			console.error(`[${mediaId}] Torrent error:`, err);
 			download.status = 'error';
 			download.error = err.message;
 			reject(err);
 		});
 
-		// Timeout if torrent doesn't become ready (metadata not found)
 		setTimeout(() => {
 			if (download.status === 'initializing') {
-				console.error(
-					`[${movieId}] Torrent timeout - could not get metadata. The torrent may have no active seeders.`
-				);
 				download.status = 'error';
 				download.error = 'No seeders found - the torrent may be dead or unavailable';
-				movies.updateProgress(movieId, 0, 'added');
-				cleanupDownload(movieId, true);
-				// Resolve instead of reject to prevent server crash
+				mediaDb.updateProgress(mediaId, 0, 'added');
+				cleanupDownload(mediaId, true);
 				resolve();
 			}
-		}, 120_000); // 2 minutes for metadata
+		}, 120_000);
 
-		// Handle already-ready torrents (reused from cache)
-		// The 'ready' event won't fire again for already-ready torrents
 		if (torrent.ready) {
-			console.log(`[${movieId}] Torrent already ready (reused), triggering ready handler`);
-			// Use setImmediate to ensure event handlers are fully set up
 			setImmediate(() => {
-				torrent.emit('ready');
+				torrent?.emit('ready');
 			});
 		}
 	});
 }
 
-async function moveToLibrary(movieId: string, download: ActiveDownload): Promise<void> {
+/** Move movie file to library */
+async function moveMovieToLibrary(mediaId: string, download: ActiveDownload): Promise<void> {
 	if (!download.videoFile) {
 		return;
 	}
 
 	const sourcePath = path.join(download.torrent.path, download.videoFile.path);
-	const destDir = path.join(config.paths.library, movieId);
+	const destDir = path.join(config.paths.library, mediaId);
 	const destPath = path.join(destDir, download.videoFile.name);
 
 	try {
 		await fs.mkdir(destDir, { recursive: true });
-
-		// Copy instead of move to avoid issues with active streams
 		await fs.copyFile(sourcePath, destPath);
 
-		// Get file size from the copied file
 		const stats = await fs.stat(destPath);
-		const fileSize = stats.size;
-
-		movies.updateFilePath(movieId, destPath, fileSize);
-		movies.updateProgress(movieId, 1, 'complete');
-		console.log(`[${movieId}] File copied to library: ${destPath} (${fileSize} bytes)`);
-
-		// Immediately cleanup the torrent (we have the file in library now)
-		cleanupDownload(movieId, true);
+		mediaDb.updateFilePath(mediaId, destPath, stats.size);
+		mediaDb.updateProgress(mediaId, 1, 'complete');
+		console.log(`[${mediaId}] File copied to library: ${destPath} (${stats.size} bytes)`);
+		cleanupDownload(mediaId, true);
 	} catch (e) {
-		console.error(`[${movieId}] Failed to copy file to library:`, e);
-		// Keep using temp location - try to get file size from source
+		console.error(`[${mediaId}] Failed to copy file to library:`, e);
 		try {
 			const stats = await fs.stat(sourcePath);
-			movies.updateFilePath(movieId, sourcePath, stats.size);
+			mediaDb.updateFilePath(mediaId, sourcePath, stats.size);
 		} catch {
-			movies.updateFilePath(movieId, sourcePath);
+			mediaDb.updateFilePath(mediaId, sourcePath);
 		}
-		movies.updateProgress(movieId, 1, 'complete');
-		// Keep temp files but still cleanup the torrent (don't delete temp files since they're in use)
-		scheduleCleanup(movieId);
+		mediaDb.updateProgress(mediaId, 1, 'complete');
+		scheduleCleanup(mediaId);
 	}
 }
 
-function scheduleCleanup(movieId: string): void {
-	const download = activeDownloads.get(movieId);
+/** Get season number for a video file based on episode mapping */
+function getSeasonForFile(download: ActiveDownload, fileIndex: number): number {
+	for (const [episodeKey, mappedIndex] of download.episodeMapping.entries()) {
+		if (mappedIndex === fileIndex) {
+			return Math.floor(episodeKey / 100);
+		}
+	}
+	// Default to season 1 if not found in mapping
+	return 1;
+}
+
+/** Update episode file info after copy */
+async function updateEpisodeFileInfo(
+	mediaId: string,
+	download: ActiveDownload,
+	videoFile: TorrentFile,
+	destPath: string
+): Promise<void> {
+	const fileIndex = download.videoFiles.indexOf(videoFile);
+
+	for (const [episodeKey, mappedIndex] of download.episodeMapping.entries()) {
+		if (mappedIndex !== fileIndex) {
+			continue;
+		}
+
+		const seasonNum = Math.floor(episodeKey / 100);
+		const episodeNum = episodeKey % 100;
+		const season = seasonsDb.getByMediaAndNumber(mediaId, seasonNum);
+
+		if (!season) {
+			console.warn(
+				`[${mediaId}] Season ${seasonNum} not found in DB for episode S${seasonNum}E${episodeNum}`
+			);
+			continue;
+		}
+
+		const episode = episodesDb.getBySeasonAndNumber(season.id, episodeNum);
+		if (episode) {
+			const stats = await fs.stat(destPath);
+			episodesDb.updateFileInfo(episode.id, fileIndex, destPath, stats.size);
+			episodesDb.updateProgress(episode.id, stats.size, 'complete');
+		} else {
+			console.warn(`[${mediaId}] Episode S${seasonNum}E${episodeNum} not found in DB`);
+		}
+	}
+}
+
+/** Move TV show files to library organized by season */
+async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): Promise<void> {
+	const baseDir = path.join(config.paths.library, mediaId);
+	await fs.mkdir(baseDir, { recursive: true });
+
+	// Ensure episodes exist in database (fallback if initial creation failed)
+	const existingSeasons = seasonsDb.getByMediaId(mediaId);
+	if (existingSeasons.length === 0 && download.episodeMapping) {
+		console.log(`[${mediaId}] No seasons found in DB, creating episodes before library move`);
+		try {
+			await createEpisodesFromMapping(mediaId, download.videoFiles, download.episodeMapping);
+		} catch (e) {
+			console.error(`[${mediaId}] Failed to create episodes during library move:`, e);
+		}
+	}
+
+	// Group files by season
+	const filesBySeason = new Map<number, TorrentFile[]>();
+	for (const [index, videoFile] of download.videoFiles.entries()) {
+		const seasonNum = getSeasonForFile(download, index);
+		const files = filesBySeason.get(seasonNum) || [];
+		files.push(videoFile);
+		filesBySeason.set(seasonNum, files);
+	}
+
+	// Copy files organized by season
+	for (const [seasonNum, files] of filesBySeason.entries()) {
+		const seasonDir = path.join(baseDir, `Season ${seasonNum.toString().padStart(2, '0')}`);
+		await fs.mkdir(seasonDir, { recursive: true });
+
+		for (const videoFile of files) {
+			const sourcePath = path.join(download.torrent.path, videoFile.path);
+			const destPath = path.join(seasonDir, videoFile.name);
+
+			try {
+				await fs.copyFile(sourcePath, destPath);
+				console.log(`[${mediaId}] Copied to Season ${seasonNum}: ${videoFile.name}`);
+				await updateEpisodeFileInfo(mediaId, download, videoFile, destPath);
+			} catch (e) {
+				console.error(`[${mediaId}] Failed to copy ${videoFile.name}:`, e);
+			}
+		}
+	}
+
+	mediaDb.updateProgress(mediaId, 1, 'complete');
+	cleanupDownload(mediaId, true);
+}
+
+async function moveToLibrary(mediaId: string, download: ActiveDownload): Promise<void> {
+	if (download.mediaType === 'movie') {
+		await moveMovieToLibrary(mediaId, download);
+	} else {
+		await moveTVShowToLibrary(mediaId, download);
+	}
+}
+
+function scheduleCleanup(mediaId: string): void {
+	const download = activeDownloads.get(mediaId);
 	if (!download) {
 		return;
 	}
 
 	const checkAndCleanup = () => {
-		const current = activeDownloads.get(movieId);
+		const current = activeDownloads.get(mediaId);
 		if (!current) {
 			return;
 		}
 
 		if (current.activeStreams === 0 && current.status === 'complete') {
-			console.log(`[${movieId}] Cleaning up torrent`);
-			cleanupDownload(movieId, false);
+			console.log(`[${mediaId}] Cleaning up torrent`);
+			cleanupDownload(mediaId, false);
 		} else {
 			setTimeout(checkAndCleanup, 10_000);
 		}
@@ -538,17 +895,17 @@ function scheduleCleanup(movieId: string): void {
 	setTimeout(checkAndCleanup, 30_000);
 }
 
-function cleanupDownload(movieId: string, removeFiles: boolean): void {
-	const download = activeDownloads.get(movieId);
+function cleanupDownload(mediaId: string, removeFiles: boolean): void {
+	const download = activeDownloads.get(mediaId);
 	if (!download) {
 		return;
 	}
 
 	download.torrent.destroy({ destroyStore: removeFiles }, () => {
-		console.log(`[${movieId}] Torrent destroyed`);
+		console.log(`[${mediaId}] Torrent destroyed`);
 	});
 
-	activeDownloads.delete(movieId);
+	activeDownloads.delete(mediaId);
 }
 
 export interface StreamInfo {
@@ -559,49 +916,11 @@ export interface StreamInfo {
 	isComplete: boolean;
 }
 
-export async function getVideoStream(
-	movieId: string,
-	start?: number,
-	end?: number
-): Promise<StreamInfo | null> {
-	const movie = movies.getById(movieId);
-
-	// First check if file exists in library (completed downloads)
-	if (movie?.filePath && existsSync(movie.filePath)) {
-		try {
-			const stats = statSync(movie.filePath);
-			const fileSize = stats.size;
-			const fileName = path.basename(movie.filePath);
-
-			const streamOptions: { start?: number; end?: number } = {};
-			if (start !== undefined) {
-				streamOptions.start = start;
-			}
-			if (end !== undefined) {
-				streamOptions.end = end;
-			}
-
-			return {
-				stream: createReadStream(movie.filePath, streamOptions),
-				fileSize,
-				fileName,
-				mimeType: getMimeType(fileName),
-				isComplete: true,
-			};
-		} catch (e) {
-			console.error(`Error reading file from library: ${e}`);
-		}
-	}
-
-	// Check if torrent is active and has video file
-	const download = activeDownloads.get(movieId);
-	if (download?.videoFile && download.status !== 'error') {
-		const videoFile = download.videoFile;
-		const fileSize = videoFile.length;
-		const fileName = videoFile.name;
-
-		// Track active stream
-		download.activeStreams++;
+/** Create stream from library file */
+function createLibraryStream(filePath: string, start?: number, end?: number): StreamInfo | null {
+	try {
+		const stats = statSync(filePath);
+		const fileName = path.basename(filePath);
 
 		const streamOptions: { start?: number; end?: number } = {};
 		if (start !== undefined) {
@@ -611,43 +930,212 @@ export async function getVideoStream(
 			streamOptions.end = end;
 		}
 
-		const torrentStream = videoFile.createReadStream(streamOptions);
-
-		// Decrement active streams when stream ends
-		const decrementStreams = () => {
-			download.activeStreams = Math.max(0, download.activeStreams - 1);
-		};
-
-		torrentStream.once('end', decrementStreams);
-		torrentStream.once('error', decrementStreams);
-		torrentStream.once('close', decrementStreams);
-
 		return {
-			stream: torrentStream,
-			fileSize,
+			stream: createReadStream(filePath, streamOptions),
+			fileSize: stats.size,
 			fileName,
 			mimeType: getMimeType(fileName),
-			isComplete: download.status === 'complete',
+			isComplete: true,
 		};
+	} catch (e) {
+		console.error(`Error reading file from library: ${e}`);
+		return null;
+	}
+}
+
+/** Get stream for movie from library */
+function getMovieLibraryStream(
+	mediaItem: { filePath: string | null },
+	start?: number,
+	end?: number
+): StreamInfo | null {
+	if (mediaItem.filePath && existsSync(mediaItem.filePath)) {
+		return createLibraryStream(mediaItem.filePath, start, end);
+	}
+	return null;
+}
+
+/** Get stream for TV episode from library */
+function getTVEpisodeLibraryStream(
+	mediaId: string,
+	fileIndex: number,
+	start?: number,
+	end?: number
+): StreamInfo | null {
+	const episodes = episodesDb.getByMediaId(mediaId);
+	const episodeInfo = episodes.find((e) => e.episode.fileIndex === fileIndex);
+
+	if (episodeInfo?.episode.filePath && existsSync(episodeInfo.episode.filePath)) {
+		return createLibraryStream(episodeInfo.episode.filePath, start, end);
+	}
+	return null;
+}
+
+/** Get stream from active torrent download */
+function getTorrentStream(
+	download: ActiveDownload,
+	fileIndex: number | undefined,
+	start?: number,
+	end?: number
+): StreamInfo | null {
+	if (download.mediaType === 'tv' && fileIndex !== undefined) {
+		const videoFile = download.videoFiles[fileIndex];
+		if (!videoFile) {
+			return null;
+		}
+
+		for (const [i, f] of download.videoFiles.entries()) {
+			if (i === fileIndex) {
+				f.select();
+			} else {
+				f.deselect();
+			}
+		}
+
+		download.selectedFileIndex = fileIndex;
+		return createTorrentStream(download, videoFile, start, end);
+	}
+
+	if (download.videoFile) {
+		return createTorrentStream(download, download.videoFile, start, end);
 	}
 
 	return null;
 }
 
-export function getDownloadStatus(movieId: string): {
+export async function getVideoStream(
+	mediaId: string,
+	fileIndex?: number,
+	start?: number,
+	end?: number
+): Promise<StreamInfo | null> {
+	const mediaItem = mediaDb.getById(mediaId);
+
+	console.log(
+		`[getVideoStream] mediaId=${mediaId}, fileIndex=${fileIndex}, type=${mediaItem?.type}, filePath=${mediaItem?.filePath}, status=${mediaItem?.status}`
+	);
+
+	// Check library first for movies
+	if (mediaItem?.type === 'movie') {
+		const libraryStream = getMovieLibraryStream(mediaItem, start, end);
+		if (libraryStream) {
+			console.log('[getVideoStream] Returning library stream for movie');
+			return libraryStream;
+		}
+		console.log('[getVideoStream] No library stream found for movie');
+	}
+
+	// Check library for TV episodes
+	if (mediaItem?.type === 'tv' && fileIndex !== undefined) {
+		const episodeStream = getTVEpisodeLibraryStream(mediaId, fileIndex, start, end);
+		if (episodeStream) {
+			console.log('[getVideoStream] Returning library stream for TV episode');
+			return episodeStream;
+		}
+		console.log('[getVideoStream] No library stream found for TV episode');
+	}
+
+	// Check active download
+	const download = activeDownloads.get(mediaId);
+	if (!download || download.status === 'error') {
+		console.log(
+			`[getVideoStream] No active download found (download=${!!download}, status=${download?.status})`
+		);
+		return null;
+	}
+
+	console.log('[getVideoStream] Returning torrent stream');
+	return getTorrentStream(download, fileIndex, start, end);
+}
+
+function createTorrentStream(
+	download: ActiveDownload,
+	videoFile: TorrentFile,
+	start?: number,
+	end?: number
+): StreamInfo {
+	const fileSize = videoFile.length;
+	const fileName = videoFile.name;
+
+	// Track active stream
+	download.activeStreams++;
+
+	const streamOptions: { start?: number; end?: number } = {};
+	if (start !== undefined) {
+		streamOptions.start = start;
+	}
+	if (end !== undefined) {
+		streamOptions.end = end;
+	}
+
+	const torrentStream = videoFile.createReadStream(streamOptions);
+
+	// Decrement active streams when stream ends
+	const decrementStreams = () => {
+		download.activeStreams = Math.max(0, download.activeStreams - 1);
+	};
+
+	torrentStream.once('end', decrementStreams);
+	torrentStream.once('error', decrementStreams);
+	torrentStream.once('close', decrementStreams);
+
+	return {
+		stream: torrentStream,
+		fileSize,
+		fileName,
+		mimeType: getMimeType(fileName),
+		isComplete: download.status === 'complete',
+	};
+}
+
+/**
+ * Select episode for priority downloading
+ */
+export function selectEpisode(
+	mediaId: string,
+	seasonNumber: number,
+	episodeNumber: number
+): boolean {
+	const download = activeDownloads.get(mediaId);
+	if (!download || download.mediaType !== 'tv') {
+		return false;
+	}
+
+	const episodeKey = seasonNumber * 100 + episodeNumber;
+	const fileIndex = download.episodeMapping.get(episodeKey);
+
+	if (fileIndex === undefined) {
+		return false;
+	}
+
+	// Select this file for priority
+	for (const [i, f] of download.videoFiles.entries()) {
+		if (i === fileIndex) {
+			f.select();
+		} else {
+			f.deselect();
+		}
+	}
+
+	download.selectedFileIndex = fileIndex;
+	return true;
+}
+
+export function getDownloadStatus(mediaId: string): {
 	progress: number;
 	downloadSpeed: number;
 	uploadSpeed: number;
 	peers: number;
 	status: 'idle' | 'initializing' | 'downloading' | 'complete' | 'error';
 	error?: string;
+	episodeProgress?: Map<number, number>;
 } | null {
-	const download = activeDownloads.get(movieId);
+	const download = activeDownloads.get(mediaId);
 
 	if (!download) {
 		// Check database for completed downloads
-		const movie = movies.getById(movieId);
-		if (movie?.status === 'complete') {
+		const mediaItem = mediaDb.getById(mediaId);
+		if (mediaItem?.status === 'complete') {
 			return {
 				progress: 1,
 				downloadSpeed: 0,
@@ -670,6 +1158,18 @@ export function getDownloadStatus(movieId: string): {
 		};
 	}
 
+	// For TV shows, include per-episode progress
+	let episodeProgress: Map<number, number> | undefined;
+	if (download.mediaType === 'tv') {
+		episodeProgress = new Map();
+		for (const [episodeKey, fileIndex] of download.episodeMapping.entries()) {
+			const file = download.videoFiles[fileIndex];
+			if (file) {
+				episodeProgress.set(episodeKey, file.progress);
+			}
+		}
+	}
+
 	return {
 		progress: download.progress,
 		downloadSpeed: download.torrent.downloadSpeed,
@@ -677,32 +1177,78 @@ export function getDownloadStatus(movieId: string): {
 		peers: download.torrent.numPeers,
 		status: download.status,
 		error: download.error,
+		episodeProgress,
 	};
 }
 
-export function isDownloadActive(movieId: string): boolean {
-	return activeDownloads.has(movieId) || pendingDownloads.has(movieId);
+export function isDownloadActive(mediaId: string): boolean {
+	return activeDownloads.has(mediaId) || pendingDownloads.has(mediaId);
 }
 
-export async function waitForVideoReady(movieId: string, timeoutMs = 30_000): Promise<boolean> {
+/** Check if download is ready for streaming */
+function isDownloadReadyForStreaming(
+	download: ActiveDownload | undefined,
+	fileIndex?: number
+): boolean {
+	if (!download) {
+		return false;
+	}
+
+	// For TV shows with specific file index
+	if (download.mediaType === 'tv' && fileIndex !== undefined) {
+		const videoFile = download.videoFiles[fileIndex];
+		return Boolean(
+			videoFile &&
+				download.status !== 'initializing' &&
+				(videoFile.progress >= 0.02 || download.status === 'complete')
+		);
+	}
+
+	// For movies
+	if (download.videoFile) {
+		return (
+			download.status !== 'initializing' &&
+			(download.progress >= 0.02 || download.status === 'complete')
+		);
+	}
+
+	return false;
+}
+
+/** Check if library file is ready */
+function isLibraryFileReady(mediaId: string, fileIndex?: number): boolean {
+	const mediaItem = mediaDb.getById(mediaId);
+
+	// Check main file path
+	if (mediaItem?.filePath && existsSync(mediaItem.filePath)) {
+		return true;
+	}
+
+	// For TV shows, check episode file
+	if (mediaItem?.type === 'tv' && fileIndex !== undefined) {
+		const episodes = episodesDb.getByMediaId(mediaId);
+		const episodeInfo = episodes.find((e) => e.episode.fileIndex === fileIndex);
+		return Boolean(episodeInfo?.episode.filePath && existsSync(episodeInfo.episode.filePath));
+	}
+
+	return false;
+}
+
+export async function waitForVideoReady(
+	mediaId: string,
+	fileIndex?: number,
+	timeoutMs = 30_000
+): Promise<boolean> {
 	const startTime = Date.now();
 
 	while (Date.now() - startTime < timeoutMs) {
-		const download = activeDownloads.get(movieId);
+		const download = activeDownloads.get(mediaId);
 
-		// For streaming, we need some data downloaded
-		// Check if at least 2% is downloaded or status is complete
-		if (
-			download?.videoFile &&
-			download.status !== 'initializing' &&
-			(download.progress >= 0.02 || download.status === 'complete')
-		) {
+		if (isDownloadReadyForStreaming(download, fileIndex)) {
 			return true;
 		}
 
-		// Check if file exists in library
-		const movie = movies.getById(movieId);
-		if (movie?.filePath && existsSync(movie.filePath)) {
+		if (isLibraryFileReady(mediaId, fileIndex)) {
 			return true;
 		}
 
@@ -728,52 +1274,52 @@ export async function shutdownTorrents(): Promise<void> {
 	}
 }
 
-// Cancel an active download for a movie
-export async function cancelDownload(movieId: string): Promise<void> {
-	console.log(`[${movieId}] Cancelling download...`);
+// Cancel an active download for a media item
+export async function cancelDownload(mediaId: string): Promise<void> {
+	console.log(`[${mediaId}] Cancelling download...`);
 
 	// Remove from pending downloads if waiting
-	pendingDownloads.delete(movieId);
+	pendingDownloads.delete(mediaId);
 
 	// If actively downloading, destroy the torrent
-	const download = activeDownloads.get(movieId);
+	const download = activeDownloads.get(mediaId);
 	if (download) {
 		return new Promise<void>((resolve) => {
 			download.torrent.destroy({ destroyStore: true }, () => {
-				console.log(`[${movieId}] Download cancelled and torrent destroyed`);
-				activeDownloads.delete(movieId);
+				console.log(`[${mediaId}] Download cancelled and torrent destroyed`);
+				activeDownloads.delete(mediaId);
 				resolve();
 			});
 		});
 	}
 }
 
-// Delete all files associated with a movie from the file system
-export async function deleteMovieFiles(movieId: string): Promise<void> {
-	console.log(`[${movieId}] Deleting movie files...`);
+// Delete all files associated with a media item from the file system
+export async function deleteMediaFiles(mediaId: string): Promise<void> {
+	console.log(`[${mediaId}] Deleting media files...`);
 
-	const libraryPath = path.join(config.paths.library, movieId);
-	const tempPath = path.join(config.paths.temp, movieId);
+	const libraryPath = path.join(config.paths.library, mediaId);
+	const tempPath = path.join(config.paths.temp, mediaId);
 
 	// Delete library directory
 	try {
 		await fs.rm(libraryPath, { recursive: true, force: true });
-		console.log(`[${movieId}] Deleted library directory: ${libraryPath}`);
+		console.log(`[${mediaId}] Deleted library directory: ${libraryPath}`);
 	} catch (e) {
 		// Directory may not exist, that's fine
 		if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
-			console.error(`[${movieId}] Error deleting library directory:`, e);
+			console.error(`[${mediaId}] Error deleting library directory:`, e);
 		}
 	}
 
 	// Delete temp directory
 	try {
 		await fs.rm(tempPath, { recursive: true, force: true });
-		console.log(`[${movieId}] Deleted temp directory: ${tempPath}`);
+		console.log(`[${mediaId}] Deleted temp directory: ${tempPath}`);
 	} catch (e) {
 		// Directory may not exist, that's fine
 		if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
-			console.error(`[${movieId}] Error deleting temp directory:`, e);
+			console.error(`[${mediaId}] Error deleting temp directory:`, e);
 		}
 	}
 }
@@ -783,11 +1329,11 @@ export async function deleteMovieFiles(movieId: string): Promise<void> {
  * Called during recovery when a video file already exists in temp but wasn't moved to library.
  */
 async function finalizeFromTemp(
-	movieId: string,
+	mediaId: string,
 	videoPath: string,
 	fileName: string
 ): Promise<boolean> {
-	const destDir = path.join(config.paths.library, movieId);
+	const destDir = path.join(config.paths.library, mediaId);
 	const destPath = path.join(destDir, fileName);
 
 	try {
@@ -797,22 +1343,22 @@ async function finalizeFromTemp(
 		const stats = await fs.stat(destPath);
 		const fileSize = stats.size;
 
-		movies.updateFilePath(movieId, destPath, fileSize);
-		movies.updateProgress(movieId, 1, 'complete');
-		console.log(`[Recovery] [${movieId}] Finalized from temp: ${destPath} (${fileSize} bytes)`);
+		mediaDb.updateFilePath(mediaId, destPath, fileSize);
+		mediaDb.updateProgress(mediaId, 1, 'complete');
+		console.log(`[Recovery] [${mediaId}] Finalized from temp: ${destPath} (${fileSize} bytes)`);
 
 		// Clean up temp directory
-		const tempDir = path.join(config.paths.temp, movieId);
+		const tempDir = path.join(config.paths.temp, mediaId);
 		try {
 			await fs.rm(tempDir, { recursive: true, force: true });
-			console.log(`[Recovery] [${movieId}] Cleaned up temp directory`);
+			console.log(`[Recovery] [${mediaId}] Cleaned up temp directory`);
 		} catch {
 			// Ignore cleanup errors
 		}
 
 		return true;
 	} catch (e) {
-		console.error(`[Recovery] [${movieId}] Failed to finalize from temp:`, e);
+		console.error(`[Recovery] [${mediaId}] Failed to finalize from temp:`, e);
 		return false;
 	}
 }
@@ -849,25 +1395,25 @@ async function findVideoInDirectory(
 	}
 }
 
-/** Process a single incomplete movie during recovery */
-async function recoverSingleMovie(movie: {
+/** Process a single incomplete media item during recovery */
+async function recoverSingleMedia(mediaItem: {
 	id: string;
 	filePath: string | null;
 	magnetLink: string;
 }): Promise<void> {
-	const movieId = movie.id;
-	const tempDir = path.join(config.paths.temp, movieId);
+	const mediaId = mediaItem.id;
+	const tempDir = path.join(config.paths.temp, mediaId);
 
 	// Skip if already being processed
-	if (activeDownloads.has(movieId) || pendingDownloads.has(movieId)) {
-		console.log(`[Recovery] [${movieId}] Already active, skipping`);
+	if (activeDownloads.has(mediaId) || pendingDownloads.has(mediaId)) {
+		console.log(`[Recovery] [${mediaId}] Already active, skipping`);
 		return;
 	}
 
 	// Check if file exists in library
-	if (movie.filePath && existsSync(movie.filePath)) {
-		console.log(`[Recovery] [${movieId}] File already in library, marking complete`);
-		movies.updateProgress(movieId, 1, 'complete');
+	if (mediaItem.filePath && existsSync(mediaItem.filePath)) {
+		console.log(`[Recovery] [${mediaId}] File already in library, marking complete`);
+		mediaDb.updateProgress(mediaId, 1, 'complete');
 		return;
 	}
 
@@ -876,9 +1422,9 @@ async function recoverSingleMovie(movie: {
 		const videoInfo = await findVideoInDirectory(tempDir);
 		if (videoInfo && videoInfo.size >= MIN_VIDEO_SIZE) {
 			console.log(
-				`[Recovery] [${movieId}] Found video in temp: ${videoInfo.name} (${(videoInfo.size / 1024 / 1024).toFixed(2)} MB)`
+				`[Recovery] [${mediaId}] Found video in temp: ${videoInfo.name} (${(videoInfo.size / 1024 / 1024).toFixed(2)} MB)`
 			);
-			const success = await finalizeFromTemp(movieId, videoInfo.path, videoInfo.name);
+			const success = await finalizeFromTemp(mediaId, videoInfo.path, videoInfo.name);
 			if (success) {
 				return;
 			}
@@ -886,37 +1432,37 @@ async function recoverSingleMovie(movie: {
 	}
 
 	// No file found - restart download if magnet link is available
-	if (movie.magnetLink) {
-		console.log(`[Recovery] [${movieId}] No file found, restarting download`);
-		startDownload(movieId, movie.magnetLink).catch((e) => {
-			console.error(`[Recovery] [${movieId}] Failed to restart download:`, e);
-			movies.updateProgress(movieId, 0, 'error');
+	if (mediaItem.magnetLink) {
+		console.log(`[Recovery] [${mediaId}] No file found, restarting download`);
+		startDownload(mediaId, mediaItem.magnetLink).catch((e) => {
+			console.error(`[Recovery] [${mediaId}] Failed to restart download:`, e);
+			mediaDb.updateProgress(mediaId, 0, 'error');
 		});
 	} else {
-		console.log(`[Recovery] [${movieId}] No magnet link, marking as error`);
-		movies.updateProgress(movieId, 0, 'error');
+		console.log(`[Recovery] [${mediaId}] No magnet link, marking as error`);
+		mediaDb.updateProgress(mediaId, 0, 'error');
 	}
 }
 
 /**
  * Recover incomplete downloads on server startup.
- * Checks for movies stuck in 'downloading' or 'added' status and either:
+ * Checks for media stuck in 'downloading' or 'added' status and either:
  * - Finalizes them if the video file exists in temp
  * - Restarts the download if no file is found
  */
 export async function recoverDownloads(): Promise<void> {
 	console.log('[Recovery] Checking for incomplete downloads...');
 
-	const incompleteMovies = movies.getIncompleteDownloads();
+	const incompleteMedia = mediaDb.getIncompleteDownloads();
 
-	if (incompleteMovies.length === 0) {
+	if (incompleteMedia.length === 0) {
 		console.log('[Recovery] No incomplete downloads found');
 		return;
 	}
 
-	console.log(`[Recovery] Found ${incompleteMovies.length} incomplete download(s)`);
+	console.log(`[Recovery] Found ${incompleteMedia.length} incomplete download(s)`);
 
-	for (const movie of incompleteMovies) {
-		await recoverSingleMovie(movie);
+	for (const mediaItem of incompleteMedia) {
+		await recoverSingleMedia(mediaItem);
 	}
 }

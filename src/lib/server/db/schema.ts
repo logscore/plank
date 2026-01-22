@@ -93,6 +93,7 @@ export const verification = sqliteTable(
 export const userRelations = relations(user, ({ many }) => ({
 	sessions: many(session),
 	accounts: many(account),
+	media: many(media),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -113,13 +114,17 @@ export const accountRelations = relations(account, ({ one }) => ({
 // Application tables
 // ============================================================================
 
-export const movies = sqliteTable(
-	'movies',
+// Renamed from 'movies' to 'media' to support both movies and TV shows
+export const media = sqliteTable(
+	'media',
 	{
 		id: text('id').primaryKey(),
 		userId: text('user_id')
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
+		type: text('type', { enum: ['movie', 'tv'] })
+			.default('movie')
+			.notNull(),
 		title: text('title').notNull(),
 		year: integer('year'),
 		posterUrl: text('poster_url'),
@@ -139,22 +144,99 @@ export const movies = sqliteTable(
 		genres: text('genres'), // JSON array of genre names
 		originalLanguage: text('original_language'),
 		certification: text('certification'), // MPAA rating (G, PG, PG-13, R, NC-17)
+		totalSeasons: integer('total_seasons'), // TV shows only
 		addedAt: integer('added_at', { mode: 'timestamp_ms' })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 			.notNull(),
 		lastPlayedAt: integer('last_played_at', { mode: 'timestamp_ms' }),
 	},
 	(table) => [
-		uniqueIndex('movies_user_infohash_unique').on(table.userId, table.infohash),
-		index('idx_movies_user').on(table.userId),
-		index('idx_movies_status').on(table.status),
+		uniqueIndex('media_user_infohash_unique').on(table.userId, table.infohash),
+		index('idx_media_user').on(table.userId),
+		index('idx_media_status').on(table.status),
+		index('idx_media_type').on(table.userId, table.type),
 	]
 );
 
-export const moviesRelations = relations(movies, ({ one }) => ({
+// Seasons table for TV shows
+export const seasons = sqliteTable(
+	'seasons',
+	{
+		id: text('id').primaryKey(),
+		mediaId: text('media_id')
+			.notNull()
+			.references(() => media.id, { onDelete: 'cascade' }),
+		seasonNumber: integer('season_number').notNull(),
+		name: text('name'),
+		overview: text('overview'),
+		posterPath: text('poster_path'),
+		airDate: text('air_date'),
+		episodeCount: integer('episode_count').default(0),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+			.notNull(),
+	},
+	(table) => [
+		uniqueIndex('seasons_media_number_unique').on(table.mediaId, table.seasonNumber),
+		index('idx_seasons_media').on(table.mediaId),
+	]
+);
+
+// Episodes table for TV shows
+export const episodes = sqliteTable(
+	'episodes',
+	{
+		id: text('id').primaryKey(),
+		seasonId: text('season_id')
+			.notNull()
+			.references(() => seasons.id, { onDelete: 'cascade' }),
+		episodeNumber: integer('episode_number').notNull(),
+		title: text('title'),
+		overview: text('overview'),
+		stillPath: text('still_path'),
+		runtime: integer('runtime'),
+		airDate: text('air_date'),
+		fileIndex: integer('file_index'),
+		filePath: text('file_path'),
+		fileSize: integer('file_size'),
+		downloadedBytes: integer('downloaded_bytes').default(0),
+		displayOrder: integer('display_order').notNull(),
+		status: text('status', { enum: ['pending', 'downloading', 'complete', 'error'] }).default(
+			'pending'
+		),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+			.notNull(),
+	},
+	(table) => [
+		uniqueIndex('episodes_season_number_unique').on(table.seasonId, table.episodeNumber),
+		index('idx_episodes_season').on(table.seasonId),
+		index('idx_episodes_status').on(table.status),
+		index('idx_episodes_display_order').on(table.seasonId, table.displayOrder),
+	]
+);
+
+// Media relations
+export const mediaRelations = relations(media, ({ one, many }) => ({
 	user: one(user, {
-		fields: [movies.userId],
+		fields: [media.userId],
 		references: [user.id],
+	}),
+	seasons: many(seasons),
+}));
+
+export const seasonsRelations = relations(seasons, ({ one, many }) => ({
+	media: one(media, {
+		fields: [seasons.mediaId],
+		references: [media.id],
+	}),
+	episodes: many(episodes),
+}));
+
+export const episodesRelations = relations(episodes, ({ one }) => ({
+	season: one(seasons, {
+		fields: [episodes.seasonId],
+		references: [seasons.id],
 	}),
 }));
 
@@ -168,8 +250,12 @@ export type Session = typeof session.$inferSelect;
 export type NewSession = typeof session.$inferInsert;
 export type Account = typeof account.$inferSelect;
 export type NewAccount = typeof account.$inferInsert;
-export type Movie = typeof movies.$inferSelect;
-export type NewMovie = typeof movies.$inferInsert;
+export type Media = typeof media.$inferSelect;
+export type NewMedia = typeof media.$inferInsert;
+export type Season = typeof seasons.$inferSelect;
+export type NewSeason = typeof seasons.$inferInsert;
+export type Episode = typeof episodes.$inferSelect;
+export type NewEpisode = typeof episodes.$inferInsert;
 
 // ============================================================================
 // Tables object for consolidated import
@@ -180,5 +266,7 @@ export const schema = {
 	session,
 	account,
 	verification,
-	movies,
+	media,
+	seasons,
+	episodes,
 } as const;

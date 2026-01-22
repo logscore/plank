@@ -41,6 +41,7 @@ describe('TMDB Service', () => {
 				],
 			};
 			(global.fetch as any).mockResolvedValue({
+				ok: true,
 				json: async () => mockResponse,
 			});
 
@@ -55,6 +56,7 @@ describe('TMDB Service', () => {
 
 		it('should handle empty results', async () => {
 			(global.fetch as any).mockResolvedValue({
+				ok: true,
 				json: async () => ({ results: [] }),
 			});
 			const results = await tmdb.searchMovie('Nothing');
@@ -86,8 +88,8 @@ describe('TMDB Service', () => {
 			};
 
 			(global.fetch as any)
-				.mockResolvedValueOnce({ json: async () => mockMovie }) // Movie details
-				.mockResolvedValueOnce({ json: async () => mockReleaseDates }); // Release dates
+				.mockResolvedValueOnce({ ok: true, json: async () => mockMovie }) // Movie details
+				.mockResolvedValueOnce({ ok: true, json: async () => mockReleaseDates }); // Release dates
 
 			const details = await tmdb.getMovieDetails(100);
 

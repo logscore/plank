@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { movies } from '$lib/server/db';
+import { mediaDb } from '$lib/server/db';
 import { getDownloadStatus, isDownloadActive } from '$lib/server/torrent';
 import type { RequestHandler } from './$types';
 
@@ -15,18 +15,18 @@ function isControllerClosedError(e: unknown): boolean {
 }
 
 /** Build progress data object from current state */
-function buildProgressData(movieId: string, userId?: string) {
-	const downloadStatus = getDownloadStatus(movieId);
-	const currentMovie = userId ? movies.get(movieId, userId) : movies.getById(movieId);
+function buildProgressData(mediaId: string, userId?: string) {
+	const downloadStatus = getDownloadStatus(mediaId);
+	const currentMedia = userId ? mediaDb.get(mediaId, userId) : mediaDb.getById(mediaId);
 
 	return {
-		status: downloadStatus?.status ?? currentMovie?.status ?? 'added',
-		progress: downloadStatus?.progress ?? currentMovie?.progress ?? 0,
+		status: downloadStatus?.status ?? currentMedia?.status ?? 'added',
+		progress: downloadStatus?.progress ?? currentMedia?.progress ?? 0,
 		downloadSpeed: downloadStatus?.downloadSpeed ?? 0,
 		uploadSpeed: downloadStatus?.uploadSpeed ?? 0,
 		peers: downloadStatus?.peers ?? 0,
-		isActive: isDownloadActive(movieId),
-		filePath: currentMovie?.filePath,
+		isActive: isDownloadActive(mediaId),
+		filePath: currentMedia?.filePath,
 		error: downloadStatus?.error,
 	};
 }
@@ -36,9 +36,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		throw error(401, 'Unauthorized');
 	}
 
-	const movie = movies.get(params.id, locals.user.id);
-	if (!movie) {
-		throw error(404, 'Movie not found');
+	const mediaItem = mediaDb.get(params.id, locals.user.id);
+	if (!mediaItem) {
+		throw error(404, 'Media not found');
 	}
 
 	const encoder = new TextEncoder();
@@ -55,7 +55,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 	const stream = new ReadableStream({
 		start(controller) {
-			let isComplete = movie.status === 'complete';
+			let isComplete = mediaItem.status === 'complete';
 
 			const closeStream = () => {
 				if (isClosed) {

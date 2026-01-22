@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { movies } from '$lib/server/db';
+import { mediaDb } from '$lib/server/db';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -7,10 +7,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		throw error(401, 'Unauthorized');
 	}
 
-	const movie = movies.get(params.id, locals.user.id);
-	if (!movie) {
-		throw error(404, 'Movie not found');
+	const media = mediaDb.get(params.id, locals.user.id);
+	if (!media) {
+		throw error(404, 'Media not found');
 	}
 
-	return { movie };
+	return { media };
 };

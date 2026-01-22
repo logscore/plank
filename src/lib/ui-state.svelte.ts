@@ -1,5 +1,6 @@
 class UIState {
-	addMovieDialogOpen = $state(false);
+	addMediaDialogOpen = $state(false);
+
 	deleteConfirmation = $state({
 		open: false,
 		title: '',
@@ -9,8 +10,8 @@ class UIState {
 		},
 	});
 
-	toggleAddMovieDialog() {
-		this.addMovieDialogOpen = !this.addMovieDialogOpen;
+	toggleAddMediaDialog() {
+		this.addMediaDialogOpen = !this.addMediaDialogOpen;
 	}
 }
 

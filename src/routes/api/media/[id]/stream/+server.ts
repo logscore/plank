@@ -15,53 +15,45 @@ const FILE_EXTENSION_REGEX = /\.[^.]+$/;
 const RANGE_BYTES_REGEX = /bytes=/;
 
 /** Check download status and throw appropriate error if failed */
-function checkDownloadError(movieId: string): void {
-	const status = getDownloadStatus(movieId);
+function checkDownloadError(mediaId: string): void {
+	const status = getDownloadStatus(mediaId);
 	if (status?.status === 'error') {
 		throw error(503, status.error || 'Download failed - torrent may have no seeders');
 	}
 }
 
-/** Ensure movie download is started and video is ready */
+/** Ensure media download is started and video is ready */
 async function ensureVideoReady(
-	movieId: string,
+	mediaId: string,
 	magnetLink: string,
-	movieStatus: string
-): Promise<Response | undefined> {
-	checkDownloadError(movieId);
+	mediaStatus: string,
+	fileIndex?: number
+): Promise<void> {
+	checkDownloadError(mediaId);
 
 	// Start download if needed
-	if (movieStatus === 'added' && !isDownloadActive(movieId)) {
+	if (mediaStatus === 'added' && !isDownloadActive(mediaId)) {
 		try {
-			await startDownload(movieId, magnetLink);
+			await startDownload(mediaId, magnetLink);
 		} catch (e) {
 			console.error('Failed to start download:', e);
 			throw error(500, 'Failed to start download');
 		}
 	}
 
-	checkDownloadError(movieId);
+	checkDownloadError(mediaId);
 
 	// Wait for video to be ready
-	const isReady = await waitForVideoReady(movieId, 30_000);
+	const isReady = await waitForVideoReady(mediaId, fileIndex, 30_000);
 	if (!isReady) {
-		const status = getDownloadStatus(movieId);
+		const status = getDownloadStatus(mediaId);
 		if (status?.status === 'error') {
 			throw error(503, status.error || 'Download failed');
 		}
 		if (status?.status === 'initializing') {
-			return new Response(
-				JSON.stringify({ message: 'Torrent is initializing, please try again shortly' }),
-				{
-					status: 202,
-					headers: { 'Content-Type': 'application/json' },
-				}
-			);
+			throw error(202, 'Torrent is initializing, please try again shortly');
 		}
-		return new Response(JSON.stringify({ message: 'Video is buffering, please wait...' }), {
-			status: 202,
-			headers: { 'Content-Type': 'application/json' },
-		});
+		throw error(202, 'Video is buffering, please wait...');
 	}
 }
 
@@ -89,11 +81,12 @@ function createTransmuxResponse(
 
 /** Handle range request for video streaming */
 async function handleRangeRequest(
-	movieId: string,
+	mediaId: string,
 	range: string,
 	fileSize: number,
 	fileName: string,
-	mimeType: string
+	mimeType: string,
+	fileIndex?: number
 ): Promise<Response> {
 	const parts = range.replace(RANGE_BYTES_REGEX, '').split('-');
 	const start = Number.parseInt(parts[0], 10);
@@ -104,8 +97,7 @@ async function handleRangeRequest(
 	}
 
 	const clampedEnd = Math.min(end, fileSize - 1);
-	// Movies don't have fileIndex, so pass undefined
-	const rangedStreamInfo = await getVideoStream(movieId, undefined, start, clampedEnd);
+	const rangedStreamInfo = await getVideoStream(mediaId, fileIndex, start, clampedEnd);
 	if (!rangedStreamInfo) {
 		throw error(500, 'Failed to create ranged stream');
 	}
@@ -125,31 +117,28 @@ async function handleRangeRequest(
 	});
 }
 
-export const GET: RequestHandler = async ({ params, locals, request }) => {
+export const GET: RequestHandler = async ({ params, locals, request, url }) => {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
 	}
 
-	const movieId = params.id;
-	if (!movieId) {
-		throw error(400, 'Movie ID required');
+	const mediaItem = mediaDb.get(params.id, locals.user.id);
+	if (!mediaItem) {
+		throw error(404, 'Media not found');
 	}
 
-	const movie = mediaDb.get(movieId, locals.user.id);
-	if (!movie) {
-		throw error(404, 'Movie not found');
-	}
+	// Get optional fileIndex for TV shows
+	const fileIndexParam = url.searchParams.get('fileIndex');
+	const fileIndex = fileIndexParam ? Number.parseInt(fileIndexParam, 10) : undefined;
 
-	const bufferingResponse = await ensureVideoReady(
-		movie.id,
-		movie.magnetLink,
-		movie.status ?? 'added'
+	await ensureVideoReady(
+		mediaItem.id,
+		mediaItem.magnetLink,
+		mediaItem.status ?? 'added',
+		fileIndex
 	);
-	if (bufferingResponse) {
-		return bufferingResponse;
-	}
 
-	const streamInfo = await getVideoStream(movieId);
+	const streamInfo = await getVideoStream(params.id, fileIndex);
 	if (!streamInfo) {
 		throw error(404, 'Video not available');
 	}
@@ -165,7 +154,7 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 	const range = request.headers.get('range');
 	if (range) {
 		stream.destroy();
-		return handleRangeRequest(movieId, range, fileSize, fileName, mimeType);
+		return handleRangeRequest(params.id, range, fileSize, fileName, mimeType, fileIndex);
 	}
 
 	// Full file response

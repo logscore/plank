@@ -22,9 +22,10 @@ function createTables() {
       updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS movies (
+    CREATE TABLE IF NOT EXISTS media (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      type TEXT DEFAULT 'movie' NOT NULL,
       title TEXT NOT NULL,
       year INTEGER,
       poster_url TEXT,
@@ -41,32 +42,34 @@ function createTables() {
       genres TEXT,
       original_language TEXT,
       certification TEXT,
+      total_seasons INTEGER,
       added_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
       last_played_at INTEGER,
       UNIQUE(user_id, infohash)
     );
 
-    CREATE INDEX IF NOT EXISTS idx_movies_user ON movies(user_id);
-    CREATE INDEX IF NOT EXISTS idx_movies_status ON movies(status);
+    CREATE INDEX IF NOT EXISTS idx_media_user ON media(user_id);
+    CREATE INDEX IF NOT EXISTS idx_media_status ON media(status);
+    CREATE INDEX IF NOT EXISTS idx_media_type ON media(user_id, type);
   `);
 }
 
-// Movies module that mirrors the real implementation
+// Movies module that mirrors the real implementation (using media table)
 const movies = {
 	list(userId: string) {
 		return db
 			.select()
-			.from(schema.movies)
-			.where(eq(schema.movies.userId, userId))
-			.orderBy(desc(schema.movies.addedAt))
+			.from(schema.media)
+			.where(eq(schema.media.userId, userId))
+			.orderBy(desc(schema.media.addedAt))
 			.all();
 	},
 
 	get(id: string, userId: string) {
 		return db
 			.select()
-			.from(schema.movies)
-			.where(and(eq(schema.movies.id, id), eq(schema.movies.userId, userId)))
+			.from(schema.media)
+			.where(and(eq(schema.media.id, id), eq(schema.media.userId, userId)))
 			.get();
 	},
 
@@ -87,6 +90,7 @@ const movies = {
 		const newMovie = {
 			id,
 			userId: movie.userId,
+			type: 'movie' as const,
 			title: movie.title,
 			year: movie.year ?? null,
 			posterUrl: movie.posterUrl ?? null,
@@ -103,33 +107,30 @@ const movies = {
 			lastPlayedAt: null,
 		};
 
-		db.insert(schema.movies).values(newMovie).run();
+		db.insert(schema.media).values(newMovie).run();
 
 		return newMovie;
 	},
 
 	updateProgress(id: string, progress: number, status: 'added' | 'downloading' | 'complete') {
-		db.update(schema.movies).set({ progress, status }).where(eq(schema.movies.id, id)).run();
+		db.update(schema.media).set({ progress, status }).where(eq(schema.media.id, id)).run();
 	},
 
 	updateFilePath(id: string, filePath: string) {
-		db.update(schema.movies)
+		db.update(schema.media)
 			.set({ filePath, status: 'complete' })
-			.where(eq(schema.movies.id, id))
+			.where(eq(schema.media.id, id))
 			.run();
 	},
 
 	delete(id: string, userId: string) {
-		db.delete(schema.movies)
-			.where(and(eq(schema.movies.id, id), eq(schema.movies.userId, userId)))
+		db.delete(schema.media)
+			.where(and(eq(schema.media.id, id), eq(schema.media.userId, userId)))
 			.run();
 	},
 
 	updateLastPlayed(id: string) {
-		db.update(schema.movies)
-			.set({ lastPlayedAt: new Date() })
-			.where(eq(schema.movies.id, id))
-			.run();
+		db.update(schema.media).set({ lastPlayedAt: new Date() }).where(eq(schema.media.id, id)).run();
 	},
 };
 
@@ -165,7 +166,7 @@ describe('Database Module - Movies', () => {
 
 	beforeEach(() => {
 		// Clear tables
-		testDb.exec('DELETE FROM movies');
+		testDb.exec('DELETE FROM media');
 		testDb.exec('DELETE FROM user');
 
 		// Insert test users
@@ -490,7 +491,7 @@ describe('Database Constraints and Integrity', () => {
 	});
 
 	beforeEach(() => {
-		testDb.exec('DELETE FROM movies');
+		testDb.exec('DELETE FROM media');
 		testDb.exec('DELETE FROM user');
 		db.insert(schema.user).values(testUser).run();
 	});
@@ -511,7 +512,7 @@ describe('Database Constraints and Integrity', () => {
 		db.delete(schema.user).where(eq(schema.user.id, testUser.id)).run();
 
 		// Verify movie is also deleted (cascade)
-		const moviesAfterDelete = testDb.prepare('SELECT * FROM movies WHERE id = ?').get(created.id);
+		const moviesAfterDelete = testDb.prepare('SELECT * FROM media WHERE id = ?').get(created.id);
 		expect(moviesAfterDelete).toBeUndefined();
 	});
 });

@@ -3,7 +3,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { page } from '$app/stores';
   import Button from '$lib/components/ui/Button.svelte';
-  import type { Movie } from '$lib/types';
+  import type { Media } from '$lib/types';
 
   interface ProgressInfo {
     status: string;
@@ -15,7 +15,7 @@
     filePath: string | null;
   }
 
-  let movie: Movie | null = $state(null);
+  let media: Media | null = $state(null);
   let videoElement: HTMLVideoElement | undefined = $state(undefined);
   let progressInfo: ProgressInfo | null = $state(null);
   let loading = $state(true);
@@ -28,6 +28,10 @@
   let showMenu = $state(false);
   let showStats = $state(false);
 
+  // Get fileIndex from URL for TV episodes
+  const fileIndex = $derived($page.url.searchParams.get('fileIndex'));
+  const isTVEpisode = $derived(fileIndex !== null);
+
   function formatSpeed(bytesPerSecond: number): string {
     if (bytesPerSecond < 1024) {
       return `${bytesPerSecond} B/s`;
@@ -38,28 +42,28 @@
     return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
   }
 
-  async function loadMovie() {
+  async function loadMedia() {
     try {
-      const res = await fetch(`/api/movies/${$page.params.id}`);
+      const res = await fetch(`/api/media/${$page.params.id}`);
       if (res.ok) {
-        movie = await res.json();
+        media = await res.json();
       } else {
-        error = 'Movie not found';
+        error = 'Media not found';
       }
     } catch (e) {
-      error = 'Failed to load movie';
+      error = 'Failed to load media';
     } finally {
       loading = false;
     }
   }
 
   async function fetchProgress() {
-    if (!movie) {
+    if (!media) {
       return;
     }
 
     try {
-      const res = await fetch(`/api/movies/${movie.id}/progress`);
+      const res = await fetch(`/api/media/${media.id}/progress`);
       if (res.ok) {
         progressInfo = await res.json();
       }
@@ -81,7 +85,7 @@
   }
 
   onMount(() => {
-    loadMovie();
+    loadMedia();
     resetControlsTimeout();
     // Close menu on click outside
     document.addEventListener('click', handleGlobalClick);
@@ -101,9 +105,9 @@
     }
   }
 
-  // Start polling when movie is loaded and not complete
+  // Start polling when media is loaded and not complete
   $effect(() => {
-    if (movie && movie.status !== 'complete') {
+    if (media && media.status !== 'complete') {
       startProgressPolling();
     }
     return () => stopProgressPolling();
@@ -117,14 +121,18 @@
   });
 
   function getVideoSrc(): string {
-    return movie ? `/api/movies/${movie.id}/stream` : '';
+    if (!media) {
+      return '';
+    }
+    const base = `/api/media/${media.id}/stream`;
+    return fileIndex !== null ? `${base}?fileIndex=${fileIndex}` : base;
   }
 
   function getIsReady(): boolean {
     return (
       progressInfo?.status === 'complete' ||
       (progressInfo?.progress ?? 0) > 0.05 ||
-      movie?.status === 'complete'
+      media?.status === 'complete'
     );
   }
 
@@ -229,9 +237,9 @@
       {:else}
         <div class="relative w-full h-full">
           <!-- Background Poster blurred -->
-          {#if movie?.backdropUrl || movie?.posterUrl}
+          {#if media?.backdropUrl || media?.posterUrl}
             <img
-              src={movie?.backdropUrl || movie?.posterUrl}
+              src={media?.backdropUrl || media?.posterUrl}
               alt="Background"
               class="absolute inset-0 w-full h-full object-cover blur-2xl opacity-30"
             >
@@ -244,8 +252,8 @@
               ></div>
             </div>
             <div class="text-center space-y-2">
-              <h2 class="text-2xl font-bold text-white">Buffering {movie?.title}...</h2>
-              <p class="text-zinc-400">Waiting for movie to stream in from space</p>
+              <h2 class="text-2xl font-bold text-white">Buffering {media?.title}...</h2>
+              <p class="text-zinc-400">Waiting for video to stream in from space</p>
             </div>
           </div>
         </div>

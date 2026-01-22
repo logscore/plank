@@ -25,7 +25,7 @@
   let retrying = $state(false);
   let copied = $state(false);
 
-  // Add Movie Dialog state
+  // Add Media Dialog state
   let magnetInput = $state('');
   let magnetError = $state('');
   let adding = $state(false);
@@ -38,8 +38,8 @@
 
   // Sync initial values from data when component mounts or data changes
   $effect(() => {
-    liveStatus = data.movie.status;
-    liveProgress = data.movie.progress;
+    liveStatus = data.media.status;
+    liveProgress = data.media.progress;
   });
 
   function formatFileSize(bytes: number | null): string {
@@ -82,11 +82,11 @@
   }
 
   async function copyFilePath() {
-    if (!data.movie.filePath) {
+    if (!data.media.filePath) {
       return;
     }
     try {
-      await navigator.clipboard.writeText(data.movie.filePath);
+      await navigator.clipboard.writeText(data.media.filePath);
       copied = true;
       setTimeout(() => {
         copied = false;
@@ -103,7 +103,7 @@
       return;
     }
 
-    eventSource = new EventSource(`/api/movies/${data.movie.id}/progress/stream`);
+    eventSource = new EventSource(`/api/media/${data.media.id}/progress/stream`);
 
     eventSource.onmessage = (event) => {
       try {
@@ -157,7 +157,7 @@
 
   onMount(() => {
     // Only stream if not complete
-    if (data.movie.status !== 'complete') {
+    if (data.media.status !== 'complete') {
       startStream();
     }
   });
@@ -169,7 +169,7 @@
   async function handleRetry() {
     retrying = true;
     try {
-      const res = await fetch(`/api/movies/${data.movie.id}/retry`, { method: 'POST' });
+      const res = await fetch(`/api/media/${data.media.id}/retry`, { method: 'POST' });
       if (res.ok) {
         liveStatus = 'added';
         liveProgress = 0;
@@ -195,20 +195,20 @@
     magnetError = '';
     adding = true;
     try {
-      const res = await fetch('/api/movies', {
+      const res = await fetch('/api/media', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ magnetLink: magnetInput }),
       });
       if (res.ok) {
         magnetInput = '';
-        uiState.addMovieDialogOpen = false;
+        uiState.addMediaDialogOpen = false;
       } else {
-        const data = await res.json();
-        magnetError = data.message || 'Failed to add movie';
+        const respData = await res.json();
+        magnetError = respData.message || 'Failed to add media';
       }
     } catch (e) {
-      magnetError = 'Failed to add movie';
+      magnetError = 'Failed to add media';
     } finally {
       adding = false;
     }
@@ -216,17 +216,17 @@
 
   async function handleDelete() {
     confirmDelete(
-      'Delete Movie',
-      'Are you sure you want to delete this movie? This action cannot be undone.',
+      'Delete Media',
+      'Are you sure you want to delete this? This action cannot be undone.',
       async () => {
         deleting = true;
         try {
-          const res = await fetch(`/api/movies/${data.movie.id}`, { method: 'DELETE' });
+          const res = await fetch(`/api/media/${data.media.id}`, { method: 'DELETE' });
           if (res.ok) {
             goto('/');
           }
         } catch (e) {
-          console.error('Failed to delete movie:', e);
+          console.error('Failed to delete media:', e);
         } finally {
           deleting = false;
         }
@@ -238,10 +238,10 @@
 <div class="min-h-screen bg-background">
   <!-- Hero Section with Backdrop -->
   <div class="relative h-80 md:h-96 overflow-hidden">
-    {#if data.movie.backdropUrl || data.movie.posterUrl}
+    {#if data.media.backdropUrl || data.media.posterUrl}
       <img
-        src={data.movie.backdropUrl || data.movie.posterUrl}
-        alt={data.movie.title}
+        src={data.media.backdropUrl || data.media.posterUrl}
+        alt={data.media.title}
         class="absolute inset-0 w-full h-full object-cover"
       >
       <div
@@ -265,10 +265,10 @@
     <div class="flex flex-col md:flex-row gap-8">
       <!-- Poster -->
       <div class="shrink-0">
-        {#if data.movie.posterUrl}
+        {#if data.media.posterUrl}
           <img
-            src={data.movie.posterUrl}
-            alt={data.movie.title}
+            src={data.media.posterUrl}
+            alt={data.media.title}
             class="w-48 md:w-64 rounded-lg shadow-2xl border border-white/10"
           >
         {:else}
@@ -284,38 +284,38 @@
       <div class="flex-1 space-y-6">
         <!-- Title -->
         <div>
-          <h1 class="text-3xl md:text-4xl font-bold text-white">{data.movie.title}</h1>
+          <h1 class="text-3xl md:text-4xl font-bold text-white">{data.media.title}</h1>
         </div>
 
         <!-- Meta Badges -->
         <div class="flex flex-wrap items-center gap-3 text-sm">
-          {#if data.movie.certification}
+          {#if data.media.certification}
             <span
-              class="px-3 py-1 rounded-full border font-bold {getColorForCertification(data.movie.certification)}"
+              class="px-3 py-1 rounded-full border font-bold {getColorForCertification(data.media.certification)}"
             >
-              {data.movie.certification}
+              {data.media.certification}
             </span>
           {/if}
-          {#if data.movie.year}
+          {#if data.media.year}
             <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground"
-              >{data.movie.year}</span
+              >{data.media.year}</span
             >
           {/if}
-          {#if data.movie.runtime}
+          {#if data.media.runtime}
             <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">
-              {Math.floor(data.movie.runtime / 60)}h {data.movie.runtime % 60}m
+              {Math.floor(data.media.runtime / 60)}h {data.media.runtime % 60}m
             </span>
           {/if}
-          {#if data.movie.originalLanguage}
+          {#if data.media.originalLanguage}
             <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground uppercase">
-              {data.movie.originalLanguage}
+              {data.media.originalLanguage}
             </span>
           {/if}
         </div>
 
         <!-- Genres -->
-        {#if data.movie.genres}
-          {@const genreList = JSON.parse(data.movie.genres) as string[]}
+        {#if data.media.genres}
+          {@const genreList = JSON.parse(data.media.genres) as string[]}
           <div class="flex flex-wrap gap-2">
             {#each genreList as genre}
               <span
@@ -339,10 +339,10 @@
               {retrying ? 'Retrying...' : 'Retry Download'}
             </Button>
           {:else}
-            <a href="/watch/{data.movie.id}">
+            <a href="/watch/{data.media.id}">
               <Button size="lg" class="px-8">
                 <Play class="w-5 h-5 mr-2 fill-current" />
-                Play Movie
+                Play
               </Button>
             </a>
           {/if}
@@ -359,10 +359,10 @@
         </div>
 
         <!-- Overview -->
-        {#if data.movie.overview}
+        {#if data.media.overview}
           <div class="ml-2">
             <h2 class="text-lg font-semibold text-white mb-1 mt-4">Overview</h2>
-            <p class="text-muted-foreground leading-relaxed">{data.movie.overview}</p>
+            <p class="text-muted-foreground leading-relaxed">{data.media.overview}</p>
           </div>
         {/if}
       </div>
@@ -385,7 +385,7 @@
           </div>
           <div class="flex justify-between">
             <span class="text-muted-foreground">Progress</span>
-            <span class="font-medium">{(liveProgress * 100).toFixed(1)}%</span>
+            <span class="font-medium">{((liveProgress ?? 0) * 100).toFixed(1)}%</span>
           </div>
           {#if liveStatus === 'downloading'}
             <div class="flex justify-between">
@@ -399,7 +399,7 @@
           {/if}
           <div class="flex justify-between">
             <span class="text-muted-foreground">File Size</span>
-            <span class="font-medium">{formatFileSize(data.movie.fileSize)}</span>
+            <span class="font-medium">{formatFileSize(data.media.fileSize)}</span>
           </div>
         </div>
       </div>
@@ -417,14 +417,14 @@
                 <code
                   class="text-xs bg-accent px-2 py-1 rounded whitespace-nowrap overflow-x-auto block w-full no-scrollbar pr-6"
                 >
-                  {data.movie.filePath || 'Not yet downloaded'}
+                  {data.media.filePath || 'Not yet downloaded'}
                 </code>
                 <!-- Fade/Blur effect on the right -->
                 <div
                   class="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-accent to-transparent pointer-events-none"
                 ></div>
               </div>
-              {#if data.movie.filePath}
+              {#if data.media.filePath}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -443,7 +443,7 @@
           <div>
             <span class="text-muted-foreground block mb-1">Infohash</span>
             <code class="text-xs bg-accent px-2 py-1 rounded break-all block">
-              {data.movie.infohash}
+              {data.media.infohash}
             </code>
           </div>
         </div>
@@ -457,12 +457,12 @@
         <div class="space-y-3 text-sm">
           <div class="flex justify-between">
             <span class="text-muted-foreground">Added</span>
-            <span class="font-medium">{formatDate(data.movie.addedAt)}</span>
+            <span class="font-medium">{formatDate(data.media.addedAt)}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-muted-foreground">Last Played</span>
             <span class="font-medium"
-              >{data.movie.lastPlayedAt ? formatDate(data.movie.lastPlayedAt) : 'Never'}</span
+              >{data.media.lastPlayedAt ? formatDate(data.media.lastPlayedAt) : 'Never'}</span
             >
           </div>
         </div>
@@ -476,11 +476,11 @@
         <div class="space-y-3 text-sm">
           <div class="flex justify-between">
             <span class="text-muted-foreground">TMDB ID</span>
-            <span class="font-medium">{data.movie.tmdbId || 'Not linked'}</span>
+            <span class="font-medium">{data.media.tmdbId || 'Not linked'}</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-muted-foreground">Movie ID</span>
-            <code class="text-xs bg-accent px-2 py-1 rounded">{data.movie.id}</code>
+            <span class="text-muted-foreground">Media ID</span>
+            <code class="text-xs bg-accent px-2 py-1 rounded">{data.media.id}</code>
           </div>
         </div>
       </div>
@@ -488,10 +488,10 @@
   </div>
 </div>
 
-<!-- Add Movie Dialog - Controlled by Global Store -->
+<!-- Add Media Dialog - Controlled by Global Store -->
 <Dialog
-  bind:open={uiState.addMovieDialogOpen}
-  title="Add Movie"
+  bind:open={uiState.addMediaDialogOpen}
+  title="Add Media"
   description="Paste a magnet link to start downloading."
 >
   <div class="grid gap-4 py-4">
@@ -505,8 +505,8 @@
     {/if}
   </div>
   <div class="flex justify-end gap-2">
-    <Button variant="ghost" onclick={() => uiState.addMovieDialogOpen = false}>Cancel</Button>
-    <Button onclick={addMagnet} disabled={adding}>{adding ? 'Adding...' : 'Add Movie'}</Button>
+    <Button variant="ghost" onclick={() => uiState.addMediaDialogOpen = false}>Cancel</Button>
+    <Button onclick={addMagnet} disabled={adding}>{adding ? 'Adding...' : 'Add'}</Button>
   </div>
 </Dialog>
 

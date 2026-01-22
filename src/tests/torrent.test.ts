@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { movies } from '$lib/server/db';
+import { mediaDb } from '$lib/server/db';
 import * as torrentService from '$lib/server/torrent';
 
 // Mock dependencies
@@ -14,6 +14,12 @@ vi.mock('$lib/config', () => ({
 }));
 
 vi.mock('$lib/server/db', () => ({
+	mediaDb: {
+		getById: vi.fn(),
+		updateProgress: vi.fn(),
+		updateMetadata: vi.fn(),
+		updateFilePath: vi.fn(),
+	},
 	movies: {
 		getById: vi.fn(),
 		updateProgress: vi.fn(),
@@ -134,7 +140,7 @@ describe('Torrent Service', () => {
 			await expect(promise).resolves.not.toThrow();
 
 			expect(mockClient.add).toHaveBeenCalled();
-			expect(movies.updateProgress).toHaveBeenCalledWith(movieId, 0, 'downloading');
+			expect(mediaDb.updateProgress).toHaveBeenCalledWith(movieId, 0, 'downloading');
 		});
 
 		it('should not start if already active', async () => {

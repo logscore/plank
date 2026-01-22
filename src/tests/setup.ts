@@ -90,11 +90,12 @@ beforeAll(() => {
     );
   `);
 
-	// Create movies table
+	// Create media table (renamed from movies to support TV shows)
 	testDb.exec(`
-    CREATE TABLE IF NOT EXISTS movies (
+    CREATE TABLE IF NOT EXISTS media (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      type TEXT DEFAULT 'movie' NOT NULL,
       title TEXT NOT NULL,
       year INTEGER,
       poster_url TEXT,
@@ -111,51 +112,90 @@ beforeAll(() => {
       genres TEXT,
       original_language TEXT,
       certification TEXT,
+      total_seasons INTEGER,
       added_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
       last_played_at INTEGER,
       UNIQUE(user_id, infohash)
     );
   `);
 
-	// Create indexes
+	// Create indexes for media table
 	testDb.exec(`
-    CREATE INDEX IF NOT EXISTS idx_movies_user ON movies(user_id);
-    CREATE INDEX IF NOT EXISTS idx_movies_status ON movies(status);
+    CREATE INDEX IF NOT EXISTS idx_media_user ON media(user_id);
+    CREATE INDEX IF NOT EXISTS idx_media_status ON media(status);
+    CREATE INDEX IF NOT EXISTS idx_media_type ON media(user_id, type);
   `);
 
-	// Create FTS table and triggers
+	// Create seasons table for TV shows
 	testDb.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS movies_fts USING fts5(
+    CREATE TABLE IF NOT EXISTS seasons (
+      id TEXT PRIMARY KEY,
+      media_id TEXT NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+      season_number INTEGER NOT NULL,
+      name TEXT,
+      overview TEXT,
+      poster_path TEXT,
+      air_date TEXT,
+      episode_count INTEGER DEFAULT 0,
+      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+      UNIQUE(media_id, season_number)
+    );
+    CREATE INDEX IF NOT EXISTS idx_seasons_media ON seasons(media_id);
+  `);
+
+	// Create episodes table for TV shows
+	testDb.exec(`
+    CREATE TABLE IF NOT EXISTS episodes (
+      id TEXT PRIMARY KEY,
+      season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
+      episode_number INTEGER NOT NULL,
+      title TEXT,
+      overview TEXT,
+      still_path TEXT,
+      runtime INTEGER,
+      air_date TEXT,
+      file_index INTEGER,
+      file_path TEXT,
+      file_size INTEGER,
+      downloaded_bytes INTEGER DEFAULT 0,
+      display_order INTEGER NOT NULL,
+      status TEXT DEFAULT 'pending',
+      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+      UNIQUE(season_id, episode_number)
+    );
+    CREATE INDEX IF NOT EXISTS idx_episodes_season ON episodes(season_id);
+    CREATE INDEX IF NOT EXISTS idx_episodes_status ON episodes(status);
+    CREATE INDEX IF NOT EXISTS idx_episodes_display_order ON episodes(season_id, display_order);
+  `);
+
+	// Create standalone FTS table for tests (simpler than content table)
+	testDb.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS media_fts USING fts5(
         title, 
-        overview, 
-        genre, 
-        movie_id UNINDEXED, 
-        user_id UNINDEXED
+        overview
     );
 
-    CREATE TRIGGER IF NOT EXISTS movies_ai AFTER INSERT ON movies BEGIN
-      INSERT INTO movies_fts(title, overview, genre, movie_id, user_id) 
-      VALUES (new.title, new.overview, new.genres, new.id, new.user_id);
+    CREATE TRIGGER IF NOT EXISTS media_fts_insert AFTER INSERT ON media BEGIN
+      INSERT INTO media_fts(rowid, title, overview) 
+      VALUES (new.rowid, new.title, new.overview);
     END;
 
-    CREATE TRIGGER IF NOT EXISTS movies_ad AFTER DELETE ON movies BEGIN
-      DELETE FROM movies_fts WHERE movie_id = old.id;
+    CREATE TRIGGER IF NOT EXISTS media_fts_delete AFTER DELETE ON media BEGIN
+      DELETE FROM media_fts WHERE rowid = old.rowid;
     END;
 
-    CREATE TRIGGER IF NOT EXISTS movies_au AFTER UPDATE ON movies BEGIN
-      UPDATE movies_fts SET 
-        title = new.title, 
-        overview = new.overview, 
-        genre = new.genres, 
-        user_id = new.user_id 
-      WHERE movie_id = new.id;
+    CREATE TRIGGER IF NOT EXISTS media_fts_update AFTER UPDATE ON media BEGIN
+      UPDATE media_fts SET title = new.title, overview = new.overview WHERE rowid = new.rowid;
     END;
   `);
 });
 
 // Clean tables before each test
 beforeEach(() => {
-	testDb.exec('DELETE FROM movies');
+	testDb.exec('DELETE FROM episodes');
+	testDb.exec('DELETE FROM seasons');
+	testDb.exec('DELETE FROM media');
+	testDb.exec('DELETE FROM media_fts');
 	testDb.exec('DELETE FROM session');
 	testDb.exec('DELETE FROM account');
 	testDb.exec('DELETE FROM verification');

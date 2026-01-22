@@ -1,10 +1,11 @@
 <script lang="ts">
   import { Info, MoreVertical, Play, RotateCcw, Trash2 } from 'lucide-svelte';
-  import type { Movie } from '$lib/types';
+  import type { Media } from '$lib/types';
   import Button from './ui/Button.svelte';
+  import Tv from './ui/Tv.svelte';
 
-  let { movie, onDelete } = $props<{
-    movie: Movie;
+  let { media, onDelete } = $props<{
+    media: Media;
     onDelete: (id: string, e: Event) => void;
   }>();
 
@@ -21,7 +22,7 @@
 
   function handleDelete(e: Event) {
     showMenu = false;
-    onDelete(movie.id, e);
+    onDelete(media.id, e);
   }
 
   async function handleRetry(e: Event) {
@@ -29,7 +30,7 @@
     e.stopPropagation();
     retrying = true;
     try {
-      const res = await fetch(`/api/movies/${movie.id}/retry`, { method: 'POST' });
+      const res = await fetch(`/api/media/${media.id}/retry`, { method: 'POST' });
       if (res.ok) {
         // Status will update via polling/SSE; for now reload
         window.location.reload();
@@ -43,7 +44,7 @@
 
   function handleClickOutside(e: MouseEvent) {
     const target = e.target as HTMLElement;
-    if (showMenu && !target.closest('.movie-menu')) {
+    if (showMenu && !target.closest('.media-menu')) {
       showMenu = false;
     }
     // Close mobile overlay if clicked outside
@@ -75,6 +76,10 @@
     const m = minutes % 60;
     return `${h}h ${m}m`;
   }
+
+  // Determine the link based on media type
+  const detailsLink = $derived(media.type === 'tv' ? `/show/${media.id}` : `/movie/${media.id}`);
+  const playLink = $derived(media.type === 'tv' ? `/show/${media.id}` : `/watch/${media.id}`);
 </script>
 
 <svelte:document onclick={handleClickOutside} />
@@ -87,11 +92,21 @@
   tabindex="0"
   class="relative aspect-2/3 rounded-lg overflow-hidden group shadow-lg border border-border/50 bg-card hover:scale-[1.02] hover:z-20 hover:border-red-500 transition-all duration-500 outline-none"
 >
+  <!-- Type Badge for TV Shows -->
+  {#if media.type === 'tv'}
+    <div
+      class="absolute top-2 left-2 z-10 bg-primary/90 text-primary-foreground px-2 py-0.5 rounded text-xs flex items-center gap-1  group-hover:hidden"
+    >
+      <Tv size={12} />
+      TV
+    </div>
+  {/if}
+
   <!-- Poster Image -->
-  {#if movie.posterUrl}
+  {#if media.posterUrl}
     <img
-      src={movie.posterUrl}
-      alt={movie.title}
+      src={media.posterUrl}
+      alt={media.title}
       class="w-full h-full object-cover transition-opacity duration-500 group-hover:blur-md"
     >
   {:else}
@@ -108,23 +123,26 @@
             : 'opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto'}"
   >
     <div class="space-y-2 overflow-hidden flex-1 min-h-0 flex flex-col">
-      <h4 class="font-bold text-lg leading-tight text-white shrink-0">{movie.title}</h4>
+      <h4 class="font-bold text-lg leading-tight text-white shrink-0">{media.title}</h4>
       <div class="flex items-center gap-2 text-xs text-zinc-300 shrink-0">
-        <span>{movie.year || ''}</span>
-        {#if movie.certification}
-          <span class="px-1 border border-zinc-600 rounded text-[10px]">{movie.certification}</span>
+        <span>{media.year || ''}</span>
+        {#if media.certification}
+          <span class="px-1 border border-zinc-600 rounded text-[10px]">{media.certification}</span>
         {/if}
-        {#if movie.runtime}
-          <span>• {formatRuntime(movie.runtime)}</span>
+        {#if media.runtime}
+          <span>• {formatRuntime(media.runtime)}</span>
+        {/if}
+        {#if media.type === 'tv' && media.totalSeasons}
+          <span>• {media.totalSeasons} season{media.totalSeasons === 1 ? '' : 's'}</span>
         {/if}
       </div>
-      {#if movie.overview}
-        <p class="text-xs text-zinc-400 leading-relaxed overflow-y-auto pr-1">{movie.overview}</p>
+      {#if media.overview}
+        <p class="text-xs text-zinc-400 leading-relaxed overflow-y-auto pr-1">{media.overview}</p>
       {/if}
     </div>
 
     <div class="flex items-center gap-2 pt-2 shrink-0">
-      {#if movie.status === 'error'}
+      {#if media.status === 'error'}
         <button
           onclick={handleRetry}
           disabled={retrying}
@@ -134,16 +152,16 @@
           {retrying ? 'Retrying...' : 'Download'}
         </button>
       {:else}
-        <a href="/watch/{movie.id}" class="flex-1">
+        <a href={playLink} class="flex-1">
           <Button size="sm" class="w-full">
             <Play class="w-4 h-4 mr-2 fill-current" />
-            Play
+            {media.type === 'tv' ? 'Episodes' : 'Play'}
           </Button>
         </a>
       {/if}
 
       <!-- Three-dot Menu -->
-      <div class="relative movie-menu">
+      <div class="relative media-menu">
         <Button
           variant="ghost"
           size="icon"
@@ -161,7 +179,7 @@
           >
             <div class="py-1" role="menu">
               <a
-                href="/movie/{movie.id}"
+                href={detailsLink}
                 class="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-2"
                 role="menuitem"
                 onclick={() => showMenu = false}

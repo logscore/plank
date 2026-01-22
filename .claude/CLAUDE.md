@@ -121,3 +121,7 @@ Biome's linter will catch most issues automatically. Focus your attention on:
 ---
 
 Most formatting and common issues are automatically fixed by Biome. Run `npm exec -- ultracite fix` before committing to ensure compliance.
+
+--- 
+
+For database migrations in a drizzle project, only make schema changes to the drizzle schema definition file and run bun drizzle-kit generate to make the migraton file. Only write custom sql files if the change cannot be represented in the schema.ts file.

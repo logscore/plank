@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { movies } from '$lib/server/db';
+import { mediaDb } from '$lib/server/db';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -7,24 +7,23 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(302, '/login');
 	}
 
-	const userMovies = movies.list(locals.user.id);
+	const userMedia = mediaDb.list(locals.user.id);
 
 	// Calculate total storage used
-	const totalSize = userMovies.reduce((acc, movie) => acc + (movie.fileSize || 0), 0);
+	const totalSize = userMedia.reduce((acc, item) => acc + (item.fileSize || 0), 0);
 
-	// Count movies by status
-	const movieStats = {
-		total: userMovies.length,
-		complete: userMovies.filter((m) => m.status === 'complete').length,
-		downloading: userMovies.filter((m) => m.status === 'downloading' || m.status === 'added')
-			.length,
-		error: userMovies.filter((m) => m.status === 'error').length,
+	// Count media by status
+	const mediaStats = {
+		total: userMedia.length,
+		complete: userMedia.filter((m) => m.status === 'complete').length,
+		downloading: userMedia.filter((m) => m.status === 'downloading' || m.status === 'added').length,
+		error: userMedia.filter((m) => m.status === 'error').length,
 	};
 
 	return {
 		user: locals.user,
 		stats: {
-			...movieStats,
+			...mediaStats,
 			totalSize,
 		},
 	};

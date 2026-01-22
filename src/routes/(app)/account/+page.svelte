@@ -121,7 +121,7 @@
     <div class="rounded-xl border border-border bg-card p-4">
       <div class="flex items-center gap-3 mb-2">
         <Film class="w-5 h-5 text-primary" />
-        <span class="text-sm text-muted-foreground">Total Movies</span>
+        <span class="text-sm text-muted-foreground">Total Media</span>
       </div>
       <div class="text-2xl font-bold">{data.stats.total}</div>
     </div>
@@ -140,7 +140,7 @@
     <div class="rounded-xl border border-red-500/30 bg-red-500/10 p-4 mb-6">
       <div class="flex items-center gap-3">
         <AlertCircle class="w-5 h-5 text-red-500" />
-        <span class="text-red-400">{data.stats.error} movie(s) with download errors</span>
+        <span class="text-red-400">{data.stats.error} item(s) with download errors</span>
       </div>
     </div>
   {/if}
