@@ -216,6 +216,31 @@ export const episodes = sqliteTable(
 	]
 );
 
+// Downloads table for tracking multiple torrents per media (for multi-season shows)
+export const downloads = sqliteTable(
+	'downloads',
+	{
+		id: text('id').primaryKey(),
+		mediaId: text('media_id')
+			.notNull()
+			.references(() => media.id, { onDelete: 'cascade' }),
+		magnetLink: text('magnet_link').notNull(),
+		infohash: text('infohash').notNull(),
+		status: text('status', { enum: ['added', 'downloading', 'complete', 'error'] }).default(
+			'added'
+		),
+		progress: real('progress').default(0),
+		addedAt: integer('added_at', { mode: 'timestamp_ms' })
+			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+			.notNull(),
+	},
+	(table) => [
+		uniqueIndex('downloads_media_infohash_unique').on(table.mediaId, table.infohash),
+		index('idx_downloads_media').on(table.mediaId),
+		index('idx_downloads_status').on(table.status),
+	]
+);
+
 // Media relations
 export const mediaRelations = relations(media, ({ one, many }) => ({
 	user: one(user, {
@@ -223,6 +248,7 @@ export const mediaRelations = relations(media, ({ one, many }) => ({
 		references: [user.id],
 	}),
 	seasons: many(seasons),
+	downloads: many(downloads),
 }));
 
 export const seasonsRelations = relations(seasons, ({ one, many }) => ({
@@ -237,6 +263,13 @@ export const episodesRelations = relations(episodes, ({ one }) => ({
 	season: one(seasons, {
 		fields: [episodes.seasonId],
 		references: [seasons.id],
+	}),
+}));
+
+export const downloadsRelations = relations(downloads, ({ one }) => ({
+	media: one(media, {
+		fields: [downloads.mediaId],
+		references: [media.id],
 	}),
 }));
 
@@ -256,6 +289,8 @@ export type Season = typeof seasons.$inferSelect;
 export type NewSeason = typeof seasons.$inferInsert;
 export type Episode = typeof episodes.$inferSelect;
 export type NewEpisode = typeof episodes.$inferInsert;
+export type Download = typeof downloads.$inferSelect;
+export type NewDownload = typeof downloads.$inferInsert;
 
 // ============================================================================
 // Tables object for consolidated import
@@ -269,4 +304,5 @@ export const schema = {
 	media,
 	seasons,
 	episodes,
+	downloads,
 } as const;

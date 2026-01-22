@@ -1,17 +1,20 @@
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
-import type { MediaType } from '$lib/types';
-import { db } from './db/index';
 import {
+	type Download,
+	downloads as downloadsTable,
 	type Episode,
 	episodes as episodesTable,
 	type Media,
 	media as mediaTable,
+	type NewDownload,
 	type NewEpisode,
 	type NewMedia,
 	type NewSeason,
 	type Season,
 	seasons as seasonsTable,
-} from './db/schema';
+} from '$lib/server/db/schema';
+import type { MediaType } from '$lib/types';
+import { db } from './db/index';
 
 // =============================================================================
 // Media operations (unified movies/tv shows)
@@ -76,6 +79,19 @@ export const mediaDb = {
 	 */
 	getById(id: string): Media | undefined {
 		return db.select().from(mediaTable).where(eq(mediaTable.id, id)).get();
+	},
+
+	/**
+	 * Get TV show by TMDB ID for a user (for merging seasons)
+	 */
+	getByTmdbId(tmdbId: number, userId: string, type: MediaType = 'tv'): Media | undefined {
+		return db
+			.select()
+			.from(mediaTable)
+			.where(
+				and(eq(mediaTable.tmdbId, tmdbId), eq(mediaTable.userId, userId), eq(mediaTable.type, type))
+			)
+			.get();
 	},
 
 	/**
@@ -434,6 +450,111 @@ export const episodesDb = {
 	 */
 	deleteBySeasonId(seasonId: string) {
 		db.delete(episodesTable).where(eq(episodesTable.seasonId, seasonId)).run();
+	},
+};
+
+// =============================================================================
+// Download operations (for tracking multiple torrents per media)
+// =============================================================================
+
+export const downloadsDb = {
+	/**
+	 * Create a new download record
+	 */
+	create(download: Omit<NewDownload, 'id' | 'addedAt'>): Download {
+		const id = crypto.randomUUID();
+		const now = new Date();
+
+		const newDownload: NewDownload = {
+			id,
+			mediaId: download.mediaId,
+			magnetLink: download.magnetLink,
+			infohash: download.infohash,
+			status: download.status || 'added',
+			progress: download.progress || 0,
+			addedAt: now,
+		};
+
+		db.insert(downloadsTable).values(newDownload).run();
+
+		return {
+			...newDownload,
+			addedAt: now,
+		} as Download;
+	},
+
+	/**
+	 * Get all downloads for a media item
+	 */
+	getByMediaId(mediaId: string): Download[] {
+		return db
+			.select()
+			.from(downloadsTable)
+			.where(eq(downloadsTable.mediaId, mediaId))
+			.orderBy(desc(downloadsTable.addedAt))
+			.all();
+	},
+
+	/**
+	 * Get download by infohash for a media item
+	 */
+	getByInfohash(mediaId: string, infohash: string): Download | undefined {
+		return db
+			.select()
+			.from(downloadsTable)
+			.where(and(eq(downloadsTable.mediaId, mediaId), eq(downloadsTable.infohash, infohash)))
+			.get();
+	},
+
+	/**
+	 * Check if infohash exists for any media of a user
+	 */
+	infohashExistsForUser(
+		infohash: string,
+		userId: string
+	): { download: Download; media: Media } | undefined {
+		const result = db
+			.select({
+				download: downloadsTable,
+				media: mediaTable,
+			})
+			.from(downloadsTable)
+			.innerJoin(mediaTable, eq(downloadsTable.mediaId, mediaTable.id))
+			.where(and(eq(downloadsTable.infohash, infohash), eq(mediaTable.userId, userId)))
+			.get();
+		return result;
+	},
+
+	/**
+	 * Update download progress
+	 */
+	updateProgress(
+		id: string,
+		progress: number,
+		status: 'added' | 'downloading' | 'complete' | 'error'
+	) {
+		db.update(downloadsTable).set({ progress, status }).where(eq(downloadsTable.id, id)).run();
+	},
+
+	/**
+	 * Get download by ID
+	 */
+	getById(id: string): Download | undefined {
+		return db.select().from(downloadsTable).where(eq(downloadsTable.id, id)).get();
+	},
+
+	/**
+	 * Delete download
+	 */
+	delete(id: string) {
+		db.delete(downloadsTable).where(eq(downloadsTable.id, id)).run();
+	},
+
+	/**
+	 * Delete all downloads for a media item
+	 */
+	deleteByMediaId(mediaId: string) {
+		db.delete(downloadsTable).where(eq(downloadsTable.mediaId, mediaId)).run();
 	},
 };
 

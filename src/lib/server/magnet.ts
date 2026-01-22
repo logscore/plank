@@ -12,10 +12,13 @@ function extractInfohash(magnetLink: string): string {
 		const hash = match[1];
 		// Convert base32 to hex if necessary
 		if (hash.length === 32) {
-			return base32ToHex(hash).toLowerCase();
+			const hex = base32ToHex(hash).toLowerCase();
+			console.log(`[Magnet] Converted base32 hash ${hash} to ${hex}`);
+			return hex;
 		}
 		return hash.toLowerCase();
 	}
+	console.log(`[Magnet] No infohash found in link: ${magnetLink.substring(0, 50)}...`);
 	return '';
 }
 

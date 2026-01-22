@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronDown, ChevronRight, Play } from 'lucide-svelte';
+  import { ChevronDown, ChevronRight, Loader2, Play } from 'lucide-svelte';
   import Button from '$lib/components/ui/Button.svelte';
 
   interface Episode {
@@ -29,19 +29,39 @@
     seasons,
     mediaId,
     onPlayEpisode,
+    onOpen,
+    buttonSize = 'lg',
+    buttonClass = '',
+    class: className = '',
   }: {
     seasons: Season[];
     mediaId: string;
     onPlayEpisode: (episodeId: string, episode: Episode) => void;
+    onOpen?: () => Promise<void>;
+    buttonSize?: 'default' | 'sm' | 'lg' | 'icon';
+    buttonClass?: string;
+    class?: string;
   } = $props();
 
   let isOpen = $state(false);
   let selectedSeasonIndex = $state<number | null>(null);
   let menuRef = $state<HTMLDivElement | null>(null);
+  let loading = $state(false);
 
-  function toggleMenu() {
-    isOpen = !isOpen;
-    if (!isOpen) {
+  async function toggleMenu() {
+    if (isOpen) {
+      isOpen = false;
+      selectedSeasonIndex = null;
+    } else {
+      if (onOpen) {
+        loading = true;
+        try {
+          await onOpen();
+        } finally {
+          loading = false;
+        }
+      }
+      isOpen = true;
       selectedSeasonIndex = null;
     }
   }
@@ -85,12 +105,16 @@
   });
 </script>
 
-<div class="relative" bind:this={menuRef}>
+<div class="relative {className}" bind:this={menuRef}>
   <!-- Main Button -->
-  <Button size="lg" class="px-8" onclick={toggleMenu}>
-    <Play class="w-5 h-5 mr-2 fill-current" />
-    Select Episode
-    <ChevronDown class="w-4 h-4 ml-2 transition-transform {isOpen ? 'rotate-180' : ''}" />
+  <Button size={buttonSize} class="px-4 {buttonClass}" onclick={toggleMenu} disabled={loading}>
+    <!-- {#if loading}
+      <Loader2 class="w-4 h-4 mr-2 animate-spin" />
+    {:else}
+      <Play class="w-4 h-4 mr-2 fill-current" />
+    {/if} -->
+    <span class="flex-1 text-left">Episodes</span>
+    <ChevronDown class="w-4 h-4 ml-2 transition-transform shrink-0 {isOpen ? 'rotate-180' : ''}" />
   </Button>
 
   <!-- Dropdown Menu -->
@@ -127,7 +151,7 @@
               <div class="bg-background/50 border-t border-border">
                 {#each season.episodes as episode}
                   <button
-                    class="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition-colors text-left group"
+                    class="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition-colors text-left group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                     onclick={() => playEpisode(episode)}
                     disabled={episode.fileIndex === null}
                   >

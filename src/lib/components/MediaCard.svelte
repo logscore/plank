@@ -1,6 +1,8 @@
 <script lang="ts">
   import { Info, MoreVertical, Play, RotateCcw, Trash2 } from 'lucide-svelte';
-  import type { Media } from '$lib/types';
+  import { goto } from '$app/navigation';
+  import EpisodeSelector from '$lib/components/EpisodeSelector.svelte';
+  import type { Episode, Media, SeasonWithEpisodes } from '$lib/types';
   import Button from './ui/Button.svelte';
   import Tv from './ui/Tv.svelte';
 
@@ -13,6 +15,40 @@
   let retrying = $state(false);
   let isMobileActive = $state(false);
   let rootEl: HTMLElement | undefined = $state();
+  let seasons = $state<SeasonWithEpisodes[]>([]);
+
+  async function loadEpisodes() {
+    if (seasons.length > 0) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/media/${media.id}/seasons`);
+      if (res.ok) {
+        seasons = await res.json();
+      }
+    } catch (err) {
+      console.error('Failed to load episodes:', err);
+    }
+  }
+
+  // Define a minimal Episode type compatible with both source and target requirements
+  interface CompatibleEpisode {
+    id: string;
+    episodeNumber: number;
+    title: string | null;
+    overview: string | null;
+    stillPath: string | null;
+    runtime: number | null;
+    airDate: string | null;
+    fileIndex: number | null;
+    filePath: string | null;
+  }
+
+  function handlePlayEpisode(episodeId: string, episode: CompatibleEpisode) {
+    if (episode.fileIndex !== null) {
+      goto(`/watch/${media.id}?episodeId=${episodeId}&fileIndex=${episode.fileIndex}`);
+    }
+  }
 
   function handleMenuClick(e: Event) {
     e.preventDefault();
@@ -30,7 +66,9 @@
     e.stopPropagation();
     retrying = true;
     try {
-      const res = await fetch(`/api/media/${media.id}/retry`, { method: 'POST' });
+      const res = await fetch(`/api/media/${media.id}/retry`, {
+        method: 'POST',
+      });
       if (res.ok) {
         // Status will update via polling/SSE; for now reload
         window.location.reload();
@@ -90,50 +128,58 @@
   onkeydown={handleKeydown}
   role="button"
   tabindex="0"
-  class="relative aspect-2/3 rounded-lg overflow-hidden group shadow-lg border border-border/50 bg-card hover:scale-[1.02] hover:z-20 hover:border-red-500 transition-all duration-500 outline-none"
+  class="relative aspect-2/3 rounded-lg group shadow-lg border border-border/50 bg-card hover:scale-[1.02] hover:z-20 hover:border-red-500 transition-all duration-500 outline-none"
 >
-  <!-- Type Badge for TV Shows -->
-  {#if media.type === 'tv'}
-    <div
-      class="absolute top-2 left-2 z-10 bg-primary/90 text-primary-foreground px-2 py-0.5 rounded text-xs flex items-center gap-1  group-hover:hidden"
-    >
-      <Tv size={12} />
-      TV
-    </div>
-  {/if}
+  <!-- Image Container (Clipped) -->
+  <div class="absolute inset-0 rounded-lg overflow-hidden">
+    <!-- Type Badge for TV Shows -->
+    {#if media.type === "tv"}
+      <div
+        class="absolute top-2 left-2 z-10 bg-primary/90 text-primary-foreground px-2 py-0.5 rounded text-xs flex items-center gap-1 group-hover:hidden group-active:hidden"
+      >
+        <Tv size={12} />
+        TV
+      </div>
+    {/if}
 
-  <!-- Poster Image -->
-  {#if media.posterUrl}
-    <img
-      src={media.posterUrl}
-      alt={media.title}
-      class="w-full h-full object-cover transition-opacity duration-500 group-hover:blur-md"
-    >
-  {:else}
-    <div class="w-full h-full flex items-center justify-center bg-accent text-muted-foreground">
-      <span class="text-xs">No Poster</span>
-    </div>
-  {/if}
+    <!-- Poster Image -->
+    {#if media.posterUrl}
+      <img
+        src={media.posterUrl}
+        alt={media.title}
+        class="w-full h-full object-cover transition-opacity duration-500 group-hover:blur-md"
+      >
+    {:else}
+      <div class="w-full h-full flex items-center justify-center bg-accent text-muted-foreground">
+        <span class="text-xs">No Poster</span>
+      </div>
+    {/if}
+  </div>
 
   <!-- Details Overlay (Visible on Hover or Mobile Active) -->
   <div
-    class="absolute inset-0 p-4 flex flex-col justify-between transition-all duration-300 ease-out bg-black/60 backdrop-blur-sm
-        {isMobileActive 
-            ? 'opacity-100 translate-y-0 pointer-events-auto' 
+    class="absolute inset-0 p-4 rounded-lg flex flex-col justify-between transition-all duration-300 ease-out bg-black/60 backdrop-blur-sm
+        {isMobileActive
+            ? 'opacity-100 translate-y-0 pointer-events-auto'
             : 'opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto'}"
   >
     <div class="space-y-2 overflow-hidden flex-1 min-h-0 flex flex-col">
       <h4 class="font-bold text-lg leading-tight text-white shrink-0">{media.title}</h4>
       <div class="flex items-center gap-2 text-xs text-zinc-300 shrink-0">
-        <span>{media.year || ''}</span>
+        <span>{media.year || ""}</span>
         {#if media.certification}
           <span class="px-1 border border-zinc-600 rounded text-[10px]">{media.certification}</span>
         {/if}
         {#if media.runtime}
           <span>• {formatRuntime(media.runtime)}</span>
         {/if}
-        {#if media.type === 'tv' && media.totalSeasons}
-          <span>• {media.totalSeasons} season{media.totalSeasons === 1 ? '' : 's'}</span>
+        {#if media.type === "tv" && media.totalSeasons}
+          <span
+            >• {media.totalSeasons} season
+            {media.totalSeasons === 1
+                            ? ""
+                            : "s"}</span
+          >
         {/if}
       </div>
       {#if media.overview}
@@ -142,20 +188,30 @@
     </div>
 
     <div class="flex items-center gap-2 pt-2 shrink-0">
-      {#if media.status === 'error'}
+      {#if media.status === "error"}
         <button
           onclick={handleRetry}
           disabled={retrying}
           class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-yellow-600 hover:bg-yellow-500 text-white font-medium text-sm transition disabled:opacity-50"
         >
           <RotateCcw class="w-4 h-4" />
-          {retrying ? 'Retrying...' : 'Download'}
+          {retrying ? "Retrying..." : "Download"}
         </button>
+      {:else if media.type === "tv"}
+        <EpisodeSelector
+          {seasons}
+          mediaId={media.id}
+          onPlayEpisode={handlePlayEpisode}
+          onOpen={loadEpisodes}
+          buttonSize="sm"
+          class="flex-1 w-full"
+          buttonClass="w-full"
+        />
       {:else}
         <a href={playLink} class="flex-1">
           <Button size="sm" class="w-full">
             <Play class="w-4 h-4 mr-2 fill-current" />
-            {media.type === 'tv' ? 'Episodes' : 'Play'}
+            Play
           </Button>
         </a>
       {/if}
@@ -182,7 +238,7 @@
                 href={detailsLink}
                 class="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-2"
                 role="menuitem"
-                onclick={() => showMenu = false}
+                onclick={() => (showMenu = false)}
               >
                 <Info class="w-4 h-4" />
                 Details

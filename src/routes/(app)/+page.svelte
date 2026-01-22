@@ -62,12 +62,18 @@
       });
 
       if (res.ok) {
-        const mediaItem: Media = await res.json();
-        // Add to appropriate list
-        if (mediaItem.type === 'tv') {
+        const mediaItem: Media & { _seasonAdded?: boolean } = await res.json();
+
+        // Check if this was a season addition to an existing show
+        if (mediaItem._seasonAdded) {
+          // Don't add duplicate - just close the dialog and switch to TV tab
+          activeTab = 'tv';
+        } else if (mediaItem.type === 'tv') {
+          // Add new TV show to list
           shows = [mediaItem, ...shows];
           activeTab = 'tv';
         } else {
+          // Add new movie to list
           movies = [mediaItem, ...movies];
           activeTab = 'movies';
         }
