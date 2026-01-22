@@ -6,7 +6,7 @@ import parseTorrent from 'parse-torrent';
 import ptt from 'parse-torrent-title';
 import { config } from '$lib/config';
 import type { MediaType } from '$lib/types';
-import { episodesDb, mediaDb, seasonsDb } from './db';
+import { downloadsDb, episodesDb, mediaDb, seasonsDb } from './db';
 import { parseMagnet } from './magnet';
 import { searchMovie, searchTVShow } from './tmdb';
 import { isSupportedFormat, SUPPORTED_VIDEO_FORMATS } from './transcoder';
@@ -462,6 +462,13 @@ async function handleDownloadComplete(
 
 	await moveToLibrary(download.mediaId, download);
 	console.log(`${logPrefix} moveToLibrary completed`);
+
+	// Update download record in database
+	const downloadRecord = downloadsDb.getByInfohash(download.mediaId, infohash);
+	if (downloadRecord) {
+		downloadsDb.updateProgress(downloadRecord.id, 1, 'complete');
+		console.log(`${logPrefix} Updated download record ${downloadRecord.id} to complete`);
+	}
 
 	// Update media status if all downloads for this media are complete
 	updateMediaStatusFromDownloads(download.mediaId);
