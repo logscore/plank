@@ -1,11 +1,13 @@
 FROM node:22-alpine
 
+# Install git for lefthook
+RUN apk add --no-cache git
+
 WORKDIR /app
 
 COPY package*.json ./
 # Install all deps (including dev) for build
-# Use npm install instead of ci to ensure platform-specific optional deps (like rollup-linux) are resolved
-RUN npm install
+RUN npm ci
 
 COPY . .
 
@@ -36,6 +38,6 @@ EXPOSE 3300
 EXPOSE 6881
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+    CMD curl -f http://localhost:3000/health || exit 1
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]

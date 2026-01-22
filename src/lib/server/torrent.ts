@@ -43,6 +43,7 @@ interface Torrent {
 	on(event: 'noPeers', callback: (announceType: string) => void): void;
 	on(event: 'warning' | 'error', callback: (err: Error) => void): void;
 	on(event: string, callback: (...args: unknown[]) => void): void;
+	emit(event: string, ...args: unknown[]): boolean;
 }
 
 interface WebTorrentClient {
@@ -241,6 +242,51 @@ export async function startDownload(movieId: string, magnetLink: string): Promis
 	}
 }
 
+async function handleDownloadComplete(
+	movieId: string,
+	download: ActiveDownload,
+	torrent: Torrent
+): Promise<void> {
+	// Prevent double-completion
+	if (download.status === 'complete') {
+		console.log(`[${movieId}] Already marked complete, skipping`);
+		return;
+	}
+
+	console.log(`[${movieId}] Handling download completion...`);
+	download.status = 'complete';
+	download.progress = 1;
+
+	// Stop seeding - deselect all files to prevent uploading
+	for (const f of torrent.files) {
+		f.deselect();
+	}
+	console.log(`[${movieId}] Stopped seeding`);
+
+	await moveToLibrary(movieId, download);
+	console.log(`[${movieId}] moveToLibrary completed`);
+}
+
+// Periodically check if video file is complete (fallback for missed 'done' events)
+function startCompletionChecker(movieId: string, download: ActiveDownload, torrent: Torrent): void {
+	const checkInterval = setInterval(() => {
+		// Stop checking if download is no longer active or already complete
+		if (!activeDownloads.has(movieId) || download.status === 'complete') {
+			clearInterval(checkInterval);
+			return;
+		}
+
+		// Check if video file is fully downloaded
+		if (download.videoFile && download.videoFile.progress === 1) {
+			console.log(`[${movieId}] Completion checker detected finished download`);
+			clearInterval(checkInterval);
+			handleDownloadComplete(movieId, download, torrent).catch((err) => {
+				console.error(`[${movieId}] Error in completion checker:`, err);
+			});
+		}
+	}, 5000); // Check every 5 seconds
+}
+
 async function initializeDownload(movieId: string, magnetLink: string): Promise<void> {
 	await ensureDirectories();
 
@@ -358,6 +404,20 @@ async function initializeDownload(movieId: string, magnetLink: string): Promise<
 			download.totalSize = videoFile.length;
 			download.status = 'downloading';
 
+			// Start the completion checker as a fallback
+			startCompletionChecker(movieId, download, torrent);
+
+			// Check if video file is already complete (reused torrent case)
+			if (videoFile.progress === 1 || torrent.done) {
+				console.log(`[${movieId}] Video file already complete, triggering done handler`);
+				// Use setImmediate to ensure this runs after resolve()
+				setImmediate(() => {
+					handleDownloadComplete(movieId, download, torrent).catch((err) => {
+						console.error(`[${movieId}] Error handling already-complete download:`, err);
+					});
+				});
+			}
+
 			resolve();
 		});
 
@@ -373,18 +433,11 @@ async function initializeDownload(movieId: string, magnetLink: string): Promise<
 			}
 		});
 
-		torrent.on('done', async () => {
-			console.log(`[${movieId}] Download complete!`);
-			download.status = 'complete';
-			download.progress = 1;
-
-			// Stop seeding - deselect all files to prevent uploading
-			for (const f of torrent.files) {
-				f.deselect();
-			}
-			console.log(`[${movieId}] Stopped seeding`);
-
-			await moveToLibrary(movieId, download);
+		torrent.on('done', () => {
+			console.log(`[${movieId}] Torrent 'done' event fired!`);
+			handleDownloadComplete(movieId, download, torrent).catch((err) => {
+				console.error(`[${movieId}] Error in done handler:`, err);
+			});
 		});
 
 		torrent.on('error', (err: Error) => {
@@ -408,6 +461,16 @@ async function initializeDownload(movieId: string, magnetLink: string): Promise<
 				resolve();
 			}
 		}, 120_000); // 2 minutes for metadata
+
+		// Handle already-ready torrents (reused from cache)
+		// The 'ready' event won't fire again for already-ready torrents
+		if (torrent.ready) {
+			console.log(`[${movieId}] Torrent already ready (reused), triggering ready handler`);
+			// Use setImmediate to ensure event handlers are fully set up
+			setImmediate(() => {
+				torrent.emit('ready');
+			});
+		}
 	});
 }
 

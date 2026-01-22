@@ -15,3 +15,4 @@
 - [ ] Auto updater. Just click a button and it checks for updates and updates the app
 - [ ] Add an env variable that lets you specify if other are able to sign up for the app, or if that is locked down when one user is in the database
 - [ ] Have the download be background jobs instead of main thread processes. Use something light weight like a valkey scheduler
+- [ ] Handle no TMDB api key by having a poster placeholder
