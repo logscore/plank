@@ -1288,7 +1288,7 @@ Rename `src/lib/components/MovieCard.svelte` to `MediaCard.svelte` and update:
 
 ```svelte
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import EpisodeSelector from '$lib/components/EpisodeSelector.svelte';
   import type { MediaWithSeasons, Episode } from '$lib/types';
@@ -1298,8 +1298,8 @@ Rename `src/lib/components/MovieCard.svelte` to `MediaCard.svelte` and update:
 
   async function loadShow() {
     const [mediaRes, seasonsRes] = await Promise.all([
-      fetch(`/api/media/${$page.params.id}`),
-      fetch(`/api/media/${$page.params.id}/seasons`),
+      fetch(`/api/media/${page.params.id}`),
+      fetch(`/api/media/${page.params.id}/seasons`),
     ]);
 
     if (mediaRes.ok && seasonsRes.ok) {
@@ -1313,7 +1313,7 @@ Rename `src/lib/components/MovieCard.svelte` to `MediaCard.svelte` and update:
 
   function handlePlayEpisode(episodeId: string, episode: Episode) {
     // Navigate to watch page with fileIndex
-    goto(`/watch/${$page.params.id}?episodeId=${episodeId}&fileIndex=${episode.fileIndex}`);
+    goto(`/watch/${page.params.id}?episodeId=${episodeId}&fileIndex=${episode.fileIndex}`);
   }
 
   $effect(() => {
@@ -1487,15 +1487,15 @@ Add support for `?episodeId=xxx&fileIndex=xxx` query params:
 
 ```svelte
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
 
   // Get episode info from URL
-  const episodeId = $derived($page.url.searchParams.get('episodeId'));
-  const fileIndex = $derived($page.url.searchParams.get('fileIndex'));
+  const episodeId = $derived(page.url.searchParams.get('episodeId'));
+  const fileIndex = $derived(page.url.searchParams.get('fileIndex'));
 
   // Build stream URL
   const streamUrl = $derived(() => {
-    let url = `/api/media/${$page.params.id}/stream`;
+    let url = `/api/media/${page.params.id}/stream`;
     if (fileIndex) {
       url += `?fileIndex=${fileIndex}`;
     }

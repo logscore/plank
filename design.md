@@ -806,7 +806,7 @@ export function formatSpeed(bytesPerSecond: number): string {
   let cleanup: (() => void) | null = null
 
   async function loadMovie() {
-    const res = await fetch(`/api/movies/${$page.params.id}`)
+    const res = await fetch(`/api/movies/${page.params.id}`)
     movie = await res.json()
 
     if (movie && videoElement) {
