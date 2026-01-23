@@ -176,11 +176,7 @@ const mediaDb = {
 		return newMedia;
 	},
 
-	updateProgress(
-		id: string,
-		progress: number,
-		status: 'added' | 'downloading' | 'complete' | 'error'
-	) {
+	updateProgress(id: string, progress: number, status: 'added' | 'downloading' | 'complete' | 'error') {
 		db.update(schema.media).set({ progress, status }).where(eq(schema.media.id, id)).run();
 	},
 
@@ -236,20 +232,12 @@ const seasonsDb = {
 		return db
 			.select()
 			.from(schema.seasons)
-			.where(
-				and(
-					eq(schema.seasons.mediaId, mediaId),
-					eq(schema.seasons.seasonNumber, seasonNumber)
-				)
-			)
+			.where(and(eq(schema.seasons.mediaId, mediaId), eq(schema.seasons.seasonNumber, seasonNumber)))
 			.get();
 	},
 
 	updateEpisodeCount(id: string, count: number) {
-		db.update(schema.seasons)
-			.set({ episodeCount: count })
-			.where(eq(schema.seasons.id, id))
-			.run();
+		db.update(schema.seasons).set({ episodeCount: count }).where(eq(schema.seasons.id, id)).run();
 	},
 };
 
@@ -297,12 +285,7 @@ const episodesDb = {
 		return db
 			.select()
 			.from(schema.episodes)
-			.where(
-				and(
-					eq(schema.episodes.seasonId, seasonId),
-					eq(schema.episodes.episodeNumber, episodeNumber)
-				)
-			)
+			.where(and(eq(schema.episodes.seasonId, seasonId), eq(schema.episodes.episodeNumber, episodeNumber)))
 			.get();
 	},
 
@@ -311,21 +294,11 @@ const episodesDb = {
 	},
 
 	updateFileInfo(id: string, fileIndex: number, filePath: string, fileSize: number) {
-		db.update(schema.episodes)
-			.set({ fileIndex, filePath, fileSize })
-			.where(eq(schema.episodes.id, id))
-			.run();
+		db.update(schema.episodes).set({ fileIndex, filePath, fileSize }).where(eq(schema.episodes.id, id)).run();
 	},
 
-	updateProgress(
-		id: string,
-		downloadedBytes: number,
-		status: 'pending' | 'downloading' | 'complete' | 'error'
-	) {
-		db.update(schema.episodes)
-			.set({ downloadedBytes, status })
-			.where(eq(schema.episodes.id, id))
-			.run();
+	updateProgress(id: string, downloadedBytes: number, status: 'pending' | 'downloading' | 'complete' | 'error') {
+		db.update(schema.episodes).set({ downloadedBytes, status }).where(eq(schema.episodes.id, id)).run();
 	},
 };
 

@@ -6,12 +6,7 @@
  */
 
 import { error, json } from '@sveltejs/kit';
-import {
-	type BrowseItem,
-	getMovieExternalIds,
-	getPopularMovies,
-	getTrendingMovies,
-} from '$lib/server/tmdb';
+import { type BrowseItem, getBrowseItemDetails, getPopular, getTrending } from '$lib/server/tmdb';
 import { getCachedTorrents } from '$lib/server/torrent-cache';
 import type { RequestHandler } from './$types';
 
@@ -22,41 +17,44 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	}
 
 	const type = url.searchParams.get('type') || 'trending';
+	const filter = (url.searchParams.get('filter') as 'all' | 'movie' | 'tv') || 'all';
 	const page = Number.parseInt(url.searchParams.get('page') || '1', 10);
 
 	let result: { items: BrowseItem[]; totalPages: number };
 
 	switch (type) {
 		case 'trending':
-			result = await getTrendingMovies('day', page);
+			result = await getTrending('day', page, filter);
 			break;
 		case 'popular':
-			result = await getPopularMovies(page);
+			result = await getPopular(page, filter === 'all' ? 'movie' : filter);
 			break;
 		default:
 			throw error(400, 'Invalid type. Use "trending" or "popular"');
 	}
 
-	// Get IMDB IDs for all items (needed for cache lookup and torrent resolution)
-	const itemsWithImdb = await Promise.all(
+	// Get IMDB IDs and certifications for all items
+	const itemsWithDetails = await Promise.all(
 		result.items.map(async (item) => {
-			if (!item.imdbId) {
-				const external = await getMovieExternalIds(item.tmdbId);
-				return { ...item, imdbId: external.imdbId };
+			if (!(item.imdbId && item.certification)) {
+				const details = await getBrowseItemDetails(item.tmdbId, item.mediaType);
+				return {
+					...item,
+					imdbId: item.imdbId || details.imdbId,
+					certification: item.certification || details.certification,
+				};
 			}
 			return item;
 		})
 	);
 
 	// Check cache for magnet links
-	const imdbIds = itemsWithImdb
-		.filter((item) => item.imdbId)
-		.map((item) => item.imdbId as string);
+	const imdbIds = itemsWithDetails.filter((item) => item.imdbId).map((item) => item.imdbId as string);
 
 	const cachedTorrents = await getCachedTorrents(imdbIds);
 
 	// Attach cached magnet links
-	const enrichedItems = itemsWithImdb.map((item) => {
+	const enrichedItems = itemsWithDetails.map((item) => {
 		if (item.imdbId && cachedTorrents.has(item.imdbId)) {
 			const cached = cachedTorrents.get(item.imdbId);
 			return {

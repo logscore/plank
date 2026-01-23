@@ -40,10 +40,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 				console.log('Jackett test search response:', response);
 
 				// If we get any Results, it means at least one indexer is configured and working
-				hasIndexers =
-					response.Results &&
-					Array.isArray(response.Results) &&
-					response.Results.length > 0;
+				hasIndexers = response.Results && Array.isArray(response.Results) && response.Results.length > 0;
 				connectionStatus = hasIndexers ? 'configured' : 'no_indexers';
 			} else {
 				connectionStatus = 'connection_failed';

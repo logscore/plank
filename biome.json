@@ -21,7 +21,7 @@
     "formatWithErrors": false,
     "indentStyle": "tab",
     "indentWidth": 4,
-    "lineWidth": 100,
+    "lineWidth": 120,
     "lineEnding": "lf"
   },
   "assist": {

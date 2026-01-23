@@ -7,7 +7,7 @@
 
 import { error, json } from '@sveltejs/kit';
 import { findBestTorrent, parseTorrentTitle } from '$lib/server/jackett';
-import { getMovieExternalIds } from '$lib/server/tmdb';
+import { getBrowseItemDetails } from '$lib/server/tmdb';
 import { cacheTorrent, getCachedTorrent } from '$lib/server/torrent-cache';
 import type { RequestHandler } from './$types';
 
@@ -27,8 +27,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Get IMDB ID if only TMDB ID provided
 	let resolvedImdbId = imdbId;
 	if (!resolvedImdbId && tmdbId) {
-		const external = await getMovieExternalIds(tmdbId);
-		resolvedImdbId = external.imdbId;
+		// Assume movie type for resolve API (can be extended to support TV)
+		const details = await getBrowseItemDetails(tmdbId, 'movie');
+		resolvedImdbId = details.imdbId;
 	}
 
 	if (!resolvedImdbId) {

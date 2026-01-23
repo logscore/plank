@@ -50,13 +50,10 @@ async function ensureVideoReady(
 			throw error(503, status.error || 'Download failed');
 		}
 		if (status?.status === 'initializing') {
-			return new Response(
-				JSON.stringify({ message: 'Torrent is initializing, please try again shortly' }),
-				{
-					status: 202,
-					headers: { 'Content-Type': 'application/json' },
-				}
-			);
+			return new Response(JSON.stringify({ message: 'Torrent is initializing, please try again shortly' }), {
+				status: 202,
+				headers: { 'Content-Type': 'application/json' },
+			});
 		}
 		return new Response(JSON.stringify({ message: 'Video is buffering, please wait...' }), {
 			status: 202,
@@ -66,10 +63,7 @@ async function ensureVideoReady(
 }
 
 /** Handle transmuxed stream response (MKV, AVI -> MP4) */
-function createTransmuxResponse(
-	inputStream: import('node:stream').Readable,
-	fileName: string
-): Response {
+function createTransmuxResponse(inputStream: import('node:stream').Readable, fileName: string): Response {
 	// console.log(`[Stream] Transmuxing ${fileName} to MP4`);
 
 	const transmuxedStream = createTransmuxStream({
@@ -140,11 +134,7 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 		throw error(404, 'Movie not found');
 	}
 
-	const bufferingResponse = await ensureVideoReady(
-		movie.id,
-		movie.magnetLink,
-		movie.status ?? 'added'
-	);
+	const bufferingResponse = await ensureVideoReady(movie.id, movie.magnetLink, movie.status ?? 'added');
 	if (bufferingResponse) {
 		return bufferingResponse;
 	}

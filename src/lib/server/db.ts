@@ -45,11 +45,7 @@ export const mediaDb = {
 	 * Get all media with incomplete download status (for recovery on startup)
 	 */
 	getIncompleteDownloads(): Media[] {
-		return db
-			.select()
-			.from(mediaTable)
-			.where(sql`${mediaTable.status} IN ('downloading', 'added')`)
-			.all();
+		return db.select().from(mediaTable).where(sql`${mediaTable.status} IN ('downloading', 'added')`).all();
 	},
 
 	/**
@@ -88,22 +84,14 @@ export const mediaDb = {
 		return db
 			.select()
 			.from(mediaTable)
-			.where(
-				and(
-					eq(mediaTable.tmdbId, tmdbId),
-					eq(mediaTable.userId, userId),
-					eq(mediaTable.type, type)
-				)
-			)
+			.where(and(eq(mediaTable.tmdbId, tmdbId), eq(mediaTable.userId, userId), eq(mediaTable.type, type)))
 			.get();
 	},
 
 	/**
 	 * Create new media entry
 	 */
-	create(
-		mediaItem: Omit<NewMedia, 'id' | 'addedAt' | 'status' | 'progress'> & { type?: MediaType }
-	): Media {
+	create(mediaItem: Omit<NewMedia, 'id' | 'addedAt' | 'status' | 'progress'> & { type?: MediaType }): Media {
 		const id = crypto.randomUUID();
 		const now = new Date();
 
@@ -142,11 +130,7 @@ export const mediaDb = {
 	/**
 	 * Update download progress
 	 */
-	updateProgress(
-		id: string,
-		progress: number,
-		status: 'added' | 'downloading' | 'complete' | 'error'
-	) {
+	updateProgress(id: string, progress: number, status: 'added' | 'downloading' | 'complete' | 'error') {
 		db.update(mediaTable).set({ progress, status }).where(eq(mediaTable.id, id)).run();
 	},
 
@@ -296,9 +280,7 @@ export const seasonsDb = {
 		return db
 			.select()
 			.from(seasonsTable)
-			.where(
-				and(eq(seasonsTable.mediaId, mediaId), eq(seasonsTable.seasonNumber, seasonNumber))
-			)
+			.where(and(eq(seasonsTable.mediaId, mediaId), eq(seasonsTable.seasonNumber, seasonNumber)))
 			.get();
 	},
 
@@ -408,12 +390,7 @@ export const episodesDb = {
 		return db
 			.select()
 			.from(episodesTable)
-			.where(
-				and(
-					eq(episodesTable.seasonId, seasonId),
-					eq(episodesTable.episodeNumber, episodeNumber)
-				)
-			)
+			.where(and(eq(episodesTable.seasonId, seasonId), eq(episodesTable.episodeNumber, episodeNumber)))
 			.get();
 	},
 
@@ -421,24 +398,14 @@ export const episodesDb = {
 	 * Update episode file info
 	 */
 	updateFileInfo(id: string, fileIndex: number, filePath: string, fileSize: number) {
-		db.update(episodesTable)
-			.set({ fileIndex, filePath, fileSize })
-			.where(eq(episodesTable.id, id))
-			.run();
+		db.update(episodesTable).set({ fileIndex, filePath, fileSize }).where(eq(episodesTable.id, id)).run();
 	},
 
 	/**
 	 * Update episode download progress
 	 */
-	updateProgress(
-		id: string,
-		downloadedBytes: number,
-		status: 'pending' | 'downloading' | 'complete' | 'error'
-	) {
-		db.update(episodesTable)
-			.set({ downloadedBytes, status })
-			.where(eq(episodesTable.id, id))
-			.run();
+	updateProgress(id: string, downloadedBytes: number, status: 'pending' | 'downloading' | 'complete' | 'error') {
+		db.update(episodesTable).set({ downloadedBytes, status }).where(eq(episodesTable.id, id)).run();
 	},
 
 	/**
@@ -549,10 +516,7 @@ export const downloadsDb = {
 	/**
 	 * Check if infohash exists for any media of a user
 	 */
-	infohashExistsForUser(
-		infohash: string,
-		userId: string
-	): { download: Download; media: Media } | undefined {
+	infohashExistsForUser(infohash: string, userId: string): { download: Download; media: Media } | undefined {
 		const result = db
 			.select({
 				download: downloadsTable,
@@ -568,11 +532,7 @@ export const downloadsDb = {
 	/**
 	 * Update download progress
 	 */
-	updateProgress(
-		id: string,
-		progress: number,
-		status: 'added' | 'downloading' | 'complete' | 'error'
-	) {
+	updateProgress(id: string, progress: number, status: 'added' | 'downloading' | 'complete' | 'error') {
 		db.update(downloadsTable).set({ progress, status }).where(eq(downloadsTable.id, id)).run();
 	},
 

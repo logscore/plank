@@ -60,10 +60,7 @@ async function ensureVideoReady(
 }
 
 /** Handle transmuxed stream response (MKV, AVI -> MP4) */
-function createTransmuxResponse(
-	inputStream: import('node:stream').Readable,
-	fileName: string
-): Response {
+function createTransmuxResponse(inputStream: import('node:stream').Readable, fileName: string): Response {
 	// console.log(`[Stream] Transmuxing ${fileName} to MP4`);
 
 	const transmuxedStream = createTransmuxStream({

@@ -1,16 +1,5 @@
 <script lang="ts">
-    import {
-        ArrowLeft,
-        Calendar,
-        Check,
-        Copy,
-        Database,
-        Film,
-        Folder,
-        Play,
-        RotateCcw,
-        Trash2,
-    } from 'lucide-svelte';
+    import { ArrowLeft, Calendar, Check, Copy, Database, Film, Folder, Play, RotateCcw, Trash2 } from 'lucide-svelte';
     import { onDestroy, onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
@@ -244,19 +233,14 @@
                 alt={data.media.title}
                 class="absolute inset-0 w-full h-full object-cover"
             >
-            <div
-                class="absolute inset-0 bg-linear-to-t from-background via-background/80 to-transparent"
-            ></div>
+            <div class="absolute inset-0 bg-linear-to-t from-background via-background/80 to-transparent"></div>
         {:else}
             <div class="absolute inset-0 bg-linear-to-b from-accent/20 to-background"></div>
         {/if}
 
         <!-- Back Button -->
         <div class="fixed top-6 left-6 z-50"><a href="/">
-            <Button
-                variant="ghost"
-                class="bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm"
-            >
+            <Button variant="ghost" class="bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm">
                 <ArrowLeft class="w-5 h-5 mr-2" />
                 Back
             </Button>
@@ -300,9 +284,7 @@
                         </span>
                     {/if}
                     {#if data.media.year}
-                        <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground"
-                            >{data.media.year}</span
-                        >
+                        <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">{data.media.year}</span>
                     {/if}
                     {#if data.media.runtime}
                         <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">
@@ -310,9 +292,7 @@
                         </span>
                     {/if}
                     {#if data.media.originalLanguage}
-                        <span
-                            class="px-3 py-1 rounded-full bg-accent text-muted-foreground uppercase"
-                        >
+                        <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground uppercase">
                             {data.media.originalLanguage}
                         </span>
                     {/if}
@@ -323,8 +303,7 @@
                     {@const genreList = JSON.parse(data.media.genres) as string[]}
                     <div class="flex flex-wrap gap-2">
                         {#each genreList as genre}
-                            <span
-                                class="px-3 py-1 rounded-full border border-white/20 text-sm text-muted-foreground"
+                            <span class="px-3 py-1 rounded-full border border-white/20 text-sm text-muted-foreground"
                                 >{genre}</span
                             >
                         {/each}
@@ -395,9 +374,7 @@
                     {#if liveStatus === 'downloading'}
                         <div class="flex justify-between">
                             <span class="text-muted-foreground">Download Speed</span>
-                            <span class="font-medium text-blue-400"
-                                >{formatSpeed(downloadSpeed)}</span
-                            >
+                            <span class="font-medium text-blue-400">{formatSpeed(downloadSpeed)}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-muted-foreground">Peers</span>
@@ -449,9 +426,7 @@
                     </div>
                     <div>
                         <span class="text-muted-foreground block mb-1">Infohash</span>
-                        <code class="text-xs bg-accent px-2 py-1 rounded break-all block">
-                            {data.media.infohash}
-                        </code>
+                        <code class="text-xs bg-accent px-2 py-1 rounded break-all block">{data.media.infohash}</code>
                     </div>
                 </div>
             </div>

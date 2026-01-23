@@ -97,10 +97,7 @@ export function parseJackettResults(response: JackettApiResponse): JackettResult
 /**
  * Filter results by trusted release groups
  */
-export function filterByReleaseGroup(
-	results: JackettResult[],
-	trustedGroups: string[]
-): JackettResult[] {
+export function filterByReleaseGroup(results: JackettResult[], trustedGroups: string[]): JackettResult[] {
 	if (trustedGroups.length === 0) {
 		return results;
 	}

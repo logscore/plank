@@ -1,15 +1,5 @@
 <script lang="ts">
-    import {
-        AlertCircle,
-        ArrowLeft,
-        Check,
-        Film,
-        HardDrive,
-        Key,
-        Loader2,
-        Mail,
-        User,
-    } from 'lucide-svelte';
+    import { AlertCircle, ArrowLeft, Check, Film, HardDrive, Key, Loader2, Mail, User } from 'lucide-svelte';
     import { fade } from 'svelte/transition';
     import { authClient } from '$lib/auth-client';
     import Button from '$lib/components/ui/Button.svelte';
@@ -154,9 +144,7 @@
 
         {#if !showPasswordForm}
             <div class="mb-4">
-                <Button variant="outline" onclick={() => showPasswordForm = true}>
-                    Reset Password
-                </Button>
+                <Button variant="outline" onclick={() => showPasswordForm = true}>Reset Password</Button>
             </div>
         {/if}
 
@@ -175,9 +163,7 @@
                 </div>
 
                 <div>
-                    <label for="new-password" class="block text-sm text-muted-foreground mb-2">
-                        New Password
-                    </label>
+                    <label for="new-password" class="block text-sm text-muted-foreground mb-2">New Password</label>
                     <Input
                         id="new-password"
                         type="password"

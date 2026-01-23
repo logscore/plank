@@ -114,9 +114,7 @@
       <Play class="w-4 h-4 mr-2 fill-current" />
     {/if} -->
         <span class="flex-1 text-left">Episodes</span>
-        <ChevronDown
-            class="w-4 h-4 ml-2 transition-transform shrink-0 {isOpen ? 'rotate-180' : ''}"
-        />
+        <ChevronDown class="w-4 h-4 ml-2 transition-transform shrink-0 {isOpen ? 'rotate-180' : ''}" />
     </Button>
 
     <!-- Dropdown Menu -->
@@ -161,9 +159,7 @@
                                         <div
                                             class="w-8 h-8 rounded-full bg-accent flex items-center justify-center shrink-0"
                                         >
-                                            <span class="text-xs font-medium"
-                                                >{episode.episodeNumber}</span
-                                            >
+                                            <span class="text-xs font-medium">{episode.episodeNumber}</span>
                                         </div>
 
                                         <!-- Episode Info -->
@@ -173,33 +169,25 @@
                                                     {episode.title || `Episode ${episode.episodeNumber}`}
                                                 </span>
                                                 {#if episode.runtime}
-                                                    <span
-                                                        class="text-xs text-muted-foreground shrink-0"
-                                                    >
+                                                    <span class="text-xs text-muted-foreground shrink-0">
                                                         {formatRuntime(episode.runtime)}
                                                     </span>
                                                 {/if}
                                             </div>
                                             {#if episode.fileIndex === null}
-                                                <span class="text-xs text-yellow-500"
-                                                    >Not available</span
-                                                >
+                                                <span class="text-xs text-yellow-500">Not available</span>
                                             {/if}
                                         </div>
 
                                         <!-- Play Icon -->
-                                        <div
-                                            class="opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
+                                        <div class="opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Play class="w-4 h-4 text-primary fill-current" />
                                         </div>
                                     </button>
                                 {/each}
 
                                 {#if season.episodes.length === 0}
-                                    <div
-                                        class="px-4 py-3 text-sm text-muted-foreground text-center"
-                                    >
+                                    <div class="px-4 py-3 text-sm text-muted-foreground text-center">
                                         No episodes available
                                     </div>
                                 {/if}
@@ -209,9 +197,7 @@
                 {/each}
 
                 {#if seasons.length === 0}
-                    <div class="px-4 py-6 text-center text-muted-foreground">
-                        No seasons available
-                    </div>
+                    <div class="px-4 py-6 text-center text-muted-foreground">No seasons available</div>
                 {/if}
             </div>
         </div>

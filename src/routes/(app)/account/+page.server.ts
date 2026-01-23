@@ -16,8 +16,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const mediaStats = {
 		total: userMedia.length,
 		complete: userMedia.filter((m) => m.status === 'complete').length,
-		downloading: userMedia.filter((m) => m.status === 'downloading' || m.status === 'added')
-			.length,
+		downloading: userMedia.filter((m) => m.status === 'downloading' || m.status === 'added').length,
 		error: userMedia.filter((m) => m.status === 'error').length,
 	};
 

@@ -1,15 +1,5 @@
 <script lang="ts">
-    import {
-        ArrowLeft,
-        Calendar,
-        Check,
-        Copy,
-        Database,
-        Film,
-        Folder,
-        Play,
-        Trash2,
-    } from 'lucide-svelte';
+    import { ArrowLeft, Calendar, Check, Copy, Database, Film, Folder, Play, Trash2 } from 'lucide-svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
@@ -190,19 +180,14 @@
                     alt={media.title}
                     class="absolute inset-0 w-full h-full object-cover"
                 >
-                <div
-                    class="absolute inset-0 bg-linear-to-t from-background via-background/80 to-transparent"
-                ></div>
+                <div class="absolute inset-0 bg-linear-to-t from-background via-background/80 to-transparent"></div>
             {:else}
                 <div class="absolute inset-0 bg-linear-to-b from-accent/20 to-background"></div>
             {/if}
 
             <!-- Back Button -->
             <div class="fixed top-6 left-6 z-50"><a href="/">
-                <Button
-                    variant="ghost"
-                    class="bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm"
-                >
+                <Button variant="ghost" class="bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm">
                     <ArrowLeft class="w-5 h-5 mr-2" />
                     Back
                 </Button>
@@ -248,9 +233,7 @@
                             </span>
                         {/if}
                         {#if media.year}
-                            <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground"
-                                >{media.year}</span
-                            >
+                            <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">{media.year}</span>
                         {/if}
                         {#if media.runtime}
                             <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">
@@ -259,11 +242,7 @@
                         {/if}
                         {#if media.totalSeasons}
                             <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">
-                                {media.totalSeasons} Season
-                                {media.totalSeasons ===
-                                1
-                                    ? ""
-                                    : "s"}
+                                {media.totalSeasons} Season{media.totalSeasons === 1 ? "" : "s"}
                             </span>
                         {/if}
                     </div>
@@ -283,11 +262,7 @@
                     <!-- Action Buttons -->
                     <!-- Action Buttons -->
                     <div class="flex items-center gap-3 pt-4">
-                        <EpisodeSelector
-                            {seasons}
-                            mediaId={media.id}
-                            onPlayEpisode={handlePlayEpisode}
-                        />
+                        <EpisodeSelector {seasons} mediaId={media.id} onPlayEpisode={handlePlayEpisode} />
                         <Button
                             variant="ghost"
                             size="lg"
@@ -372,9 +347,7 @@
                                     <div class="flex-1 min-w-0 flex flex-col justify-between py-1">
                                         <div>
                                             <div class="flex items-start justify-between gap-4">
-                                                <h3
-                                                    class="font-semibold text-base md:text-lg line-clamp-1"
-                                                >
+                                                <h3 class="font-semibold text-base md:text-lg line-clamp-1">
                                                     <span class="text-muted-foreground mr-1"
                                                         >{episode.episodeNumber}.</span
                                                     >
@@ -452,9 +425,7 @@
                 <div class="space-y-3 text-sm">
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">Status</span>
-                        <span class="capitalize font-medium text-muted-foreground"
-                            >{media.status || "Unknown"}</span
-                        >
+                        <span class="capitalize font-medium text-muted-foreground">{media.status || "Unknown"}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">Total Size</span>

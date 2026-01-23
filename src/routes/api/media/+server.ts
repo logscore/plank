@@ -28,11 +28,7 @@ interface MediaMetadata {
 	totalSeasons: number | null;
 }
 
-function createDefaultMetadata(
-	title: string,
-	year: number | undefined,
-	tmdbId?: number
-): MediaMetadata {
+function createDefaultMetadata(title: string, year: number | undefined, tmdbId?: number): MediaMetadata {
 	return {
 		title: title || 'Unknown',
 		year: year || null,
@@ -61,25 +57,20 @@ async function fetchTmdbMetadata(
 	}
 
 	try {
-		const results =
-			mediaType === 'tv' ? await searchTVShow(title, year) : await searchMovie(title, year);
+		const results = mediaType === 'tv' ? await searchTVShow(title, year) : await searchMovie(title, year);
 
 		if (results.length === 0) {
 			return metadata;
 		}
 
-		const basicResult = tmdbId
-			? (results.find((r) => r.tmdbId === tmdbId) ?? results[0])
-			: results[0];
+		const basicResult = tmdbId ? (results.find((r) => r.tmdbId === tmdbId) ?? results[0]) : results[0];
 
 		if (basicResult.tmdbId === null) {
 			return { ...metadata, ...basicResult };
 		}
 
 		const details =
-			mediaType === 'tv'
-				? await getTVDetails(basicResult.tmdbId)
-				: await getMovieDetails(basicResult.tmdbId);
+			mediaType === 'tv' ? await getTVDetails(basicResult.tmdbId) : await getMovieDetails(basicResult.tmdbId);
 
 		return { ...metadata, ...details };
 	} catch (e) {

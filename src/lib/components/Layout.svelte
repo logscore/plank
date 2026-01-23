@@ -34,13 +34,8 @@
 <div class="min-h-screen bg-background text-foreground flex flex-col relative pb-24">
     <!-- Account Button - Bottom Right Corner -->
     {#if !page.url.pathname.startsWith("/watch")}
-        <div
-            class="fixed bottom-8 right-8 z-50 account-menu"
-            transition:fly={{ y: 20, duration: 300 }}
-        >
-            <div
-                class="p-1.5 rounded-full border border-white/10 bg-black/80 backdrop-blur-xl shadow-2xl"
-            >
+        <div class="fixed bottom-8 right-8 z-50 account-menu" transition:fly={{ y: 20, duration: 300 }}>
+            <div class="p-1.5 rounded-full border border-white/10 bg-black/80 backdrop-blur-xl shadow-2xl">
                 <button
                     onclick={() => (showAccountMenu = !showAccountMenu)}
                     class="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 text-zinc-400 hover:text-white hover:bg-white/10"
@@ -93,10 +88,7 @@
 
     <!-- Bottom Floating Pill Navigation (Hidden on Player) -->
     {#if !page.url.pathname.startsWith("/watch")}
-        <div
-            class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50"
-            transition:fly={{ y: 20, duration: 300 }}
-        >
+        <div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50" transition:fly={{ y: 20, duration: 300 }}>
             <nav
                 class="flex items-center gap-1 p-1.5 rounded-full border border-white/10 bg-black/80 backdrop-blur-xl shadow-2xl"
             >
@@ -116,10 +108,7 @@
                         >
                             <item.icon class="w-5 h-5 relative z-10" />
                             {#if isActive}
-                                <div
-                                    class="absolute bottom-2 w-1 h-1 bg-primary rounded-full"
-                                    transition:fade
-                                ></div>
+                                <div class="absolute bottom-2 w-1 h-1 bg-primary rounded-full" transition:fade></div>
                             {/if}
                         </a>
 

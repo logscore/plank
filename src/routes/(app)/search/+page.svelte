@@ -111,9 +111,7 @@
     <div class="max-w-2xl mx-auto mb-12">
         <h1 class="text-3xl font-bold mb-6 text-center">Search</h1>
         <div class="relative" role="search">
-            <Search
-                class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground"
-            />
+            <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <!-- svelte-ignore a11y_autofocus -->
             <input
                 type="search"
@@ -147,9 +145,7 @@
             {/each}
         </div>
     {:else}
-        <div
-            class="flex flex-col items-center justify-center p-20 text-center space-y-4 text-muted-foreground"
-        >
+        <div class="flex flex-col items-center justify-center p-20 text-center space-y-4 text-muted-foreground">
             <Search class="w-12 h-12 opacity-30" />
             <p>Search your library</p>
         </div>

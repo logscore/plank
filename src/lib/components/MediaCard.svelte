@@ -135,7 +135,9 @@
         <!-- Type Badge for TV Shows -->
         {#if media.type === "tv"}
             <div
-                class="absolute top-2 left-2 z-10 bg-primary/90 text-primary-foreground px-2 py-0.5 rounded text-xs flex items-center gap-1 group-hover:hidden group-active:hidden"
+                class="absolute top-2 left-2 z-10 bg-primary/90 text-primary-foreground px-2 py-0.5 rounded text-xs flex items-center gap-1 group-hover:hidden group-active:hidden {isMobileActive
+                    ? 'hidden'
+                    : ''}"
             >
                 <Tv size={12} />
                 TV
@@ -150,9 +152,7 @@
                 class="w-full h-full object-cover transition-opacity duration-500 group-hover:blur-md"
             >
         {:else}
-            <div
-                class="w-full h-full flex items-center justify-center bg-accent text-muted-foreground"
-            >
+            <div class="w-full h-full flex items-center justify-center bg-accent text-muted-foreground">
                 <span class="text-xs">No Poster</span>
             </div>
         {/if}
@@ -170,26 +170,17 @@
             <div class="flex items-center gap-2 text-xs text-zinc-300 shrink-0">
                 <span>{media.year || ""}</span>
                 {#if media.certification}
-                    <span class="px-1 border border-zinc-600 rounded text-[10px]"
-                        >{media.certification}</span
-                    >
+                    <span class="px-1 border border-zinc-600 rounded text-[10px]">{media.certification}</span>
                 {/if}
                 {#if media.runtime}
                     <span>• {formatRuntime(media.runtime)}</span>
                 {/if}
                 {#if media.type === "tv" && media.totalSeasons}
-                    <span
-                        >• {media.totalSeasons} season
-                        {media.totalSeasons === 1
-                            ? ""
-                            : "s"}</span
-                    >
+                    <span>• {media.totalSeasons} season{media.totalSeasons === 1 ? "" : "s"}</span>
                 {/if}
             </div>
             {#if media.overview}
-                <p class="text-xs text-zinc-400 leading-relaxed overflow-y-auto pr-1">
-                    {media.overview}
-                </p>
+                <p class="text-xs text-zinc-400 leading-relaxed overflow-y-auto pr-1">{media.overview}</p>
             {/if}
         </div>
 

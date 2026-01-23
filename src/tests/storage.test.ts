@@ -47,10 +47,7 @@ describe('ImageStorageService', () => {
 		});
 
 		// Verify file write
-		expect(fs.writeFile).toHaveBeenCalledWith(
-			path.normalize('/mock/data/library/123/poster.jpg'),
-			buffer
-		);
+		expect(fs.writeFile).toHaveBeenCalledWith(path.normalize('/mock/data/library/123/poster.jpg'), buffer);
 
 		// Verify return path
 		expect(savedPath).toBe('library/123/poster.jpg');

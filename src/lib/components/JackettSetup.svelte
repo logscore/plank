@@ -11,9 +11,7 @@
 
 <div class="max-w-2xl mx-auto p-6 bg-card rounded-lg border border-border">
     <div class="text-center mb-6">
-        <div
-            class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4"
-        >
+        <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
             <Plus class="w-6 h-6 text-primary" />
         </div>
         <h2 class="text-xl font-semibold mb-2">Configure Jackett for Torrent Sources</h2>
@@ -57,8 +55,7 @@
             <div class="flex-1">
                 <h3 class="font-medium mb-1">Add Torrent Indexers</h3>
                 <p class="text-sm text-muted-foreground mb-2">
-                    Open Jackett web interface and add your preferred torrent trackers. Public
-                    indexers like:
+                    Open Jackett web interface and add your preferred torrent trackers. Public indexers like:
                 </p>
                 <div class="text-sm space-y-1 mb-2">
                     <div class="flex items-center gap-2">
@@ -96,15 +93,11 @@
             <div class="flex-1">
                 <h3 class="font-medium mb-1">Get API Key</h3>
                 <p class="text-sm text-muted-foreground mb-2">
-                    Find your API key in Jackett dashboard. Click the copy button next to the API
-                    key.
+                    Find your API key in Jackett dashboard. Click the copy button next to the API key.
                 </p>
                 {#if !hasApiKey}
-                    <div
-                        class="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800"
-                    >
-                        <strong>Missing API Key:</strong> Add JACKETT_API_KEY to your environment
-                        variables.
+                    <div class="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                        <strong>Missing API Key:</strong> Add JACKETT_API_KEY to your environment variables.
                     </div>
                 {:else}
                     <div
@@ -127,8 +120,7 @@
             <div class="flex-1">
                 <h3 class="font-medium mb-1">Restart Application</h3>
                 <p class="text-sm text-muted-foreground">
-                    After configuring the environment variables, restart the application to apply
-                    changes.
+                    After configuring the environment variables, restart the application to apply changes.
                 </p>
             </div>
         </div>

@@ -120,17 +120,9 @@ declare module 'webtorrent' {
 
 	class WebTorrent {
 		constructor(opts?: WebTorrentOptions);
-		add(
-			torrentId: string | Buffer,
-			opts?: AddOptions,
-			callback?: (torrent: Torrent) => void
-		): Torrent;
+		add(torrentId: string | Buffer, opts?: AddOptions, callback?: (torrent: Torrent) => void): Torrent;
 		seed(input: unknown, opts?: object, callback?: (torrent: Torrent) => void): Torrent;
-		remove(
-			torrentId: string | Torrent,
-			opts?: { destroyStore?: boolean },
-			callback?: () => void
-		): void;
+		remove(torrentId: string | Torrent, opts?: { destroyStore?: boolean }, callback?: () => void): void;
 		get(torrentId: string): Torrent | null;
 		destroy(callback?: () => void): void;
 		torrents: Torrent[];

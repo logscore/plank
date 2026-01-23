@@ -2,6 +2,8 @@ pre-commit:
   parallel: true
 
   jobs:
+    - run: npx biome format --write .
+      stage_fixed: true
     - run: npx ultracite fix
       glob:
         - "*.js"

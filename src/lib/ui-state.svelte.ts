@@ -17,11 +17,7 @@ class UIState {
 
 export const uiState = new UIState();
 
-export function confirmDelete(
-	title: string,
-	description: string,
-	onConfirm: () => Promise<void> | void
-) {
+export function confirmDelete(title: string, description: string, onConfirm: () => Promise<void> | void) {
 	uiState.deleteConfirmation = {
 		open: true,
 		title,

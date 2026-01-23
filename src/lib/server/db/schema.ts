@@ -134,9 +134,7 @@ export const media = sqliteTable(
 		infohash: text('infohash').notNull(),
 		filePath: text('file_path'),
 		fileSize: integer('file_size'),
-		status: text('status', { enum: ['added', 'downloading', 'complete', 'error'] }).default(
-			'added'
-		),
+		status: text('status', { enum: ['added', 'downloading', 'complete', 'error'] }).default('added'),
 		progress: real('progress').default(0),
 		tmdbId: integer('tmdb_id'),
 		// Additional TMDB metadata
@@ -202,9 +200,7 @@ export const episodes = sqliteTable(
 		fileSize: integer('file_size'),
 		downloadedBytes: integer('downloaded_bytes').default(0),
 		displayOrder: integer('display_order').notNull(),
-		status: text('status', { enum: ['pending', 'downloading', 'complete', 'error'] }).default(
-			'pending'
-		),
+		status: text('status', { enum: ['pending', 'downloading', 'complete', 'error'] }).default('pending'),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 			.notNull(),
@@ -228,9 +224,7 @@ export const downloads = sqliteTable(
 			.references(() => media.id, { onDelete: 'cascade' }),
 		magnetLink: text('magnet_link').notNull(),
 		infohash: text('infohash').notNull(),
-		status: text('status', { enum: ['added', 'downloading', 'complete', 'error'] }).default(
-			'added'
-		),
+		status: text('status', { enum: ['added', 'downloading', 'complete', 'error'] }).default('added'),
 		progress: real('progress').default(0),
 		addedAt: integer('added_at', { mode: 'timestamp_ms' })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
@@ -305,10 +299,7 @@ export const torrentCache = sqliteTable(
 			.$onUpdate(() => new Date())
 			.notNull(),
 	},
-	(table) => [
-		index('idx_torrent_cache_imdb').on(table.imdbId),
-		index('idx_torrent_cache_tmdb').on(table.tmdbId),
-	]
+	(table) => [index('idx_torrent_cache_imdb').on(table.imdbId), index('idx_torrent_cache_tmdb').on(table.tmdbId)]
 );
 
 // ============================================================================

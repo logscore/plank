@@ -35,10 +35,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		results = (await searchMovie(query, year)).map((r) => ({ ...r, type: 'movie' as const }));
 	} else {
 		// Search both
-		const [movies, shows] = await Promise.all([
-			searchMovie(query, year),
-			searchTVShow(query, year),
-		]);
+		const [movies, shows] = await Promise.all([searchMovie(query, year), searchTVShow(query, year)]);
 		results = [
 			...movies.map((m) => ({ ...m, type: 'movie' as const })),
 			...shows.map((s) => ({ ...s, type: 'tv' as const })),

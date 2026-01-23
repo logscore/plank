@@ -130,9 +130,7 @@
 
     function getIsReady(): boolean {
         return (
-            progressInfo?.status === 'complete' ||
-            (progressInfo?.progress ?? 0) > 0.05 ||
-            media?.status === 'complete'
+            progressInfo?.status === 'complete' || (progressInfo?.progress ?? 0) > 0.05 || media?.status === 'complete'
         );
     }
 
@@ -251,17 +249,13 @@
                     {/if}
                     <div class="absolute inset-0 flex flex-col items-center justify-center gap-6">
                         <div class="relative">
-                            <div
-                                class="absolute inset-0 animate-ping rounded-full bg-primary/20"
-                            ></div>
+                            <div class="absolute inset-0 animate-ping rounded-full bg-primary/20"></div>
                             <div
                                 class="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent relative z-10"
                             ></div>
                         </div>
                         <div class="text-center space-y-2">
-                            <h2 class="text-2xl font-bold text-white">
-                                Buffering {media?.title}...
-                            </h2>
+                            <h2 class="text-2xl font-bold text-white">Buffering {media?.title}...</h2>
                             <p class="text-zinc-400">Waiting for video to stream in from space</p>
                         </div>
                     </div>

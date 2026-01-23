@@ -12,6 +12,7 @@
             page: number;
             totalPages: number;
             type: 'trending' | 'popular';
+            filter: 'all' | 'movie' | 'tv';
             jackettConfigured: boolean;
             jackettStatus: string;
             hasIndexers: boolean;
@@ -46,6 +47,7 @@
     // Data State
     let items = $derived(data.items);
     let activeTab = $derived(data.type);
+    let activeFilter = $derived(data.filter || 'all');
     let currentPage = $derived(data.page);
     let totalPages = $derived(data.totalPages);
 
@@ -77,9 +79,9 @@
     // We need a local state for appended items to support infinite scroll combined with server data
     let appendedItems = $state<BrowseItem[]>([]);
 
-    // When data changes (tab switch), reset appended items
+    // When data changes (tab switch or filter switch), reset appended items
     $effect(() => {
-        if (data.type) {
+        if (data.type || data.filter) {
             appendedItems = [];
         }
     });
@@ -100,9 +102,12 @@
 
         isFetchingMore = true;
         try {
-            // Use explicit tab type from data if available, else page store, else default
+            // Use explicit tab/filter type from data if available, else defaults
             const currentType = data.type || 'trending';
-            const response = await fetch(`/api/browse?type=${currentType}&page=${localPage + 1}`);
+            const currentFilter = data.filter || 'all';
+            const response = await fetch(
+                `/api/browse?type=${currentType}&page=${localPage + 1}&filter=${currentFilter}`
+            );
             if (response.ok) {
                 const result = await response.json();
                 appendedItems = [...appendedItems, ...result.items];
@@ -244,7 +249,7 @@
         <div class="container max-w-7xl mx-auto px-4">
             <!-- Top Bar with Search -->
             <div class="flex items-center justify-between py-3 h-15">
-                <h1 class="text-xl font-semibold tracking-tight">Browse</h1>
+                <h1 class="text-2xl font-semibold tracking-tight">Browse</h1>
                 <!-- The search functionality will be consolidated to the search page with a simple toggle for in library vs browse search -->
                 <!-- <div class="relative w-full max-w-xs md:max-w-sm ml-4">
                     <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -256,30 +261,48 @@
                 </div> -->
             </div>
 
-            <!-- Tab Navigation -->
-            <div class="flex items-center space-x-2 py-2 overflow-x-auto no-scrollbar">
-                <a
-                    href="/browse?type=trending"
-                    data-sveltekit-noscroll
-                    class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 {activeTab ===
-                    'trending'
-                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                        : 'hover:bg-accent hover:text-accent-foreground'}"
+            <!-- Tab Navigation & Filter -->
+            <div class="flex items-center justify-between py-2">
+                <div class="flex items-center space-x-2 overflow-x-auto no-scrollbar">
+                    <a
+                        href="/browse?type=trending&filter={activeFilter}"
+                        data-sveltekit-noscroll
+                        class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 {activeTab ===
+                        'trending'
+                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                            : 'hover:bg-accent hover:text-accent-foreground'}"
+                    >
+                        <Flame class="w-4 h-4 mr-2" />
+                        Trending
+                    </a>
+                    <a
+                        href="/browse?type=popular&filter={activeFilter}"
+                        data-sveltekit-noscroll
+                        class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 {activeTab ===
+                        'popular'
+                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                            : 'hover:bg-accent hover:text-accent-foreground'}"
+                    >
+                        <Trophy class="w-4 h-4 mr-2" />
+                        Popular
+                    </a>
+                </div>
+
+                <!-- Filter Dropdown -->
+                <select
+                    value={activeFilter}
+                    onchange={(e) => {
+                        const val = e.currentTarget.value;
+                        goto(`/browse?type=${activeTab}&filter=${val}`, {
+                            noScroll: true,
+                        });
+                    }}
+                    class="h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
-                    <Flame class="w-4 h-4 mr-2" />
-                    Trending
-                </a>
-                <a
-                    href="/browse?type=popular"
-                    data-sveltekit-noscroll
-                    class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 {activeTab ===
-                    'popular'
-                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                        : 'hover:bg-accent hover:text-accent-foreground'}"
-                >
-                    <Trophy class="w-4 h-4 mr-2" />
-                    Popular
-                </a>
+                    <option value="all">All</option>
+                    <option value="movie">Movies</option>
+                    <option value="tv">TV Shows</option>
+                </select>
             </div>
         </div>
     </div>
@@ -291,18 +314,14 @@
             <JackettSetup jackettUrl="http://localhost:9117" hasApiKey={data.jackettConfigured} />
         {:else if displayItems.length === 0 && !data.needsSetup}
             <!-- Empty State -->
-            <div
-                class="text-center py-20 bg-muted/30 rounded-lg border border-dashed border-border mx-auto max-w-2xl"
-            >
+            <div class="text-center py-20 bg-muted/30 rounded-lg border border-dashed border-border mx-auto max-w-2xl">
                 <Trophy class="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
                 <h3 class="text-lg font-medium text-foreground mb-1">No content found</h3>
                 <p class="text-muted-foreground">Check your indexer and Jackett configuration.</p>
             </div>
         {:else}
             <!-- Movie Grid -->
-            <div
-                class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
-            >
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {#each displayItems as item (item.tmdbId)}
                     <TorrentCard
                         {item}
@@ -320,9 +339,7 @@
                     {#if isFetchingMore}
                         <div class="flex flex-col items-center gap-2">
                             <Loader2 class="w-6 h-6 animate-spin text-primary" />
-                            <span class="text-xs text-muted-foreground"
-                                >Loading more movies...</span
-                            >
+                            <span class="text-xs text-muted-foreground">Loading more movies...</span>
                         </div>
                     {:else}
                         <span class="h-6 block"></span>

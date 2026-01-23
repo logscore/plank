@@ -132,35 +132,25 @@
         <div class="container max-w-7xl mx-auto px-4">
             <!-- Top Bar -->
             <div class="flex items-center justify-between py-3 h-15">
-                <h1 class="text-xl font-semibold tracking-tight">Library</h1>
+                <h1 class="text-2xl font-semibold tracking-tight">Library</h1>
             </div>
 
             <!-- Tab Navigation -->
             <div class="flex items-center space-x-2 py-2">
-                <Button
-                    variant={activeTab === "movies" ? "default" : "ghost"}
-                    onclick={() => (activeTab = "movies")}
-                >
+                <Button variant={activeTab === "movies" ? "default" : "ghost"} onclick={() => (activeTab = "movies")}>
                     <Film class="w-4 h-4 mr-2" />
                     Movies
                     {#if movies.length > 0}
-                        <span
-                            class="ml-2 text-xs bg-accent px-2 py-0.5 rounded-full text-foreground"
-                        >
+                        <span class="ml-2 text-xs bg-accent px-2 py-0.5 rounded-full text-foreground">
                             {movies.length}
                         </span>
                     {/if}
                 </Button>
-                <Button
-                    variant={activeTab === "tv" ? "default" : "ghost"}
-                    onclick={() => (activeTab = "tv")}
-                >
+                <Button variant={activeTab === "tv" ? "default" : "ghost"} onclick={() => (activeTab = "tv")}>
                     <Tv class="w-4 h-4 mr-2" />
                     TV Shows
                     {#if shows.length > 0}
-                        <span
-                            class="ml-2 text-xs bg-accent px-2 py-0.5 rounded-full text-foreground"
-                        >
+                        <span class="ml-2 text-xs bg-accent px-2 py-0.5 rounded-full text-foreground">
                             {shows.length}
                         </span>
                     {/if}
@@ -182,9 +172,7 @@
                         <Film class="w-10 h-10 text-muted-foreground" />
                     </div>
                     <h3 class="text-xl font-semibold">No movies yet</h3>
-                    <p class="text-muted-foreground max-w-sm">
-                        Add movies using the + button below.
-                    </p>
+                    <p class="text-muted-foreground max-w-sm">Add movies using the + button below.</p>
                 </div>
             {:else}
                 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">

@@ -28,11 +28,7 @@ export interface CachedTorrent {
  * Get cached torrent by IMDB ID
  */
 export async function getCachedTorrent(imdbId: string): Promise<CachedTorrent | null> {
-	const result = await db
-		.select()
-		.from(torrentCache)
-		.where(eq(torrentCache.imdbId, imdbId))
-		.limit(1);
+	const result = await db.select().from(torrentCache).where(eq(torrentCache.imdbId, imdbId)).limit(1);
 
 	if (result.length === 0) {
 		return null;
