@@ -190,6 +190,7 @@ export const episodes = sqliteTable(
 		seasonId: text('season_id')
 			.notNull()
 			.references(() => seasons.id, { onDelete: 'cascade' }),
+		downloadId: text('download_id'),
 		episodeNumber: integer('episode_number').notNull(),
 		title: text('title'),
 		overview: text('overview'),
@@ -211,6 +212,7 @@ export const episodes = sqliteTable(
 	(table) => [
 		uniqueIndex('episodes_season_number_unique').on(table.seasonId, table.episodeNumber),
 		index('idx_episodes_season').on(table.seasonId),
+		index('idx_episodes_download').on(table.downloadId),
 		index('idx_episodes_status').on(table.status),
 		index('idx_episodes_display_order').on(table.seasonId, table.displayOrder),
 	]
@@ -264,13 +266,18 @@ export const episodesRelations = relations(episodes, ({ one }) => ({
 		fields: [episodes.seasonId],
 		references: [seasons.id],
 	}),
+	download: one(downloads, {
+		fields: [episodes.downloadId],
+		references: [downloads.id],
+	}),
 }));
 
-export const downloadsRelations = relations(downloads, ({ one }) => ({
+export const downloadsRelations = relations(downloads, ({ one, many }) => ({
 	media: one(media, {
 		fields: [downloads.mediaId],
 		references: [media.id],
 	}),
+	episodes: many(episodes),
 }));
 
 // ============================================================================

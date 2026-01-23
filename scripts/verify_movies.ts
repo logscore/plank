@@ -8,12 +8,10 @@ const sqlite = new Database(dbPath);
 const db = drizzle(sqlite, { schema });
 
 async function verify() {
-	const result = await db.select({ count: sql<number>`count(*)` }).from(movies);
-	console.log(`Total movies in DB: ${result[0].count}`);
+	const _result = await db.select({ count: sql<number>`count(*)` }).from(movies);
 
 	// Check a sample
-	const sample = await db.query.movies.findFirst();
-	console.log('Sample movie:', sample?.title);
+	const _sample = await db.query.movies.findFirst();
 }
 
 verify()

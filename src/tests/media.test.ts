@@ -71,6 +71,7 @@ function createTables() {
     CREATE TABLE IF NOT EXISTS episodes (
       id TEXT PRIMARY KEY,
       season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
+      download_id TEXT,
       episode_number INTEGER NOT NULL,
       title TEXT,
       overview TEXT,
@@ -88,6 +89,7 @@ function createTables() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_episodes_season ON episodes(season_id);
+    CREATE INDEX IF NOT EXISTS idx_episodes_download ON episodes(download_id);
     CREATE INDEX IF NOT EXISTS idx_episodes_status ON episodes(status);
     CREATE INDEX IF NOT EXISTS idx_episodes_display_order ON episodes(season_id, display_order);
   `);

@@ -28,7 +28,7 @@ async function ensureVideoReady(
 	magnetLink: string,
 	mediaStatus: string,
 	fileIndex?: number
-): Promise<void> {
+): Promise<Response | undefined> {
 	checkDownloadError(mediaId);
 
 	// Start download if needed
@@ -51,9 +51,9 @@ async function ensureVideoReady(
 			throw error(503, status.error || 'Download failed');
 		}
 		if (status?.status === 'initializing') {
-			throw error(202, 'Torrent is initializing, please try again shortly');
+			return new Response('Torrent is initializing, please try again shortly', { status: 202 });
 		}
-		throw error(202, 'Video is buffering, please wait...');
+		return new Response('Video is buffering, please wait...', { status: 202 });
 	}
 }
 
@@ -62,7 +62,7 @@ function createTransmuxResponse(
 	inputStream: import('node:stream').Readable,
 	fileName: string
 ): Response {
-	console.log(`[Stream] Transmuxing ${fileName} to MP4`);
+	// console.log(`[Stream] Transmuxing ${fileName} to MP4`);
 
 	const transmuxedStream = createTransmuxStream({
 		inputStream,
@@ -86,7 +86,7 @@ async function handleRangeRequest(
 	fileSize: number,
 	fileName: string,
 	mimeType: string,
-	fileIndex?: number
+	episodeId?: string
 ): Promise<Response> {
 	const parts = range.replace(RANGE_BYTES_REGEX, '').split('-');
 	const start = Number.parseInt(parts[0], 10);
@@ -97,7 +97,7 @@ async function handleRangeRequest(
 	}
 
 	const clampedEnd = Math.min(end, fileSize - 1);
-	const rangedStreamInfo = await getVideoStream(mediaId, fileIndex, start, clampedEnd);
+	const rangedStreamInfo = await getVideoStream(mediaId, episodeId, start, clampedEnd);
 	if (!rangedStreamInfo) {
 		throw error(500, 'Failed to create ranged stream');
 	}
@@ -127,18 +127,21 @@ export const GET: RequestHandler = async ({ params, locals, request, url }) => {
 		throw error(404, 'Media not found');
 	}
 
-	// Get optional fileIndex for TV shows
-	const fileIndexParam = url.searchParams.get('fileIndex');
-	const fileIndex = fileIndexParam ? Number.parseInt(fileIndexParam, 10) : undefined;
+	// Get optional episodeId for TV shows
+	const episodeId = url.searchParams.get('episodeId') ?? undefined;
 
-	await ensureVideoReady(
+	const readyResponse = await ensureVideoReady(
 		mediaItem.id,
 		mediaItem.magnetLink,
 		mediaItem.status ?? 'added',
-		fileIndex
+		undefined // fileIndex no longer used
 	);
 
-	const streamInfo = await getVideoStream(params.id, fileIndex);
+	if (readyResponse) {
+		return readyResponse;
+	}
+
+	const streamInfo = await getVideoStream(params.id, episodeId);
 	if (!streamInfo) {
 		throw error(404, 'Video not available');
 	}
@@ -154,7 +157,7 @@ export const GET: RequestHandler = async ({ params, locals, request, url }) => {
 	const range = request.headers.get('range');
 	if (range) {
 		stream.destroy();
-		return handleRangeRequest(params.id, range, fileSize, fileName, mimeType, fileIndex);
+		return handleRangeRequest(params.id, range, fileSize, fileName, mimeType, episodeId);
 	}
 
 	// Full file response

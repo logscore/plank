@@ -51,7 +51,7 @@
 
   function handlePlayEpisode(episodeId: string, episode: Episode) {
     if (episode.fileIndex !== null) {
-      goto(`/watch/${$page.params.id}?episodeId=${episodeId}&fileIndex=${episode.fileIndex}`);
+      goto(`/watch/${$page.params.id}?episodeId=${episodeId}`);
     }
   }
 

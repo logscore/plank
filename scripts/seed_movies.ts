@@ -9,12 +9,9 @@ const sqlite = new Database(dbPath);
 const db = drizzle(sqlite, { schema });
 
 async function seed() {
-	console.log('Seeding movies...');
-
 	// 1. Get or Create a User
 	let user = await db.query.user.findFirst();
 	if (!user) {
-		console.log('No user found, creating a default user...');
 		const newUser = {
 			id: crypto.randomUUID(),
 			name: 'Test User',
@@ -30,7 +27,6 @@ async function seed() {
 	if (!user) {
 		throw new Error('Failed to find or create user');
 	}
-	console.log(`Using user: ${user.name} (${user.id})`);
 
 	// 2. Generate Movies
 	interface MovieInsert {
@@ -74,10 +70,8 @@ async function seed() {
 	}
 
 	// 3. Insert Movies (in batches to be safe, though SQLite handles 100 fine)
-	console.log(`Inserting ${moviesToInsert.length} movies...`);
 	try {
 		await db.insert(schema.movies).values(moviesToInsert);
-		console.log('Successfully inserted movies!');
 	} catch (e) {
 		console.error('Error inserting movies:', e);
 	}
@@ -85,7 +79,6 @@ async function seed() {
 
 seed()
 	.then(() => {
-		console.log('Done.');
 		process.exit(0);
 	})
 	.catch((err) => {

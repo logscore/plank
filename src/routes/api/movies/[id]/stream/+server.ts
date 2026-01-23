@@ -70,7 +70,7 @@ function createTransmuxResponse(
 	inputStream: import('node:stream').Readable,
 	fileName: string
 ): Response {
-	console.log(`[Stream] Transmuxing ${fileName} to MP4`);
+	// console.log(`[Stream] Transmuxing ${fileName} to MP4`);
 
 	const transmuxedStream = createTransmuxStream({
 		inputStream,

@@ -172,9 +172,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (mediaType === 'tv' && metadata.tmdbId) {
 		const existingShow = mediaDb.getByTmdbId(metadata.tmdbId, locals.user.id, 'tv');
 		if (existingShow) {
-			console.log(
-				`[POST /api/media] Found existing TV show "${existingShow.title}" (${existingShow.id}), adding new season download`
-			);
+			// console.log(
+			// 	`[POST /api/media] Found existing TV show "${existingShow.title}" (${existingShow.id}), adding new season download`
+			// );
 
 			// Create a download record for this new torrent
 			const download = downloadsDb.create({

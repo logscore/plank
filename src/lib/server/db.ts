@@ -325,6 +325,7 @@ export const episodesDb = {
 		const newEpisode: NewEpisode = {
 			id,
 			seasonId: episode.seasonId,
+			downloadId: episode.downloadId,
 			episodeNumber: episode.episodeNumber,
 			title: episode.title,
 			overview: episode.overview,
@@ -377,6 +378,21 @@ export const episodesDb = {
 	 */
 	getById(id: string): Episode | undefined {
 		return db.select().from(episodesTable).where(eq(episodesTable.id, id)).get();
+	},
+
+	/**
+	 * Get single episode by ID with season info
+	 */
+	getByIdWithSeason(id: string): { episode: Episode; season: Season } | undefined {
+		return db
+			.select({
+				episode: episodesTable,
+				season: seasonsTable,
+			})
+			.from(episodesTable)
+			.innerJoin(seasonsTable, eq(episodesTable.seasonId, seasonsTable.id))
+			.where(eq(episodesTable.id, id))
+			.get();
 	},
 
 	/**
@@ -442,6 +458,18 @@ export const episodesDb = {
 			.innerJoin(seasonsTable, eq(episodesTable.seasonId, seasonsTable.id))
 			.where(eq(seasonsTable.mediaId, mediaId))
 			.orderBy(asc(seasonsTable.seasonNumber), asc(episodesTable.displayOrder))
+			.all();
+	},
+
+	/**
+	 * Get all episodes for a specific download (torrent)
+	 */
+	getByDownloadId(downloadId: string): Episode[] {
+		return db
+			.select()
+			.from(episodesTable)
+			.where(eq(episodesTable.downloadId, downloadId))
+			.orderBy(asc(episodesTable.displayOrder))
 			.all();
 	},
 

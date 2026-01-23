@@ -59,9 +59,9 @@ export function createTransmuxStream(options: TransmuxOptions): Readable {
 	}
 
 	command
-		.on('start', (cmd) => {
-			console.log('[Transcoder] Starting FFmpeg:', cmd);
-		})
+		// .on('start', (cmd) => {
+		// 	console.log('[Transcoder] Starting FFmpeg:', cmd);
+		// })
 		.on('error', (err: Error, _stdout, stderr) => {
 			console.error('[Transcoder] FFmpeg error:', err.message);
 			if (stderr) {
@@ -72,9 +72,9 @@ export function createTransmuxStream(options: TransmuxOptions): Readable {
 			}
 			outputStream.destroy(err);
 		})
-		.on('end', () => {
-			console.log('[Transcoder] FFmpeg finished');
-		})
+		// .on('end', () => {
+		// 	console.log('[Transcoder] FFmpeg finished');
+		// })
 		.pipe(outputStream, { end: true });
 
 	return outputStream;

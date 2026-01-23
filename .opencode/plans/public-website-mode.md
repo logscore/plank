@@ -376,7 +376,7 @@ function findVideoFile(files: TorrentFile[]): TorrentFile | null {
 
 export async function startClientDownload(movieId: string, magnetLink: string): Promise<void> {
   if (activeDownloads.has(movieId)) {
-    console.log(`[Client] Download already active for ${movieId}`);
+    // console.log(`[Client] Download already active for ${movieId}`);
     return;
   }
 
@@ -394,7 +394,7 @@ export async function startClientDownload(movieId: string, magnetLink: string): 
     const torrentClient = await getClient();
     
     const torrent = torrentClient.add(magnetLink, (t) => {
-      console.log(`[Client] Torrent ready: ${t.infoHash}`);
+      // console.log(`[Client] Torrent ready: ${t.infoHash}`);
       
       const videoFile = findVideoFile(t.files);
       if (!videoFile) {
@@ -418,7 +418,7 @@ export async function startClientDownload(movieId: string, magnetLink: string): 
         download.status = 'complete';
         download.progress = 1;
         movieStorage.updateProgress(movieId, 1, 'complete');
-        console.log(`[Client] Download complete: ${movieId}`);
+        // console.log(`[Client] Download complete: ${movieId}`);
       });
     });
     
@@ -509,7 +509,7 @@ export async function cancelClientDownload(movieId: string): Promise<void> {
   }
   
   activeDownloads.delete(movieId);
-  console.log(`[Client] Download cancelled: ${movieId}`);
+  // console.log(`[Client] Download cancelled: ${movieId}`);
 }
 
 export async function shutdownClientTorrents(): Promise<void> {

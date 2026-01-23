@@ -148,6 +148,7 @@ beforeAll(() => {
     CREATE TABLE IF NOT EXISTS episodes (
       id TEXT PRIMARY KEY,
       season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
+      download_id TEXT,
       episode_number INTEGER NOT NULL,
       title TEXT,
       overview TEXT,
@@ -164,8 +165,25 @@ beforeAll(() => {
       UNIQUE(season_id, episode_number)
     );
     CREATE INDEX IF NOT EXISTS idx_episodes_season ON episodes(season_id);
+    CREATE INDEX IF NOT EXISTS idx_episodes_download ON episodes(download_id);
     CREATE INDEX IF NOT EXISTS idx_episodes_status ON episodes(status);
     CREATE INDEX IF NOT EXISTS idx_episodes_display_order ON episodes(season_id, display_order);
+  `);
+
+	// Create downloads table for tracking multiple torrents per media
+	testDb.exec(`
+    CREATE TABLE IF NOT EXISTS downloads (
+      id TEXT PRIMARY KEY,
+      media_id TEXT NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+      magnet_link TEXT NOT NULL,
+      infohash TEXT NOT NULL,
+      status TEXT DEFAULT 'added',
+      progress REAL DEFAULT 0,
+      added_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+      UNIQUE(media_id, infohash)
+    );
+    CREATE INDEX IF NOT EXISTS idx_downloads_media ON downloads(media_id);
+    CREATE INDEX IF NOT EXISTS idx_downloads_status ON downloads(status);
   `);
 
 	// Create standalone FTS table for tests (simpler than content table)
@@ -194,6 +212,7 @@ beforeAll(() => {
 beforeEach(() => {
 	testDb.exec('DELETE FROM episodes');
 	testDb.exec('DELETE FROM seasons');
+	testDb.exec('DELETE FROM downloads');
 	testDb.exec('DELETE FROM media');
 	testDb.exec('DELETE FROM media_fts');
 	testDb.exec('DELETE FROM session');
