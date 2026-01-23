@@ -112,10 +112,3 @@ export async function cacheTorrent(torrent: CachedTorrent): Promise<void> {
 			},
 		});
 }
-
-/**
- * Delete cached torrent by IMDB ID
- */
-export async function deleteCachedTorrent(imdbId: string): Promise<void> {
-	await db.delete(torrentCache).where(eq(torrentCache.imdbId, imdbId));
-}

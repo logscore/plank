@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { untrack } from 'svelte';
     import { Flame, Loader2, Trophy } from 'lucide-svelte';
+    import { untrack } from 'svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/stores';
     import JackettSetup from '$lib/components/JackettSetup.svelte';

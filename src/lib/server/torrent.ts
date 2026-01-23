@@ -1224,38 +1224,6 @@ function createTorrentStream(
 	};
 }
 
-/**
- * Select episode for priority downloading
- */
-export function selectEpisode(mediaId: string, seasonNumber: number, episodeNumber: number): boolean {
-	const episodeKey = seasonNumber * 100 + episodeNumber;
-
-	// Find a download that has this episode
-	const downloads = getDownloadsForMedia(mediaId);
-	const download = downloads.find((d) => d.mediaType === 'tv' && d.episodeMapping.has(episodeKey));
-
-	if (!download) {
-		return false;
-	}
-
-	const fileIndex = download.episodeMapping.get(episodeKey);
-	if (fileIndex === undefined) {
-		return false;
-	}
-
-	// Select this file for priority
-	for (const [i, f] of download.videoFiles.entries()) {
-		if (i === fileIndex) {
-			f.select();
-		} else {
-			f.deselect();
-		}
-	}
-
-	download.selectedFileIndex = fileIndex;
-	return true;
-}
-
 interface DownloadStatusResult {
 	progress: number;
 	downloadSpeed: number;
@@ -1442,22 +1410,6 @@ export async function waitForVideoReady(mediaId: string, fileIndex?: number, tim
 	}
 
 	return false;
-}
-
-// Cleanup function for graceful shutdown
-export async function shutdownTorrents(): Promise<void> {
-	// console.log(`Shutting down ${activeDownloads.size} active torrents...`);
-
-	if (client) {
-		return new Promise<void>((resolve) => {
-			client?.destroy(() => {
-				activeDownloads.clear();
-				client = null;
-				// console.log('WebTorrent client destroyed');
-				resolve();
-			});
-		});
-	}
 }
 
 // Cancel all active downloads for a media item

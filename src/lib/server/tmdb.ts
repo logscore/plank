@@ -83,7 +83,7 @@ export interface SeasonMetadata {
 	episodes: EpisodeMetadata[];
 }
 
-export interface EpisodeMetadata {
+interface EpisodeMetadata {
 	episodeNumber: number;
 	title: string | null;
 	overview: string | null;
@@ -387,9 +387,6 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 	};
 }
 
-// Alias for backwards compatibility
-export const getMovieById = getMovieDetails;
-
 // =============================================================================
 // TV Show Search & Details
 // =============================================================================
@@ -534,37 +531,6 @@ const TV_PATTERNS = [
  */
 export function isTVShowFilename(title: string): boolean {
 	return TV_PATTERNS.some((pattern) => pattern.test(title));
-}
-
-// Regex patterns for episode parsing (at top level for performance)
-const SXXEXX_PATTERN = /S(\d{1,2})E(\d{1,2})/i;
-const NXNN_PATTERN = /(\d{1,2})x(\d{1,2})/i;
-const SXX_PATTERN = /\bS(\d{1,2})\b/i;
-const SXXEXX_CHECK_PATTERN = /S\d{1,2}E\d{1,2}/i;
-
-/**
- * Parse season and episode numbers from a filename
- */
-export function parseEpisodeInfo(filename: string): { season: number; episode: number } | { season: number } | null {
-	// S01E01 pattern
-	const sxxexx = filename.match(SXXEXX_PATTERN);
-	if (sxxexx) {
-		return { season: Number.parseInt(sxxexx[1], 10), episode: Number.parseInt(sxxexx[2], 10) };
-	}
-
-	// 1x01 pattern
-	const nxnn = filename.match(NXNN_PATTERN);
-	if (nxnn) {
-		return { season: Number.parseInt(nxnn[1], 10), episode: Number.parseInt(nxnn[2], 10) };
-	}
-
-	// Season pack pattern (S01 without episode)
-	const sxx = filename.match(SXX_PATTERN);
-	if (sxx && !filename.match(SXXEXX_CHECK_PATTERN)) {
-		return { season: Number.parseInt(sxx[1], 10) };
-	}
-
-	return null;
 }
 
 // =============================================================================

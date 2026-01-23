@@ -29,7 +29,7 @@ export interface Media {
 	lastPlayedAt: Date | null;
 }
 
-export interface Season {
+interface Season {
 	id: string;
 	mediaId: string;
 	seasonNumber: number;
@@ -60,37 +60,12 @@ export interface Episode {
 	createdAt: Date;
 }
 
-export interface User {
-	id: string;
-	email: string;
-	name: string;
-	emailVerified: boolean;
-	image: string | null;
-}
-
 // API response types
-export interface MediaWithSeasons extends Media {
-	seasons: SeasonWithEpisodes[];
-}
 
 export interface SeasonWithEpisodes extends Season {
 	episodes: Episode[];
 }
 
 // TMDB search result types
-export interface TMDBSearchResult {
-	tmdbId: number;
-	title: string;
-	year: number | null;
-	posterUrl: string | null;
-	backdropUrl: string | null;
-	overview: string | null;
-	type?: MediaType;
-	totalSeasons?: number | null;
-}
 
 // Episode reorder request type
-export interface EpisodeOrderUpdate {
-	id: string;
-	displayOrder: number;
-}

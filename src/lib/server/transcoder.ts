@@ -20,11 +20,6 @@ export function needsTransmux(fileName: string): boolean {
 	return TRANSMUXABLE.includes(ext);
 }
 
-export function isNativePlayable(fileName: string): boolean {
-	const ext = fileName.toLowerCase().slice(fileName.lastIndexOf('.'));
-	return NATIVE_PLAYABLE.includes(ext);
-}
-
 export function isSupportedFormat(fileName: string): boolean {
 	const ext = fileName.toLowerCase().slice(fileName.lastIndexOf('.'));
 	return SUPPORTED_VIDEO_FORMATS.includes(ext);
@@ -78,42 +73,4 @@ export function createTransmuxStream(options: TransmuxOptions): Readable {
 		.pipe(outputStream, { end: true });
 
 	return outputStream;
-}
-
-// Probe a file to get its codec information
-export async function probeFile(filePath: string): Promise<{
-	videoCodec: string | null;
-	audioCodec: string | null;
-	duration: number | null;
-	width: number | null;
-	height: number | null;
-}> {
-	return new Promise((resolve, reject) => {
-		ffmpeg.ffprobe(filePath, (err, metadata) => {
-			if (err) {
-				reject(err);
-				return;
-			}
-
-			const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
-			const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
-
-			resolve({
-				videoCodec: videoStream?.codec_name || null,
-				audioCodec: audioStream?.codec_name || null,
-				duration: metadata.format.duration || null,
-				width: videoStream?.width || null,
-				height: videoStream?.height || null,
-			});
-		});
-	});
-}
-
-// Check if video codec is browser-compatible
-export function isBrowserCompatibleCodec(codec: string | null): boolean {
-	if (!codec) {
-		return false;
-	}
-	const compatibleCodecs = ['h264', 'avc1', 'vp8', 'vp9', 'av1'];
-	return compatibleCodecs.includes(codec.toLowerCase());
 }
