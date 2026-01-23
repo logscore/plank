@@ -281,6 +281,37 @@ export const downloadsRelations = relations(downloads, ({ one, many }) => ({
 }));
 
 // ============================================================================
+// Torrent cache for IMDB ID to magnet link mappings
+// ============================================================================
+
+export const torrentCache = sqliteTable(
+	'torrent_cache',
+	{
+		id: text('id').primaryKey(),
+		imdbId: text('imdb_id').notNull().unique(),
+		tmdbId: integer('tmdb_id'),
+		magnetLink: text('magnet_link').notNull(),
+		infohash: text('infohash').notNull(),
+		title: text('title').notNull(),
+		quality: text('quality'), // e.g., "1080p", "2160p"
+		releaseGroup: text('release_group'), // e.g., "YTS", "BONE"
+		size: integer('size'), // Size in bytes
+		seeders: integer('seeders'),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+			.notNull(),
+		updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+			.$onUpdate(() => new Date())
+			.notNull(),
+	},
+	(table) => [
+		index('idx_torrent_cache_imdb').on(table.imdbId),
+		index('idx_torrent_cache_tmdb').on(table.tmdbId),
+	]
+);
+
+// ============================================================================
 // Type exports
 // ============================================================================
 
@@ -298,6 +329,8 @@ export type Episode = typeof episodes.$inferSelect;
 export type NewEpisode = typeof episodes.$inferInsert;
 export type Download = typeof downloads.$inferSelect;
 export type NewDownload = typeof downloads.$inferInsert;
+export type TorrentCache = typeof torrentCache.$inferSelect;
+export type NewTorrentCache = typeof torrentCache.$inferInsert;
 
 // ============================================================================
 // Tables object for consolidated import
@@ -312,4 +345,5 @@ export const schema = {
 	seasons,
 	episodes,
 	downloads,
+	torrentCache,
 } as const;

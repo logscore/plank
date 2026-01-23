@@ -1,5 +1,9 @@
 # Torrent Browse Implementation Design
 
+## Status of feature
+
+The browser works to pull in the movie info from TMDB, but Jackett needs to have the indexes of torrent sites added manually (I added YTS, x1337x, and YTS). Until we can find a way to solve, this, we'll need to document the process so users aren't confused. Also this branch is made assuming the public website changes are made, hence to TMDB server service and TMDB cache.
+
 ## Overview
 
 Create a Netflix-style browse interface for recent torrents from YTS (YIFY) as a trusted source, featuring deduplicated content with instant "Add to Library" and "Watch Now" functionality. The implementation will use TanStack Query Svelte for data fetching, TMDB for rich metadata, and local caching for performance.

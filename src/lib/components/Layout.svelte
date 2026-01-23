@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Film, LogOut, Plus, Search, User } from 'lucide-svelte';
+    import { Film, LogOut, Play, Plus, Search, User } from 'lucide-svelte';
     import type { Snippet } from 'svelte';
     import { fade, fly } from 'svelte/transition';
     import { page } from '$app/state';
@@ -17,7 +17,8 @@
     let showAccountMenu = $state(false);
 
     const navItems = [
-        { href: '/', icon: Film, label: 'Browse' },
+        { href: '/', icon: Film, label: 'Library' },
+        { href: '/browse', icon: Play, label: 'Browse' },
         { href: '/search', icon: Search, label: 'Search' },
     ];
 

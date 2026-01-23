@@ -93,6 +93,160 @@ export interface EpisodeMetadata {
 }
 
 // =============================================================================
+// Browse Item Type (for discovery)
+// =============================================================================
+
+export interface BrowseItem {
+	tmdbId: number;
+	imdbId: string | null;
+	title: string;
+	year: number | null;
+	posterUrl: string | null;
+	backdropUrl: string | null;
+	overview: string | null;
+	voteAverage: number | null;
+	genres: string[];
+	// Set by the cache lookup
+	magnetLink?: string;
+	needsResolve: boolean;
+}
+
+// =============================================================================
+// Trending & Popular Movies
+// =============================================================================
+
+interface TMDBTrendingMovie {
+	id: number;
+	title: string;
+	release_date: string;
+	poster_path: string | null;
+	backdrop_path: string | null;
+	overview: string;
+	vote_average: number;
+	genre_ids: number[];
+}
+
+interface TMDBTrendingResponse {
+	results: TMDBTrendingMovie[];
+	page: number;
+	total_pages: number;
+}
+
+// Genre ID to name mapping for movies
+const MOVIE_GENRES: Record<number, string> = {
+	28: 'Action',
+	12: 'Adventure',
+	16: 'Animation',
+	35: 'Comedy',
+	80: 'Crime',
+	99: 'Documentary',
+	18: 'Drama',
+	10751: 'Family',
+	14: 'Fantasy',
+	36: 'History',
+	27: 'Horror',
+	10402: 'Music',
+	9648: 'Mystery',
+	10749: 'Romance',
+	878: 'Science Fiction',
+	10770: 'TV Movie',
+	53: 'Thriller',
+	10752: 'War',
+	37: 'Western',
+};
+
+/**
+ * Get trending movies from TMDB
+ */
+export async function getTrendingMovies(
+	timeWindow: 'day' | 'week' = 'day',
+	page = 1
+): Promise<{ items: BrowseItem[]; totalPages: number }> {
+	const res = await fetch(
+		`${config.tmdb.baseUrl}/trending/movie/${timeWindow}?api_key=${config.tmdb.apiKey}&page=${page}`
+	);
+
+	if (!res.ok) {
+		console.error(`[TMDB] Trending movies failed: ${res.status}`);
+		return { items: [], totalPages: 0 };
+	}
+
+	const data: TMDBTrendingResponse = await res.json();
+
+	const items: BrowseItem[] = data.results.map((movie) => ({
+		tmdbId: movie.id,
+		imdbId: null, // Will be fetched separately if needed
+		title: movie.title,
+		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
+		posterUrl: movie.poster_path
+			? `${config.tmdb.imageBaseUrl}/w342${movie.poster_path}`
+			: null,
+		backdropUrl: movie.backdrop_path
+			? `${config.tmdb.imageBaseUrl}/w780${movie.backdrop_path}`
+			: null,
+		overview: movie.overview ?? null,
+		voteAverage: movie.vote_average ?? null,
+		genres: movie.genre_ids.map((id) => MOVIE_GENRES[id]).filter(Boolean),
+		needsResolve: true,
+	}));
+
+	return { items, totalPages: data.total_pages };
+}
+
+/**
+ * Get popular movies from TMDB
+ */
+export async function getPopularMovies(
+	page = 1
+): Promise<{ items: BrowseItem[]; totalPages: number }> {
+	const res = await fetch(
+		`${config.tmdb.baseUrl}/movie/popular?api_key=${config.tmdb.apiKey}&page=${page}`
+	);
+
+	if (!res.ok) {
+		console.error(`[TMDB] Popular movies failed: ${res.status}`);
+		return { items: [], totalPages: 0 };
+	}
+
+	const data: TMDBTrendingResponse = await res.json();
+
+	const items: BrowseItem[] = data.results.map((movie) => ({
+		tmdbId: movie.id,
+		imdbId: null,
+		title: movie.title,
+		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
+		posterUrl: movie.poster_path
+			? `${config.tmdb.imageBaseUrl}/w342${movie.poster_path}`
+			: null,
+		backdropUrl: movie.backdrop_path
+			? `${config.tmdb.imageBaseUrl}/w780${movie.backdrop_path}`
+			: null,
+		overview: movie.overview ?? null,
+		voteAverage: movie.vote_average ?? null,
+		genres: movie.genre_ids.map((id) => MOVIE_GENRES[id]).filter(Boolean),
+		needsResolve: true,
+	}));
+
+	return { items, totalPages: data.total_pages };
+}
+
+/**
+ * Get IMDB ID for a TMDB movie
+ */
+export async function getMovieExternalIds(tmdbId: number): Promise<{ imdbId: string | null }> {
+	const res = await fetch(
+		`${config.tmdb.baseUrl}/movie/${tmdbId}/external_ids?api_key=${config.tmdb.apiKey}`
+	);
+
+	if (!res.ok) {
+		return { imdbId: null };
+	}
+
+	const data = await res.json();
+	return { imdbId: data.imdb_id ?? null };
+}
+
+// =============================================================================
 // Movie Search & Details
 // =============================================================================
 
@@ -124,9 +278,11 @@ export async function searchMovie(query: string, year?: number | null): Promise<
 		tmdbId: movie.id,
 		title: movie.title,
 		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
-		posterUrl: movie.poster_path ? `${config.tmdb.imageBaseUrl}${movie.poster_path}` : null,
+		posterUrl: movie.poster_path
+			? `${config.tmdb.imageBaseUrl}/w342${movie.poster_path}`
+			: null,
 		backdropUrl: movie.backdrop_path
-			? `${config.tmdb.imageBaseUrl}${movie.backdrop_path}`
+			? `${config.tmdb.imageBaseUrl}/w780${movie.backdrop_path}`
 			: null,
 		overview: movie.overview ?? null,
 	}));
@@ -184,9 +340,11 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 		tmdbId: movie.id,
 		title: movie.title,
 		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
-		posterUrl: movie.poster_path ? `${config.tmdb.imageBaseUrl}${movie.poster_path}` : null,
+		posterUrl: movie.poster_path
+			? `${config.tmdb.imageBaseUrl}/w342${movie.poster_path}`
+			: null,
 		backdropUrl: movie.backdrop_path
-			? `${config.tmdb.imageBaseUrl}${movie.backdrop_path}`
+			? `${config.tmdb.imageBaseUrl}/w780${movie.backdrop_path}`
 			: null,
 		overview: movie.overview ?? null,
 		runtime: movie.runtime ?? null,
@@ -231,8 +389,10 @@ export async function searchTVShow(query: string, year?: number | null): Promise
 		tmdbId: show.id,
 		title: show.name,
 		year: show.first_air_date ? Number.parseInt(show.first_air_date.slice(0, 4), 10) : null,
-		posterUrl: show.poster_path ? `${config.tmdb.imageBaseUrl}${show.poster_path}` : null,
-		backdropUrl: show.backdrop_path ? `${config.tmdb.imageBaseUrl}${show.backdrop_path}` : null,
+		posterUrl: show.poster_path ? `${config.tmdb.imageBaseUrl}/w342${show.poster_path}` : null,
+		backdropUrl: show.backdrop_path
+			? `${config.tmdb.imageBaseUrl}/w780${show.backdrop_path}`
+			: null,
 		overview: show.overview ?? null,
 		totalSeasons: show.number_of_seasons ?? null,
 	}));
@@ -281,8 +441,10 @@ export async function getTVDetails(
 		tmdbId: show.id,
 		title: show.name,
 		year: show.first_air_date ? Number.parseInt(show.first_air_date.slice(0, 4), 10) : null,
-		posterUrl: show.poster_path ? `${config.tmdb.imageBaseUrl}${show.poster_path}` : null,
-		backdropUrl: show.backdrop_path ? `${config.tmdb.imageBaseUrl}${show.backdrop_path}` : null,
+		posterUrl: show.poster_path ? `${config.tmdb.imageBaseUrl}/w342${show.poster_path}` : null,
+		backdropUrl: show.backdrop_path
+			? `${config.tmdb.imageBaseUrl}/w780${show.backdrop_path}`
+			: null,
 		overview: show.overview ?? null,
 		totalSeasons: show.number_of_seasons ?? 0,
 		runtime: show.episode_run_time?.[0] ?? null,
@@ -313,7 +475,9 @@ export async function getSeasonDetails(
 		seasonNumber: season.season_number,
 		name: season.name ?? null,
 		overview: season.overview ?? null,
-		posterPath: season.poster_path ? `${config.tmdb.imageBaseUrl}${season.poster_path}` : null,
+		posterPath: season.poster_path
+			? `${config.tmdb.imageBaseUrl}/w342${season.poster_path}`
+			: null,
 		airDate: season.air_date ?? null,
 		episodeCount: season.episodes?.length ?? 0,
 		episodes:
@@ -321,7 +485,9 @@ export async function getSeasonDetails(
 				episodeNumber: ep.episode_number,
 				title: ep.name ?? null,
 				overview: ep.overview ?? null,
-				stillPath: ep.still_path ? `${config.tmdb.imageBaseUrl}${ep.still_path}` : null,
+				stillPath: ep.still_path
+					? `${config.tmdb.imageBaseUrl}/w300${ep.still_path}`
+					: null,
 				runtime: ep.runtime ?? null,
 				airDate: ep.air_date ?? null,
 			})) ?? [],
