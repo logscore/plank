@@ -1,5 +1,7 @@
 # Plank Architecture & Design Documentation
 
+This may be out of date. Please refer to the [README](/README.md) for the latest information.
+
 ## Overview
 
 Plank is a self-hosted media server that enables users to stream movies and TV shows via BitTorrent. The application allows users to add magnet links, download content in real-time while streaming, and organizes their media library with metadata from The Movie Database (TMDB).
@@ -9,55 +11,10 @@ Plank is a self-hosted media server that enables users to stream movies and TV s
 - **Database:** SQLite with Drizzle ORM
 - **Authentication:** Better-Auth
 - **Torrent Client:** WebTorrent (JavaScript BitTorrent implementation)
+- **Torrent Indexer:** Jackett (with FlareSolverr to bypass Cloudflare)
 - **Video Transcoding:** FFmpeg with fluent-ffmpeg
 - **Styling:** Tailwind CSS
 - **Language:** TypeScript
-
----
-
-## Project Structure
-
-```
-src/
-├── lib/
-│   ├── config.ts              # Application configuration
-│   ├── types.ts               # Shared TypeScript types
-│   ├── auth-client.ts         # Client-side auth utilities
-│   ├── ui-state.svelte.ts     # UI state management
-│   ├── utils.ts               # Utility functions
-│   └── server/
-│       ├── auth.ts            # Better-Auth configuration
-│       ├── db/
-│       │   ├── index.ts       # Database connection (WAL mode)
-│       │   └── schema.ts      # Drizzle schema definitions
-│       ├── db.ts              # Database access layer (CRUD operations)
-│       ├── magnet.ts          # Magnet link parsing
-│       ├── tmdb.ts            # TMDB API integration
-│       ├── torrent.ts         # WebTorrent download management
-│       ├── transcoder.ts      # FFmpeg transmuxing
-│       └── storage.ts         # Image storage service
-├── routes/
-│   ├── api/                   # API endpoints
-│   │   ├── media/             # Media CRUD operations
-│   │   │   ├── +server.ts     # POST: add media, GET: list media
-│   │   │   ├── [id]/          # Single media operations
-│   │   │   │   ├── stream/    # Video streaming endpoint
-│   │   │   │   ├── seasons/   # TV show seasons
-│   │   │   │   ├── progress/  # Playback progress tracking
-│   │   │   │   └── retry/     # Retry failed downloads
-│   │   │   └── search/        # TMDB search
-│   │   ├── auth/              # Auth endpoints (Better-Auth)
-│   │   ├── movies/            # Movie-specific routes
-│   │   └── search/            # Global search
-│   ├── (app)/                 # Protected application routes
-│   │   ├── movie/[id]/        # Movie detail page
-│   │   └── account/           # Account management
-│   ├── images/                # Image serving (posters, backdrops)
-│   └── health/                # Health check endpoint
-├── tests/                     # Vitest unit tests
-├── hooks.server.ts            # Server hooks (auth, recovery, cron)
-└── app.d.ts                   # SvelteKit type extensions
-```
 
 ---
 
@@ -308,8 +265,8 @@ const config = {
 |----------|-------------|---------|
 | `DATABASE_URL` | SQLite database path | `./plank.db` |
 | `DATA_PATH` | Base data directory | `./data` |
-| `BETTER_AUTH_SECRET` | Auth signing secret | Required |
-| `BETTER_AUTH_URL` | Base URL for auth | `http://localhost:3000` |
+| `AUTH_SECRET` | Auth signing secret | Required |
+| `AUTH_URL` | Base URL for auth | `http://localhost:3000` |
 | `TMDB_API_KEY` | TMDB API key | Required for metadata |
 | `PORT` | Server port | `3000` |
 

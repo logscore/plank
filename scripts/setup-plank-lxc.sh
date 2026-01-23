@@ -160,8 +160,8 @@ pct exec $CTID -- bash -c "$SETUP_SCRIPT"
 
 # Create environment file
 echo -e "${GREEN}Creating environment configuration...${NC}"
-ENV_CONTENT="BETTER_AUTH_SECRET=${AUTH_SECRET}
-BETTER_AUTH_URL=http://localhost:3000
+ENV_CONTENT="AUTH_SECRET=${AUTH_SECRET}
+AUTH_URL=http://localhost:3000
 DATABASE_URL=/opt/plank/db/plank.db
 DATA_PATH=/opt/plank/data"
 
@@ -205,7 +205,7 @@ pct exec $CTID -- systemctl start plank
 sleep 3
 CT_IP=$(pct exec $CTID -- hostname -I | awk '{print $1}')
 
-# Update BETTER_AUTH_URL with actual IP
+# Update AUTH_URL with actual IP
 pct exec $CTID -- sed -i "s|http://localhost:3000|http://${CT_IP}:3000|g" /opt/plank/.env
 pct exec $CTID -- systemctl restart plank
 

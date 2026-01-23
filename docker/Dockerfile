@@ -13,10 +13,10 @@ COPY . .
 
 # Set dummy secrets for build time - better-auth validates these during build
 # Real values are provided at runtime via docker-compose environment
-ARG BETTER_AUTH_SECRET=dummy-build-secret-replace-at-runtime
-ARG BETTER_AUTH_URL=http://localhost:3000
-ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
-ENV BETTER_AUTH_URL=$BETTER_AUTH_URL
+ARG AUTH_SECRET=dummy-build-secret-replace-at-runtime
+ARG AUTH_URL=http://localhost:3000
+ENV AUTH_SECRET=$AUTH_SECRET
+ENV AUTH_URL=$AUTH_URL
 
 RUN npm run build
 
