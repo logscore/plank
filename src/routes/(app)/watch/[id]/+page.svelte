@@ -170,9 +170,7 @@
         <div class="flex items-center justify-center w-full h-full">
             <div class="text-center">
                 <p class="text-destructive text-xl font-bold mb-4">{error}</p>
-                <a href="/">
-                    <Button variant="secondary">Go Back</Button>
-                </a>
+                <Button variant="secondary" onclick={() => window.history.back()}>Go Back</Button>
             </div>
         </div>
     {:else}
@@ -183,13 +181,13 @@
                 : 'opacity-0'}"
         >
             <!-- Back Button -->
-            <a href="/" class="inline-block">
-                <button
-                    class="bg-black/50 hover:bg-black/70 text-white rounded-full p-3 backdrop-blur-sm transition-all hover:scale-105"
-                >
-                    <ArrowLeft class="w-6 h-6" />
-                </button>
-            </a>
+
+            <button
+                onclick={() => window.history.back()}
+                class="bg-black/50 hover:bg-black/70 text-white rounded-full p-3 backdrop-blur-sm transition-all hover:scale-105"
+            >
+                <ArrowLeft class="w-6 h-6" />
+            </button>
 
             <!-- Menu Button -->
             <div class="relative" id="player-menu">
