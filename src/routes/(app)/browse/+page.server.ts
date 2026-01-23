@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { config } from '$lib/config';
 import {
 	type BrowseItem,
 	getMovieExternalIds,
@@ -11,6 +12,54 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ url, locals }) => {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
+	}
+
+	// Check Jackett configuration
+	const jackettConfigured = !!config.jackett.apiKey;
+	let jackettStatus = 'not_configured';
+	let hasIndexers = false;
+
+	if (jackettConfigured) {
+		try {
+			// Test Jackett connectivity with a limited movie search
+			// Use a popular movie IMDB ID to test if indexers are working
+			const testResponse = await fetch(
+				`${config.jackett.url}/api/v2.0/indexers/all/results?apikey=${config.jackett.apiKey}&Query=tt0080684&Limit=1`,
+				{
+					headers: { Accept: 'application/json' },
+					signal: AbortSignal.timeout(10_000), // 10 second timeout for search
+				}
+			);
+
+			if (testResponse.ok) {
+				const response = await testResponse.json();
+
+				// If we get any Results, it means at least one indexer is configured and working
+				hasIndexers =
+					response.Results &&
+					Array.isArray(response.Results) &&
+					response.Results.length > 0;
+				jackettStatus = hasIndexers ? 'configured' : 'no_indexers';
+			} else {
+				jackettStatus = 'connection_failed';
+			}
+		} catch {
+			jackettStatus = 'connection_failed';
+		}
+	}
+
+	// If Jackett is not properly configured, return setup state
+	if (!jackettConfigured || jackettStatus === 'no_indexers') {
+		return {
+			items: [],
+			page: 1,
+			totalPages: 0,
+			type: 'trending',
+			jackettConfigured,
+			jackettStatus,
+			hasIndexers,
+			needsSetup: true,
+		};
 	}
 
 	const type = (url.searchParams.get('type') as 'trending' | 'popular') || 'trending';
@@ -65,5 +114,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		page,
 		totalPages: result.totalPages,
 		type,
+		jackettConfigured,
+		jackettStatus,
+		hasIndexers,
+		needsSetup: false,
 	};
 };

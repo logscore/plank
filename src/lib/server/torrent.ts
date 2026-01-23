@@ -551,7 +551,7 @@ function startCompletionChecker(
 	download: ActiveDownload,
 	torrent: Torrent
 ): void {
-	const logPrefix = `[${download.mediaId}:${infohash.slice(0, 8)}]`;
+	const _logPrefix = `[${download.mediaId}:${infohash.slice(0, 8)}]`;
 
 	const checkInterval = setInterval(() => {
 		// Stop checking if download is no longer active or already complete
@@ -565,7 +565,7 @@ function startCompletionChecker(
 			// console.log(`${logPrefix} Completion checker detected finished download`);
 			clearInterval(checkInterval);
 			handleDownloadComplete(infohash, download, torrent).catch((err) => {
-				console.error(`${logPrefix} Error in completion checker:`, err);
+				console.error(`${_logPrefix} Error in completion checker:`, err);
 			});
 			return;
 		}
@@ -577,7 +577,7 @@ function startCompletionChecker(
 				// console.log(`${logPrefix} Completion checker detected all files finished`);
 				clearInterval(checkInterval);
 				handleDownloadComplete(infohash, download, torrent).catch((err) => {
-					console.error(`${logPrefix} Error in completion checker:`, err);
+					console.error(`${_logPrefix} Error in completion checker:`, err);
 				});
 			}
 		}

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Film, Plus, Tv } from 'lucide-svelte';
+    import { Film, Tv } from 'lucide-svelte';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
     import MediaCard from '$lib/components/MediaCard.svelte';
     import Button from '$lib/components/ui/Button.svelte';
@@ -50,7 +50,9 @@
         error = '';
 
         try {
-            const body: { magnetLink: string; type?: MediaType } = { magnetLink: magnetInput };
+            const body: { magnetLink: string; type?: MediaType } = {
+                magnetLink: magnetInput,
+            };
             if (selectedType) {
                 body.type = selectedType;
             }
@@ -101,7 +103,9 @@
             async () => {
                 try {
                     deletingId = id;
-                    const res = await fetch(`/api/media/${id}`, { method: 'DELETE' });
+                    const res = await fetch(`/api/media/${id}`, {
+                        method: 'DELETE',
+                    });
                     if (res.ok) {
                         movies = movies.filter((m) => m.id !== id);
                         shows = shows.filter((s) => s.id !== id);
@@ -120,38 +124,58 @@
     });
 </script>
 
-<div class="container mx-auto px-4 py-8">
-    <!-- Tabs -->
-    <div class="flex gap-2 mb-6 border-b border-border pb-4">
-        <Button
-            variant={activeTab === 'movies' ? 'default' : 'ghost'}
-            onclick={() => activeTab = 'movies'}
-        >
-            <Film class="w-4 h-4 mr-2" />
-            Movies
-            {#if movies.length > 0}
-                <span class="ml-2 text-xs bg-accent px-2 py-0.5 rounded-full">
-                    {movies.length}
-                </span>
-            {/if}
-        </Button>
-        <Button variant={activeTab === 'tv' ? 'default' : 'ghost'} onclick={() => activeTab = 'tv'}>
-            <Tv class="w-4 h-4 mr-2" />
-            TV Shows
-            {#if shows.length > 0}
-                <span class="ml-2 text-xs bg-accent px-2 py-0.5 rounded-full">
-                    {shows.length}
-                </span>
-            {/if}
-        </Button>
+<div class="min-h-screen pb-20 bg-background">
+    <!-- Header -->
+    <div
+        class="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 supports-backdrop-filter:bg-background/60"
+    >
+        <div class="container max-w-7xl mx-auto px-4">
+            <!-- Top Bar -->
+            <div class="flex items-center justify-between py-3 h-15">
+                <h1 class="text-xl font-semibold tracking-tight">Library</h1>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="flex items-center space-x-2 py-2">
+                <Button
+                    variant={activeTab === "movies" ? "default" : "ghost"}
+                    onclick={() => (activeTab = "movies")}
+                >
+                    <Film class="w-4 h-4 mr-2" />
+                    Movies
+                    {#if movies.length > 0}
+                        <span
+                            class="ml-2 text-xs bg-accent px-2 py-0.5 rounded-full text-foreground"
+                        >
+                            {movies.length}
+                        </span>
+                    {/if}
+                </Button>
+                <Button
+                    variant={activeTab === "tv" ? "default" : "ghost"}
+                    onclick={() => (activeTab = "tv")}
+                >
+                    <Tv class="w-4 h-4 mr-2" />
+                    TV Shows
+                    {#if shows.length > 0}
+                        <span
+                            class="ml-2 text-xs bg-accent px-2 py-0.5 rounded-full text-foreground"
+                        >
+                            {shows.length}
+                        </span>
+                    {/if}
+                </Button>
+            </div>
+        </div>
     </div>
 
-    {#if loading}
-        <div class="flex items-center justify-center p-20">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-    {:else}
-        {#if activeTab === 'movies'}
+    <!-- Content -->
+    <div class="container max-w-7xl mx-auto px-4 py-8">
+        {#if loading}
+            <div class="flex items-center justify-center p-20">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+        {:else if activeTab === "movies"}
             {#if movies.length === 0}
                 <div class="flex flex-col items-center justify-center p-20 text-center space-y-4">
                     <div class="p-6 rounded-full bg-accent/30">
@@ -169,26 +193,22 @@
                     {/each}
                 </div>
             {/if}
+        {:else if shows.length === 0}
+            <div class="flex flex-col items-center justify-center p-20 text-center space-y-4">
+                <div class="p-6 rounded-full bg-accent/30">
+                    <Tv class="w-10 h-10 text-muted-foreground" />
+                </div>
+                <h3 class="text-xl font-semibold">No TV shows yet</h3>
+                <p class="text-muted-foreground max-w-sm">Add TV shows using the + button below.</p>
+            </div>
         {:else}
-            {#if shows.length === 0}
-                <div class="flex flex-col items-center justify-center p-20 text-center space-y-4">
-                    <div class="p-6 rounded-full bg-accent/30">
-                        <Tv class="w-10 h-10 text-muted-foreground" />
-                    </div>
-                    <h3 class="text-xl font-semibold">No TV shows yet</h3>
-                    <p class="text-muted-foreground max-w-sm">
-                        Add TV shows using the + button below.
-                    </p>
-                </div>
-            {:else}
-                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-                    {#each shows as media (media.id)}
-                        <MediaCard {media} onDelete={deleteMedia} />
-                    {/each}
-                </div>
-            {/if}
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                {#each shows as media (media.id)}
+                    <MediaCard {media} onDelete={deleteMedia} />
+                {/each}
+            </div>
         {/if}
-    {/if}
+    </div>
 </div>
 
 <!-- Add Media Dialog - Controlled by Global Store -->
@@ -201,7 +221,7 @@
         <Input
             placeholder="magnet:?xt=urn:btih:..."
             bind:value={magnetInput}
-            onkeydown={(e) => e.key === 'Enter' && addMagnet()}
+            onkeydown={(e) => e.key === "Enter" && addMagnet()}
             autofocus
         />
 
@@ -209,24 +229,24 @@
         <div class="flex gap-2">
             <span class="text-sm text-muted-foreground self-center">Type:</span>
             <Button
-                variant={selectedType === null ? 'default' : 'ghost'}
+                variant={selectedType === null ? "default" : "ghost"}
                 size="sm"
-                onclick={() => selectedType = null}
+                onclick={() => (selectedType = null)}
             >
                 Auto-detect
             </Button>
             <Button
-                variant={selectedType === 'movie' ? 'default' : 'ghost'}
+                variant={selectedType === "movie" ? "default" : "ghost"}
                 size="sm"
-                onclick={() => selectedType = 'movie'}
+                onclick={() => (selectedType = "movie")}
             >
                 <Film class="w-3 h-3 mr-1" />
                 Movie
             </Button>
             <Button
-                variant={selectedType === 'tv' ? 'default' : 'ghost'}
+                variant={selectedType === "tv" ? "default" : "ghost"}
                 size="sm"
-                onclick={() => selectedType = 'tv'}
+                onclick={() => (selectedType = "tv")}
             >
                 <Tv class="w-3 h-3 mr-1" />
                 TV Show
@@ -238,8 +258,8 @@
         {/if}
     </div>
     <div class="flex justify-end gap-2">
-        <Button variant="ghost" onclick={() => uiState.addMediaDialogOpen = false}>Cancel</Button>
-        <Button onclick={addMagnet} disabled={adding}>{adding ? 'Adding...' : 'Add Media'}</Button>
+        <Button variant="ghost" onclick={() => (uiState.addMediaDialogOpen = false)}>Cancel</Button>
+        <Button onclick={addMagnet} disabled={adding}>{adding ? "Adding..." : "Add Media"}</Button>
     </div>
 </Dialog>
 
