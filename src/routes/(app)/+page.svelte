@@ -171,7 +171,7 @@
                     <div class="p-6 rounded-full bg-accent/30">
                         <Film class="w-10 h-10 text-muted-foreground" />
                     </div>
-                    <h3 class="text-xl font-semibold">No movies yet</h3>
+                    <h2 class="text-xl font-semibold">No movies yet</h2>
                     <p class="text-muted-foreground max-w-sm">Add movies using the + button below.</p>
                 </div>
             {:else}

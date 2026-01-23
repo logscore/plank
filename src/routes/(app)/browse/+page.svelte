@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { Flame, Loader2, Search, Trophy } from 'lucide-svelte';
+    import { untrack } from 'svelte';
+    import { Flame, Loader2, Trophy } from 'lucide-svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/stores';
     import JackettSetup from '$lib/components/JackettSetup.svelte';
@@ -44,11 +45,9 @@
     let addingItems = $state<Set<number>>(new Set());
     let resolvingItems = $state<Set<number>>(new Set());
 
-    // Data State
-    let items = $derived(data.items);
+    // Data State - derive directly from data prop
     let activeTab = $derived(data.type);
     let activeFilter = $derived(data.filter || 'all');
-    let currentPage = $derived(data.page);
     let totalPages = $derived(data.totalPages);
 
     // For infinite scroll loading state
@@ -57,7 +56,12 @@
     // Load more trigger element
     let loadMoreTrigger: HTMLDivElement | null = $state(null);
 
-    const hasMore = $derived(currentPage < totalPages);
+    // Infinite scroll state
+    let appendedItems = $state<BrowseItem[]>([]);
+    let localPage = $state(untrack(() => data.page));
+    let previousUrlKey = $state($page.url.search);
+
+    const hasMore = $derived(localPage < totalPages);
 
     // Resolve torrent from IMDB ID via Jackett
     async function resolveTorrent(item: BrowseItem): Promise<ResolveResponse> {
@@ -76,24 +80,30 @@
         return response.json();
     }
 
-    // We need a local state for appended items to support infinite scroll combined with server data
-    let appendedItems = $state<BrowseItem[]>([]);
-
-    // When data changes (tab switch or filter switch), reset appended items
+    // Reset scroll state when URL changes (tab/filter switch)
     $effect(() => {
-        if (data.type || data.filter) {
+        const currentKey = $page.url.search;
+        if (currentKey !== previousUrlKey) {
             appendedItems = [];
+            localPage = data.page;
+            previousUrlKey = currentKey;
         }
     });
 
-    // Combined items view
-    let displayItems = $derived([...items, ...appendedItems]);
-
-    // Shadow current page for infinite scroll logic
-    let localPage = $state(data.page);
-    $effect(() => {
-        localPage = data.page;
-    }); // Sync on data change
+    // Combine server data + appended items, deduplicated with unique keys
+    let displayItems = $derived.by(() => {
+        const seen = new Set<number>();
+        const ctx = `${data.type}-${data.filter}`;
+        return [...data.items, ...appendedItems]
+            .filter((item) => {
+                if (seen.has(item.tmdbId)) {
+                    return false;
+                }
+                seen.add(item.tmdbId);
+                return true;
+            })
+            .map((item) => ({ ...item, _key: `${ctx}-${item.tmdbId}` }));
+    });
 
     async function loadMore() {
         if (isFetchingMore || localPage >= totalPages) {
@@ -133,7 +143,7 @@
                     loadMore();
                 }
             },
-            { rootMargin: '375px' }
+            { rootMargin: '400px' }
         );
 
         observer.observe(loadMoreTrigger);
@@ -250,15 +260,6 @@
             <!-- Top Bar with Search -->
             <div class="flex items-center justify-between py-3 h-15">
                 <h1 class="text-2xl font-semibold tracking-tight">Browse</h1>
-                <!-- The search functionality will be consolidated to the search page with a simple toggle for in library vs browse search -->
-                <!-- <div class="relative w-full max-w-xs md:max-w-sm ml-4">
-                    <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <input
-                        type="search"
-                        placeholder="Search movies..."
-                        class="w-full rounded-full bg-muted/50 pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all border border-transparent focus:border-primary/20"
-                    />
-                </div> -->
             </div>
 
             <!-- Tab Navigation & Filter -->
@@ -316,13 +317,13 @@
             <!-- Empty State -->
             <div class="text-center py-20 bg-muted/30 rounded-lg border border-dashed border-border mx-auto max-w-2xl">
                 <Trophy class="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-                <h3 class="text-lg font-medium text-foreground mb-1">No content found</h3>
+                <h2 class="text-lg font-medium text-foreground mb-1">No content found</h2>
                 <p class="text-muted-foreground">Check your indexer and Jackett configuration.</p>
             </div>
         {:else}
             <!-- Movie Grid -->
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {#each displayItems as item (item.tmdbId)}
+                {#each displayItems as item (item._key)}
                     <TorrentCard
                         {item}
                         onAddToLibrary={handleAddToLibrary}
