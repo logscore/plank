@@ -51,7 +51,9 @@ async function ensureVideoReady(
 			throw error(503, status.error || 'Download failed');
 		}
 		if (status?.status === 'initializing') {
-			return new Response('Torrent is initializing, please try again shortly', { status: 202 });
+			return new Response('Torrent is initializing, please try again shortly', {
+				status: 202,
+			});
 		}
 		return new Response('Video is buffering, please wait...', { status: 202 });
 	}

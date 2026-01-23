@@ -42,7 +42,12 @@ export class ImageStorageService {
 	/**
 	 * Download file from URL and save it
 	 */
-	async saveFromUrl(category: string, id: string, filename: string, url: string): Promise<string> {
+	async saveFromUrl(
+		category: string,
+		id: string,
+		filename: string,
+		url: string
+	): Promise<string> {
 		const res = await fetch(url);
 		if (!res.ok) {
 			throw new Error(`Failed to fetch image from ${url}: ${res.statusText}`);

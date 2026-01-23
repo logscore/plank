@@ -125,7 +125,9 @@ export async function searchMovie(query: string, year?: number | null): Promise<
 		title: movie.title,
 		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
 		posterUrl: movie.poster_path ? `${config.tmdb.imageBaseUrl}${movie.poster_path}` : null,
-		backdropUrl: movie.backdrop_path ? `${config.tmdb.imageBaseUrl}${movie.backdrop_path}` : null,
+		backdropUrl: movie.backdrop_path
+			? `${config.tmdb.imageBaseUrl}${movie.backdrop_path}`
+			: null,
 		overview: movie.overview ?? null,
 	}));
 }
@@ -167,7 +169,9 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 			const usRelease = certData.results?.find((r) => r.iso_3166_1 === 'US');
 			if (usRelease) {
 				// Prefer theatrical release (type 3), then any with certification
-				const theatrical = usRelease.release_dates.find((r) => r.type === 3 && r.certification);
+				const theatrical = usRelease.release_dates.find(
+					(r) => r.type === 3 && r.certification
+				);
 				const anyCert = usRelease.release_dates.find((r) => r.certification);
 				certification = theatrical?.certification || anyCert?.certification || null;
 			}
@@ -181,7 +185,9 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 		title: movie.title,
 		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
 		posterUrl: movie.poster_path ? `${config.tmdb.imageBaseUrl}${movie.poster_path}` : null,
-		backdropUrl: movie.backdrop_path ? `${config.tmdb.imageBaseUrl}${movie.backdrop_path}` : null,
+		backdropUrl: movie.backdrop_path
+			? `${config.tmdb.imageBaseUrl}${movie.backdrop_path}`
+			: null,
 		overview: movie.overview ?? null,
 		runtime: movie.runtime ?? null,
 		genres: movie.genres ? JSON.stringify(movie.genres.map((g) => g.name)) : null,
@@ -295,7 +301,9 @@ export async function getSeasonDetails(
 	);
 
 	if (!res.ok) {
-		console.error(`[TMDB] Failed to fetch season ${seasonNumber} for TV ${tmdbId}: ${res.status}`);
+		console.error(
+			`[TMDB] Failed to fetch season ${seasonNumber} for TV ${tmdbId}: ${res.status}`
+		);
 		throw new Error(`TMDB API error: ${res.status}`);
 	}
 

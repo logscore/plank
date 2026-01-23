@@ -834,7 +834,10 @@ async function initializeDownload(
 			if (download.mediaType === 'movie' && download.videoFile) {
 				download.progress = download.videoFile.progress;
 			} else if (download.mediaType === 'tv' && download.videoFiles.length > 0) {
-				const totalDownloaded = download.videoFiles.reduce((sum, f) => sum + f.downloaded, 0);
+				const totalDownloaded = download.videoFiles.reduce(
+					(sum, f) => sum + f.downloaded,
+					0
+				);
 				download.progress = totalDownloaded / download.totalSize;
 			}
 
@@ -1286,7 +1289,9 @@ export function selectEpisode(
 
 	// Find a download that has this episode
 	const downloads = getDownloadsForMedia(mediaId);
-	const download = downloads.find((d) => d.mediaType === 'tv' && d.episodeMapping.has(episodeKey));
+	const download = downloads.find(
+		(d) => d.mediaType === 'tv' && d.episodeMapping.has(episodeKey)
+	);
 
 	if (!download) {
 		return false;

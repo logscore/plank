@@ -89,7 +89,11 @@ export const mediaDb = {
 			.select()
 			.from(mediaTable)
 			.where(
-				and(eq(mediaTable.tmdbId, tmdbId), eq(mediaTable.userId, userId), eq(mediaTable.type, type))
+				and(
+					eq(mediaTable.tmdbId, tmdbId),
+					eq(mediaTable.userId, userId),
+					eq(mediaTable.type, type)
+				)
 			)
 			.get();
 	},
@@ -292,7 +296,9 @@ export const seasonsDb = {
 		return db
 			.select()
 			.from(seasonsTable)
-			.where(and(eq(seasonsTable.mediaId, mediaId), eq(seasonsTable.seasonNumber, seasonNumber)))
+			.where(
+				and(eq(seasonsTable.mediaId, mediaId), eq(seasonsTable.seasonNumber, seasonNumber))
+			)
 			.get();
 	},
 
@@ -403,7 +409,10 @@ export const episodesDb = {
 			.select()
 			.from(episodesTable)
 			.where(
-				and(eq(episodesTable.seasonId, seasonId), eq(episodesTable.episodeNumber, episodeNumber))
+				and(
+					eq(episodesTable.seasonId, seasonId),
+					eq(episodesTable.episodeNumber, episodeNumber)
+				)
 			)
 			.get();
 	},
@@ -426,7 +435,10 @@ export const episodesDb = {
 		downloadedBytes: number,
 		status: 'pending' | 'downloading' | 'complete' | 'error'
 	) {
-		db.update(episodesTable).set({ downloadedBytes, status }).where(eq(episodesTable.id, id)).run();
+		db.update(episodesTable)
+			.set({ downloadedBytes, status })
+			.where(eq(episodesTable.id, id))
+			.run();
 	},
 
 	/**

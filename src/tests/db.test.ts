@@ -130,7 +130,10 @@ const movies = {
 	},
 
 	updateLastPlayed(id: string) {
-		db.update(schema.media).set({ lastPlayedAt: new Date() }).where(eq(schema.media.id, id)).run();
+		db.update(schema.media)
+			.set({ lastPlayedAt: new Date() })
+			.where(eq(schema.media.id, id))
+			.run();
 	},
 };
 
@@ -512,7 +515,9 @@ describe('Database Constraints and Integrity', () => {
 		db.delete(schema.user).where(eq(schema.user.id, testUser.id)).run();
 
 		// Verify movie is also deleted (cascade)
-		const moviesAfterDelete = testDb.prepare('SELECT * FROM media WHERE id = ?').get(created.id);
+		const moviesAfterDelete = testDb
+			.prepare('SELECT * FROM media WHERE id = ?')
+			.get(created.id);
 		expect(moviesAfterDelete).toBeUndefined();
 	});
 });

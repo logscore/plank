@@ -237,13 +237,19 @@ const seasonsDb = {
 			.select()
 			.from(schema.seasons)
 			.where(
-				and(eq(schema.seasons.mediaId, mediaId), eq(schema.seasons.seasonNumber, seasonNumber))
+				and(
+					eq(schema.seasons.mediaId, mediaId),
+					eq(schema.seasons.seasonNumber, seasonNumber)
+				)
 			)
 			.get();
 	},
 
 	updateEpisodeCount(id: string, count: number) {
-		db.update(schema.seasons).set({ episodeCount: count }).where(eq(schema.seasons.id, id)).run();
+		db.update(schema.seasons)
+			.set({ episodeCount: count })
+			.where(eq(schema.seasons.id, id))
+			.run();
 	},
 };
 
@@ -720,9 +726,24 @@ describe('Episodes Database Module', () => {
 			seasonNumber: 1,
 		});
 
-		episodesDb.create({ seasonId: season.id, episodeNumber: 1, title: 'Ep 1', displayOrder: 2 });
-		episodesDb.create({ seasonId: season.id, episodeNumber: 2, title: 'Ep 2', displayOrder: 0 });
-		episodesDb.create({ seasonId: season.id, episodeNumber: 3, title: 'Ep 3', displayOrder: 1 });
+		episodesDb.create({
+			seasonId: season.id,
+			episodeNumber: 1,
+			title: 'Ep 1',
+			displayOrder: 2,
+		});
+		episodesDb.create({
+			seasonId: season.id,
+			episodeNumber: 2,
+			title: 'Ep 2',
+			displayOrder: 0,
+		});
+		episodesDb.create({
+			seasonId: season.id,
+			episodeNumber: 3,
+			title: 'Ep 3',
+			displayOrder: 1,
+		});
 
 		const episodes = episodesDb.getBySeasonId(season.id);
 
@@ -875,8 +896,18 @@ describe('Cascade Delete', () => {
 			seasonNumber: 1,
 		});
 
-		episodesDb.create({ seasonId: season.id, episodeNumber: 1, title: 'Ep 1', displayOrder: 0 });
-		episodesDb.create({ seasonId: season.id, episodeNumber: 2, title: 'Ep 2', displayOrder: 1 });
+		episodesDb.create({
+			seasonId: season.id,
+			episodeNumber: 1,
+			title: 'Ep 1',
+			displayOrder: 0,
+		});
+		episodesDb.create({
+			seasonId: season.id,
+			episodeNumber: 2,
+			title: 'Ep 2',
+			displayOrder: 1,
+		});
 
 		// Delete the media, which should cascade to seasons and episodes
 		mediaDb.delete(tvShow.id, testUser.id);
