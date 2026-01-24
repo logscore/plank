@@ -57,7 +57,7 @@ export async function searchTorrents(params: TorrentSearchParams): Promise<Torre
 	const response = await fetch(`/api/torrents/search?${searchParams}`);
 
 	if (!response.ok) {
-		throw createFetchError(`Failed to search torrents: ${response.statusText}`, response.status);
+		throw createFetchError(`Failed to search the web: ${response.statusText}`, response.status);
 	}
 
 	return response.json();

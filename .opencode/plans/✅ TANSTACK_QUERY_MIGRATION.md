@@ -316,7 +316,7 @@ export async function searchTorrents(params: TorrentSearchParams): Promise<Torre
   const response = await fetch(`/api/torrents/search?${searchParams}`);
   
   if (!response.ok) {
-    throw new Error(`Failed to search torrents: ${response.statusText}`);
+    throw new Error(`Failed to search the: ${response.statusText}`);
   }
   
   return response.json();

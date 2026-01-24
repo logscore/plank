@@ -305,7 +305,7 @@
                 oninput={handleInput}
                 placeholder={searchType === "local"
                     ? "Search your library..."
-                    : "Search torrents..."}
+                    : "Search the web..."}
                 autocomplete="off"
                 autofocus
                 class="w-full h-14 rounded-full border border-border bg-card pl-12 pr-24 text-lg outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/50 transition-all"
@@ -348,7 +348,7 @@
     {:else}
         <div class="flex flex-col items-center justify-center p-20 text-center space-y-4 text-muted-foreground">
             <Search class="w-12 h-12 opacity-30" />
-            <p>Search your library or torrents</p>
+            <p>Search your library or the web for movies and TV shows.</p>
         </div>
     {/if}
 </div>
