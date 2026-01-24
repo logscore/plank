@@ -79,6 +79,38 @@
     }
 
     const isDisabled = $derived(isAdding);
+
+    let progressState = $state<'idle' | 'adding' | 'completing'>('idle');
+    let progressWidth = $state(0);
+    let transitionDuration = $state(0);
+
+    $effect(() => {
+        if (isAdding) {
+            if (progressState === 'idle') {
+                progressState = 'adding';
+                progressWidth = 0;
+                transitionDuration = 0;
+
+                // Allow DOM to update with 0% width first
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        progressWidth = 90;
+                        transitionDuration = 15000;
+                    });
+                });
+            }
+        } else if (progressState === 'adding') {
+            progressState = 'completing';
+            progressWidth = 100;
+            transitionDuration = 200; // Fast finish
+
+            setTimeout(() => {
+                progressState = 'idle';
+                progressWidth = 0;
+                transitionDuration = 0;
+            }, 500); // Wait for completion animation
+        }
+    });
 </script>
 
 <div
@@ -134,6 +166,15 @@
                 <span class="text-sm text-center px-4">{item.title}</span>
             </div>
         {/if}
+
+        <!-- Progress Bar -->
+        {#if progressState !== "idle"}
+            <div
+                class="absolute bottom-0 left-0 h-1 bg-red-600 transition-all ease-out z-20"
+                style:width="{progressWidth}%"
+                style:transition-duration="{transitionDuration}ms"
+            ></div>
+        {/if}
     </div>
 
     <!-- Details Overlay -->
@@ -184,20 +225,11 @@
                 disabled={isDisabled}
                 title="Add to Library"
             >
-                {#if isAdding}
-                    <LoaderCircle class="w-3 h-3 mr-1 animate-spin" />
-                    Adding...
-                {:else}
-                    <Plus class="w-3 h-3 mr-1" />
-                    Add
-                {/if}
+                <Plus class="w-3 h-3 mr-1" />
+                Add
             </Button>
             <Button size="sm" class="flex-1 text-xs" onclick={handleWatchNow} disabled={isDisabled} title="Watch Now">
-                {#if isAdding}
-                    <LoaderCircle class="w-3 h-3 mr-1 animate-spin" />
-                {:else}
-                    <Play class="w-3 h-3 mr-1 fill-current" />
-                {/if}
+                <Play class="w-3 h-3 mr-1 fill-current" />
                 Watch
             </Button>
         </div>
