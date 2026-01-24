@@ -1,29 +1,7 @@
 <script lang="ts">
-    import { ChevronDown, ChevronRight, Play } from 'lucide-svelte';
+    import { ChevronDown, ChevronRight, Play } from '@lucide/svelte';
     import Button from '$lib/components/ui/Button.svelte';
-
-    interface Episode {
-        id: string;
-        episodeNumber: number;
-        title: string | null;
-        overview: string | null;
-        stillPath: string | null;
-        runtime: number | null;
-        airDate: string | null;
-        fileIndex: number | null;
-        filePath: string | null;
-    }
-
-    interface Season {
-        id: string;
-        seasonNumber: number;
-        name: string | null;
-        overview: string | null;
-        posterPath: string | null;
-        airDate: string | null;
-        episodeCount: number | null;
-        episodes: Episode[];
-    }
+    import type { Episode, SeasonWithEpisodes } from '$lib/types';
 
     let {
         seasons,
@@ -33,7 +11,7 @@
         buttonClass = '',
         class: className = '',
     }: {
-        seasons: Season[];
+        seasons: SeasonWithEpisodes[];
         onPlayEpisode: (episodeId: string, episode: Episode) => void;
         onOpen?: () => Promise<void>;
         buttonSize?: 'default' | 'sm' | 'lg' | 'icon';

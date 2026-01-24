@@ -3,8 +3,9 @@
 - [ ] Migrate user manaement to organizations so admin users can add new people to access their stuff
 - [ ] Handle no TMDB api key by having a poster placeholder
 - [ ] Torrent search added to search page functionality. Specify search you library vs search the index
-- [ ] Implement a caching system for torrents. Maybe use index db or a local store (tanstack db?) so we dont hit the TMDB api so much.
-  - [ ] Maybe migrate to tanstack query/tanstack db
+- [x] Implement a caching system for torrents. Maybe use index db or a local store (tanstack db?) so we dont hit the TMDB api so much.
+  - [x] Maybe migrate to tanstack query/tanstack db
+    - We used tanstack query, but tanstack db might be a fun experiment
 - [ ] Public website mode
   - [ ] Stream torrents on the client only. TMDB service is still provided (secures our API key), but that's it. Everything else is handled by the client. We shouldnt even use Jackett for this mode.
   - [ ] When a magnet link is added, stream it right away and store th metadata and magnet link on the browser for restreaming if they want to watch it again.

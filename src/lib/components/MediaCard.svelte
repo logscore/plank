@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Info, MoreVertical, Play, RotateCcw, Trash2 } from 'lucide-svelte';
+    import { Info, MoreVertical, Play, RotateCcw, Trash2 } from '@lucide/svelte';
     import { goto } from '$app/navigation';
     import EpisodeSelector from '$lib/components/EpisodeSelector.svelte';
     import type { Media, SeasonWithEpisodes } from '$lib/types';

@@ -1,8 +1,8 @@
 <script lang="ts">
+    import { Flame, Trophy } from '@lucide/svelte';
     import { createInfiniteQuery } from '@tanstack/svelte-query';
-    import { Flame, Trophy } from 'lucide-svelte';
     import { goto } from '$app/navigation';
-    import { navigating } from '$app/stores';
+    import { navigating } from '$app/state';
     import { env } from '$env/dynamic/public';
     import CardSkeleton from '$lib/components/CardSkeleton.svelte';
     import JackettSetup from '$lib/components/JackettSetup.svelte';
@@ -82,7 +82,6 @@
             .map((item) => ({ ...item, _key: `${ctx}-${item.tmdbId}` }));
     });
 
-    const totalPages = $derived(browseQuery.data?.pages[0]?.totalPages ?? 0);
     const hasMore = $derived(browseQuery.hasNextPage);
     const isFetchingMore = $derived(browseQuery.isFetchingNextPage);
 
@@ -221,7 +220,8 @@
                     <a
                         href="/browse?type=trending&filter={activeFilter}"
                         data-sveltekit-noscroll
-                        onmouseenter={() => prefetchBrowse("trending", activeFilter)}
+                        onmouseenter={() =>
+                            prefetchBrowse("trending", activeFilter)}
                         onfocus={() => prefetchBrowse("trending", activeFilter)}
                         class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 {activeTab ===
                         'trending'
@@ -234,7 +234,8 @@
                     <a
                         href="/browse?type=popular&filter={activeFilter}"
                         data-sveltekit-noscroll
-                        onmouseenter={() => prefetchBrowse("popular", activeFilter)}
+                        onmouseenter={() =>
+                            prefetchBrowse("popular", activeFilter)}
                         onfocus={() => prefetchBrowse("popular", activeFilter)}
                         class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 {activeTab ===
                         'popular'
@@ -255,7 +256,7 @@
                             noScroll: true,
                         });
                     }}
-                    class="h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    class="h-9 w-30 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
                     <option value="all">All</option>
                     <option value="movie">Movies</option>
@@ -280,7 +281,7 @@
         {:else}
             <!-- Movie Grid -->
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {#if $navigating}
+                {#if navigating.to}
                     {#each { length: 12 } as _}
                         <CardSkeleton />
                     {/each}
@@ -290,6 +291,7 @@
                             {item}
                             onAddToLibrary={handleAddToLibrary}
                             onWatchNow={handleWatchNow}
+                            onPrefetch={handlePrefetch}
                             isAdding={addingItems.has(item.tmdbId)}
                             isResolving={resolvingItems.has(item.tmdbId)}
                         />
@@ -304,7 +306,7 @@
             </div>
 
             <!-- Load More Trigger -->
-            {#if hasMore && !$navigating}
+            {#if hasMore && !navigating.to}
                 <div bind:this={loadMoreTrigger} class="flex justify-center py-12">
                     {#if !isFetchingMore}
                         <span class="h-6 block"></span>

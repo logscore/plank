@@ -11,7 +11,7 @@
         RefreshCw,
         RotateCcw,
         Trash2,
-    } from 'lucide-svelte';
+    } from '@lucide/svelte';
     import { onDestroy, onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
@@ -174,7 +174,9 @@
     async function handleRetry() {
         retrying = true;
         try {
-            const res = await fetch(`/api/media/${data.media.id}/retry`, { method: 'POST' });
+            const res = await fetch(`/api/media/${data.media.id}/retry`, {
+                method: 'POST',
+            });
             if (res.ok) {
                 liveStatus = 'added';
                 liveProgress = 0;
@@ -226,7 +228,9 @@
             async () => {
                 deleting = true;
                 try {
-                    const res = await fetch(`/api/media/${data.media.id}`, { method: 'DELETE' });
+                    const res = await fetch(`/api/media/${data.media.id}`, {
+                        method: 'DELETE',
+                    });
                     if (res.ok) {
                         goto('/');
                     }
@@ -294,7 +298,9 @@
                 <div class="flex flex-wrap items-center gap-3 text-sm">
                     {#if data.media.certification}
                         <span
-                            class="px-3 py-1 rounded-full border font-bold {getColorForCertification(data.media.certification)}"
+                            class="px-3 py-1 rounded-full border font-bold {getColorForCertification(
+                                data.media.certification,
+                            )}"
                         >
                             {data.media.certification}
                         </span>
@@ -304,7 +310,10 @@
                     {/if}
                     {#if data.media.runtime}
                         <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">
-                            {Math.floor(data.media.runtime / 60)}h {data.media.runtime % 60}m
+                            {Math.floor(data.media.runtime / 60)}h
+                            {data.media
+                                .runtime % 60}
+                            m
                         </span>
                     {/if}
                     {#if data.media.originalLanguage}
@@ -316,7 +325,9 @@
 
                 <!-- Genres -->
                 {#if data.media.genres}
-                    {@const genreList = JSON.parse(data.media.genres) as string[]}
+                    {@const genreList = JSON.parse(
+                        data.media.genres,
+                    ) as string[]}
                     <div class="flex flex-wrap gap-2">
                         {#each genreList as genre}
                             <span class="px-3 py-1 rounded-full border border-white/20 text-sm text-muted-foreground"
@@ -328,7 +339,7 @@
 
                 <!-- Action Buttons -->
                 <div class="flex items-center gap-3">
-                    {#if liveStatus === 'error'}
+                    {#if liveStatus === "error"}
                         <Button
                             size="lg"
                             class="px-8 bg-yellow-600 hover:bg-yellow-500"
@@ -336,7 +347,7 @@
                             disabled={retrying}
                         >
                             <RotateCcw class="w-5 h-5 mr-2" />
-                            {retrying ? 'Retrying...' : 'Retry Download'}
+                            {retrying ? "Retrying..." : "Retry Download"}
                         </Button>
                     {:else}
                         <a href="/watch/{data.media.id}">
@@ -354,7 +365,7 @@
                         disabled={deleting}
                     >
                         <Trash2 class="w-5 h-5 mr-2" />
-                        {deleting ? 'Deleting...' : 'Delete'}
+                        {deleting ? "Deleting..." : "Delete"}
                     </Button>
                 </div>
 
@@ -376,7 +387,7 @@
                         <Database class="w-5 h-5 text-primary" />
                         File Information
                     </h3>
-                    {#if liveStatus !== 'error' && liveStatus !== 'downloading'}
+                    {#if liveStatus !== "error" && liveStatus !== "downloading"}
                         <Button
                             variant="ghost"
                             size="sm"
@@ -393,7 +404,12 @@
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">Status</span>
                         <span
-                            class="capitalize font-medium {liveStatus === 'complete' ? 'text-green-400' : liveStatus === 'downloading' ? 'text-yellow-400' : 'text-muted-foreground'}"
+                            class="capitalize font-medium {liveStatus ===
+                            'complete'
+                                ? 'text-green-400'
+                                : liveStatus === 'downloading'
+                                  ? 'text-yellow-400'
+                                  : 'text-muted-foreground'}"
                             >{liveStatus}</span
                         >
                     </div>
@@ -401,7 +417,7 @@
                         <span class="text-muted-foreground">Progress</span>
                         <span class="font-medium">{((liveProgress ?? 0) * 100).toFixed(1)}%</span>
                     </div>
-                    {#if liveStatus === 'downloading'}
+                    {#if liveStatus === "downloading"}
                         <div class="flex justify-between">
                             <span class="text-muted-foreground">Download Speed</span>
                             <span class="font-medium text-blue-400">{formatSpeed(downloadSpeed)}</span>
@@ -413,7 +429,11 @@
                     {/if}
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">File Size</span>
-                        <span class="font-medium">{formatFileSize(liveFileSize ?? data.media.fileSize)}</span>
+                        <span class="font-medium"
+                            >{formatFileSize(
+                                liveFileSize ?? data.media.fileSize,
+                            )}</span
+                        >
                     </div>
                 </div>
             </div>
@@ -431,11 +451,12 @@
                                 <code
                                     class="text-xs bg-accent px-2 py-1 rounded whitespace-nowrap overflow-x-auto block w-full no-scrollbar pr-6"
                                 >
-                                    {data.media.filePath || 'Not yet downloaded'}
+                                    {data.media.filePath ||
+                                        "Not yet downloaded"}
                                 </code>
                                 <!-- Fade/Blur effect on the right -->
                                 <div
-                                    class="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-accent to-transparent pointer-events-none"
+                                    class="absolute top-0 right-0 bottom-0 w-8 bg-linear-to-l from-accent to-transparent pointer-events-none"
                                 ></div>
                             </div>
                             {#if data.media.filePath}
@@ -474,7 +495,9 @@
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">Last Played</span>
                         <span class="font-medium"
-                            >{data.media.lastPlayedAt ? formatDate(data.media.lastPlayedAt) : 'Never'}</span
+                            >{data.media.lastPlayedAt
+                                ? formatDate(data.media.lastPlayedAt)
+                                : "Never"}</span
                         >
                     </div>
                 </div>
@@ -488,7 +511,7 @@
                 <div class="space-y-3 text-sm">
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">TMDB ID</span>
-                        <span class="font-medium">{data.media.tmdbId || 'Not linked'}</span>
+                        <span class="font-medium">{data.media.tmdbId || "Not linked"}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">Media ID</span>
@@ -510,15 +533,15 @@
         <Input
             placeholder="magnet:?xt=urn:btih:..."
             bind:value={magnetInput}
-            onkeydown={(e) => e.key === 'Enter' && addMagnet()}
+            onkeydown={(e) => e.key === "Enter" && addMagnet()}
         />
         {#if magnetError}
             <p class="text-sm text-destructive">{magnetError}</p>
         {/if}
     </div>
     <div class="flex justify-end gap-2">
-        <Button variant="ghost" onclick={() => uiState.addMediaDialogOpen = false}>Cancel</Button>
-        <Button onclick={addMagnet} disabled={adding}>{adding ? 'Adding...' : 'Add'}</Button>
+        <Button variant="ghost" onclick={() => (uiState.addMediaDialogOpen = false)}>Cancel</Button>
+        <Button onclick={addMagnet} disabled={adding}>{adding ? "Adding..." : "Add"}</Button>
     </div>
 </Dialog>
 

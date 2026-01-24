@@ -1,6 +1,6 @@
 <script lang="ts">
+    import { Film, Tv } from '@lucide/svelte';
     import { createQuery } from '@tanstack/svelte-query';
-    import { Film, Tv } from 'lucide-svelte';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
     import MediaCard from '$lib/components/MediaCard.svelte';
     import Button from '$lib/components/ui/Button.svelte';

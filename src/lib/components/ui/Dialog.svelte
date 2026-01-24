@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { X } from 'lucide-svelte';
+    import { X } from '@lucide/svelte';
     import type { Snippet } from 'svelte';
 
     let {
@@ -38,6 +38,7 @@
             onclick={(e) => e.stopPropagation()}
             onkeydown={(e) => e.stopPropagation()}
             role="dialog"
+            tabindex="-1"
         >
             <div class="flex flex-col space-y-1.5 text-center sm:text-left">
                 {#if title}

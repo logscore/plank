@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Film, Loader2, Search } from 'lucide-svelte';
+    import { Film, LoaderCircle, Search } from '@lucide/svelte';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
     import MediaCard from '$lib/components/MediaCard.svelte';
     import Button from '$lib/components/ui/Button.svelte';
@@ -56,7 +56,9 @@
             async () => {
                 try {
                     deletingId = id;
-                    const res = await fetch(`/api/media/${id}`, { method: 'DELETE' });
+                    const res = await fetch(`/api/media/${id}`, {
+                        method: 'DELETE',
+                    });
                     if (res.ok) {
                         results = results.filter((m) => m.id !== id);
                     }
@@ -128,7 +130,7 @@
     <!-- Results -->
     {#if searching}
         <div class="flex items-center justify-center p-12">
-            <Loader2 class="w-8 h-8 animate-spin text-muted-foreground" />
+            <LoaderCircle class="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
     {:else if query.length >= 2 && results.length === 0}
         <div class="flex flex-col items-center justify-center p-12 text-center space-y-4">
@@ -162,7 +164,7 @@
         <Input
             placeholder="magnet:?xt=urn:btih:..."
             bind:value={magnetInput}
-            onkeydown={(e) => e.key === 'Enter' && addMagnet()}
+            onkeydown={(e) => e.key === "Enter" && addMagnet()}
             autofocus
         />
         {#if error}
@@ -170,8 +172,8 @@
         {/if}
     </div>
     <div class="flex justify-end gap-2">
-        <Button variant="ghost" onclick={() => uiState.addMediaDialogOpen = false}>Cancel</Button>
-        <Button onclick={addMagnet} disabled={adding}>{adding ? 'Adding...' : 'Add'}</Button>
+        <Button variant="ghost" onclick={() => (uiState.addMediaDialogOpen = false)}>Cancel</Button>
+        <Button onclick={addMagnet} disabled={adding}>{adding ? "Adding..." : "Add"}</Button>
     </div>
 </Dialog>
 

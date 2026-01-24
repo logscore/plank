@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ArrowLeft, Calendar, Check, Copy, Database, Film, Folder, Play, Trash2 } from 'lucide-svelte';
+    import { ArrowLeft, Calendar, Check, Copy, Database, Film, Folder, Play, Trash2 } from '@lucide/svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
@@ -243,10 +243,7 @@
                         {#if media.totalSeasons}
                             <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">
                                 {media.totalSeasons} Season
-                                {media.totalSeasons ===
-                                1
-                                    ? ""
-                                    : "s"}
+                                {media.totalSeasons === 1 ? "" : "s"}
                             </span>
                         {/if}
                     </div>
@@ -263,7 +260,6 @@
                         </div>
                     {/if}
 
-                    <!-- Action Buttons -->
                     <!-- Action Buttons -->
                     <div class="flex items-center gap-3 pt-4">
                         <EpisodeSelector {seasons} onPlayEpisode={handlePlayEpisode} />
@@ -454,7 +450,7 @@
                                     {media.filePath || "Not yet downloaded"}
                                 </code>
                                 <div
-                                    class="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-accent to-transparent pointer-events-none"
+                                    class="absolute top-0 right-0 bottom-0 w-8 bg-linear-to-l from-accent to-transparent pointer-events-none"
                                 ></div>
                             </div>
                             {#if media.filePath}

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ArrowLeft, Download, MoreVertical, Users, Wifi, X } from 'lucide-svelte';
+    import { ArrowLeft, Download, EllipsisVertical, Users } from '@lucide/svelte';
     import { onDestroy, onMount } from 'svelte';
     import { page } from '$app/state';
     import Button from '$lib/components/ui/Button.svelte';
@@ -198,7 +198,7 @@
                     }}
                     class="bg-black/50 hover:bg-black/70 text-white rounded-full p-3 backdrop-blur-sm transition-all hover:scale-105"
                 >
-                    <MoreVertical class="w-6 h-6" />
+                    <EllipsisVertical class="w-6 h-6" />
                 </button>
 
                 <!-- Menu Dropdown -->

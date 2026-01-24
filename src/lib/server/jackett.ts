@@ -187,8 +187,6 @@ export async function searchJackett(imdbId: string): Promise<JackettResult[]> {
 
 		const data: JackettApiResponse = await response.json();
 
-		console.log(data);
-
 		return parseJackettResults(data);
 	} catch (error) {
 		console.error('Jackett search error:', error);

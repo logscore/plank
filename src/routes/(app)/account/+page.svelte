@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { AlertCircle, ArrowLeft, Check, Film, HardDrive, Key, Loader2, Mail, User } from 'lucide-svelte';
+    import { ArrowLeft, CircleAlert, Film, HardDrive, Key, Mail, User } from '@lucide/svelte';
     import { fade } from 'svelte/transition';
     import { authClient } from '$lib/auth-client';
     import Button from '$lib/components/ui/Button.svelte';
@@ -97,7 +97,7 @@
                 <User class="w-8 h-8 text-muted-foreground" />
             </div>
             <div>
-                <h2 class="text-xl font-semibold">{data.user.name || 'User'}</h2>
+                <h2 class="text-xl font-semibold">{data.user.name || "User"}</h2>
                 <div class="flex items-center gap-2 text-muted-foreground">
                     <Mail class="w-4 h-4" />
                     <span>{data.user.email}</span>
@@ -129,7 +129,7 @@
     {#if data.stats.error > 0}
         <div class="rounded-xl border border-red-500/30 bg-red-500/10 p-4 mb-6">
             <div class="flex items-center gap-3">
-                <AlertCircle class="w-5 h-5 text-red-500" />
+                <CircleAlert class="w-5 h-5 text-red-500" />
                 <span class="text-red-400">{data.stats.error} item(s) with download errors</span>
             </div>
         </div>
@@ -144,7 +144,7 @@
 
         {#if !showPasswordForm}
             <div class="mb-4">
-                <Button variant="outline" onclick={() => showPasswordForm = true}>Reset Password</Button>
+                <Button variant="outline" onclick={() => (showPasswordForm = true)}>Reset Password</Button>
             </div>
         {/if}
 
@@ -196,9 +196,9 @@
 
                 <div class="flex gap-2">
                     <Button onclick={changePassword} disabled={changingPassword}>
-                        {changingPassword ? 'Changing...' : 'Change Password'}
+                        {changingPassword ? "Changing..." : "Change Password"}
                     </Button>
-                    <Button variant="ghost" onclick={() => showPasswordForm = false}>Cancel</Button>
+                    <Button variant="ghost" onclick={() => (showPasswordForm = false)}>Cancel</Button>
                 </div>
             </div>
         {/if}

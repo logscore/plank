@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Film, LogOut, Play, Plus, Search, User } from 'lucide-svelte';
+    import { Film, LogOut, Play, Plus, Search, User } from '@lucide/svelte';
     import type { Snippet } from 'svelte';
     import { fade, fly } from 'svelte/transition';
     import { page } from '$app/state';

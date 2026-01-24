@@ -1186,7 +1186,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 ```svelte
 <script lang="ts">
-  import { Film, Tv } from 'lucide-svelte';
+  import { Film, Tv } from '@lucide/svelte';
   import MediaCard from '$lib/components/MediaCard.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import type { Media } from '$lib/types';
@@ -1364,7 +1364,7 @@ Rename `src/lib/components/MovieCard.svelte` to `MediaCard.svelte` and update:
 
 ```svelte
 <script lang="ts">
-  import { GripVertical, Save } from 'lucide-svelte';
+  import { GripVertical, Save } from '@lucide/svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Dialog from '$lib/components/ui/Dialog.svelte';
   import type { Episode } from '$lib/types';

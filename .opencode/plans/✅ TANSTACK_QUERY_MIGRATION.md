@@ -1,4 +1,4 @@
-# TanStack Query Migration Implementation Document
+✅# TanStack Query Migration Implementation Document
 
 ## Overview
 
@@ -333,7 +333,7 @@ export async function searchTorrents(params: TorrentSearchParams): Promise<Torre
 
 ```svelte
 <script lang="ts">
-  import { Film, Tv } from 'lucide-svelte';
+  import { Film, Tv } from '@lucide/svelte';
   import { createQuery } from '@tanstack/svelte-query';
   import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
   import MediaCard from '$lib/components/MediaCard.svelte';
@@ -515,7 +515,7 @@ export async function searchTorrents(params: TorrentSearchParams): Promise<Torre
 
 ```svelte
 <script lang="ts">
-  import { Flame, Loader2, Trophy } from 'lucide-svelte';
+  import { Flame, Loader2, Trophy } from '@lucide/svelte';
   import { createQuery } from '@tanstack/svelte-query';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';

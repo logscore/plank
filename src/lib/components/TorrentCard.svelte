@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Loader2, Play, Plus } from 'lucide-svelte';
+    import { Loader2, Play, Plus } from '@lucide/svelte';
     import type { BrowseItem } from '$lib/server/tmdb';
     import { cn } from '$lib/utils';
     import Button from './ui/Button.svelte';
@@ -25,6 +25,9 @@
 
     let isMobileActive = $state(false);
     let hasPrefetched = $state(false);
+    let prefetchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const PREFETCH_DELAY = 500; // ms to wait before prefetching
 
     function handleClick(e: Event) {
         // Don't toggle if we clicked an interactive element inside
@@ -44,8 +47,24 @@
     function handleMouseEnter() {
         // Only prefetch once per card and if item needs resolving
         if (!hasPrefetched && item.needsResolve && !item.magnetLink) {
-            hasPrefetched = true;
-            onPrefetch?.(item);
+            // Clear any existing timeout
+            if (prefetchTimeout) {
+                clearTimeout(prefetchTimeout);
+            }
+            // Start prefetch after delay
+            prefetchTimeout = setTimeout(() => {
+                hasPrefetched = true;
+                onPrefetch?.(item);
+                prefetchTimeout = null;
+            }, PREFETCH_DELAY);
+        }
+    }
+
+    function handleMouseLeave() {
+        // Cancel prefetch if user leaves before delay completes
+        if (prefetchTimeout) {
+            clearTimeout(prefetchTimeout);
+            prefetchTimeout = null;
         }
     }
 
@@ -66,7 +85,9 @@
     onclick={handleClick}
     onkeydown={handleKeydown}
     onmouseenter={handleMouseEnter}
+    onmouseleave={handleMouseLeave}
     onfocus={handleMouseEnter}
+    onblur={handleMouseLeave}
     role="button"
     tabindex="0"
     class={cn(
