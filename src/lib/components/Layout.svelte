@@ -38,7 +38,7 @@
             <div class="p-1.5 rounded-full border border-white/10 bg-black/80 backdrop-blur-xl shadow-2xl">
                 <button
                     onclick={() => (showAccountMenu = !showAccountMenu)}
-                    class="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 text-zinc-400 hover:text-white hover:bg-white/10"
+                    class="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
                     aria-label="Account"
                 >
                     <User class="w-6 h-6" />
@@ -128,7 +128,7 @@
                 <div class="group relative">
                     <button
                         onclick={() => uiState.toggleAddMediaDialog()}
-                        class="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 text-zinc-400 hover:text-white hover:bg-white/10"
+                        class="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
                         aria-label="Add Media"
                     >
                         <Plus class="w-6 h-6" />

@@ -302,6 +302,8 @@ export const torrentCache = sqliteTable(
 	(table) => [index('idx_torrent_cache_imdb').on(table.imdbId), index('idx_torrent_cache_tmdb').on(table.tmdbId)]
 );
 
+// Search cache for TMDB search results
+
 // ============================================================================
 // Type exports
 // ============================================================================

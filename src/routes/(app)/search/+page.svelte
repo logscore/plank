@@ -1,34 +1,53 @@
 <script lang="ts">
-    import { Film, LoaderCircle, Search } from '@lucide/svelte';
+    import { ChevronDown, Film, Globe, Home, Library, LoaderCircle, Search } from '@lucide/svelte';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
     import MediaCard from '$lib/components/MediaCard.svelte';
+    import TorrentCard from '$lib/components/TorrentCard.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import Dialog from '$lib/components/ui/Dialog.svelte';
     import Input from '$lib/components/ui/Input.svelte';
+    import type { BrowseItem } from '$lib/server/tmdb';
     import type { Media } from '$lib/types';
     import { confirmDelete, uiState } from '$lib/ui-state.svelte';
 
     let query = $state('');
-    let results: Media[] = $state([]);
+    let searchType = $state<'local' | 'tmdb'>('local');
+    let localResults: Media[] = $state([]);
+    let tmdbResults: BrowseItem[] = $state([]);
     let searching = $state(false);
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let showDropdown = $state(false);
 
     // Add Media Dialog state
     let magnetInput = $state('');
     let error = $state('');
     let adding = $state(false);
+    let deletingId = $state<string | null>(null);
+    let resolvingItems = $state<Set<number>>(new Set());
+    let addingItems = $state<Set<number>>(new Set());
 
     async function performSearch() {
         if (query.trim().length < 2) {
-            results = [];
+            localResults = [];
+            tmdbResults = [];
             return;
         }
 
         searching = true;
         try {
-            const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-            if (res.ok) {
-                results = await res.json();
+            if (searchType === 'local') {
+                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                if (res.ok) {
+                    localResults = await res.json();
+                }
+                tmdbResults = [];
+            } else {
+                const res = await fetch(`/api/tmdb/search?q=${encodeURIComponent(query)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    tmdbResults = data.results || [];
+                }
+                localResults = [];
             }
         } catch (e) {
             console.error('Search failed:', e);
@@ -41,10 +60,8 @@
         if (debounceTimer) {
             clearTimeout(debounceTimer);
         }
-        debounceTimer = setTimeout(performSearch, 200);
+        debounceTimer = setTimeout(performSearch, 500);
     }
-
-    let deletingId = $state<string | null>(null);
 
     async function deleteMedia(id: string, event: Event) {
         event.preventDefault();
@@ -60,7 +77,7 @@
                         method: 'DELETE',
                     });
                     if (res.ok) {
-                        results = results.filter((m) => m.id !== id);
+                        localResults = localResults.filter((m: Media) => m.id !== id);
                     }
                 } catch (e) {
                     console.error('Failed to delete media:', e);
@@ -92,7 +109,6 @@
             if (res.ok) {
                 magnetInput = '';
                 uiState.addMediaDialogOpen = false;
-                // Refresh search if there's a query
                 if (query.trim().length >= 2) {
                     performSearch();
                 }
@@ -106,23 +122,140 @@
             adding = false;
         }
     }
+
+    async function handleAddToLibrary(item: BrowseItem) {
+        if (resolvingItems.has(item.tmdbId) || addingItems.has(item.tmdbId)) {
+            return;
+        }
+
+        if (item.magnetLink) {
+            await addMediaToLibrary(item, item.magnetLink);
+            return;
+        }
+
+        resolvingItems.add(item.tmdbId);
+        try {
+            const res = await fetch('/api/browse/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tmdbId: item.tmdbId,
+                    type: item.mediaType,
+                    title: item.title,
+                }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.magnetLink) {
+                    await addMediaToLibrary(item, data.magnetLink);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to resolve torrent:', e);
+        } finally {
+            resolvingItems.delete(item.tmdbId);
+        }
+    }
+
+    async function addMediaToLibrary(item: BrowseItem, magnetLink: string) {
+        addingItems.add(item.tmdbId);
+        try {
+            const res = await fetch('/api/media', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    magnetLink,
+                    tmdbId: item.tmdbId,
+                    title: item.title,
+                    type: item.mediaType,
+                }),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                console.error('Failed to add media:', data.message);
+            }
+        } catch (e) {
+            console.error('Failed to add media:', e);
+        } finally {
+            addingItems.delete(item.tmdbId);
+        }
+    }
+
+    async function handleWatchNow(item: BrowseItem) {
+        await handleAddToLibrary(item);
+        // TODO: Navigate to watch page - would need the media ID
+    }
 </script>
 
 <div class="container mx-auto px-4 py-8 min-h-screen">
     <!-- Search Header -->
     <div class="max-w-2xl mx-auto mb-12">
         <h1 class="text-3xl font-bold mb-6 text-center">Search</h1>
+
         <div class="relative" role="search">
             <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+
+            <!-- Search Dropdown -->
+            <div class="absolute right-2 top-1/2 -translate-y-1/2">
+                <button
+                    type="button"
+                    onclick={() => (showDropdown = !showDropdown)}
+                    onblur={() => setTimeout(() => (showDropdown = false), 200)}
+                    class="flex items-center gap-1 px-3 py-2 rounded-3xl text-sm font-medium bg-card hover:bg-neutral-900 transition-colors cursor-pointer"
+                >
+                    {#if searchType === "local"}
+                        <Library class="w-4 h-4" />
+                        Library
+                    {:else}
+                        <Globe class="w-4 h-4" />
+                        Browse
+                    {/if}
+                    <ChevronDown class="w-4 h-4" />
+                </button>
+
+                {#if showDropdown}
+                    <div
+                        class="absolute right-0 top-full mt-1 w-40 bg-card rounded-md shadow-lg z-50 border border-border"
+                    >
+                        <button
+                            type="button"
+                            onclick={() => {
+                                searchType = "local";
+                                showDropdown = false;
+                                performSearch();
+                            }}
+                            class="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors"
+                        >
+                            <Library class="w-4 h-4" />
+                            Library
+                        </button>
+                        <button
+                            type="button"
+                            onclick={() => {
+                                searchType = "tmdb";
+                                showDropdown = false;
+                                performSearch();
+                            }}
+                            class="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors"
+                        >
+                            <Globe class="w-4 h-4" />
+                            Browse
+                        </button>
+                    </div>
+                {/if}
+            </div>
+
             <!-- svelte-ignore a11y_autofocus -->
             <input
                 type="search"
                 bind:value={query}
                 oninput={handleInput}
-                placeholder="Search your library..."
+                placeholder={searchType === "local"
+                    ? "Search your library..."
+                    : "Search torrents..."}
                 autocomplete="off"
                 autofocus
-                class="w-full h-14 rounded-full border border-border bg-card pl-12 pr-6 text-lg outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/50 transition-all"
+                class="w-full h-14 rounded-full border border-border bg-card pl-12 pr-24 text-lg outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/50 transition-all"
             >
         </div>
     </div>
@@ -132,7 +265,7 @@
         <div class="flex items-center justify-center p-12">
             <LoaderCircle class="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
-    {:else if query.length >= 2 && results.length === 0}
+    {:else if query.length >= 2 && localResults.length === 0 && tmdbResults.length === 0}
         <div class="flex flex-col items-center justify-center p-12 text-center space-y-4">
             <div class="p-4 rounded-full bg-accent/30">
                 <Film class="w-8 h-8 text-muted-foreground" />
@@ -140,16 +273,28 @@
             <h2 class="text-lg font-semibold">No results found</h2>
             <p class="text-muted-foreground">Try a different search term.</p>
         </div>
-    {:else if results.length > 0}
+    {:else if localResults.length > 0}
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-            {#each results as media (media.id)}
+            {#each localResults as media (media.id)}
                 <MediaCard {media} onDelete={deleteMedia} />
+            {/each}
+        </div>
+    {:else if tmdbResults.length > 0}
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+            {#each tmdbResults as item (item.tmdbId)}
+                <TorrentCard
+                    {item}
+                    onAddToLibrary={handleAddToLibrary}
+                    onWatchNow={handleWatchNow}
+                    isAdding={addingItems.has(item.tmdbId)}
+                    isResolving={resolvingItems.has(item.tmdbId)}
+                />
             {/each}
         </div>
     {:else}
         <div class="flex flex-col items-center justify-center p-20 text-center space-y-4 text-muted-foreground">
             <Search class="w-12 h-12 opacity-30" />
-            <p>Search your library</p>
+            <p>Search your library or torrents</p>
         </div>
     {/if}
 </div>
