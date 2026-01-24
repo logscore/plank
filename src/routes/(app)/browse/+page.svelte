@@ -111,47 +111,64 @@
         prefetchBothBrowseTabs(activeFilter);
     });
 
+    // Promise cache for in-flight torrent resolutions to avoid duplicate requests
+    const resolvePromises = new Map<number, Promise<string | null>>();
+
     // Get magnet link - either from cache or by resolving via Jackett
-    async function getMagnetLink(item: BrowseItem): Promise<string | null> {
+    function getMagnetLink(item: BrowseItem): Promise<string | null> {
         if (item.magnetLink) {
-            return item.magnetLink;
+            return Promise.resolve(item.magnetLink);
+        }
+
+        // Return existing promise if already resolving
+        if (resolvePromises.has(item.tmdbId)) {
+            return resolvePromises.get(item.tmdbId)!;
         }
 
         resolvingItems = new Set(resolvingItems).add(item.tmdbId);
 
-        try {
-            const result = await resolveMutation.mutateAsync({
-                imdbId: item.imdbId,
-                tmdbId: item.tmdbId,
-                title: item.title,
-            });
+        const promise = (async () => {
+            try {
+                const result = await resolveMutation.mutateAsync({
+                    imdbId: item.imdbId,
+                    tmdbId: item.tmdbId,
+                    title: item.title,
+                });
 
-            if (!(result.success && result.torrent)) {
-                console.error('Failed to resolve torrent:', result.message || result.error);
-                return null;
+                if (!(result.success && result.torrent)) {
+                    console.error('Failed to resolve torrent:', result.message || result.error);
+                    return null;
+                }
+
+                return result.torrent.magnetLink;
+            } finally {
+                const updated = new Set(resolvingItems);
+                updated.delete(item.tmdbId);
+                resolvingItems = updated;
+                // Clean up promise from cache after it settles
+                resolvePromises.delete(item.tmdbId);
             }
+        })();
 
-            return result.torrent.magnetLink;
-        } finally {
-            const updated = new Set(resolvingItems);
-            updated.delete(item.tmdbId);
-            resolvingItems = updated;
-        }
+        resolvePromises.set(item.tmdbId, promise);
+        return promise;
     }
 
     async function handleAddToLibrary(item: BrowseItem) {
-        if (addingItems.has(item.tmdbId) || resolvingItems.has(item.tmdbId)) {
+        if (addingItems.has(item.tmdbId)) {
             return;
         }
 
-        const magnetLink = await getMagnetLink(item);
-        if (!magnetLink) {
-            return;
-        }
-
+        // Set adding state immediately to show UI spinner
         addingItems = new Set(addingItems).add(item.tmdbId);
 
         try {
+            const magnetLink = await getMagnetLink(item);
+            if (!magnetLink) {
+                // If resolution fails, we must clear the adding state
+                throw new Error('Could not resolve magnet link');
+            }
+
             await addToLibraryMutation.mutateAsync({
                 magnetLink,
                 title: item.title,
@@ -168,18 +185,19 @@
     }
 
     async function handleWatchNow(item: BrowseItem) {
-        if (addingItems.has(item.tmdbId) || resolvingItems.has(item.tmdbId)) {
+        if (addingItems.has(item.tmdbId)) {
             return;
         }
 
-        const magnetLink = await getMagnetLink(item);
-        if (!magnetLink) {
-            return;
-        }
-
+        // Set adding state immediately to show UI spinner
         addingItems = new Set(addingItems).add(item.tmdbId);
 
         try {
+            const magnetLink = await getMagnetLink(item);
+            if (!magnetLink) {
+                throw new Error('Could not resolve magnet link');
+            }
+
             const media = await addToLibraryMutation.mutateAsync({
                 magnetLink,
                 title: item.title,
@@ -198,7 +216,7 @@
 
     // Prefetch magnet link on hover - runs getMagnetLink in the background
     function handlePrefetch(item: BrowseItem) {
-        // Fire and forget - don't await, just start the resolution
+        // Fire and forget - shared promise logic handles deduplication
         getMagnetLink(item);
     }
 </script>
