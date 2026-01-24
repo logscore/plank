@@ -1,11 +1,13 @@
 <script lang="ts">
-    import { ChevronDown, Film, Globe, Home, Library, LoaderCircle, Search } from '@lucide/svelte';
+    import { ChevronDown, Film, Globe, House, LibraryBig, LoaderCircle, Search } from '@lucide/svelte';
+    import { goto } from '$app/navigation';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
     import MediaCard from '$lib/components/MediaCard.svelte';
     import TorrentCard from '$lib/components/TorrentCard.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import Dialog from '$lib/components/ui/Dialog.svelte';
     import Input from '$lib/components/ui/Input.svelte';
+    import { createAddFromBrowseMutation, createResolveTorrentMutation } from '$lib/mutations/browse-mutations';
     import type { BrowseItem } from '$lib/server/tmdb';
     import type { Media } from '$lib/types';
     import { confirmDelete, uiState } from '$lib/ui-state.svelte';
@@ -25,6 +27,13 @@
     let deletingId = $state<string | null>(null);
     let resolvingItems = $state<Set<number>>(new Set());
     let addingItems = $state<Set<number>>(new Set());
+
+    // Mutations
+    const resolveMutation = createResolveTorrentMutation();
+    const addToLibraryMutation = createAddFromBrowseMutation();
+
+    // Promise cache for in-flight torrent resolutions to avoid duplicate requests
+    const resolvePromises = new Map<number, Promise<string | null>>();
 
     async function performSearch() {
         if (query.trim().length < 2) {
@@ -123,67 +132,111 @@
         }
     }
 
-    async function handleAddToLibrary(item: BrowseItem) {
-        if (resolvingItems.has(item.tmdbId) || addingItems.has(item.tmdbId)) {
-            return;
-        }
-
+    // Get magnet link - either from cache or by resolving via Jackett
+    function getMagnetLink(item: BrowseItem): Promise<string | null> {
         if (item.magnetLink) {
-            await addMediaToLibrary(item, item.magnetLink);
-            return;
+            return Promise.resolve(item.magnetLink);
         }
 
-        resolvingItems.add(item.tmdbId);
-        try {
-            const res = await fetch('/api/browse/resolve', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    tmdbId: item.tmdbId,
-                    type: item.mediaType,
-                    title: item.title,
-                }),
-            });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.magnetLink) {
-                    await addMediaToLibrary(item, data.magnetLink);
-                }
-            }
-        } catch (e) {
-            console.error('Failed to resolve torrent:', e);
-        } finally {
-            resolvingItems.delete(item.tmdbId);
+        // Return existing promise if already resolving
+        const existing = resolvePromises.get(item.tmdbId);
+        if (existing) {
+            return existing;
         }
+
+        resolvingItems = new Set(resolvingItems).add(item.tmdbId);
+
+        const promise = (async () => {
+            try {
+                const result = await resolveMutation.mutateAsync({
+                    imdbId: item.imdbId,
+                    tmdbId: item.tmdbId,
+                    title: item.title,
+                });
+
+                if (!(result.success && result.torrent)) {
+                    console.error('Failed to resolve torrent:', result.message || result.error);
+                    return null;
+                }
+
+                return result.torrent.magnetLink;
+            } finally {
+                const updated = new Set(resolvingItems);
+                updated.delete(item.tmdbId);
+                resolvingItems = updated;
+                // Clean up promise from cache after it settles
+                resolvePromises.delete(item.tmdbId);
+            }
+        })();
+
+        resolvePromises.set(item.tmdbId, promise);
+        return promise;
     }
 
-    async function addMediaToLibrary(item: BrowseItem, magnetLink: string) {
-        addingItems.add(item.tmdbId);
+    async function handleAddToLibrary(item: BrowseItem) {
+        if (addingItems.has(item.tmdbId)) {
+            return;
+        }
+
+        // Set adding state immediately to show UI spinner
+        addingItems = new Set(addingItems).add(item.tmdbId);
+
         try {
-            const res = await fetch('/api/media', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    magnetLink,
-                    tmdbId: item.tmdbId,
-                    title: item.title,
-                    type: item.mediaType,
-                }),
-            });
-            if (!res.ok) {
-                const data = await res.json();
-                console.error('Failed to add media:', data.message);
+            const magnetLink = await getMagnetLink(item);
+            if (!magnetLink) {
+                // If resolution fails, we must clear the adding state
+                throw new Error('Could not resolve magnet link');
             }
-        } catch (e) {
-            console.error('Failed to add media:', e);
+
+            await addToLibraryMutation.mutateAsync({
+                magnetLink,
+                title: item.title,
+                year: item.year,
+                tmdbId: item.tmdbId,
+            });
+        } catch (err) {
+            console.error('Failed to add to library:', err);
         } finally {
-            addingItems.delete(item.tmdbId);
+            const updated = new Set(addingItems);
+            updated.delete(item.tmdbId);
+            addingItems = updated;
         }
     }
 
     async function handleWatchNow(item: BrowseItem) {
-        await handleAddToLibrary(item);
-        // TODO: Navigate to watch page - would need the media ID
+        if (addingItems.has(item.tmdbId)) {
+            return;
+        }
+
+        // Set adding state immediately to show UI spinner
+        addingItems = new Set(addingItems).add(item.tmdbId);
+
+        try {
+            const magnetLink = await getMagnetLink(item);
+            if (!magnetLink) {
+                throw new Error('Could not resolve magnet link');
+            }
+
+            const media = await addToLibraryMutation.mutateAsync({
+                magnetLink,
+                title: item.title,
+                year: item.year,
+                tmdbId: item.tmdbId,
+            });
+            goto(`/watch/${media.id}`);
+        } catch (err) {
+            console.error('Failed to add and watch:', err);
+        } finally {
+            const updated = new Set(addingItems);
+            updated.delete(item.tmdbId);
+            addingItems = updated;
+        }
+    }
+
+    // Prefetch magnet link on hover - runs getMagnetLink in the background
+    function handlePrefetch(item: BrowseItem) {
+        // Fire and forget - shared promise logic handles deduplication
+        getMagnetLink(item);
     }
 </script>
 
@@ -196,7 +249,7 @@
             <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
 
             <!-- Search Dropdown -->
-            <div class="absolute right-2 top-1/2 -translate-y-1/2">
+            <div class="absolute right-2 top-1/2 -translate-y-1/2 z-1">
                 <button
                     type="button"
                     onclick={() => (showDropdown = !showDropdown)}
@@ -204,7 +257,7 @@
                     class="flex items-center gap-1 px-3 py-2 rounded-3xl text-sm font-medium bg-card hover:bg-neutral-900 transition-colors cursor-pointer"
                 >
                     {#if searchType === "local"}
-                        <Library class="w-4 h-4" />
+                        <LibraryBig class="w-4 h-4" />
                         Library
                     {:else}
                         <Globe class="w-4 h-4" />
@@ -226,7 +279,7 @@
                             }}
                             class="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors"
                         >
-                            <Library class="w-4 h-4" />
+                            <LibraryBig class="w-4 h-4" />
                             Library
                         </button>
                         <button
@@ -286,6 +339,7 @@
                     {item}
                     onAddToLibrary={handleAddToLibrary}
                     onWatchNow={handleWatchNow}
+                    onPrefetch={handlePrefetch}
                     isAdding={addingItems.has(item.tmdbId)}
                     isResolving={resolvingItems.has(item.tmdbId)}
                 />

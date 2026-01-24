@@ -121,8 +121,9 @@
         }
 
         // Return existing promise if already resolving
-        if (resolvePromises.has(item.tmdbId)) {
-            return resolvePromises.get(item.tmdbId)!;
+        const existing = resolvePromises.get(item.tmdbId);
+        if (existing) {
+            return existing;
         }
 
         resolvingItems = new Set(resolvingItems).add(item.tmdbId);

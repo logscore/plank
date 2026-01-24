@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { goto } from '$app/navigation';
-    import { page } from '$app/state';
     import { Film, Tv } from '@lucide/svelte';
     import { createQuery } from '@tanstack/svelte-query';
+    import { goto } from '$app/navigation';
+    import { page } from '$app/state';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
     import MediaCard from '$lib/components/MediaCard.svelte';
     import Button from '$lib/components/ui/Button.svelte';

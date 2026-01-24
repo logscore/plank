@@ -95,7 +95,7 @@
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         progressWidth = 90;
-                        transitionDuration = 15000;
+                        transitionDuration = 15_000;
                     });
                 });
             }
