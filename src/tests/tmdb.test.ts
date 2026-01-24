@@ -8,7 +8,7 @@ vi.mock('$lib/config', () => ({
 		tmdb: {
 			apiKey: 'test-key',
 			baseUrl: 'https://api.tmdb.org/3',
-			imageBaseUrl: 'https://image.tmdb.org/t/p/w500',
+			imageBaseUrl: 'https://image.tmdb.org/t/p',
 		},
 	},
 }));
@@ -51,7 +51,7 @@ describe('TMDB Service', () => {
 			expect(results).toHaveLength(1);
 			expect(results[0].tmdbId).toBe(100);
 			expect(results[0].year).toBe(2020);
-			expect(results[0].posterUrl).toBe('https://image.tmdb.org/t/p/w500/poster.jpg');
+			expect(results[0].posterUrl).toBe('https://image.tmdb.org/t/p/w342/poster.jpg');
 		});
 
 		it('should handle empty results', async () => {

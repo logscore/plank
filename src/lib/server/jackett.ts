@@ -57,12 +57,11 @@ const LOW_QUALITY_PATTERNS = [
  * Keys are uppercase to match extractQuality output
  */
 const QUALITY_SCORES: Record<string, number> = {
-	'2160P': 100,
-	'4K': 100,
-	UHD: 100,
-	'1080P': 80,
+	// '2160P': 100,
+	'1080P': 100,
+	UHD: 80,
 	'720P': 60,
-	'480P': 40,
+	'4K': 40,
 };
 
 /**

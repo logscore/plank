@@ -3,9 +3,8 @@
   "entry": [
     "src/routes/**/*.svelte",
     "src/routes/**/+*.ts",
-    "src/hooks.server.ts",
-    "src/lib/index.ts",
+    "src/**/*.ts",
     "scripts/*.ts"
   ],
-  "project": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte", "scripts/*.ts"]
+  "project": ["src/**/*.ts", "src/**/*.svelte", "scripts/*.ts"]
 }
