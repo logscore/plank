@@ -9,6 +9,7 @@
         item,
         onAddToLibrary,
         onWatchNow,
+        onPrefetch,
         isAdding = false,
         isResolving = false,
         class: className,
@@ -16,12 +17,14 @@
         item: BrowseItem;
         onAddToLibrary?: (item: BrowseItem) => void;
         onWatchNow?: (item: BrowseItem) => void;
+        onPrefetch?: (item: BrowseItem) => void;
         isAdding?: boolean;
         isResolving?: boolean;
         class?: string;
     } = $props();
 
     let isMobileActive = $state(false);
+    let hasPrefetched = $state(false);
 
     function handleClick(e: Event) {
         // Don't toggle if we clicked an interactive element inside
@@ -35,6 +38,14 @@
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             isMobileActive = !isMobileActive;
+        }
+    }
+
+    function handleMouseEnter() {
+        // Only prefetch once per card and if item needs resolving
+        if (!hasPrefetched && item.needsResolve && !item.magnetLink) {
+            hasPrefetched = true;
+            onPrefetch?.(item);
         }
     }
 
@@ -54,6 +65,8 @@
 <div
     onclick={handleClick}
     onkeydown={handleKeydown}
+    onmouseenter={handleMouseEnter}
+    onfocus={handleMouseEnter}
     role="button"
     tabindex="0"
     class={cn(

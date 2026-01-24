@@ -1,13 +1,16 @@
 <script lang="ts">
-    import { Flame, Loader2, Trophy } from 'lucide-svelte';
-    import { untrack } from 'svelte';
+    import { createInfiniteQuery } from '@tanstack/svelte-query';
+    import { Flame, Trophy } from 'lucide-svelte';
     import { goto } from '$app/navigation';
-    import { navigating, page } from '$app/stores';
+    import { navigating } from '$app/stores';
     import { env } from '$env/dynamic/public';
     import CardSkeleton from '$lib/components/CardSkeleton.svelte';
     import JackettSetup from '$lib/components/JackettSetup.svelte';
     import TorrentCard from '$lib/components/TorrentCard.svelte';
-    import type { BrowseItem } from '$lib/server/tmdb';
+    import { createAddFromBrowseMutation, createResolveTorrentMutation } from '$lib/mutations/browse-mutations';
+    import { prefetchBothBrowseTabs, prefetchBrowse } from '$lib/prefetch';
+    import { type BrowseItem, type BrowseResponse, fetchBrowse } from '$lib/queries/browse-queries';
+    import { queryKeys } from '$lib/query-keys';
 
     interface Props {
         data: {
@@ -25,78 +28,50 @@
 
     let { data }: Props = $props();
 
-    interface ResolveResponse {
-        success: boolean;
-        cached?: boolean;
-        error?: string;
-        message?: string;
-        torrent?: {
-            imdbId: string;
-            tmdbId?: number;
-            magnetLink: string;
-            infohash: string;
-            title: string;
-            quality?: string;
-            releaseGroup?: string;
-            size?: number;
-            seeders?: number;
-        };
-    }
+    // Mutations
+    const resolveMutation = createResolveTorrentMutation();
+    const addToLibraryMutation = createAddFromBrowseMutation();
+
+    // Derive params from URL
+    const activeTab = $derived(data.type);
+    const activeFilter = $derived(data.filter || 'all');
+
+    // Infinite query for loading more pages
+    const browseQuery = createInfiniteQuery(() => ({
+        queryKey: queryKeys.browse.infinite(activeTab, activeFilter),
+        queryFn: ({ pageParam }) => fetchBrowse(activeTab, activeFilter, pageParam),
+        initialPageParam: 1,
+        initialData: {
+            pages: [
+                {
+                    items: data.items,
+                    page: data.page,
+                    totalPages: data.totalPages,
+                },
+            ],
+            pageParams: [1],
+        },
+        getNextPageParam: (lastPage: BrowseResponse) => {
+            return lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined;
+        },
+        staleTime: 30 * 60 * 1000, // 30 minutes
+    }));
 
     // UI State
     let addingItems = $state<Set<number>>(new Set());
     let resolvingItems = $state<Set<number>>(new Set());
 
-    // Data State - derive directly from data prop
-    let activeTab = $derived(data.type);
-    let activeFilter = $derived(data.filter || 'all');
-    let totalPages = $derived(data.totalPages);
-
-    // For infinite scroll loading state
-    let isFetchingMore = $state(false);
-
     // Load more trigger element
     let loadMoreTrigger: HTMLDivElement | null = $state(null);
 
-    // Infinite scroll state
-    let appendedItems = $state<BrowseItem[]>([]);
-    let localPage = $state(untrack(() => data.page));
-    let previousUrlKey = $state($page.url.search);
-
-    const hasMore = $derived(localPage < totalPages);
-
-    // Resolve torrent from IMDB ID via Jackett
-    async function resolveTorrent(item: BrowseItem): Promise<ResolveResponse> {
-        const response = await fetch('/api/browse/resolve', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                imdbId: item.imdbId,
-                tmdbId: item.tmdbId,
-                title: item.title,
-            }),
-        });
-        if (!response.ok) {
-            throw new Error(`Failed to resolve: ${response.status}`);
-        }
-        return response.json();
-    }
-
-    // Reset scroll state when URL changes (tab/filter switch)
-    $effect(() => {
-        const currentKey = $page.url.search;
-        if (currentKey !== previousUrlKey) {
-            appendedItems = [];
-            localPage = data.page;
-            previousUrlKey = currentKey;
-        }
-    });
-
-    // Combine server data + appended items, deduplicated with unique keys
-    let displayItems = $derived.by(() => {
+    // Flatten and deduplicate items from all pages
+    const displayItems = $derived.by(() => {
+        const pages = browseQuery.data?.pages ?? [];
         const seen = new Set<number>();
-        const ctx = `${data.type}-${data.filter}`;
-        return [...data.items, ...appendedItems]
+        const ctx = `${activeTab}-${activeFilter}`;
+
+        return pages
+            .flatMap((page) => page.items)
             .filter((item) => {
                 if (seen.has(item.tmdbId)) {
                     return false;
@@ -107,30 +82,9 @@
             .map((item) => ({ ...item, _key: `${ctx}-${item.tmdbId}` }));
     });
 
-    async function loadMore() {
-        if (isFetchingMore || localPage >= totalPages) {
-            return;
-        }
-
-        isFetchingMore = true;
-        try {
-            // Use explicit tab/filter type from data if available, else defaults
-            const currentType = data.type || 'trending';
-            const currentFilter = data.filter || 'all';
-            const response = await fetch(
-                `/api/browse?type=${currentType}&page=${localPage + 1}&filter=${currentFilter}`
-            );
-            if (response.ok) {
-                const result = await response.json();
-                appendedItems = [...appendedItems, ...result.items];
-                localPage = result.page;
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            isFetchingMore = false;
-        }
-    }
+    const totalPages = $derived(browseQuery.data?.pages[0]?.totalPages ?? 0);
+    const hasMore = $derived(browseQuery.hasNextPage);
+    const isFetchingMore = $derived(browseQuery.isFetchingNextPage);
 
     // Intersection observer for infinite scroll
     $effect(() => {
@@ -141,8 +95,8 @@
         const observer = new IntersectionObserver(
             (entries) => {
                 const entry = entries[0];
-                if (entry.isIntersecting && localPage < totalPages && !isFetchingMore) {
-                    loadMore();
+                if (entry.isIntersecting && hasMore && !isFetchingMore) {
+                    browseQuery.fetchNextPage();
                 }
             },
             { rootMargin: '400px' }
@@ -151,6 +105,11 @@
         observer.observe(loadMoreTrigger);
 
         return () => observer.disconnect();
+    });
+
+    // Prefetch both tabs on page load for instant tab switching
+    $effect(() => {
+        prefetchBothBrowseTabs(activeFilter);
     });
 
     // Get magnet link - either from cache or by resolving via Jackett
@@ -162,7 +121,11 @@
         resolvingItems = new Set(resolvingItems).add(item.tmdbId);
 
         try {
-            const result = await resolveTorrent(item);
+            const result = await resolveMutation.mutateAsync({
+                imdbId: item.imdbId,
+                tmdbId: item.tmdbId,
+                title: item.title,
+            });
 
             if (!(result.success && result.torrent)) {
                 console.error('Failed to resolve torrent:', result.message || result.error);
@@ -190,20 +153,12 @@
         addingItems = new Set(addingItems).add(item.tmdbId);
 
         try {
-            const response = await fetch('/api/media', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    magnetLink,
-                    title: item.title,
-                    year: item.year,
-                    tmdbId: item.tmdbId,
-                }),
+            await addToLibraryMutation.mutateAsync({
+                magnetLink,
+                title: item.title,
+                year: item.year,
+                tmdbId: item.tmdbId,
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to add to library');
-            }
         } catch (err) {
             console.error('Failed to add to library:', err);
         } finally {
@@ -226,22 +181,12 @@
         addingItems = new Set(addingItems).add(item.tmdbId);
 
         try {
-            const response = await fetch('/api/media', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    magnetLink,
-                    title: item.title,
-                    year: item.year,
-                    tmdbId: item.tmdbId,
-                }),
+            const media = await addToLibraryMutation.mutateAsync({
+                magnetLink,
+                title: item.title,
+                year: item.year,
+                tmdbId: item.tmdbId,
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to add to library');
-            }
-
-            const media = await response.json();
             goto(`/watch/${media.id}`);
         } catch (err) {
             console.error('Failed to add and watch:', err);
@@ -250,6 +195,12 @@
             updated.delete(item.tmdbId);
             addingItems = updated;
         }
+    }
+
+    // Prefetch magnet link on hover - runs getMagnetLink in the background
+    function handlePrefetch(item: BrowseItem) {
+        // Fire and forget - don't await, just start the resolution
+        getMagnetLink(item);
     }
 </script>
 
@@ -270,6 +221,8 @@
                     <a
                         href="/browse?type=trending&filter={activeFilter}"
                         data-sveltekit-noscroll
+                        onmouseenter={() => prefetchBrowse("trending", activeFilter)}
+                        onfocus={() => prefetchBrowse("trending", activeFilter)}
                         class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 {activeTab ===
                         'trending'
                             ? 'bg-primary text-primary-foreground hover:bg-primary/90'
@@ -281,6 +234,8 @@
                     <a
                         href="/browse?type=popular&filter={activeFilter}"
                         data-sveltekit-noscroll
+                        onmouseenter={() => prefetchBrowse("popular", activeFilter)}
+                        onfocus={() => prefetchBrowse("popular", activeFilter)}
                         class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 {activeTab ===
                         'popular'
                             ? 'bg-primary text-primary-foreground hover:bg-primary/90'

@@ -1,99 +1,78 @@
 <script lang="ts">
+    import { createQuery } from '@tanstack/svelte-query';
     import { Film, Tv } from 'lucide-svelte';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
     import MediaCard from '$lib/components/MediaCard.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import Dialog from '$lib/components/ui/Dialog.svelte';
     import Input from '$lib/components/ui/Input.svelte';
-    import type { Media, MediaType } from '$lib/types';
+    import { createAddMediaMutation, createDeleteMediaMutation } from '$lib/mutations/media-mutations';
+    import { fetchMediaList } from '$lib/queries/media-queries';
+    import { queryKeys } from '$lib/query-keys';
+    import type { MediaType } from '$lib/types';
     import { confirmDelete, uiState } from '$lib/ui-state.svelte';
 
-    let movies: Media[] = $state([]);
-    let shows: Media[] = $state([]);
-    let loading = $state(true);
-    let activeTab = $state<'movies' | 'tv'>('movies');
+    // Query hooks for movies and TV shows
+    const moviesQuery = createQuery(() => ({
+        queryKey: queryKeys.media.list('movie'),
+        queryFn: () => fetchMediaList('movie'),
+        staleTime: 2 * 60 * 1000, // 2 minutes
+    }));
 
-    // Add Media State
+    const showsQuery = createQuery(() => ({
+        queryKey: queryKeys.media.list('tv'),
+        queryFn: () => fetchMediaList('tv'),
+        staleTime: 2 * 60 * 1000, // 2 minutes
+    }));
+
+    // Mutation hooks
+    const addMutation = createAddMediaMutation();
+    const deleteMutation = createDeleteMediaMutation();
+
+    // Reactive derived values from queries
+    // In TanStack Svelte Query v6 with Svelte 5, the query returns a reactive object directly
+    const movies = $derived(moviesQuery.data ?? []);
+    const shows = $derived(showsQuery.data ?? []);
+    const loading = $derived(moviesQuery.isLoading || showsQuery.isLoading);
+    const queryError = $derived(moviesQuery.error || showsQuery.error);
+
+    // UI State
+    let activeTab = $state<'movies' | 'tv'>('movies');
     let magnetInput = $state('');
     let selectedType = $state<MediaType | null>(null);
-    let adding = $state(false);
     let error = $state('');
-    let deletingId = $state<string | null>(null);
-
-    async function loadLibrary() {
-        loading = true;
-        try {
-            const [moviesRes, showsRes] = await Promise.all([
-                fetch('/api/media?type=movie'),
-                fetch('/api/media?type=tv'),
-            ]);
-
-            if (moviesRes.ok) {
-                movies = await moviesRes.json();
-            }
-            if (showsRes.ok) {
-                shows = await showsRes.json();
-            }
-        } catch (e) {
-            console.error('Failed to load library:', e);
-        } finally {
-            loading = false;
-        }
-    }
 
     async function addMagnet() {
         if (!magnetInput.trim()) {
             return;
         }
 
-        adding = true;
         error = '';
 
         try {
-            const body: { magnetLink: string; type?: MediaType } = {
+            const result = await addMutation.mutateAsync({
                 magnetLink: magnetInput,
-            };
-            if (selectedType) {
-                body.type = selectedType;
-            }
-
-            const res = await fetch('/api/media', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
+                type: selectedType ?? undefined,
             });
 
-            if (res.ok) {
-                const mediaItem: Media & { _seasonAdded?: boolean } = await res.json();
-
-                // Check if this was a season addition to an existing show
-                if (mediaItem._seasonAdded) {
-                    // Don't add duplicate - just close the dialog and switch to TV tab
-                    activeTab = 'tv';
-                } else if (mediaItem.type === 'tv') {
-                    // Add new TV show to list
-                    shows = [mediaItem, ...shows];
-                    activeTab = 'tv';
-                } else {
-                    // Add new movie to list
-                    movies = [mediaItem, ...movies];
-                    activeTab = 'movies';
-                }
-                magnetInput = '';
-                selectedType = null;
-                uiState.addMediaDialogOpen = false;
+            // Check if this was a season addition to an existing show
+            if (result._seasonAdded) {
+                activeTab = 'tv';
+            } else if (result.type === 'tv') {
+                activeTab = 'tv';
             } else {
-                const data = await res.json();
-                error = data.message || 'Failed to add media';
+                activeTab = 'movies';
             }
+
+            magnetInput = '';
+            selectedType = null;
+            uiState.addMediaDialogOpen = false;
         } catch (e) {
-            error = 'Failed to add media';
-        } finally {
-            adding = false;
+            error = e instanceof Error ? e.message : 'Failed to add media';
         }
     }
 
-    async function deleteMedia(id: string, event: Event) {
+    function deleteMedia(id: string, event: Event) {
         event.preventDefault();
         event.stopPropagation();
 
@@ -102,26 +81,13 @@
             'Are you sure you want to remove this? This action cannot be undone.',
             async () => {
                 try {
-                    deletingId = id;
-                    const res = await fetch(`/api/media/${id}`, {
-                        method: 'DELETE',
-                    });
-                    if (res.ok) {
-                        movies = movies.filter((m) => m.id !== id);
-                        shows = shows.filter((s) => s.id !== id);
-                    }
+                    await deleteMutation.mutateAsync(id);
                 } catch (e) {
                     console.error('Failed to delete media:', e);
-                } finally {
-                    deletingId = null;
                 }
             }
         );
     }
-
-    $effect(() => {
-        loadLibrary();
-    });
 </script>
 
 <div class="min-h-screen pb-20 bg-background">
@@ -137,7 +103,7 @@
 
             <!-- Tab Navigation -->
             <div class="flex items-center space-x-2 py-2">
-                <Button variant={activeTab === "movies" ? "default" : "ghost"} onclick={() => (activeTab = "movies")}>
+                <Button variant={activeTab === 'movies' ? 'default' : 'ghost'} onclick={() => (activeTab = 'movies')}>
                     <Film class="w-4 h-4 mr-2" />
                     Movies
                     {#if movies.length > 0}
@@ -146,7 +112,7 @@
                         </span>
                     {/if}
                 </Button>
-                <Button variant={activeTab === "tv" ? "default" : "ghost"} onclick={() => (activeTab = "tv")}>
+                <Button variant={activeTab === 'tv' ? 'default' : 'ghost'} onclick={() => (activeTab = 'tv')}>
                     <Tv class="w-4 h-4 mr-2" />
                     TV Shows
                     {#if shows.length > 0}
@@ -165,7 +131,19 @@
             <div class="flex items-center justify-center p-20">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
-        {:else if activeTab === "movies"}
+        {:else if queryError}
+            <div class="flex flex-col items-center justify-center p-20 text-center space-y-4">
+                <p class="text-destructive">Failed to load library: {queryError.message}</p>
+                <Button
+                    onclick={() => {
+						moviesQuery.refetch();
+						showsQuery.refetch();
+					}}
+                >
+                    Retry
+                </Button>
+            </div>
+        {:else if activeTab === 'movies'}
             {#if movies.length === 0}
                 <div class="flex flex-col items-center justify-center p-20 text-center space-y-4">
                     <div class="p-6 rounded-full bg-accent/30">
@@ -209,7 +187,7 @@
         <Input
             placeholder="magnet:?xt=urn:btih:..."
             bind:value={magnetInput}
-            onkeydown={(e) => e.key === "Enter" && addMagnet()}
+            onkeydown={(e) => e.key === 'Enter' && addMagnet()}
             autofocus
         />
 
@@ -217,24 +195,24 @@
         <div class="flex gap-2">
             <span class="text-sm text-muted-foreground self-center">Type:</span>
             <Button
-                variant={selectedType === null ? "default" : "ghost"}
+                variant={selectedType === null ? 'default' : 'ghost'}
                 size="sm"
                 onclick={() => (selectedType = null)}
             >
                 Auto-detect
             </Button>
             <Button
-                variant={selectedType === "movie" ? "default" : "ghost"}
+                variant={selectedType === 'movie' ? 'default' : 'ghost'}
                 size="sm"
-                onclick={() => (selectedType = "movie")}
+                onclick={() => (selectedType = 'movie')}
             >
                 <Film class="w-3 h-3 mr-1" />
                 Movie
             </Button>
             <Button
-                variant={selectedType === "tv" ? "default" : "ghost"}
+                variant={selectedType === 'tv' ? 'default' : 'ghost'}
                 size="sm"
-                onclick={() => (selectedType = "tv")}
+                onclick={() => (selectedType = 'tv')}
             >
                 <Tv class="w-3 h-3 mr-1" />
                 TV Show
@@ -247,7 +225,9 @@
     </div>
     <div class="flex justify-end gap-2">
         <Button variant="ghost" onclick={() => (uiState.addMediaDialogOpen = false)}>Cancel</Button>
-        <Button onclick={addMagnet} disabled={adding}>{adding ? "Adding..." : "Add Media"}</Button>
+        <Button onclick={addMagnet} disabled={addMutation.isPending}>
+            {addMutation.isPending ? 'Adding...' : 'Add Media'}
+        </Button>
     </div>
 </Dialog>
 
@@ -256,5 +236,5 @@
     title={uiState.deleteConfirmation.title}
     description={uiState.deleteConfirmation.description}
     onConfirm={uiState.deleteConfirmation.confirmAction}
-    loading={!!deletingId}
+    loading={deleteMutation.isPending}
 />

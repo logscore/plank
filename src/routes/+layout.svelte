@@ -1,7 +1,8 @@
 <script lang="ts">
     import '../app.css';
+    import QueryProvider from '$lib/components/QueryProvider.svelte';
 
     let { children } = $props();
 </script>
 
-{@render children()}
+<QueryProvider>{@render children()}</QueryProvider>
