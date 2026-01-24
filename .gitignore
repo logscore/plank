@@ -16,3 +16,4 @@ docker/media
 *.webm
 biome-cache/
 .lefthook-local.yml
+coverage/

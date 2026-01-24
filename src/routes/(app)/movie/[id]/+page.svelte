@@ -1,5 +1,17 @@
 <script lang="ts">
-    import { ArrowLeft, Calendar, Check, Copy, Database, Film, Folder, Play, RotateCcw, Trash2 } from 'lucide-svelte';
+    import {
+        ArrowLeft,
+        Calendar,
+        Check,
+        Copy,
+        Database,
+        Film,
+        Folder,
+        Play,
+        RefreshCw,
+        RotateCcw,
+        Trash2,
+    } from 'lucide-svelte';
     import { onDestroy, onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
@@ -24,6 +36,7 @@
     let liveProgress = $state<number | null>(null);
     let downloadSpeed = $state(0);
     let peers = $state(0);
+    let liveFileSize = $state<number | null>(null);
 
     // Sync initial values from data when component mounts or data changes
     $effect(() => {
@@ -101,6 +114,9 @@
                 liveProgress = info.progress;
                 downloadSpeed = info.downloadSpeed || 0;
                 peers = info.peers || 0;
+                if (info.fileSize) {
+                    liveFileSize = info.fileSize;
+                }
 
                 // SSE will auto-close when complete, but we stop listening too
                 if (info.status === 'complete') {
@@ -355,10 +371,24 @@
         <!-- Technical Details -->
         <div class="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">
             <div class="bg-card border border-border rounded-lg p-6 space-y-4">
-                <h3 class="text-lg font-semibold flex items-center gap-2">
-                    <Database class="w-5 h-5 text-primary" />
-                    File Information
-                </h3>
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold flex items-center gap-2">
+                        <Database class="w-5 h-5 text-primary" />
+                        File Information
+                    </h3>
+                    {#if liveStatus !== 'error' && liveStatus !== 'downloading'}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            class="h-8 w-8 p-0 text-muted-foreground hover:text-white"
+                            onclick={handleRetry}
+                            disabled={retrying}
+                            title="Redownload Content"
+                        >
+                            <RefreshCw class="w-4 h-4" />
+                        </Button>
+                    {/if}
+                </div>
                 <div class="space-y-3 text-sm">
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">Status</span>
@@ -383,7 +413,7 @@
                     {/if}
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">File Size</span>
-                        <span class="font-medium">{formatFileSize(data.media.fileSize)}</span>
+                        <span class="font-medium">{formatFileSize(liveFileSize ?? data.media.fileSize)}</span>
                     </div>
                 </div>
             </div>

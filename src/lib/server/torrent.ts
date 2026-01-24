@@ -7,9 +7,9 @@ import ptt from 'parse-torrent-title';
 import { config } from '$lib/config';
 import type { MediaType } from '$lib/types';
 import { downloadsDb, episodesDb, mediaDb, seasonsDb } from './db';
+import { isSupportedFormat, SUPPORTED_VIDEO_FORMATS } from './ffmpeg';
 import { parseMagnet } from './magnet';
 import { searchMovie, searchTVShow } from './tmdb';
-import { isSupportedFormat, SUPPORTED_VIDEO_FORMATS } from './transcoder';
 
 // WebTorrent types
 interface TorrentFile {
@@ -1233,6 +1233,7 @@ interface DownloadStatusResult {
 	error?: string;
 	episodeProgress?: Map<number, number>;
 	activeDownloads?: number;
+	totalSize?: number;
 }
 
 interface AggregatedStats {
@@ -1338,6 +1339,7 @@ export function getDownloadStatus(mediaId: string): DownloadStatusResult | null 
 		error: stats.errors.length > 0 ? stats.errors.join('; ') : undefined,
 		episodeProgress: stats.episodeProgress.size > 0 ? stats.episodeProgress : undefined,
 		activeDownloads: downloads.length,
+		totalSize: stats.totalSize,
 	};
 }
 

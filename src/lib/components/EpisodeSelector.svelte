@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ChevronDown, ChevronRight, Loader2, Play } from 'lucide-svelte';
+    import { ChevronDown, ChevronRight, Play } from 'lucide-svelte';
     import Button from '$lib/components/ui/Button.svelte';
 
     interface Episode {
@@ -27,7 +27,6 @@
 
     let {
         seasons,
-        mediaId,
         onPlayEpisode,
         onOpen,
         buttonSize = 'lg',
@@ -35,7 +34,6 @@
         class: className = '',
     }: {
         seasons: Season[];
-        mediaId: string;
         onPlayEpisode: (episodeId: string, episode: Episode) => void;
         onOpen?: () => Promise<void>;
         buttonSize?: 'default' | 'sm' | 'lg' | 'icon';
@@ -108,13 +106,12 @@
 <div class="relative {className}" bind:this={menuRef}>
     <!-- Main Button -->
     <Button size={buttonSize} class="px-4 {buttonClass}" onclick={toggleMenu} disabled={loading}>
-        <!-- {#if loading}
-      <Loader2 class="w-4 h-4 mr-2 animate-spin" />
-    {:else}
-      <Play class="w-4 h-4 mr-2 fill-current" />
-    {/if} -->
         <span class="flex-1 text-left">Episodes</span>
-        <ChevronDown class="w-4 h-4 ml-2 transition-transform shrink-0 {isOpen ? 'rotate-180' : ''}" />
+        <ChevronDown
+            class="w-4 h-4 ml-2 transition-transform shrink-0 {isOpen
+                ? 'rotate-180'
+                : ''}"
+        />
     </Button>
 
     <!-- Dropdown Menu -->
@@ -133,7 +130,8 @@
                         >
                             <div class="flex-1">
                                 <span class="font-medium text-white">
-                                    {season.name || `Season ${season.seasonNumber}`}
+                                    {season.name ||
+                                        `Season ${season.seasonNumber}`}
                                 </span>
                                 {#if season.episodeCount}
                                     <span class="text-xs text-muted-foreground ml-2">
@@ -142,7 +140,10 @@
                                 {/if}
                             </div>
                             <ChevronRight
-                                class="w-4 h-4 text-muted-foreground transition-transform {selectedSeasonIndex === index ? 'rotate-90' : ''}"
+                                class="w-4 h-4 text-muted-foreground transition-transform {selectedSeasonIndex ===
+                                index
+                                    ? 'rotate-90'
+                                    : ''}"
                             />
                         </button>
 
@@ -166,11 +167,14 @@
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center gap-2">
                                                 <span class="font-medium text-white truncate">
-                                                    {episode.title || `Episode ${episode.episodeNumber}`}
+                                                    {episode.title ||
+                                                        `Episode ${episode.episodeNumber}`}
                                                 </span>
                                                 {#if episode.runtime}
                                                     <span class="text-xs text-muted-foreground shrink-0">
-                                                        {formatRuntime(episode.runtime)}
+                                                        {formatRuntime(
+                                                            episode.runtime,
+                                                        )}
                                                     </span>
                                                 {/if}
                                             </div>

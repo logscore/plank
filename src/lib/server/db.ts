@@ -42,6 +42,13 @@ export const mediaDb = {
 	},
 
 	/**
+	 * Get all media items (system wide) for maintenance tasks
+	 */
+	getAll(): Media[] {
+		return db.select().from(mediaTable).all();
+	},
+
+	/**
 	 * Get all media with incomplete download status (for recovery on startup)
 	 */
 	getIncompleteDownloads(): Media[] {
@@ -132,6 +139,20 @@ export const mediaDb = {
 	 */
 	updateProgress(id: string, progress: number, status: 'added' | 'downloading' | 'complete' | 'error') {
 		db.update(mediaTable).set({ progress, status }).where(eq(mediaTable.id, id)).run();
+	},
+	/**
+	 * Reset download status and clear file info
+	 */
+	resetDownload(id: string) {
+		db.update(mediaTable)
+			.set({
+				progress: 0,
+				status: 'added',
+				filePath: null,
+				fileSize: null,
+			})
+			.where(eq(mediaTable.id, id))
+			.run();
 	},
 
 	/**

@@ -265,8 +265,8 @@ const config = {
 |----------|-------------|---------|
 | `DATABASE_URL` | SQLite database path | `./plank.db` |
 | `DATA_PATH` | Base data directory | `./data` |
-| `AUTH_SECRET` | Auth signing secret | Required |
-| `AUTH_URL` | Base URL for auth | `http://localhost:3000` |
+| `BETTER_AUTH_SECRET` | Auth signing secret | Required |
+| `BETTER_AUTH_URL` | Base URL for auth | `http://localhost:3000` |
 | `TMDB_API_KEY` | TMDB API key | Required for metadata |
 | `PORT` | Server port | `3000` |
 

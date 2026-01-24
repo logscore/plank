@@ -60,12 +60,12 @@ setup_env() {
     echo "Generating .env file..."
 
     # Generate random secret
-    AUTH_SECRET=$(openssl rand -hex 32)
-    echo -e "Generated auth secret: ${GREEN}${AUTH_SECRET:0:16}...${NC}"
+    BETTER_AUTH_SECRET=$(openssl rand -hex 32)
+    echo -e "Generated auth secret: ${GREEN}${BETTER_AUTH_SECRET:0:16}...${NC}"
 
     read -p "Enter TMDB API Key (optional): " TMDB_API_KEY
-    read -p "Enter Base URL (e.g., http://localhost:3000): " AUTH_URL
-    AUTH_URL=${AUTH_URL:-http://localhost:3000}
+    read -p "Enter Base URL (e.g., http://localhost:3000): " BETTER_AUTH_URL
+    BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
 
     read -p "Enable File Storage (for uploads)? (true/false) [true]: " ENABLE_FILE_STORAGE
     ENABLE_FILE_STORAGE=${ENABLE_FILE_STORAGE:-true}
@@ -75,10 +75,10 @@ setup_env() {
 
     # Use absolute path for database
     DB_PATH="$(pwd)/plank.db"
-    
+
     cat > .env << EOF
-AUTH_SECRET=${AUTH_SECRET}
-AUTH_URL=${AUTH_URL}
+BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+BETTER_AUTH_URL=${BETTER_AUTH_URL}
 TMDB_API_KEY=${TMDB_API_KEY}
 ENABLE_FILE_STORAGE=${ENABLE_FILE_STORAGE}
 PORT=${PORT}

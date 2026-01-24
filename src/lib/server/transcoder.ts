@@ -1,76 +1,134 @@
-import type { Readable } from 'node:stream';
-import { PassThrough } from 'node:stream';
-import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
-import ffmpeg from 'fluent-ffmpeg';
+import { existsSync } from 'node:fs';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { episodesDb, mediaDb } from './db';
+import { probeFile, transmuxFile } from './ffmpeg';
 
-// Set ffmpeg path
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+// Helper to check file integrity
+async function verifyFileIntegrity(filePath: string): Promise<boolean> {
+	try {
+		const stats = await fs.stat(filePath);
+		if (stats.size === 0) {
+			return false;
+		}
 
-// Supported video containers that browsers can play natively
-const NATIVE_PLAYABLE = ['.mp4', '.webm'];
-
-// Supported containers that need transmuxing (container change, no re-encoding)
-const TRANSMUXABLE = ['.mkv', '.avi', '.mov', '.m4v'];
-
-// All supported video formats
-export const SUPPORTED_VIDEO_FORMATS = [...NATIVE_PLAYABLE, ...TRANSMUXABLE];
-
-export function needsTransmux(fileName: string): boolean {
-	const ext = fileName.toLowerCase().slice(fileName.lastIndexOf('.'));
-	return TRANSMUXABLE.includes(ext);
+		const probe = await probeFile(filePath);
+		// Check if we have valid video/audio streams
+		return !!(probe.videoCodec || probe.audioCodec) && (probe.duration ?? 0) > 0;
+	} catch (e) {
+		console.error(`[Transcoder] Integrity check failed for ${filePath}:`, e);
+		return false;
+	}
 }
 
-export function isSupportedFormat(fileName: string): boolean {
-	const ext = fileName.toLowerCase().slice(fileName.lastIndexOf('.'));
-	return SUPPORTED_VIDEO_FORMATS.includes(ext);
+export async function transcodeLibrary(): Promise<void> {
+	await scanMovies();
+	await scanTVShows();
 }
 
-interface TransmuxOptions {
-	inputStream: Readable;
-	start?: number;
-	onError?: (err: Error) => void;
+async function scanMovies(): Promise<void> {
+	const allMedia = mediaDb.getAll();
+	const movieFiles = allMedia.filter(
+		(media) => media.type === 'movie' && media.filePath && existsSync(media.filePath)
+	);
+
+	const needsTranscoding = movieFiles.filter((media) => {
+		if (!media.filePath) {
+			return false;
+		}
+		const ext = path.extname(media.filePath).toLowerCase();
+		return ext !== '.mp4' && ext !== '.webm';
+	});
+
+	await Promise.all(
+		needsTranscoding.map(async (media) => {
+			if (!media.filePath) {
+				return;
+			}
+
+			await safeTransmux(media.filePath, (newPath, newSize) => {
+				mediaDb.updateFilePath(media.id, newPath, newSize);
+			});
+		})
+	);
 }
 
-export function createTransmuxStream(options: TransmuxOptions): Readable {
-	const { inputStream, start, onError } = options;
-	const outputStream = new PassThrough();
+async function scanTVShows(): Promise<void> {
+	const allMedia = mediaDb.getAll();
+	const tvMediaIds = allMedia.filter((media) => media.type === 'tv').map((media) => media.id);
 
-	const command = ffmpeg(inputStream)
-		.inputFormat('matroska') // Force MKV input format
-		.outputFormat('mp4')
-		.outputOptions([
-			'-movflags',
-			'frag_keyframe+empty_moov+faststart', // Enable streaming
-			'-c:v',
-			'copy', // Copy video stream (no re-encoding)
-			'-c:a',
-			'aac', // Transcode audio to AAC for browser compatibility
-			'-b:a',
-			'192k',
-		]);
-
-	if (start && start > 0) {
-		command.setStartTime(start);
+	if (tvMediaIds.length === 0) {
+		return;
 	}
 
-	command
-		// .on('start', (cmd) => {
-		// 	console.log('[Transcoder] Starting FFmpeg:', cmd);
-		// })
-		.on('error', (err: Error, _stdout, stderr) => {
-			console.error('[Transcoder] FFmpeg error:', err.message);
-			if (stderr) {
-				console.error('[Transcoder] FFmpeg stderr:', stderr);
-			}
-			if (onError) {
-				onError(err);
-			}
-			outputStream.destroy(err);
-		})
-		// .on('end', () => {
-		// 	console.log('[Transcoder] FFmpeg finished');
-		// })
-		.pipe(outputStream, { end: true });
+	// Get all episodes for TV shows in a single structured query
+	const allEpisodesWithSeasons = tvMediaIds.flatMap((mediaId) => episodesDb.getByMediaId(mediaId));
 
-	return outputStream;
+	const episodesToTranscode = allEpisodesWithSeasons.filter(
+		({ episode }) =>
+			episode.filePath &&
+			existsSync(episode.filePath) &&
+			episode.fileIndex !== null &&
+			!['.mp4', '.webm'].includes(path.extname(episode.filePath).toLowerCase())
+	);
+
+	await Promise.all(
+		episodesToTranscode.map(async ({ episode }) => {
+			if (!episode.filePath || episode.fileIndex === null) {
+				return;
+			}
+
+			await safeTransmux(episode.filePath, (newPath, newSize) => {
+				if (episode.fileIndex !== null) {
+					episodesDb.updateFileInfo(episode.id, episode.fileIndex, newPath, newSize);
+				}
+			});
+		})
+	);
+}
+
+async function safeTransmux(sourcePath: string, updateDb: (path: string, size: number) => void): Promise<void> {
+	const dir = path.dirname(sourcePath);
+	const name = path.basename(sourcePath, path.extname(sourcePath));
+	const tempPath = path.join(dir, `${name}.transcoding.mp4`);
+	const finalPath = path.join(dir, `${name}.mp4`);
+
+	console.log(`[Transcoder] Processing: ${sourcePath}`);
+
+	try {
+		// Transmux to temp file first
+		await transmuxFile(sourcePath, tempPath);
+
+		// Verify integrity
+		const isValid = await verifyFileIntegrity(tempPath);
+		if (!isValid) {
+			console.error(`[Transcoder] Transmuxed file corrupt: ${tempPath}`);
+			await fs.unlink(tempPath).catch(() => {
+				// Ignore cleanup error
+			});
+			return;
+		}
+
+		// Rename temp to final (atomic replacement if dest existed, but here we are creating new)
+		await fs.rename(tempPath, finalPath);
+
+		// Update DB
+		const stats = await fs.stat(finalPath);
+		updateDb(finalPath, stats.size);
+
+		// Delete original if different
+		if (sourcePath !== finalPath) {
+			await fs.unlink(sourcePath).catch((err) => console.warn(`Failed to delete original: ${sourcePath}`, err));
+		}
+
+		console.log(`[Transcoder] Successfully converted to: ${finalPath}`);
+	} catch (e) {
+		console.error(`[Transcoder] Failed to transmux ${sourcePath}:`, e);
+		// Cleanup temp
+		if (existsSync(tempPath)) {
+			await fs.unlink(tempPath).catch(() => {
+				// Ignore cleanup error
+			});
+		}
+	}
 }

@@ -13,8 +13,8 @@ export const db = drizzle(testDb, { schema });
 vi.mock('$env/dynamic/private', () => ({
 	env: {
 		DATABASE_URL: ':memory:',
-		AUTH_SECRET: 'test-secret-key-for-testing-purposes',
-		AUTH_URL: 'http://localhost:5173',
+		BETTER_AUTH_SECRET: 'test-secret-key-for-testing-purposes',
+		BETTER_AUTH_URL: 'http://localhost:5173',
 		TMDB_API_KEY: 'test-tmdb-api-key',
 		ENABLE_FILE_STORAGE: 'false',
 		DATA_PATH: '/tmp/test-data', // Config mock needs this
@@ -189,12 +189,12 @@ beforeAll(() => {
 	// Create standalone FTS table for tests (simpler than content table)
 	testDb.exec(`
     CREATE VIRTUAL TABLE IF NOT EXISTS media_fts USING fts5(
-        title, 
+        title,
         overview
     );
 
     CREATE TRIGGER IF NOT EXISTS media_fts_insert AFTER INSERT ON media BEGIN
-      INSERT INTO media_fts(rowid, title, overview) 
+      INSERT INTO media_fts(rowid, title, overview)
       VALUES (new.rowid, new.title, new.overview);
     END;
 

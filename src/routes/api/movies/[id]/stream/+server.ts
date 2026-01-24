@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { mediaDb } from '$lib/server/db';
+import { createTransmuxStream, needsTransmux } from '$lib/server/ffmpeg';
 import {
 	getDownloadStatus,
 	getVideoStream,
@@ -7,7 +8,6 @@ import {
 	startDownload,
 	waitForVideoReady,
 } from '$lib/server/torrent';
-import { createTransmuxStream, needsTransmux } from '$lib/server/transcoder';
 import type { RequestHandler } from './$types';
 
 // Regex patterns for stream handling
@@ -68,7 +68,7 @@ function createTransmuxResponse(inputStream: import('node:stream').Readable, fil
 
 	const transmuxedStream = createTransmuxStream({
 		inputStream,
-		onError: (err) => console.error('[Stream] Transmux error:', err),
+		onError: (err: Error) => console.error('[Stream] Transmux error:', err),
 	});
 
 	return new Response(transmuxedStream as unknown as ReadableStream, {

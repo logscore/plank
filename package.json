@@ -6,8 +6,8 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-kit sync && svelte-check-rs --tsconfig ./tsconfig.json && npx ultracite fix",
-    "check:watch": "svelte-kit sync && svelte-check-rs --tsconfig ./tsconfig.json --watch && npx ultracite fix --watch",
+    "check": "svelte-kit sync && npx svelte-check-rs --tsconfig ./tsconfig.json && npx ultracite fix",
+    "check:watch": "svelte-kit sync && npx svelte-check-rs --tsconfig ./tsconfig.json --watch && npx ultracite fix --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -17,7 +17,7 @@
     "lint": "biome check --write .",
     "format": "biome format --write .",
     "knip": "knip",
-    "prepare": "lefthook install"
+    "library:optimize": "tsx scripts/optimize-library.ts"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "1.1.0",
@@ -47,8 +47,8 @@
     "knip": "5.82.1",
     "lefthook": "2.0.15",
     "svelte": "5.48.0",
-    "svelte-check-rs": "0.6.10",
     "tailwindcss": "4.1.18",
+    "tsx": "^4.21.0",
     "typescript": "5.9.3",
     "ultracite": "7.0.12",
     "vite": "7.3.1",

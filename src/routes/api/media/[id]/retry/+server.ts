@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises';
 import { error, json } from '@sveltejs/kit';
 import { mediaDb } from '$lib/server/db';
 import { startDownload } from '$lib/server/torrent';
@@ -13,8 +14,17 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 		throw error(404, 'Media not found');
 	}
 
-	// Reset status and start fresh download
-	mediaDb.updateProgress(mediaItem.id, 0, 'added');
+	// Delete existing file if present
+	if (mediaItem.filePath) {
+		try {
+			await fs.unlink(mediaItem.filePath);
+		} catch (e) {
+			console.warn(`Failed to delete existing file for ${mediaItem.id}:`, e);
+		}
+	}
+
+	// Reset status, clear file info, and start fresh download
+	mediaDb.resetDownload(mediaItem.id);
 
 	try {
 		await startDownload(mediaItem.id, mediaItem.magnetLink);

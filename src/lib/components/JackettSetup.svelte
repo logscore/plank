@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Check, Loader2, Play, Plus } from 'lucide-svelte';
+    import { Check, Play, Plus } from 'lucide-svelte';
 
     interface Props {
         jackettUrl: string;
@@ -72,7 +72,7 @@
                     </div>
                 </div>
                 <a
-                    href="{jackettUrl}"
+                    href={jackettUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     class="inline-flex items-center gap-1 text-sm text-primary hover:underline"
@@ -86,7 +86,7 @@
         <!-- Step 3 -->
         <div class="flex gap-3">
             <div
-                class="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium"
+                class="shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium"
             >
                 3
             </div>
@@ -113,7 +113,7 @@
         <!-- Step 4 -->
         <div class="flex gap-3">
             <div
-                class="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium"
+                class="shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium"
             >
                 4
             </div>

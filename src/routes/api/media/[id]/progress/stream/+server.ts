@@ -28,6 +28,7 @@ function buildProgressData(mediaId: string, userId?: string) {
 		isActive: isDownloadActive(mediaId),
 		filePath: currentMedia?.filePath,
 		error: downloadStatus?.error,
+		fileSize: downloadStatus?.totalSize ?? currentMedia?.fileSize,
 	};
 }
 

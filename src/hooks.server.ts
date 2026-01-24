@@ -1,8 +1,6 @@
-import fs from 'node:fs/promises';
 import { type Handle, redirect } from '@sveltejs/kit';
-import cron from 'node-cron';
-import { config } from '$lib/config';
 import { auth } from '$lib/server/auth';
+import { tempFolderScheduler, transcodeScheduler } from '$lib/server/scheduler';
 import { recoverDownloads } from '$lib/server/torrent';
 
 // Recover incomplete downloads on server startup
@@ -10,17 +8,10 @@ recoverDownloads().catch((e) => {
 	console.error('[Startup] Failed to recover downloads:', e);
 });
 
-// Schedule temp folder cleanup daily at midnight
-cron.schedule('0 0 * * *', async () => {
-	// console.log('[Cron] Starting daily temp folder cleanup...');
-	try {
-		await fs.rm(config.paths.temp, { recursive: true, force: true });
-		await fs.mkdir(config.paths.temp, { recursive: true });
-		// console.log('[Cron] Temp folder cleaned successfully');
-	} catch (e) {
-		console.error('[Cron] Failed to clean temp folder:', e);
-	}
-});
+// Start scheduled tasks
+// Start scheduled tasks
+transcodeScheduler();
+tempFolderScheduler();
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const session = await auth.api.getSession({

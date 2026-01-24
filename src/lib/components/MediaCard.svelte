@@ -2,7 +2,7 @@
     import { Info, MoreVertical, Play, RotateCcw, Trash2 } from 'lucide-svelte';
     import { goto } from '$app/navigation';
     import EpisodeSelector from '$lib/components/EpisodeSelector.svelte';
-    import type { Episode, Media, SeasonWithEpisodes } from '$lib/types';
+    import type { Media, SeasonWithEpisodes } from '$lib/types';
     import Button from './ui/Button.svelte';
     import Tv from './ui/Tv.svelte';
 
@@ -197,7 +197,6 @@
             {:else if media.type === "tv"}
                 <EpisodeSelector
                     {seasons}
-                    mediaId={media.id}
                     onPlayEpisode={handlePlayEpisode}
                     onOpen={loadEpisodes}
                     buttonSize="sm"

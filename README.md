@@ -141,9 +141,8 @@ TMDB_API_KEY=your_tmdb_api_key_here # Needed for movie metadata like title, rati
 JACKETT_URL=http://localhost:9117
 JACKETT_API_KEY=your_jackett_api_key_here # Needed for torrent search
 
-AUTH_SECRET=
-AUTH_URL=http://localhost:3300
-VITE_AUTH_URL=http://localhost:3300
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=http://localhost:3300
 PORT=3300
 ```
 
@@ -266,8 +265,8 @@ node build
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DATABASE_URL` | Path to SQLite database | `./plank.db` |
-| `AUTH_SECRET` | Auth secret (auto-generated) | - |
-| `AUTH_URL` | Base URL for auth | `http://localhost:3000` |
+| `BETTER_AUTH_SECRET` | Auth secret (auto-generated) | - |
+| `BETTER_AUTH_URL` | Base URL for auth | `http://localhost:3000` |
 | `TMDB_API_KEY` | TMDB API key for metadata | - |
 | `PORT` | Server port | `3000` |
 

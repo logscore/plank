@@ -70,8 +70,8 @@ echo -e "${YELLOW}=== Plank Configuration ===${NC}"
 read -p "Enter your TMDB API Key (optional, press Enter to skip): " TMDB_KEY
 
 # Generate random auth secret
-AUTH_SECRET=$(openssl rand -hex 32)
-echo -e "${GREEN}Generated auth secret: ${AUTH_SECRET:0:16}...${NC}"
+BETTER_AUTH_SECRET=$(openssl rand -hex 32)
+echo -e "${GREEN}Generated auth secret: ${BETTER_AUTH_SECRET:0:16}...${NC}"
 
 read -p "Enter media library path on Proxmox host (optional, for bind mount): " MEDIA_PATH
 
@@ -160,8 +160,8 @@ pct exec $CTID -- bash -c "$SETUP_SCRIPT"
 
 # Create environment file
 echo -e "${GREEN}Creating environment configuration...${NC}"
-ENV_CONTENT="AUTH_SECRET=${AUTH_SECRET}
-AUTH_URL=http://localhost:3000
+ENV_CONTENT="BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+BETTER_AUTH_URL=http://localhost:3000
 DATABASE_URL=/opt/plank/db/plank.db
 DATA_PATH=/opt/plank/data"
 
@@ -205,7 +205,7 @@ pct exec $CTID -- systemctl start plank
 sleep 3
 CT_IP=$(pct exec $CTID -- hostname -I | awk '{print $1}')
 
-# Update AUTH_URL with actual IP
+# Update BETTER_AUTH_URL with actual IP
 pct exec $CTID -- sed -i "s|http://localhost:3000|http://${CT_IP}:3000|g" /opt/plank/.env
 pct exec $CTID -- systemctl restart plank
 
@@ -218,7 +218,7 @@ echo -e "Container ID:    ${YELLOW}${CTID}${NC}"
 echo -e "Container IP:    ${YELLOW}${CT_IP}${NC}"
 echo -e "Web Interface:   ${GREEN}http://${CT_IP}:3000${NC}"
 echo ""
-echo -e "Auth Secret:     ${YELLOW}${AUTH_SECRET}${NC}"
+echo -e "Auth Secret:     ${YELLOW}${BETTER_AUTH_SECRET}${NC}"
 echo -e "${RED}(Save this secret! You'll need it if you redeploy)${NC}"
 echo ""
 echo -e "To view logs:    ${YELLOW}pct exec ${CTID} -- journalctl -u plank -f${NC}"

@@ -11,10 +11,10 @@ services:
       - ENABLE_FILE_STORAGE=true
       - DATABASE_URL=/app/db/plank.db
       - TMDB_API_KEY=${TMDB_API_KEY}
-      - AUTH_SECRET=${AUTH_SECRET}
-      - AUTH_URL=${AUTH_URL:-http://localhost:3000}
-      - JACKETT_URL=http://jackett:9117
-      - JACKETT_API_KEY=${JACKETT_API_KEY:-plank0default0jackett0api0key1}
+      - JACKETT_URL=${JACKETT_URL}
+      - JACKETT_API_KEY=${JACKETT_API_KEY}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
     volumes:
       - plank-db:/app/db
       - plank-data:/app/data

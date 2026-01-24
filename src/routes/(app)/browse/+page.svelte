@@ -2,7 +2,9 @@
     import { Flame, Loader2, Trophy } from 'lucide-svelte';
     import { untrack } from 'svelte';
     import { goto } from '$app/navigation';
-    import { page } from '$app/stores';
+    import { navigating, page } from '$app/stores';
+    import { env } from '$env/dynamic/public';
+    import CardSkeleton from '$lib/components/CardSkeleton.svelte';
     import JackettSetup from '$lib/components/JackettSetup.svelte';
     import TorrentCard from '$lib/components/TorrentCard.svelte';
     import type { BrowseItem } from '$lib/server/tmdb';
@@ -312,7 +314,7 @@
     <div class="container max-w-7xl mx-auto px-4 py-8">
         {#if data.needsSetup}
             <!-- Setup Instructions -->
-            <JackettSetup jackettUrl="http://localhost:9117" hasApiKey={data.jackettConfigured} />
+            <JackettSetup jackettUrl={env.PUBLIC_JACKETT_URL!} hasApiKey={data.jackettConfigured} />
         {:else if displayItems.length === 0 && !data.needsSetup}
             <!-- Empty State -->
             <div class="text-center py-20 bg-muted/30 rounded-lg border border-dashed border-border mx-auto max-w-2xl">
@@ -323,26 +325,33 @@
         {:else}
             <!-- Movie Grid -->
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {#each displayItems as item (item._key)}
-                    <TorrentCard
-                        {item}
-                        onAddToLibrary={handleAddToLibrary}
-                        onWatchNow={handleWatchNow}
-                        isAdding={addingItems.has(item.tmdbId)}
-                        isResolving={resolvingItems.has(item.tmdbId)}
-                    />
-                {/each}
+                {#if $navigating}
+                    {#each { length: 12 } as _}
+                        <CardSkeleton />
+                    {/each}
+                {:else}
+                    {#each displayItems as item (item._key)}
+                        <TorrentCard
+                            {item}
+                            onAddToLibrary={handleAddToLibrary}
+                            onWatchNow={handleWatchNow}
+                            isAdding={addingItems.has(item.tmdbId)}
+                            isResolving={resolvingItems.has(item.tmdbId)}
+                        />
+                    {/each}
+
+                    {#if isFetchingMore}
+                        {#each { length: 5 } as _}
+                            <CardSkeleton />
+                        {/each}
+                    {/if}
+                {/if}
             </div>
 
             <!-- Load More Trigger -->
-            {#if hasMore}
+            {#if hasMore && !$navigating}
                 <div bind:this={loadMoreTrigger} class="flex justify-center py-12">
-                    {#if isFetchingMore}
-                        <div class="flex flex-col items-center gap-2">
-                            <Loader2 class="w-6 h-6 animate-spin text-primary" />
-                            <span class="text-xs text-muted-foreground">Loading more movies...</span>
-                        </div>
-                    {:else}
+                    {#if !isFetchingMore}
                         <span class="h-6 block"></span>
                     {/if}
                 </div>
