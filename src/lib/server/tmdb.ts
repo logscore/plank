@@ -513,17 +513,44 @@ export async function getSeasonDetails(tmdbId: number, seasonNumber: number): Pr
 
 // Common patterns that indicate a TV show in filenames
 const TV_PATTERNS = [
-	/S\d{1,2}E\d{1,2}/i, // S01E01
-	/\d{1,2}x\d{1,2}/i, // 1x01
-	/Season\s*\d+/i, // Season 1
-	/Episode\s*\d+/i, // Episode 1
-	/E\d{2,}/i, // E01
-	/\[\d{1,2}(?:v\d)?\]/, // [01] or [01v2]
-	/Complete\s*Series/i, // Complete Series
-	/Series\s*\d+/i, // Series 1
-	/\bS\d{1,2}\b/i, // S01 standalone
-	/\.\d{1,2}\.\d{1,2}\./i, // .1.01.
-	/\(\d{4}\).*\(\d{4}\)/i, // Year range like (2019) - (2022)
+	// Standard S01E01 format (most common)
+	/S\d{1,2}E\d{1,3}/i,
+	/S\d{1,2}\s?E\d{1,3}/i,
+
+	// 1x01 format
+	/\d{1,2}x\d{1,3}/i,
+
+	// Anime / Absolute Numbering (e.g. " - 05", " - 124", " - 01v2")
+	// Watch out for years (2024), so we check for surrounding spaces or brackets
+	/\s-\s\d{2,4}(?:v\d)?(?:\s|\[|\.\w{3}|$)/,
+	/\[\d{2,4}\]/, // [01] or [124] often used in anime
+
+	// Date based (e.g. 2024.01.24, 2024-01-24) - common for daily shows
+	/\d{4}[.-]\d{2}[.-]\d{2}/,
+
+	// "Season X" or "Series X"
+	/(?:Season|Series)\s*\d+/i,
+
+	// "Episode X"
+	/Episode\s*\d+/i,
+
+	// Standalone "E01" if clearer context (often risky, but keeping for coverage)
+	/\bE\d{1,3}\b/i,
+
+	// Mini-series / Multi-part
+	/Part\s*\d+/i,
+
+	// Keyword "Complete" often implies a season pack
+	/Complete\s*(?:Season|Series)/i,
+
+	// Range formats (S01-S03)
+	/S\d{1,2}-S\d{1,2}/i,
+
+	// Standalone "S01" (Season packs)
+	/\bS\d{1,2}\b/i,
+
+	// Year ranges (2019-2022) often imply a show run
+	/\(\d{4}\)\s?-\s?\(\d{4}\)/,
 ];
 
 /**

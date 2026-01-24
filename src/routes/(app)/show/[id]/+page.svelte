@@ -246,8 +246,10 @@
                         {/if}
                         {#if media.totalSeasons}
                             <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">
-                                {media.totalSeasons} Season
-                                {media.totalSeasons === 1 ? "" : "s"}
+                                {media.totalSeasons}
+                                {media.totalSeasons === 1
+                                    ? "Season"
+                                    : "Seasons"}
                             </span>
                         {/if}
                     </div>

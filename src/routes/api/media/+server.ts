@@ -107,6 +107,22 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	return json(list);
 };
 
+// Helper to determine media type from magnet details
+function determineMediaType(providedType: MediaType | undefined, name: string, title: string): MediaType {
+	if (providedType) {
+		return providedType;
+	}
+	// Use raw name first as it contains more signals (e.g. S01)
+	if (name && isTVShowFilename(name)) {
+		return 'tv';
+	}
+	// Fallback to parsed title
+	if (title && isTVShowFilename(title)) {
+		return 'tv';
+	}
+	return 'movie';
+}
+
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
@@ -119,16 +135,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		throw error(400, 'Invalid magnet link');
 	}
 
-	const { infohash, title, year } = parseMagnet(magnetLink);
+	const { infohash, title, year, name } = parseMagnet(magnetLink);
 	if (!infohash) {
 		throw error(400, 'Invalid magnet link - could not extract infohash');
 	}
 
-	// Determine media type (auto-detect or use provided)
-	let mediaType: MediaType = providedType || 'movie';
-	if (!providedType && title) {
-		mediaType = isTVShowFilename(title) ? 'tv' : 'movie';
-	}
+	// Determine media type
+	const mediaType = determineMediaType(providedType, name, title);
 
 	// Check for existing media by infohash (exact same torrent)
 	const existing = mediaDb.getByInfohash(infohash, locals.user.id);
