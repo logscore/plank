@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Loader2, Play, Plus } from '@lucide/svelte';
+    import { Loader2, LoaderCircle, Play, Plus } from '@lucide/svelte';
     import type { BrowseItem } from '$lib/server/tmdb';
     import { cn } from '$lib/utils';
     import Button from './ui/Button.svelte';
@@ -78,7 +78,7 @@
         onWatchNow?.(item);
     }
 
-    const isDisabled = $derived(isAdding || isResolving);
+    const isDisabled = $derived(isAdding);
 </script>
 
 <div
@@ -184,11 +184,8 @@
                 disabled={isDisabled}
                 title="Add to Library"
             >
-                {#if isResolving}
-                    <Loader2 class="w-3 h-3 mr-1 animate-spin" />
-                    Finding...
-                {:else if isAdding}
-                    <Loader2 class="w-3 h-3 mr-1 animate-spin" />
+                {#if isAdding}
+                    <LoaderCircle class="w-3 h-3 mr-1 animate-spin" />
                     Adding...
                 {:else}
                     <Plus class="w-3 h-3 mr-1" />
@@ -196,10 +193,8 @@
                 {/if}
             </Button>
             <Button size="sm" class="flex-1 text-xs" onclick={handleWatchNow} disabled={isDisabled} title="Watch Now">
-                {#if isResolving}
-                    <Loader2 class="w-3 h-3 mr-1 animate-spin" />
-                {:else if isAdding}
-                    <Loader2 class="w-3 h-3 mr-1 animate-spin" />
+                {#if isAdding}
+                    <LoaderCircle class="w-3 h-3 mr-1 animate-spin" />
                 {:else}
                     <Play class="w-3 h-3 mr-1 fill-current" />
                 {/if}

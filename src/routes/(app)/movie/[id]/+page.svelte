@@ -259,12 +259,16 @@
         {/if}
 
         <!-- Back Button -->
-        <div class="fixed top-6 left-6 z-50"><a href="/">
-            <Button variant="ghost" class="bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm">
+        <div class="fixed top-6 left-6 z-50">
+            <Button
+                variant="ghost"
+                class="bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm"
+                onclick={() => window.history.back()}
+            >
                 <ArrowLeft class="w-5 h-5 mr-2" />
                 Back
             </Button>
-        </a></div>
+        </div>
     </div>
 
     <!-- Content -->
@@ -310,10 +314,7 @@
                     {/if}
                     {#if data.media.runtime}
                         <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">
-                            {Math.floor(data.media.runtime / 60)}h
-                            {data.media
-                                .runtime % 60}
-                            m
+                            {Math.floor(data.media.runtime / 60)}h{data.media.runtime % 60}m
                         </span>
                     {/if}
                     {#if data.media.originalLanguage}

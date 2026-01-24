@@ -6,6 +6,8 @@
 - [ ] Public website mode
   - [ ] Stream torrents on the client only. TMDB service is still provided (secures our API key), but that's it. Everything else is handled by the client. We shouldnt even use Jackett for this mode.
   - [ ] When a magnet link is added, stream it right away and store th metadata and magnet link on the browser for restreaming if they want to watch it again.
+- [ ] Im noticing some mental frictin with search. I think we can try having search for the browser be on the browser page and default to its browser selection on the selection page. or something like that
+- [ ] Dont disable adding the media wen prefetching it, but do hen actively 
 - [ ] Remove the cache tables in the db and just use tanstack query / tanstack db
 - [ ] Have the download be background jobs instead of main thread processes. Use something light weight like a valkey scheduler
 - [ ] Find a way to make scrubbing on MKV/AVI formats work better

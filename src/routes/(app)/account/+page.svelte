@@ -82,11 +82,9 @@
 <div class="container mx-auto px-4 py-8 max-w-4xl">
     <!-- Header -->
     <div class="flex items-center gap-4 mb-8">
-        <a href="/">
-            <Button variant="ghost" class="p-2">
-                <ArrowLeft class="w-5 h-5" />
-            </Button>
-        </a>
+        <Button variant="ghost" class="p-2" onclick={() => window.history.back()}>
+            <ArrowLeft class="w-5 h-5" />
+        </Button>
         <h1 class="text-3xl font-bold">Account</h1>
     </div>
 

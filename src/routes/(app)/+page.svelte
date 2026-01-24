@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { goto } from '$app/navigation';
+    import { page } from '$app/state';
     import { Film, Tv } from '@lucide/svelte';
     import { createQuery } from '@tanstack/svelte-query';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
@@ -37,7 +39,7 @@
     const queryError = $derived(moviesQuery.error || showsQuery.error);
 
     // UI State
-    let activeTab = $state<'movies' | 'tv'>('movies');
+    const activeTab = $derived((page.url.searchParams.get('type') as 'movies' | 'tv') || 'movies');
     let magnetInput = $state('');
     let selectedType = $state<MediaType | null>(null);
     let error = $state('');
@@ -57,11 +59,11 @@
 
             // Check if this was a season addition to an existing show
             if (result._seasonAdded) {
-                activeTab = 'tv';
+                goto('?type=tv', { replaceState: true, noScroll: true });
             } else if (result.type === 'tv') {
-                activeTab = 'tv';
+                goto('?type=tv', { replaceState: true, noScroll: true });
             } else {
-                activeTab = 'movies';
+                goto('?type=movies', { replaceState: true, noScroll: true });
             }
 
             magnetInput = '';
@@ -103,7 +105,10 @@
 
             <!-- Tab Navigation -->
             <div class="flex items-center space-x-2 py-2">
-                <Button variant={activeTab === 'movies' ? 'default' : 'ghost'} onclick={() => (activeTab = 'movies')}>
+                <Button
+                    variant={activeTab === 'movies' ? 'default' : 'ghost'}
+                    onclick={() => goto('?type=movies', { replaceState: true, noScroll: true })}
+                >
                     <Film class="w-4 h-4 mr-2" />
                     Movies
                     {#if movies.length > 0}
@@ -112,7 +117,10 @@
                         </span>
                     {/if}
                 </Button>
-                <Button variant={activeTab === 'tv' ? 'default' : 'ghost'} onclick={() => (activeTab = 'tv')}>
+                <Button
+                    variant={activeTab === 'tv' ? 'default' : 'ghost'}
+                    onclick={() => goto('?type=tv', { replaceState: true, noScroll: true })}
+                >
                     <Tv class="w-4 h-4 mr-2" />
                     TV Shows
                     {#if shows.length > 0}
