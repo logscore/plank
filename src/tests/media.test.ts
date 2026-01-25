@@ -23,9 +23,30 @@ function createTables() {
       updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS organization (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      logo TEXT,
+      metadata TEXT,
+      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+      updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS organization (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      logo TEXT,
+      metadata TEXT,
+      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+      updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS media (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      organization_id TEXT REFERENCES organization(id) ON DELETE SET NULL,
       type TEXT DEFAULT 'movie' NOT NULL,
       title TEXT NOT NULL,
       year INTEGER,
@@ -52,6 +73,8 @@ function createTables() {
     CREATE INDEX IF NOT EXISTS idx_media_user ON media(user_id);
     CREATE INDEX IF NOT EXISTS idx_media_status ON media(status);
     CREATE INDEX IF NOT EXISTS idx_media_type ON media(user_id, type);
+    CREATE INDEX IF NOT EXISTS idx_media_organization ON media(organization_id);
+    CREATE INDEX IF NOT EXISTS idx_media_organization ON media(organization_id);
 
     CREATE TABLE IF NOT EXISTS seasons (
       id TEXT PRIMARY KEY,

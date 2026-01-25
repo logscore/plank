@@ -10,6 +10,12 @@ const testUser = {
 	email: 'test@example.com',
 };
 
+const testOrg = {
+	id: 'org-1',
+	name: 'Test Org',
+	slug: 'test-org',
+};
+
 const sampleMedia = {
 	title: 'Test Movie',
 	magnetLink: 'magnet:?xt=urn:btih:abc',
@@ -53,9 +59,20 @@ describe('Database Service', () => {
         updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
       );
 
+      CREATE TABLE IF NOT EXISTS organization (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        slug TEXT NOT NULL UNIQUE,
+        logo TEXT,
+        metadata TEXT,
+        created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+        updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
+      );
+
       CREATE TABLE IF NOT EXISTS media (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+        organization_id TEXT REFERENCES organization(id) ON DELETE SET NULL,
         type TEXT DEFAULT 'movie' NOT NULL,
         title TEXT NOT NULL,
         year INTEGER,
@@ -120,6 +137,7 @@ describe('Database Service', () => {
       );
       
       CREATE UNIQUE INDEX IF NOT EXISTS media_user_infohash_unique ON media(user_id, infohash);
+      CREATE INDEX IF NOT EXISTS idx_media_organization ON media(organization_id);
       CREATE UNIQUE INDEX IF NOT EXISTS seasons_media_number_unique ON seasons(media_id, season_number);
       CREATE UNIQUE INDEX IF NOT EXISTS episodes_season_number_unique ON episodes(season_id, episode_number);
       CREATE UNIQUE INDEX IF NOT EXISTS downloads_media_infohash_unique ON downloads(media_id, infohash);
@@ -132,10 +150,12 @@ describe('Database Service', () => {
 		sqlite.exec('DELETE FROM seasons');
 		sqlite.exec('DELETE FROM downloads');
 		sqlite.exec('DELETE FROM media');
+		sqlite.exec('DELETE FROM organization');
 		sqlite.exec('DELETE FROM user');
 
-		// Insert user
+		// Insert user and org
 		testDb.insert(schema.user).values(testUser).run();
+		testDb.insert(schema.organization).values(testOrg).run();
 	});
 
 	// =========================================================================
@@ -145,6 +165,7 @@ describe('Database Service', () => {
 		it('create and get media', () => {
 			const created = mediaDb.create({
 				userId: testUser.id,
+				organizationId: testOrg.id,
 				...sampleMedia,
 				type: 'movie',
 			});
@@ -158,21 +179,21 @@ describe('Database Service', () => {
 		});
 
 		it('list media', () => {
-			mediaDb.create({ userId: testUser.id, ...sampleMedia, infohash: '1' });
-			mediaDb.create({ userId: testUser.id, ...sampleMedia, infohash: '2' });
+			mediaDb.create({ userId: testUser.id, organizationId: testOrg.id, ...sampleMedia, infohash: '1' });
+			mediaDb.create({ userId: testUser.id, organizationId: testOrg.id, ...sampleMedia, infohash: '2' });
 
-			const list = mediaDb.list(testUser.id);
+			const list = mediaDb.list(testOrg.id);
 			expect(list).toHaveLength(2);
 		});
 
 		it('getByInfohash', () => {
-			mediaDb.create({ userId: testUser.id, ...sampleMedia });
+			mediaDb.create({ userId: testUser.id, organizationId: testOrg.id, ...sampleMedia });
 			const result = mediaDb.getByInfohash(sampleMedia.infohash, testUser.id);
 			expect(result).toBeDefined();
 		});
 
 		it('updateProgress', () => {
-			const created = mediaDb.create({ userId: testUser.id, ...sampleMedia });
+			const created = mediaDb.create({ userId: testUser.id, organizationId: testOrg.id, ...sampleMedia });
 			mediaDb.updateProgress(created.id, 50, 'downloading');
 			const updated = mediaDb.getById(created.id);
 			expect(updated?.progress).toBe(50);
@@ -180,7 +201,7 @@ describe('Database Service', () => {
 		});
 
 		it('updateMetadata', () => {
-			const created = mediaDb.create({ userId: testUser.id, ...sampleMedia });
+			const created = mediaDb.create({ userId: testUser.id, organizationId: testOrg.id, ...sampleMedia });
 			mediaDb.updateMetadata(created.id, {
 				title: 'Updated Title',
 				year: 2025,
@@ -193,14 +214,14 @@ describe('Database Service', () => {
 		});
 
 		it('delete media', () => {
-			const created = mediaDb.create({ userId: testUser.id, ...sampleMedia });
+			const created = mediaDb.create({ userId: testUser.id, organizationId: testOrg.id, ...sampleMedia });
 			mediaDb.delete(created.id, testUser.id);
 			const fetched = mediaDb.getById(created.id);
 			expect(fetched).toBeUndefined();
 		});
 
 		it('resetDownload', () => {
-			const created = mediaDb.create({ userId: testUser.id, ...sampleMedia });
+			const created = mediaDb.create({ userId: testUser.id, organizationId: testOrg.id, ...sampleMedia });
 			mediaDb.updateProgress(created.id, 100, 'complete');
 			mediaDb.resetDownload(created.id);
 			const updated = mediaDb.getById(created.id);
@@ -216,7 +237,7 @@ describe('Database Service', () => {
 		let mediaId: string;
 
 		beforeEach(() => {
-			const m = mediaDb.create({ userId: testUser.id, ...sampleMedia, type: 'tv' });
+			const m = mediaDb.create({ userId: testUser.id, organizationId: testOrg.id, ...sampleMedia, type: 'tv' });
 			mediaId = m.id;
 		});
 
@@ -267,7 +288,7 @@ describe('Database Service', () => {
 		let mediaId: string;
 
 		beforeEach(() => {
-			const m = mediaDb.create({ userId: testUser.id, ...sampleMedia, type: 'tv' });
+			const m = mediaDb.create({ userId: testUser.id, organizationId: testOrg.id, ...sampleMedia, type: 'tv' });
 			mediaId = m.id;
 		});
 
@@ -320,7 +341,7 @@ describe('Database Service', () => {
 		let downloadId: string;
 
 		beforeEach(() => {
-			const m = mediaDb.create({ userId: testUser.id, ...sampleMedia, type: 'tv' });
+			const m = mediaDb.create({ userId: testUser.id, organizationId: testOrg.id, ...sampleMedia, type: 'tv' });
 			mediaId = m.id;
 			const s = seasonsDb.create({ mediaId, seasonNumber: 1 });
 			seasonId = s.id;

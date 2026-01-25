@@ -45,6 +45,46 @@ beforeAll(() => {
     );
   `);
 
+	// Create organization table
+	testDb.exec(`
+    CREATE TABLE IF NOT EXISTS organization (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      logo TEXT,
+      metadata TEXT,
+      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+      updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
+    );
+  `);
+
+	// Create member table
+	testDb.exec(`
+    CREATE TABLE IF NOT EXISTS member (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      organization_id TEXT NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
+      role TEXT DEFAULT 'member' NOT NULL,
+      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+      UNIQUE(user_id, organization_id)
+    );
+  `);
+
+	// Create invitation table
+	testDb.exec(`
+    CREATE TABLE IF NOT EXISTS invitation (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL,
+      inviter_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      organization_id TEXT NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
+      role TEXT DEFAULT 'member' NOT NULL,
+      status TEXT DEFAULT 'pending' NOT NULL,
+      expires_at INTEGER NOT NULL,
+      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+      updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
+    );
+  `);
+
 	// Create session table
 	testDb.exec(`
     CREATE TABLE IF NOT EXISTS session (
@@ -55,8 +95,10 @@ beforeAll(() => {
       updated_at INTEGER NOT NULL,
       ip_address TEXT,
       user_agent TEXT,
-      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE
+      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      active_organization_id TEXT REFERENCES organization(id) ON DELETE SET NULL
     );
+    CREATE INDEX IF NOT EXISTS session_active_organization_idx ON session(active_organization_id);
   `);
 
 	// Create account table
@@ -95,6 +137,7 @@ beforeAll(() => {
     CREATE TABLE IF NOT EXISTS media (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      organization_id TEXT REFERENCES organization(id) ON DELETE SET NULL,
       type TEXT DEFAULT 'movie' NOT NULL,
       title TEXT NOT NULL,
       year INTEGER,
@@ -124,6 +167,7 @@ beforeAll(() => {
     CREATE INDEX IF NOT EXISTS idx_media_user ON media(user_id);
     CREATE INDEX IF NOT EXISTS idx_media_status ON media(status);
     CREATE INDEX IF NOT EXISTS idx_media_type ON media(user_id, type);
+    CREATE INDEX IF NOT EXISTS idx_media_organization ON media(organization_id);
   `);
 
 	// Create seasons table for TV shows
@@ -215,9 +259,12 @@ beforeEach(() => {
 	testDb.exec('DELETE FROM downloads');
 	testDb.exec('DELETE FROM media');
 	testDb.exec('DELETE FROM media_fts');
+	testDb.exec('DELETE FROM invitation');
+	testDb.exec('DELETE FROM member');
 	testDb.exec('DELETE FROM session');
 	testDb.exec('DELETE FROM account');
 	testDb.exec('DELETE FROM verification');
+	testDb.exec('DELETE FROM organization');
 	testDb.exec('DELETE FROM user');
 });
 
