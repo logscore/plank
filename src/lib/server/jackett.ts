@@ -247,3 +247,201 @@ export function parseTorrentTitle(title: string): {
 
 	return { quality, releaseGroup };
 }
+
+// =============================================================================
+// TV Season Search
+// =============================================================================
+
+/**
+ * Patterns that indicate a single episode (to exclude from season pack results)
+ */
+const SINGLE_EPISODE_PATTERNS = [
+	/\bE\d{1,3}\b/i, // E01, E12, etc.
+	/\d{1,2}x\d{1,3}/i, // 1x01, 12x05, etc.
+	/\bEpisode\s*\d+/i, // Episode 1, Episode 12, etc.
+	/S\d{1,2}E\d{1,3}/i, // S01E01 (full pattern)
+	/S\d{1,2}\s+E\d{1,3}/i, // S01 E01 (with space)
+];
+
+/**
+ * Patterns that indicate a season pack
+ */
+const SEASON_PACK_PATTERNS = [
+	/\bS\d{1,2}\b(?!E)/i, // S01, S02 (not followed by E)
+	/\bSeason\s*\d+\b/i, // Season 1, Season 2
+	/\bComplete\b/i, // Complete
+	/\bFull\s*Season\b/i, // Full Season
+];
+
+/**
+ * Minimum size for a season pack (in bytes) - approximately 1GB
+ * This helps filter out single episodes that might slip through
+ */
+const MIN_SEASON_PACK_SIZE = 1 * 1024 * 1024 * 1024; // 1GB
+
+/**
+ * Check if a title matches a specific season number
+ */
+function matchesSeasonNumber(title: string, seasonNumber: number): boolean {
+	const paddedSeason = seasonNumber.toString().padStart(2, '0');
+	const patterns = [
+		new RegExp(`\\bS${paddedSeason}\\b`, 'i'), // S01, S02
+		new RegExp(`\\bS${seasonNumber}\\b`, 'i'), // S1, S2 (without padding)
+		new RegExp(`\\bSeason\\s*${seasonNumber}\\b`, 'i'), // Season 1, Season 2
+	];
+	return patterns.some((pattern) => pattern.test(title));
+}
+
+/**
+ * Check if a title is a single episode (not a season pack)
+ */
+function isSingleEpisode(title: string): boolean {
+	return SINGLE_EPISODE_PATTERNS.some((pattern) => pattern.test(title));
+}
+
+/**
+ * Check if a title looks like a season pack
+ */
+function isSeasonPack(title: string): boolean {
+	return SEASON_PACK_PATTERNS.some((pattern) => pattern.test(title));
+}
+
+/**
+ * Filter results to only season packs for a specific season
+ */
+export function filterForSeasonPacks(results: JackettResult[], seasonNumber: number): JackettResult[] {
+	return results.filter((result) => {
+		const title = result.title;
+
+		// Must match the season number
+		if (!matchesSeasonNumber(title, seasonNumber)) {
+			return false;
+		}
+
+		// Exclude single episodes
+		if (isSingleEpisode(title)) {
+			return false;
+		}
+
+		// Prefer results that look like season packs or are large enough
+		const looksLikeSeasonPack = isSeasonPack(title);
+		const isLargeEnough = result.size >= MIN_SEASON_PACK_SIZE;
+
+		return looksLikeSeasonPack || isLargeEnough;
+	});
+}
+
+/**
+ * Search Jackett for TV show season packs by title and season number
+ */
+export async function searchSeasonTorrent(
+	showTitle: string,
+	seasonNumber: number,
+	imdbId?: string
+): Promise<JackettResult[]> {
+	const { url, apiKey } = config.jackett;
+
+	if (!apiKey) {
+		console.error('Jackett API key not configured');
+		return [];
+	}
+
+	// Format season number with padding
+	const paddedSeason = seasonNumber.toString().padStart(2, '0');
+
+	// Build search queries - try IMDB ID first if available, then title-based
+	const searchQueries: string[] = [];
+
+	if (imdbId) {
+		searchQueries.push(`imdb:${imdbId} S${paddedSeason}`);
+	}
+
+	// Title-based searches
+	searchQueries.push(`${showTitle} S${paddedSeason}`);
+	searchQueries.push(`${showTitle} Season ${seasonNumber}`);
+
+	const allResults: JackettResult[] = [];
+	const seenInfohashes = new Set<string>();
+
+	for (const query of searchQueries) {
+		const params = new URLSearchParams({
+			apikey: apiKey,
+			Query: query,
+		});
+
+		try {
+			const response = await fetch(`${url}/api/v2.0/indexers/all/results?${params}`, {
+				headers: { Accept: 'application/json' },
+			});
+
+			if (!response.ok) {
+				console.error(`Jackett season search failed for "${query}": ${response.status}`);
+				continue;
+			}
+
+			const data: JackettApiResponse = await response.json();
+			const results = parseJackettResults(data);
+
+			// Deduplicate by infohash
+			for (const result of results) {
+				if (!seenInfohashes.has(result.infohash)) {
+					seenInfohashes.add(result.infohash);
+					allResults.push(result);
+				}
+			}
+		} catch (error) {
+			console.error(`Jackett season search error for "${query}":`, error);
+		}
+
+		// If we found results with IMDB search, we can skip title searches
+		if (imdbId && allResults.length > 0) {
+			break;
+		}
+	}
+
+	return allResults;
+}
+
+/**
+ * Find the best season pack torrent for a TV show season
+ */
+export async function findBestSeasonTorrent(
+	showTitle: string,
+	seasonNumber: number,
+	imdbId?: string
+): Promise<JackettResult | null> {
+	const results = await searchSeasonTorrent(showTitle, seasonNumber, imdbId);
+
+	console.log(`[Jackett] Season search results for "${showTitle}" S${seasonNumber}:`, results.length);
+
+	if (results.length === 0) {
+		return null;
+	}
+
+	// Filter by quality (remove CAM, TS, etc.)
+	const qualityFiltered = filterByQuality(results);
+
+	// Filter for season packs only
+	const seasonPacks = filterForSeasonPacks(qualityFiltered, seasonNumber);
+
+	console.log('[Jackett] Season packs found:', seasonPacks.length);
+
+	if (seasonPacks.length === 0) {
+		// Fall back to quality filtered results if no clear season packs found
+		// but still exclude single episodes
+		const nonEpisodes = qualityFiltered.filter(
+			(r) => !isSingleEpisode(r.title) && matchesSeasonNumber(r.title, seasonNumber)
+		);
+		if (nonEpisodes.length > 0) {
+			const seederFiltered = nonEpisodes.filter((r) => r.seeders >= config.jackett.minSeeders);
+			return selectBestTorrent(seederFiltered.length > 0 ? seederFiltered : nonEpisodes);
+		}
+		return null;
+	}
+
+	// Filter by minimum seeders
+	const seederFiltered = seasonPacks.filter((r) => r.seeders >= config.jackett.minSeeders);
+
+	// Select the best torrent
+	return selectBestTorrent(seederFiltered.length > 0 ? seederFiltered : seasonPacks);
+}

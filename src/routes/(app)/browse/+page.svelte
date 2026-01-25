@@ -1,15 +1,26 @@
 <script lang="ts">
     import { Flame, Trophy } from '@lucide/svelte';
-    import { createInfiniteQuery } from '@tanstack/svelte-query';
+    import { createInfiniteQuery, useQueryClient } from '@tanstack/svelte-query';
     import { goto } from '$app/navigation';
     import { navigating } from '$app/state';
     import { env } from '$env/dynamic/public';
     import CardSkeleton from '$lib/components/CardSkeleton.svelte';
     import JackettSetup from '$lib/components/JackettSetup.svelte';
     import TorrentCard from '$lib/components/TorrentCard.svelte';
-    import { createAddFromBrowseMutation, createResolveTorrentMutation } from '$lib/mutations/browse-mutations';
+    import type { SeasonData } from '$lib/components/ui/ContextMenu.svelte';
+    import {
+        createAddFromBrowseMutation,
+        createResolveSeasonMutation,
+        createResolveTorrentMutation,
+    } from '$lib/mutations/browse-mutations';
     import { prefetchBothBrowseTabs, prefetchBrowse } from '$lib/prefetch';
-    import { type BrowseItem, type BrowseResponse, fetchBrowse } from '$lib/queries/browse-queries';
+    import {
+        type BrowseItem,
+        type BrowseResponse,
+        fetchBrowse,
+        fetchSeasons,
+        type SeasonSummary,
+    } from '$lib/queries/browse-queries';
     import { queryKeys } from '$lib/query-keys';
 
     interface Props {
@@ -31,6 +42,10 @@
     // Mutations
     const resolveMutation = createResolveTorrentMutation();
     const addToLibraryMutation = createAddFromBrowseMutation();
+    const resolveSeasonMutation = createResolveSeasonMutation();
+
+    // Query client for seasons caching
+    const queryClient = useQueryClient();
 
     // Derive params from URL
     const activeTab = $derived(data.type);
@@ -60,6 +75,13 @@
     // UI State
     let addingItems = $state<Set<number>>(new Set());
     let resolvingItems = $state<Set<number>>(new Set());
+
+    // TV show seasons state - keyed by TMDB ID
+    let seasonsCache = $state<Map<number, SeasonData[]>>(new Map());
+    let seasonsLoading = $state<Set<number>>(new Set());
+
+    // Promise cache for in-flight season fetches to avoid duplicate requests
+    const seasonsPromises = new Map<number, Promise<SeasonData[]>>();
 
     // Load more trigger element
     let loadMoreTrigger: HTMLDivElement | null = $state(null);
@@ -98,7 +120,7 @@
                     browseQuery.fetchNextPage();
                 }
             },
-            { rootMargin: '400px' }
+            { rootMargin: '300px' }
         );
 
         observer.observe(loadMoreTrigger);
@@ -220,6 +242,162 @@
         // Fire and forget - shared promise logic handles deduplication
         getMagnetLink(item);
     }
+
+    // ==========================================================================
+    // TV Show Season Handling
+    // ==========================================================================
+
+    // Get seasons for a TV show - handles caching and deduplication like getMagnetLink
+    function getSeasons(item: BrowseItem): Promise<SeasonData[]> {
+        // Return cached seasons if available
+        const cached = seasonsCache.get(item.tmdbId);
+        if (cached) {
+            return Promise.resolve(cached);
+        }
+
+        // Return existing promise if already fetching
+        const existing = seasonsPromises.get(item.tmdbId);
+        if (existing) {
+            return existing;
+        }
+
+        seasonsLoading = new Set(seasonsLoading).add(item.tmdbId);
+
+        const promise = (async () => {
+            try {
+                const response = await fetchSeasons(item.tmdbId);
+                // Convert SeasonSummary to SeasonData format for the ContextMenu
+                const seasonData: SeasonData[] = response.seasons.map((s: SeasonSummary) => ({
+                    seasonNumber: s.seasonNumber,
+                    name: s.name,
+                    episodeCount: s.episodeCount,
+                    year: s.year,
+                    posterPath: s.posterPath,
+                }));
+                seasonsCache = new Map(seasonsCache).set(item.tmdbId, seasonData);
+                return seasonData;
+            } catch (err) {
+                console.error('Failed to fetch seasons:', err);
+                return [];
+            } finally {
+                const updated = new Set(seasonsLoading);
+                updated.delete(item.tmdbId);
+                seasonsLoading = updated;
+                // Clean up promise from cache after it settles
+                seasonsPromises.delete(item.tmdbId);
+            }
+        })();
+
+        seasonsPromises.set(item.tmdbId, promise);
+        return promise;
+    }
+
+    // Prefetch seasons for a TV show on hover - fire and forget
+    function handlePrefetchSeasons(item: BrowseItem) {
+        if (item.mediaType !== 'tv') {
+            return;
+        }
+        // Fire and forget - shared promise logic handles deduplication
+        getSeasons(item);
+    }
+
+    // Get seasons for a specific item (from cache)
+    function getSeasonsForItem(tmdbId: number): SeasonData[] {
+        return seasonsCache.get(tmdbId) ?? [];
+    }
+
+    // ==========================================================================
+    // Season Torrent Prefetching (like movie torrent prefetch)
+    // ==========================================================================
+
+    // Cache key for season torrents: "tmdbId-seasonNumber"
+    type SeasonKey = `${number}-${number}`;
+    const seasonTorrentPromises = new Map<SeasonKey, Promise<string | null>>();
+    const seasonTorrentCache = new Map<SeasonKey, string>(); // magnetLink cache
+
+    // Get season torrent magnet link - handles caching and deduplication
+    function getSeasonMagnetLink(item: BrowseItem, seasonNumber: number): Promise<string | null> {
+        const key: SeasonKey = `${item.tmdbId}-${seasonNumber}`;
+
+        // Return cached magnet if available
+        const cached = seasonTorrentCache.get(key);
+        if (cached) {
+            return Promise.resolve(cached);
+        }
+
+        // Return existing promise if already fetching
+        const existing = seasonTorrentPromises.get(key);
+        if (existing) {
+            return existing;
+        }
+
+        const promise = (async () => {
+            try {
+                const result = await resolveSeasonMutation.mutateAsync({
+                    tmdbId: item.tmdbId,
+                    seasonNumber,
+                    showTitle: item.title,
+                    imdbId: item.imdbId ?? undefined,
+                });
+
+                if (result.success && result.torrent) {
+                    seasonTorrentCache.set(key, result.torrent.magnetLink);
+                    return result.torrent.magnetLink;
+                }
+
+                console.error('Failed to resolve season torrent:', result.message || result.error);
+                return null;
+            } catch (err) {
+                console.error('Failed to prefetch season torrent:', err);
+                return null;
+            } finally {
+                // Clean up promise from cache after it settles
+                seasonTorrentPromises.delete(key);
+            }
+        })();
+
+        seasonTorrentPromises.set(key, promise);
+        return promise;
+    }
+
+    // Prefetch season torrent on hover in context menu - fire and forget
+    function handlePrefetchSeasonTorrent(item: BrowseItem, seasonNumber: number) {
+        // Fire and forget - shared promise logic handles deduplication
+        getSeasonMagnetLink(item, seasonNumber);
+    }
+
+    // Handle season selection - resolve and add season torrent to library
+    async function handleSelectSeason(item: BrowseItem, seasonNumber: number) {
+        if (addingItems.has(item.tmdbId)) {
+            return;
+        }
+
+        addingItems = new Set(addingItems).add(item.tmdbId);
+
+        try {
+            // Get magnet link (uses cache if prefetched, otherwise fetches)
+            const magnetLink = await getSeasonMagnetLink(item, seasonNumber);
+
+            if (!magnetLink) {
+                console.error('Failed to resolve season torrent');
+                return;
+            }
+
+            // Add to library
+            await addToLibraryMutation.mutateAsync({
+                magnetLink,
+                title: `${item.title} - Season ${seasonNumber}`,
+                year: item.year,
+                tmdbId: item.tmdbId,
+            });
+        } catch (err) {
+            console.error('Failed to add season to library:', err);
+        } finally {
+            const updated = new Set(addingItems);
+            updated.delete(item.tmdbId);
+            addingItems = updated;
+        }
+    }
 </script>
 
 <div class="min-h-screen pb-20 bg-background">
@@ -311,8 +489,13 @@
                             onAddToLibrary={handleAddToLibrary}
                             onWatchNow={handleWatchNow}
                             onPrefetch={handlePrefetch}
+                            onSelectSeason={handleSelectSeason}
+                            onPrefetchSeasons={handlePrefetchSeasons}
+                            onPrefetchSeasonTorrent={handlePrefetchSeasonTorrent}
                             isAdding={addingItems.has(item.tmdbId)}
                             isResolving={resolvingItems.has(item.tmdbId)}
+                            seasons={getSeasonsForItem(item.tmdbId)}
+                            seasonsLoading={seasonsLoading.has(item.tmdbId)}
                         />
                     {/each}
 

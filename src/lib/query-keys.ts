@@ -18,6 +18,7 @@ export const queryKeys = {
 		infinite: (type: 'trending' | 'popular', filter: 'all' | 'movie' | 'tv') =>
 			[...queryKeys.browse.all, 'infinite', type, filter] as const,
 		resolve: (tmdbId: number) => [...queryKeys.browse.all, 'resolve', tmdbId] as const,
+		seasons: (tmdbId: number) => [...queryKeys.browse.all, 'seasons', tmdbId] as const,
 	},
 
 	// Torrent queries

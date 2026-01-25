@@ -152,3 +152,69 @@ export async function fetchJackettStatus(): Promise<JackettStatus> {
 
 	return response.json();
 }
+
+// =============================================================================
+// TV Seasons
+// =============================================================================
+
+export interface SeasonSummary {
+	seasonNumber: number;
+	name: string;
+	episodeCount: number;
+	year?: number;
+	posterPath?: string;
+}
+
+export interface SeasonsResponse {
+	seasons: SeasonSummary[];
+}
+
+export interface ResolveSeasonResponse {
+	success: boolean;
+	error?: string;
+	message?: string;
+	torrent?: {
+		magnetLink: string;
+		infohash: string;
+		title: string;
+		quality?: string;
+		releaseGroup?: string;
+		size?: number;
+		seeders?: number;
+	};
+}
+
+/**
+ * Fetch seasons for a TV show
+ */
+export async function fetchSeasons(tmdbId: number): Promise<SeasonsResponse> {
+	const response = await fetch(`/api/browse/seasons/${tmdbId}`);
+
+	if (!response.ok) {
+		throw createFetchError(`Failed to fetch seasons: ${response.statusText}`, response.status);
+	}
+
+	return response.json();
+}
+
+/**
+ * Resolve season torrent from TMDB ID and season number via Jackett
+ */
+export async function resolveSeasonTorrent(params: {
+	tmdbId: number;
+	seasonNumber: number;
+	showTitle: string;
+	imdbId?: string;
+}): Promise<ResolveSeasonResponse> {
+	const response = await fetch('/api/browse/resolve-season', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(params),
+	});
+
+	if (!response.ok) {
+		throw createFetchError(`Failed to resolve season torrent: ${response.statusText}`, response.status);
+	}
+
+	return response.json();
+}

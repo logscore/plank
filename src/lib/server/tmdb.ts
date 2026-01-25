@@ -19,6 +19,17 @@ interface TMDBMovie {
 	original_language?: string;
 }
 
+interface TMDBSeason {
+	air_date: string | null;
+	episode_count: number;
+	id: number;
+	name: string;
+	overview: string;
+	poster_path: string | null;
+	season_number: number;
+	vote_average: number;
+}
+
 interface TMDBTVShow {
 	id: number;
 	name: string;
@@ -31,6 +42,7 @@ interface TMDBTVShow {
 	episode_run_time?: number[];
 	genres?: TMDBGenre[];
 	original_language?: string;
+	seasons?: TMDBSeason[];
 }
 
 interface TMDBSearchResult {
@@ -90,6 +102,15 @@ interface EpisodeMetadata {
 	stillPath: string | null;
 	runtime: number | null;
 	airDate: string | null;
+}
+
+// Simplified season data for context menu
+export interface SeasonSummary {
+	seasonNumber: number;
+	name: string;
+	episodeCount: number;
+	year?: number;
+	posterPath?: string;
 }
 
 // =============================================================================
@@ -476,6 +497,35 @@ export async function getTVDetails(tmdbId: number): Promise<TMDBMetadata & { tot
 		originalLanguage: show.original_language ?? null,
 		certification,
 	};
+}
+
+/**
+ * Get all seasons summary for a TV show (for context menu)
+ * Excludes specials (season 0) by default
+ */
+export async function getTVSeasons(tmdbId: number, includeSpecials = false): Promise<SeasonSummary[]> {
+	const res = await fetch(`${config.tmdb.baseUrl}/tv/${tmdbId}?api_key=${config.tmdb.apiKey}`);
+
+	if (!res.ok) {
+		console.error(`[TMDB] Failed to fetch TV seasons for ${tmdbId}: ${res.status}`);
+		throw new Error(`TMDB API error: ${res.status}`);
+	}
+
+	const show: TMDBTVShow = await res.json();
+
+	if (!show?.seasons) {
+		return [];
+	}
+
+	return show.seasons
+		.filter((season) => includeSpecials || season.season_number > 0)
+		.map((season) => ({
+			seasonNumber: season.season_number,
+			name: season.name || `Season ${season.season_number}`,
+			episodeCount: season.episode_count,
+			year: season.air_date ? Number.parseInt(season.air_date.slice(0, 4), 10) : undefined,
+			posterPath: season.poster_path ? `${config.tmdb.imageBaseUrl}/w154${season.poster_path}` : undefined,
+		}));
 }
 
 export async function getSeasonDetails(tmdbId: number, seasonNumber: number): Promise<SeasonMetadata> {

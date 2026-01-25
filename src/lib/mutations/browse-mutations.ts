@@ -1,6 +1,11 @@
 import type { CreateMutationOptions } from '@tanstack/svelte-query';
 import { createMutation, useQueryClient } from '@tanstack/svelte-query';
-import { type ResolveResponse, resolveTorrent } from '$lib/queries/browse-queries';
+import {
+	type ResolveResponse,
+	type ResolveSeasonResponse,
+	resolveSeasonTorrent,
+	resolveTorrent,
+} from '$lib/queries/browse-queries';
 import { queryKeys } from '$lib/query-keys';
 import type { Media } from '$lib/types';
 
@@ -75,4 +80,26 @@ export function createAddFromBrowseMutation() {
 	};
 
 	return createMutation<Media, Error, AddFromBrowseParams, undefined>(() => options);
+}
+
+// =============================================================================
+// TV Season Mutations
+// =============================================================================
+
+export interface ResolveSeasonParams {
+	tmdbId: number;
+	seasonNumber: number;
+	showTitle: string;
+	imdbId?: string;
+}
+
+/**
+ * Create a mutation for resolving a TV season torrent
+ */
+export function createResolveSeasonMutation() {
+	const options: CreateMutationOptions<ResolveSeasonResponse, Error, ResolveSeasonParams, undefined> = {
+		mutationFn: (params: ResolveSeasonParams): Promise<ResolveSeasonResponse> => resolveSeasonTorrent(params),
+	};
+
+	return createMutation<ResolveSeasonResponse, Error, ResolveSeasonParams, undefined>(() => options);
 }

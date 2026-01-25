@@ -1,8 +1,10 @@
 <script lang="ts">
-    import { Loader2, LoaderCircle, Play, Plus } from '@lucide/svelte';
+    import { ChevronDown, Play, Plus } from '@lucide/svelte';
     import type { BrowseItem } from '$lib/server/tmdb';
     import { cn } from '$lib/utils';
     import Button from './ui/Button.svelte';
+    import type { SeasonData } from './ui/ContextMenu.svelte';
+    import ContextMenu from './ui/ContextMenu.svelte';
     import Tv from './ui/Tv.svelte';
 
     let {
@@ -10,24 +12,41 @@
         onAddToLibrary,
         onWatchNow,
         onPrefetch,
+        onSelectSeason,
+        onPrefetchSeasons,
+        onPrefetchSeasonTorrent,
         isAdding = false,
         isResolving = false,
+        seasons = [],
+        seasonsLoading = false,
         class: className,
     }: {
         item: BrowseItem;
         onAddToLibrary?: (item: BrowseItem) => void;
         onWatchNow?: (item: BrowseItem) => void;
         onPrefetch?: (item: BrowseItem) => void;
+        onSelectSeason?: (item: BrowseItem, seasonNumber: number) => void;
+        onPrefetchSeasons?: (item: BrowseItem) => void;
+        onPrefetchSeasonTorrent?: (item: BrowseItem, seasonNumber: number) => void;
         isAdding?: boolean;
         isResolving?: boolean;
+        seasons?: SeasonData[];
+        seasonsLoading?: boolean;
         class?: string;
     } = $props();
+
+    const isTvShow = $derived(item.mediaType === 'tv');
+    // Check if seasons are already loaded (from parent's cache)
+    const hasSeasonsLoaded = $derived(seasons.length > 0);
 
     let isMobileActive = $state(false);
     let hasPrefetched = $state(false);
     let prefetchTimeout: ReturnType<typeof setTimeout> | null = null;
+    let seasonsPrefetchTimeout: ReturnType<typeof setTimeout> | null = null;
+    let seasonMenuOpen = $state(false);
 
-    const PREFETCH_DELAY = 500; // ms to wait before prefetching
+    const PREFETCH_DELAY = 300; // ms to wait before prefetching
+    const TORRENT_PREFETCH_DELAY = 300; // ms to wait before prefetching torrent
 
     function handleClick(e: Event) {
         // Don't toggle if we clicked an interactive element inside
@@ -45,17 +64,29 @@
     }
 
     function handleMouseEnter() {
-        // Only prefetch once per card and if item needs resolving
-        if (!hasPrefetched && item.needsResolve && !item.magnetLink) {
-            // Clear any existing timeout
-            if (prefetchTimeout) {
-                clearTimeout(prefetchTimeout);
+        // Only prefetch torrent for movies (not TV shows)
+        if (!(isTvShow || hasPrefetched)) {
+            const needsTorrentPrefetch = item.needsResolve && !item.magnetLink;
+            if (needsTorrentPrefetch) {
+                if (prefetchTimeout) {
+                    clearTimeout(prefetchTimeout);
+                }
+                prefetchTimeout = setTimeout(() => {
+                    hasPrefetched = true;
+                    onPrefetch?.(item);
+                    prefetchTimeout = null;
+                }, TORRENT_PREFETCH_DELAY);
             }
-            // Start prefetch after delay
-            prefetchTimeout = setTimeout(() => {
-                hasPrefetched = true;
-                onPrefetch?.(item);
-                prefetchTimeout = null;
+        }
+
+        // Prefetch seasons for TV shows (check hasSeasonsLoaded instead of local state)
+        if (isTvShow && !hasSeasonsLoaded && !seasonsLoading && onPrefetchSeasons) {
+            if (seasonsPrefetchTimeout) {
+                clearTimeout(seasonsPrefetchTimeout);
+            }
+            seasonsPrefetchTimeout = setTimeout(() => {
+                onPrefetchSeasons(item);
+                seasonsPrefetchTimeout = null;
             }, PREFETCH_DELAY);
         }
     }
@@ -65,6 +96,10 @@
         if (prefetchTimeout) {
             clearTimeout(prefetchTimeout);
             prefetchTimeout = null;
+        }
+        if (seasonsPrefetchTimeout) {
+            clearTimeout(seasonsPrefetchTimeout);
+            seasonsPrefetchTimeout = null;
         }
     }
 
@@ -76,6 +111,24 @@
     function handleWatchNow(e: Event) {
         e.stopPropagation();
         onWatchNow?.(item);
+    }
+
+    function handleSeasonButtonClick(e: Event) {
+        e.stopPropagation();
+        seasonMenuOpen = !seasonMenuOpen;
+        // Trigger season fetch if not already loaded
+        const shouldFetchSeasons = !(hasSeasonsLoaded || seasonsLoading) && onPrefetchSeasons;
+        if (shouldFetchSeasons) {
+            onPrefetchSeasons(item);
+        }
+    }
+
+    function handleSelectSeason(seasonNumber: number) {
+        onSelectSeason?.(item, seasonNumber);
+    }
+
+    function handleCloseSeasonMenu() {
+        seasonMenuOpen = false;
     }
 
     const isDisabled = $derived(isAdding);
@@ -216,22 +269,61 @@
             {/if}
         </div>
 
-        <div class="flex gap-2 pt-2 shrink-0">
-            <Button
-                size="sm"
-                variant="secondary"
-                class="flex-1 text-xs"
-                onclick={handleAddToLibrary}
-                disabled={isDisabled}
-                title="Add to Library"
-            >
-                <Plus class="w-3 h-3 mr-1" />
-                Add
-            </Button>
-            <Button size="sm" class="flex-1 text-xs" onclick={handleWatchNow} disabled={isDisabled} title="Watch Now">
-                <Play class="w-3 h-3 mr-1 fill-current" />
-                Watch
-            </Button>
+        <!-- Action Buttons -->
+        <div class="flex gap-2 pt-2 shrink-0 relative">
+            {#if isTvShow}
+                <!-- TV Show: Season Selection Button -->
+                <Button
+                    size="sm"
+                    class="flex-1 text-xs"
+                    onclick={handleSeasonButtonClick}
+                    disabled={isDisabled}
+                    title="Add Season"
+                >
+                    <Plus class="w-3 h-3 mr-1" />
+                    Add Season
+                    <ChevronDown
+                        class="w-3 h-3 ml-1 transition-transform {seasonMenuOpen
+                            ? 'rotate-180'
+                            : ''}"
+                    />
+                </Button>
+
+                <!-- Season Context Menu -->
+                <ContextMenu
+                    open={seasonMenuOpen}
+                    {seasons}
+                    loading={seasonsLoading}
+                    onSelectSeason={handleSelectSeason}
+                    onPrefetchSeason={(seasonNumber) =>
+                        onPrefetchSeasonTorrent?.(item, seasonNumber)}
+                    onClose={handleCloseSeasonMenu}
+                    class="top-full left-0 mt-2"
+                />
+            {:else}
+                <!-- Movie: Add and Watch Buttons -->
+                <Button
+                    size="sm"
+                    variant="secondary"
+                    class="flex-1 text-xs"
+                    onclick={handleAddToLibrary}
+                    disabled={isDisabled}
+                    title="Add to Library"
+                >
+                    <Plus class="w-3 h-3 mr-1" />
+                    Add
+                </Button>
+                <Button
+                    size="sm"
+                    class="flex-1 text-xs"
+                    onclick={handleWatchNow}
+                    disabled={isDisabled}
+                    title="Watch Now"
+                >
+                    <Play class="w-3 h-3 mr-1 fill-current" />
+                    Watch
+                </Button>
+            {/if}
         </div>
     </div>
 </div>
