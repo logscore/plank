@@ -18,11 +18,14 @@
     import Button from '$lib/components/ui/Button.svelte';
     import Dialog from '$lib/components/ui/Dialog.svelte';
     import Input from '$lib/components/ui/Input.svelte';
+    import { createDeleteMediaMutation } from '$lib/mutations/media-mutations';
     import { confirmDelete, uiState } from '$lib/ui-state.svelte';
     import type { PageData } from './$types';
 
     let { data } = $props<{ data: PageData }>();
-    let deleting = $state(false);
+    const deleteMutation = createDeleteMediaMutation();
+
+    let deleting = $derived(deleteMutation.isPending);
     let retrying = $state(false);
     let copied = $state(false);
 
@@ -226,18 +229,11 @@
             'Delete Media',
             'Are you sure you want to delete this? This action cannot be undone.',
             async () => {
-                deleting = true;
                 try {
-                    const res = await fetch(`/api/media/${data.media.id}`, {
-                        method: 'DELETE',
-                    });
-                    if (res.ok) {
-                        goto('/');
-                    }
+                    await deleteMutation.mutateAsync(data.media.id);
+                    goto('/', { replaceState: true });
                 } catch (e) {
                     console.error('Failed to delete media:', e);
-                } finally {
-                    deleting = false;
                 }
             }
         );

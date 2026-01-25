@@ -5,6 +5,7 @@
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
     import EpisodeSelector from '$lib/components/EpisodeSelector.svelte';
     import Button from '$lib/components/ui/Button.svelte';
+    import { createDeleteMediaMutation } from '$lib/mutations/media-mutations';
     import type { Episode, Media, SeasonWithEpisodes } from '$lib/types';
     import { confirmDelete, uiState } from '$lib/ui-state.svelte';
 
@@ -12,7 +13,10 @@
     let seasons: SeasonWithEpisodes[] = $state([]);
     let loading = $state(true);
     let selectedSeason = $state<number | null>(null);
-    let deleting = $state(false);
+
+    const deleteMutation = createDeleteMediaMutation();
+    let deleting = $derived(deleteMutation.isPending);
+
     let copied = $state(false);
 
     async function loadShow() {
@@ -102,22 +106,17 @@
             return;
         }
 
+        const id = media.id;
+
         confirmDelete(
             'Delete Show',
             'Are you sure you want to delete this show? This action cannot be undone.',
             async () => {
-                deleting = true;
                 try {
-                    const res = await fetch(`/api/media/${media?.id}`, {
-                        method: 'DELETE',
-                    });
-                    if (res.ok) {
-                        goto('/');
-                    }
+                    await deleteMutation.mutateAsync(id);
+                    goto('/', { replaceState: true });
                 } catch (e) {
                     console.error('Failed to delete show:', e);
-                } finally {
-                    deleting = false;
                 }
             }
         );
