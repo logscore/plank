@@ -43,7 +43,8 @@
 		--card-foreground: 0 0% 98%;
 		--popover: 240 10% 4%;
 		--popover-foreground: 0 0% 98%;
-		--primary: 0 84% 60%; /* Netflix Red approx */
+		--primary: 0 84% 60%;
+		/* Netflix Red approx */
 		--primary-foreground: 0 0% 98%;
 		--secondary: 240 4% 16%;
 		--secondary-foreground: 0 0% 98%;
@@ -64,6 +65,7 @@
 	* {
 		@apply border-border;
 	}
+
 	body {
 		@apply bg-background text-foreground font-sans antialiased;
 	}
@@ -73,8 +75,20 @@
 	.no-scrollbar::-webkit-scrollbar {
 		display: none;
 	}
+
 	.no-scrollbar {
 		-ms-overflow-style: none;
 		scrollbar-width: none;
+	}
+
+	/* Move Sonner close button to the right */
+	/*[data-sonner-toast] [data-close-button] {
+        left: auto !important;
+        right: 0 !important;
+        transform: translate(35%, -35%) !important;
+    }*/
+
+	[data-sonner-toast] {
+		transform: translate(0, -28%) !important;
 	}
 }

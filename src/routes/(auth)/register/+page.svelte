@@ -1,6 +1,7 @@
 <script lang="ts">
     import { Tv } from '@lucide/svelte';
     import { goto } from '$app/navigation';
+    import { page } from '$app/state';
     import { authClient } from '$lib/auth-client';
     import Button from '$lib/components/ui/Button.svelte';
     import Input from '$lib/components/ui/Input.svelte';
@@ -39,7 +40,12 @@
             if (result.error) {
                 error = result.error.message || 'Registration failed';
             } else {
-                goto('/');
+                const redirectTo = page.url.searchParams.get('redirectTo');
+                if (redirectTo) {
+                    goto(redirectTo);
+                } else {
+                    goto('/onboarding');
+                }
             }
         } catch (e) {
             error = 'An error occurred. Please try again.';
@@ -143,7 +149,9 @@
     <p class="mt-6 text-center text-muted-foreground text-sm">
         Already have an account?
         <a
-            href="/login"
+            href="/login{page.url.searchParams.get('redirectTo')
+                ? `?redirectTo=${encodeURIComponent(page.url.searchParams.get('redirectTo') ?? '')}`
+                : ''}"
             class="text-primary hover:text-primary/80 transition font-medium hover:underline underline-offset-4"
             >Sign in</a
         >

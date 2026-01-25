@@ -2,20 +2,21 @@
     import { ArrowLeft, Download, EllipsisVertical, Users } from '@lucide/svelte';
     import { createQuery } from '@tanstack/svelte-query';
     import { onDestroy, onMount } from 'svelte';
+    import { browser } from '$app/environment';
     import { page } from '$app/state';
     import Button from '$lib/components/ui/Button.svelte';
     import { createMediaDetailQuery, fetchMediaProgress } from '$lib/queries/media-queries';
     import type { Media } from '$lib/types';
 
     // Queries
-    const mediaQuery = createMediaDetailQuery(page.params.id);
+    const mediaQuery = createMediaDetailQuery(page.params.id ?? '');
     const media = $derived(mediaQuery.data);
     const loading = $derived(mediaQuery.isLoading);
     const error = $derived(mediaQuery.error ? 'Failed to load media' : '');
 
     const progressQuery = createQuery(() => ({
         queryKey: ['media', 'progress', page.params.id],
-        queryFn: () => fetchMediaProgress(page.params.id),
+        queryFn: () => fetchMediaProgress(page.params.id ?? ''),
         enabled: !!media && media.status !== 'complete',
         refetchInterval: (query) => {
             if (query.state.data?.status === 'complete') {
@@ -59,7 +60,9 @@
         if (controlsTimeout) {
             clearTimeout(controlsTimeout);
         }
-        document.removeEventListener('click', handleGlobalClick);
+        if (browser) {
+            document.removeEventListener('click', handleGlobalClick);
+        }
     });
 
     function handleGlobalClick(e: MouseEvent) {

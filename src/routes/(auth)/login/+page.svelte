@@ -1,6 +1,7 @@
 <script lang="ts">
     import { Tv } from '@lucide/svelte';
     import { goto } from '$app/navigation';
+    import { page } from '$app/state';
     import { authClient } from '$lib/auth-client';
     import Button from '$lib/components/ui/Button.svelte';
     import Input from '$lib/components/ui/Input.svelte';
@@ -24,7 +25,20 @@
             if (result.error) {
                 error = result.error.message || 'Invalid credentials';
             } else {
-                goto('/');
+                // Check for redirect URL
+                const redirectTo = page.url.searchParams.get('redirectTo');
+                if (redirectTo) {
+                    goto(redirectTo);
+                    return;
+                }
+
+                // Check if user has any organizations
+                const orgs = await authClient.organization.list();
+                if (orgs.data && orgs.data.length > 0) {
+                    goto('/');
+                } else {
+                    goto('/onboarding');
+                }
             }
         } catch (e) {
             error = 'An error occurred. Please try again.';
@@ -93,7 +107,9 @@
     <p class="mt-6 text-center text-muted-foreground text-sm">
         Don't have an account?
         <a
-            href="/register"
+            href="/register{page.url.searchParams.get('redirectTo')
+                ? `?redirectTo=${encodeURIComponent(page.url.searchParams.get('redirectTo') ?? '')}`
+                : ''}"
             class="text-primary hover:text-primary/80 transition font-medium hover:underline underline-offset-4"
             >Create account</a
         >

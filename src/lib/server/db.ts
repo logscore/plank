@@ -22,21 +22,21 @@ import { db } from './db/index';
 
 export const mediaDb = {
 	/**
-	 * List media by type for a user
+	 * List media by type for a user or organization
 	 */
-	list(userId: string, type?: MediaType): Media[] {
+	list(userIdOrOrgId: string, type?: MediaType): Media[] {
 		if (type) {
 			return db
 				.select()
 				.from(mediaTable)
-				.where(and(eq(mediaTable.userId, userId), eq(mediaTable.type, type)))
+				.where(and(eq(mediaTable.organizationId, userIdOrOrgId), eq(mediaTable.type, type)))
 				.orderBy(desc(mediaTable.addedAt))
 				.all();
 		}
 		return db
 			.select()
 			.from(mediaTable)
-			.where(eq(mediaTable.userId, userId))
+			.where(eq(mediaTable.organizationId, userIdOrOrgId))
 			.orderBy(desc(mediaTable.addedAt))
 			.all();
 	},
@@ -105,6 +105,7 @@ export const mediaDb = {
 		const newMedia: NewMedia = {
 			id,
 			userId: mediaItem.userId,
+			organizationId: mediaItem.organizationId,
 			type: mediaItem.type || 'movie',
 			title: mediaItem.title,
 			year: mediaItem.year,

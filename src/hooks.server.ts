@@ -26,20 +26,36 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.url.pathname.startsWith('/watch') ||
 		event.url.pathname.startsWith('/search') ||
 		event.url.pathname.startsWith('/account') ||
+		event.url.pathname.startsWith('/browse') ||
+		event.url.pathname.startsWith('/onboarding') ||
 		event.url.pathname === '/';
 	const isAuthRoute =
 		event.url.pathname.startsWith('/login') ||
 		event.url.pathname.startsWith('/register') ||
 		event.url.pathname.startsWith('/api/auth');
+	const isAuthPage = event.url.pathname.startsWith('/login') || event.url.pathname.startsWith('/register');
 	const isApiRoute = event.url.pathname.startsWith('/api');
+	const isOnboardingRoute = event.url.pathname.startsWith('/onboarding');
 
 	if (isAppRoute && !event.locals.user) {
 		throw redirect(302, '/login');
 	}
 
-	// Redirect logged-in users away from auth pages
-	if (isAuthRoute && event.locals.user) {
+	// Redirect logged-in users away from auth pages (but allow api/auth)
+	if (isAuthPage && event.locals.user) {
 		throw redirect(302, '/');
+	}
+
+	// Enforce organization setup for app routes
+	if (isAppRoute && !isOnboardingRoute && event.locals.user) {
+		// Check if user has an organization
+		const orgs = await auth.api.listOrganizations({
+			headers: event.request.headers,
+		});
+
+		if (!orgs || orgs.length === 0) {
+			throw redirect(302, '/onboarding');
+		}
 	}
 
 	// Protect API routes (except auth routes)

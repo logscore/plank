@@ -1,6 +1,7 @@
 <script lang="ts">
     import { Flame, Trophy } from '@lucide/svelte';
     import { createInfiniteQuery, useQueryClient } from '@tanstack/svelte-query';
+    import { toast } from 'svelte-sonner';
     import { goto } from '$app/navigation';
     import { navigating } from '$app/state';
     import { env } from '$env/dynamic/public';
@@ -176,6 +177,7 @@
             const magnetLink = await getMagnetLink(item);
             if (!magnetLink) {
                 // If resolution fails, we must clear the adding state
+                toast.error('No magnet link found for this title');
                 throw new Error('Could not resolve magnet link');
             }
 
@@ -185,8 +187,12 @@
                 year: item.year,
                 tmdbId: item.tmdbId,
             });
+            toast.success('Added to library');
         } catch (err) {
             console.error('Failed to add to library:', err);
+            if (err instanceof Error && err.message !== 'Could not resolve magnet link') {
+                toast.error('Failed to add to library. No valid magnet link found');
+            }
         } finally {
             const updated = new Set(addingItems);
             updated.delete(item.tmdbId);
@@ -205,6 +211,7 @@
         try {
             const magnetLink = await getMagnetLink(item);
             if (!magnetLink) {
+                toast.error('No magnet link found for this title');
                 throw new Error('Could not resolve magnet link');
             }
 
@@ -217,6 +224,9 @@
             goto(`/watch/${media.id}`);
         } catch (err) {
             console.error('Failed to add and watch:', err);
+            if (err instanceof Error && err.message !== 'Could not resolve magnet link') {
+                toast.error('Failed to start playback');
+            }
         } finally {
             const updated = new Set(addingItems);
             updated.delete(item.tmdbId);
@@ -336,6 +346,7 @@
 
             if (!magnetLink) {
                 console.error('Failed to resolve season torrent');
+                toast.error('No magnet link found for this season');
                 return;
             }
 
@@ -346,8 +357,10 @@
                 year: item.year,
                 tmdbId: item.tmdbId,
             });
+            toast.success('Season added to library');
         } catch (err) {
             console.error('Failed to add season to library:', err);
+            toast.error('Failed to add season');
         } finally {
             const updated = new Set(addingItems);
             updated.delete(item.tmdbId);

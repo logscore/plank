@@ -179,7 +179,7 @@ export async function searchJackett(imdbId: string): Promise<JackettResult[]> {
 		});
 
 		if (!response.ok) {
-			console.error(`Jackett search failed: ${response.status} ${response.statusText}`);
+			console.error(`Index search failed: ${response.status} ${response.statusText}`);
 			return [];
 		}
 

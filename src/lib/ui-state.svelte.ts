@@ -1,5 +1,6 @@
 class UIState {
 	addMediaDialogOpen = $state(false);
+	inviteMemberDialogOpen = $state(false);
 
 	deleteConfirmation = $state({
 		open: false,
@@ -12,6 +13,10 @@ class UIState {
 
 	toggleAddMediaDialog() {
 		this.addMediaDialogOpen = !this.addMediaDialogOpen;
+	}
+
+	toggleInviteMemberDialog() {
+		this.inviteMemberDialogOpen = !this.inviteMemberDialogOpen;
 	}
 }
 
