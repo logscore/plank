@@ -6,7 +6,6 @@
     import { page } from '$app/state';
     import Button from '$lib/components/ui/Button.svelte';
     import { createMediaDetailQuery, fetchMediaProgress } from '$lib/queries/media-queries';
-    import type { Media } from '$lib/types';
 
     // Queries
     const mediaQuery = createMediaDetailQuery(page.params.id ?? '');

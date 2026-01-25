@@ -88,7 +88,6 @@
             if (res.error) {
                 toast.error(res.error.message);
             } else {
-                toast.success('Invitation revoked');
                 await invalidateAll();
             }
         });

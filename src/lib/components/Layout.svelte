@@ -31,7 +31,9 @@
 
 <svelte:document onclick={handleClickOutside} />
 
-<div class="min-h-screen bg-background text-foreground flex flex-col relative pb-24">
+<div
+    class={cn("min-h-screen bg-background text-foreground flex flex-col relative", !page.url.pathname.startsWith("/watch") && "pb-24")}
+>
     <!-- Account Button - Bottom Right Corner -->
     {#if !page.url.pathname.startsWith("/watch")}
         <div class="fixed bottom-8 right-8 z-50 account-menu" transition:fly={{ y: 20, duration: 300 }}>
