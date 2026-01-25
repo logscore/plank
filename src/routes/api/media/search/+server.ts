@@ -1,6 +1,7 @@
 import { error, json } from '@sveltejs/kit';
-import { searchMovie, searchTVShow } from '$lib/server/tmdb';
-import type { MediaType } from '$lib/types';
+import { and, eq, like } from 'drizzle-orm';
+import { db } from '$lib/server/db/index';
+import { media } from '$lib/server/db/schema';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -9,38 +10,25 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	}
 
 	const query = url.searchParams.get('q');
-	const type = url.searchParams.get('type') as MediaType | null;
-	const yearParam = url.searchParams.get('year');
-	const year = yearParam ? Number.parseInt(yearParam, 10) : undefined;
+	const type = url.searchParams.get('type');
 
 	if (!query || query.length < 2) {
-		throw error(400, 'Query too short');
+		return json([]);
 	}
 
-	interface SearchResult {
-		tmdbId: number | null;
-		title: string;
-		year: number | null;
-		posterUrl: string | null;
-		backdropUrl: string | null;
-		overview: string | null;
-		type: MediaType;
-		totalSeasons?: number | null;
-	}
+	try {
+		const results = await db.query.media.findMany({
+			where: and(
+				eq(media.userId, locals.user.id),
+				like(media.title, `%${query}%`),
+				type ? eq(media.type, type as 'movie' | 'tv') : undefined
+			),
+			orderBy: (media, { desc }) => [desc(media.addedAt)],
+		});
 
-	let results: SearchResult[];
-	if (type === 'tv') {
-		results = (await searchTVShow(query, year)).map((r) => ({ ...r, type: 'tv' as const }));
-	} else if (type === 'movie') {
-		results = (await searchMovie(query, year)).map((r) => ({ ...r, type: 'movie' as const }));
-	} else {
-		// Search both
-		const [movies, shows] = await Promise.all([searchMovie(query, year), searchTVShow(query, year)]);
-		results = [
-			...movies.map((m) => ({ ...m, type: 'movie' as const })),
-			...shows.map((s) => ({ ...s, type: 'tv' as const })),
-		];
+		return json(results);
+	} catch (err) {
+		console.error('Search failed:', err);
+		throw error(500, 'Failed to search library');
 	}
-
-	return json(results);
 };

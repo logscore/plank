@@ -6,5 +6,7 @@
     "src/**/*.ts",
     "scripts/*.ts"
   ],
-  "project": ["src/**/*.ts", "src/**/*.svelte", "scripts/*.ts"]
+  "project": ["src/**/*.ts", "src/**/*.svelte", "scripts/*.ts"],
+  "ignoreDependencies": ["tailwindcss"],
+  "ignoreBinaries": ["svelte-check-rs"]
 }

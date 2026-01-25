@@ -1,14 +1,14 @@
 # ROADMAP
 
-- [ ] Migrate user manaement to organizations so admin users can add new people to access their stuff
 - [ ] Handle no TMDB api key by having a poster placeholder
-- [ ] Torrent search added to search page functionality. Specify search you library vs search the index
 - [ ] Public website mode
   - [ ] Stream torrents on the client only. TMDB service is still provided (secures our API key), but that's it. Everything else is handled by the client. We shouldnt even use Jackett for this mode.
   - [ ] When a magnet link is added, stream it right away and store the metadata and magnet link on the browser for restreaming if they want to watch it again.
 - [ ] Im noticing some mental frictin with search. I think we can try having search for the browser be on the browser page and default to its browser selection on the selection page. or something like that
 - [ ] Try migrating to prowlerr for our torrent index search
 - [ ] Improve the details cards on tv shows. they currently dont have a redownload button, dont show the mb/sec # of peers or size of torrent, and they dont show the location of the episodes, which should be where the seasons are located as it holds multiple files. I want the same functionality as the movies version of the page
+- [ ] Improve the episode cards on the tv show details page. Maybe add the title, the description of the episode, runtime, and a poster image
+  - [ ] Add a button to redownload just that episode
 - [ ] Remove the cache tables in the db and just use tanstack query / tanstack db
 - [ ] Have the download be background jobs instead of main thread processes. Use something light weight like a valkey scheduler
 - [ ] Find a way to make scrubbing on MKV/AVI formats work better
@@ -16,6 +16,9 @@
 - [ ] Auto updater. Just click a button and it checks for updates and updates the app
 - [ ] Subtitles
 
+
+- [x] Migrate user manaement to organizations so admin users can add new people to access their stuff
+- [x] Torrent search added to search page functionality. Specify search you library vs search the index
 - [x] Dont disable adding the media wen prefetching it, but do hen actively 
 - [x] Search other torrent aggregators and have an instant "add to library" and "watch now" button
 - [x] Search your library
