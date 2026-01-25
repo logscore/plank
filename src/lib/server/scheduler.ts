@@ -14,18 +14,16 @@ export function transcodeScheduler() {
 			console.error('[Scheduler] Nightly transcoding failed:', e);
 		}
 	});
-
-	console.log('[Scheduler] Nightly jobs scheduled');
 }
 
 // Schedule temp folder cleanup daily at midnight
 export function tempFolderScheduler() {
 	cron.schedule('0 0 * * *', async () => {
-		// console.log('[Cron] Starting daily temp folder cleanup...');
+		console.log('[Cron] Starting daily temp folder cleanup...');
 		try {
 			await fs.rm(config.paths.temp, { recursive: true, force: true });
 			await fs.mkdir(config.paths.temp, { recursive: true });
-			// console.log('[Cron] Temp folder cleaned successfully');
+			console.log('[Cron] Temp folder cleaned successfully');
 		} catch (e) {
 			console.error('[Cron] Failed to clean temp folder:', e);
 		}

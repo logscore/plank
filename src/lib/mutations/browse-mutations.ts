@@ -1,11 +1,5 @@
 import type { CreateMutationOptions } from '@tanstack/svelte-query';
 import { createMutation, useQueryClient } from '@tanstack/svelte-query';
-import {
-	type ResolveResponse,
-	type ResolveSeasonResponse,
-	resolveSeasonTorrent,
-	resolveTorrent,
-} from '$lib/queries/browse-queries';
 import { queryKeys } from '$lib/query-keys';
 import type { Media } from '$lib/types';
 
@@ -20,35 +14,6 @@ export interface AddFromBrowseParams {
 	title: string;
 	year?: number | null;
 	tmdbId?: number;
-}
-
-/**
- * Create a mutation for resolving a torrent from IMDB/TMDB ID
- */
-export function createResolveTorrentMutation() {
-	const queryClient = useQueryClient();
-
-	const options: CreateMutationOptions<ResolveResponse, Error, ResolveTorrentParams, undefined> = {
-		mutationFn: (params: ResolveTorrentParams): Promise<ResolveResponse> => resolveTorrent(params),
-		onSuccess: (result: ResolveResponse, params: ResolveTorrentParams) => {
-			if (result.success && result.torrent) {
-				// Invalidate browse queries to show updated torrent cache
-				queryClient.invalidateQueries({
-					queryKey: queryKeys.browse.all,
-				});
-
-				// Invalidate torrent cache queries
-				queryClient.invalidateQueries({
-					queryKey: queryKeys.torrents.all,
-				});
-
-				// Cache the resolve result
-				queryClient.setQueryData(queryKeys.browse.resolve(params.tmdbId), result);
-			}
-		},
-	};
-
-	return createMutation<ResolveResponse, Error, ResolveTorrentParams, undefined>(() => options);
 }
 
 /**
@@ -82,24 +47,9 @@ export function createAddFromBrowseMutation() {
 	return createMutation<Media, Error, AddFromBrowseParams, undefined>(() => options);
 }
 
-// =============================================================================
-// TV Season Mutations
-// =============================================================================
-
 export interface ResolveSeasonParams {
 	tmdbId: number;
 	seasonNumber: number;
 	showTitle: string;
 	imdbId?: string;
-}
-
-/**
- * Create a mutation for resolving a TV season torrent
- */
-export function createResolveSeasonMutation() {
-	const options: CreateMutationOptions<ResolveSeasonResponse, Error, ResolveSeasonParams, undefined> = {
-		mutationFn: (params: ResolveSeasonParams): Promise<ResolveSeasonResponse> => resolveSeasonTorrent(params),
-	};
-
-	return createMutation<ResolveSeasonResponse, Error, ResolveSeasonParams, undefined>(() => options);
 }

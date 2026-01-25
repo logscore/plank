@@ -128,3 +128,33 @@ export function createDeleteMediaMutation() {
 
 	return createMutation<string, Error, string, DeleteMediaContext>(() => options);
 }
+
+/**
+ * Create a mutation for retrying a download
+ */
+export function createRetryDownloadMutation() {
+	const queryClient = useQueryClient();
+
+	const options: CreateMutationOptions<void, Error, string, unknown> = {
+		mutationFn: async (id: string): Promise<void> => {
+			const response = await fetch(`/api/media/${id}/retry`, {
+				method: 'POST',
+			});
+
+			if (!response.ok) {
+				const data = await response.json().catch(() => ({}));
+				throw new Error(data.message || `Failed to retry download: ${response.statusText}`);
+			}
+		},
+		onSuccess: (_data, id) => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.media.detail(id),
+			});
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.media.lists(),
+			});
+		},
+	};
+
+	return createMutation<void, Error, string, unknown>(() => options);
+}

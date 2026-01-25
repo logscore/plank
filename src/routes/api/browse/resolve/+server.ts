@@ -59,8 +59,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Search Jackett for best torrent
 	const torrent = await findBestTorrent(resolvedImdbId);
 
-	console.log('Torrent: ', torrent);
-
 	if (!torrent) {
 		return json({
 			success: false,

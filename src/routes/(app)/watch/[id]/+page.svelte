@@ -1,26 +1,33 @@
 <script lang="ts">
     import { ArrowLeft, Download, EllipsisVertical, Users } from '@lucide/svelte';
+    import { createQuery } from '@tanstack/svelte-query';
     import { onDestroy, onMount } from 'svelte';
     import { page } from '$app/state';
     import Button from '$lib/components/ui/Button.svelte';
+    import { createMediaDetailQuery, fetchMediaProgress } from '$lib/queries/media-queries';
     import type { Media } from '$lib/types';
 
-    interface ProgressInfo {
-        status: string;
-        progress: number;
-        downloadSpeed: number;
-        uploadSpeed: number;
-        peers: number;
-        isActive: boolean;
-        filePath: string | null;
-    }
+    // Queries
+    const mediaQuery = createMediaDetailQuery(page.params.id);
+    const media = $derived(mediaQuery.data);
+    const loading = $derived(mediaQuery.isLoading);
+    const error = $derived(mediaQuery.error ? 'Failed to load media' : '');
 
-    let media: Media | null = $state(null);
+    const progressQuery = createQuery(() => ({
+        queryKey: ['media', 'progress', page.params.id],
+        queryFn: () => fetchMediaProgress(page.params.id),
+        enabled: !!media && media.status !== 'complete',
+        refetchInterval: (query) => {
+            if (query.state.data?.status === 'complete') {
+                return false;
+            }
+            return 1000;
+        },
+    }));
+
+    const progressInfo = $derived(progressQuery.data);
+
     let videoElement: HTMLVideoElement | undefined = $state(undefined);
-    let progressInfo: ProgressInfo | null = $state(null);
-    let loading = $state(true);
-    let error = $state('');
-    let progressInterval: ReturnType<typeof setInterval> | null = null;
     let showControls = $state(true);
     let controlsTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -42,57 +49,13 @@
         return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
     }
 
-    async function loadMedia() {
-        try {
-            const res = await fetch(`/api/media/${page.params.id}`);
-            if (res.ok) {
-                media = await res.json();
-            } else {
-                error = 'Media not found';
-            }
-        } catch (e) {
-            error = 'Failed to load media';
-        } finally {
-            loading = false;
-        }
-    }
-
-    async function fetchProgress() {
-        if (!media) {
-            return;
-        }
-
-        try {
-            const res = await fetch(`/api/media/${media.id}/progress`);
-            if (res.ok) {
-                progressInfo = await res.json();
-            }
-        } catch (e) {
-            console.error('Failed to fetch progress:', e);
-        }
-    }
-
-    function startProgressPolling() {
-        fetchProgress();
-        progressInterval = setInterval(fetchProgress, 1000);
-    }
-
-    function stopProgressPolling() {
-        if (progressInterval) {
-            clearInterval(progressInterval);
-            progressInterval = null;
-        }
-    }
-
     onMount(() => {
-        loadMedia();
         resetControlsTimeout();
         // Close menu on click outside
         document.addEventListener('click', handleGlobalClick);
     });
 
     onDestroy(() => {
-        stopProgressPolling();
         if (controlsTimeout) {
             clearTimeout(controlsTimeout);
         }
@@ -104,21 +67,6 @@
             showMenu = false;
         }
     }
-
-    // Start polling when media is loaded and not complete
-    $effect(() => {
-        if (media && media.status !== 'complete') {
-            startProgressPolling();
-        }
-        return () => stopProgressPolling();
-    });
-
-    // Stop polling when download completes
-    $effect(() => {
-        if (progressInfo?.status === 'complete') {
-            stopProgressPolling();
-        }
-    });
 
     function getVideoSrc(): string {
         if (!media) {

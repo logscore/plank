@@ -272,4 +272,184 @@ describe('Jackett Client', () => {
 			expect(results).toEqual([]);
 		});
 	});
+
+	describe('Season Search', () => {
+		const createSeasonResult = (title: string, seeders = 50, size = 5_000_000_000): JackettResult => ({
+			title,
+			magnetUri: `magnet:?xt=urn:btih:${title}`,
+			infohash: title,
+			size,
+			seeders,
+			peers: Math.floor(seeders / 2),
+			publishDate: new Date().toISOString(),
+		});
+
+		describe('searchSeasonTorrent', () => {
+			it('should search with multiple queries', async () => {
+				mockFetch.mockResolvedValue({
+					ok: true,
+					json: async () => ({ Results: [] }),
+				});
+
+				await import('$lib/server/jackett').then((m) => m.searchSeasonTorrent('Show Title', 1, 'tt1234567'));
+
+				// Should try IMDB search first
+				expect(mockFetch).toHaveBeenCalledWith(
+					expect.stringContaining('Query=imdb%3Att1234567+S01'),
+					expect.any(Object)
+				);
+				// Then title searches
+				expect(mockFetch).toHaveBeenCalledWith(
+					expect.stringContaining('Query=Show+Title+S01'),
+					expect.any(Object)
+				);
+				expect(mockFetch).toHaveBeenCalledWith(
+					expect.stringContaining('Query=Show+Title+Season+1'),
+					expect.any(Object)
+				);
+			});
+		});
+
+		describe('filterForSeasonPacks', () => {
+			it('should filter season packs correctly', async () => {
+				const results = [
+					createSeasonResult('Show.Title.S01.Complete.1080p'), // Good pack
+					createSeasonResult('Show.Title.Season.1.Complete'), // Good pack
+					createSeasonResult('Show.Title.S01E01.1080p', 50, 500_000_000), // Single episode
+					createSeasonResult('Show.Title.S02.Complete'), // Wrong season
+				];
+
+				const { filterForSeasonPacks } = await import('$lib/server/jackett');
+				const filtered = filterForSeasonPacks(results, 1);
+
+				expect(filtered).toHaveLength(2);
+				expect(filtered.map((r) => r.title)).toEqual([
+					'Show.Title.S01.Complete.1080p',
+					'Show.Title.Season.1.Complete',
+				]);
+			});
+		});
+
+		describe('parseTorrentTitle', () => {
+			it('should parse quality and release group', async () => {
+				const { parseTorrentTitle } = await import('$lib/server/jackett');
+
+				expect(parseTorrentTitle('Movie.2024.1080p.BluRay-YTS')).toEqual({
+					quality: '1080P',
+					releaseGroup: 'YTS',
+				});
+
+				expect(parseTorrentTitle('Movie.2024.2160p.UHD-BONE')).toEqual({
+					quality: '2160P',
+					releaseGroup: 'BONE',
+				});
+
+				expect(parseTorrentTitle('Unknown.Release')).toEqual({
+					quality: null,
+					releaseGroup: null,
+				});
+			});
+		});
+
+		describe('findBestTorrent', () => {
+			it('should return null when search returns no results', async () => {
+				mockFetch.mockResolvedValueOnce({
+					ok: true,
+					json: async () => ({ Results: [] }),
+				});
+
+				const { findBestTorrent } = await import('$lib/server/jackett');
+				const result = await findBestTorrent('tt1234567');
+				expect(result).toBeNull();
+			});
+
+			it('should fallback to quality filtered results if no trusted groups found', async () => {
+				const { findBestTorrent } = await import('$lib/server/jackett');
+
+				const mockResponse = {
+					Results: [
+						{
+							Title: 'Movie.2024.1080p.BluRay-UnknownGroup',
+							MagnetUri: 'magnet:?xt=urn:btih:abc',
+							InfoHash: 'abc',
+							Size: 1000,
+							Seeders: 100,
+							Peers: 10,
+							PublishDate: new Date().toISOString(),
+						},
+					],
+				};
+
+				mockFetch.mockResolvedValueOnce({
+					ok: true,
+					json: async () => mockResponse,
+				});
+
+				const result = await findBestTorrent('tt1234567');
+				expect(result?.title).toBe('Movie.2024.1080p.BluRay-UnknownGroup');
+			});
+		});
+
+		describe('findBestSeasonTorrent', () => {
+			it('should return null when no results found', async () => {
+				mockFetch.mockResolvedValue({
+					ok: true,
+					json: async () => ({ Results: [] }),
+				});
+
+				const { findBestSeasonTorrent } = await import('$lib/server/jackett');
+				const result = await findBestSeasonTorrent('Show', 1);
+				expect(result).toBeNull();
+			});
+
+			it('should fallback to non-season-pack episodes if season pack not found', async () => {
+				const { findBestSeasonTorrent } = await import('$lib/server/jackett');
+
+				const mockResponse = {
+					Results: [
+						{
+							Title: 'Show.S01E01.1080p', // Episode, but valid fallback if nothing else?
+							// Actually logic says: nonEpisodes = qualityFiltered.filter(r => !isSingleEpisode(r.title) ...)
+							// So single episodes are explicitly EXCLUDED from fallback.
+							// We need something that matches season number but isn't a single episode pattern.
+							// Like "Show.S01.Part1" maybe?
+							MagnetUri: 'magnet:?xt=urn:btih:abc',
+							InfoHash: 'abc',
+							Size: 1000,
+							Seeders: 100,
+							Peers: 10,
+							PublishDate: new Date().toISOString(),
+						},
+					],
+				};
+				// Wait, the logic:
+				// const nonEpisodes = qualityFiltered.filter(
+				// 	(r) => !isSingleEpisode(r.title) && matchesSeasonNumber(r.title, seasonNumber)
+				// );
+				// If I provide "Show.S01.Part1", isSingleEpisode is false?
+				// SINGLE_EPISODE_PATTERNS: E\d, \dx\d, Episode \d
+				// So "Show.S01.Part1" should pass as "non-episode" but matching season.
+
+				mockFetch.mockResolvedValue({
+					ok: true,
+					json: async () => ({
+						Results: [
+							{
+								Title: 'Show.S01.Part1.1080p',
+								MagnetUri: 'magnet:?xt=urn:btih:abc',
+								InfoHash: 'abc',
+								Size: 1000,
+								Seeders: 100,
+								Peers: 10,
+								PublishDate: new Date().toISOString(),
+							},
+						],
+					}),
+				});
+
+				const result = await findBestSeasonTorrent('Show', 1);
+				expect(result?.title).toBe('Show.S01.Part1.1080p');
+			});
+		});
+	});
 });

@@ -18,16 +18,23 @@
     import Button from '$lib/components/ui/Button.svelte';
     import Dialog from '$lib/components/ui/Dialog.svelte';
     import Input from '$lib/components/ui/Input.svelte';
-    import { createDeleteMediaMutation } from '$lib/mutations/media-mutations';
+    import {
+        createAddMediaMutation,
+        createDeleteMediaMutation,
+        createRetryDownloadMutation,
+    } from '$lib/mutations/media-mutations';
     import { confirmDelete, uiState } from '$lib/ui-state.svelte';
     import type { PageData } from './$types';
 
     let { data } = $props<{ data: PageData }>();
-    const deleteMutation = createDeleteMediaMutation();
-
-    let deleting = $derived(deleteMutation.isPending);
+    let deleting = $state(false);
     let retrying = $state(false);
     let copied = $state(false);
+
+    // Mutations
+    const addMediaMutation = createAddMediaMutation();
+    const deleteMediaMutation = createDeleteMediaMutation();
+    const retryDownloadMutation = createRetryDownloadMutation();
 
     // Add Media Dialog state
     let magnetInput = $state('');
@@ -177,14 +184,10 @@
     async function handleRetry() {
         retrying = true;
         try {
-            const res = await fetch(`/api/media/${data.media.id}/retry`, {
-                method: 'POST',
-            });
-            if (res.ok) {
-                liveStatus = 'added';
-                liveProgress = 0;
-                startStream();
-            }
+            await retryDownloadMutation.mutateAsync(data.media.id);
+            liveStatus = 'added';
+            liveProgress = 0;
+            startStream();
         } catch (e) {
             console.error('Failed to retry download:', e);
         } finally {
@@ -205,20 +208,11 @@
         magnetError = '';
         adding = true;
         try {
-            const res = await fetch('/api/media', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ magnetLink: magnetInput }),
-            });
-            if (res.ok) {
-                magnetInput = '';
-                uiState.addMediaDialogOpen = false;
-            } else {
-                const respData = await res.json();
-                magnetError = respData.message || 'Failed to add media';
-            }
+            await addMediaMutation.mutateAsync({ magnetLink: magnetInput });
+            magnetInput = '';
+            uiState.addMediaDialogOpen = false;
         } catch (e) {
-            magnetError = 'Failed to add media';
+            magnetError = (e as Error).message || 'Failed to add media';
         } finally {
             adding = false;
         }
@@ -229,11 +223,14 @@
             'Delete Media',
             'Are you sure you want to delete this? This action cannot be undone.',
             async () => {
+                deleting = true;
                 try {
-                    await deleteMutation.mutateAsync(data.media.id);
-                    goto('/', { replaceState: true });
+                    await deleteMediaMutation.mutateAsync(data.media.id);
+                    goto('/');
                 } catch (e) {
                     console.error('Failed to delete media:', e);
+                } finally {
+                    deleting = false;
                 }
             }
         );

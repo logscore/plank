@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mediaDb } from '../lib/server/db';
+import { episodesDb, mediaDb } from '../lib/server/db';
 import { transcodeLibrary } from '../lib/server/transcoder';
 
 // Mock dependencies
@@ -24,6 +24,18 @@ describe('Library Transcoder', () => {
 	const mockMedia = [
 		{ id: '1', type: 'movie', filePath: '/lib/movie.mkv', title: 'Movie 1' },
 		{ id: '2', type: 'movie', filePath: '/lib/movie2.mp4', title: 'Movie 2' }, // Should be skipped
+		{ id: '3', type: 'tv', title: 'Show 1' },
+	];
+
+	const mockEpisodes = [
+		{
+			episode: { id: 'ep1', filePath: '/lib/show/s01e01.mkv', fileIndex: 0 },
+			season: { mediaId: '3' },
+		},
+		{
+			episode: { id: 'ep2', filePath: '/lib/show/s01e02.mp4', fileIndex: 0 }, // Should be skipped
+			season: { mediaId: '3' },
+		},
 	];
 
 	beforeEach(() => {
@@ -31,6 +43,7 @@ describe('Library Transcoder', () => {
 
 		// Setup DB mock
 		(mediaDb.getAll as any).mockReturnValue(mockMedia);
+		(episodesDb.getByMediaId as any).mockReturnValue(mockEpisodes);
 
 		(fs.stat as any).mockResolvedValue({ size: 1000 });
 		(fs.rename as any).mockResolvedValue(undefined);
@@ -38,7 +51,7 @@ describe('Library Transcoder', () => {
 		(existsSync as any).mockReturnValue(true);
 	});
 
-	it('should identify and transmux non-mp4 files', async () => {
+	it('should identify and transmux non-mp4 files (Movies)', async () => {
 		// Mock successful transmux
 		(transmuxFile as any).mockResolvedValue(undefined);
 		// Mock successful probe (valid file)
@@ -53,6 +66,23 @@ describe('Library Transcoder', () => {
 
 		// Should NOT call for MP4 file
 		expect(transmuxFile).not.toHaveBeenCalledWith('/lib/movie2.mp4', expect.anything());
+	});
+
+	it('should identify and transmux non-mp4 files (TV Shows)', async () => {
+		(transmuxFile as any).mockResolvedValue(undefined);
+		(probeFile as any).mockResolvedValue({ videoCodec: 'h264', duration: 100 });
+		(fs.stat as any).mockResolvedValue({ size: 1000 });
+
+		await transcodeLibrary();
+
+		// Should call transmuxFile for the MKV episode
+		expect(transmuxFile).toHaveBeenCalledWith('/lib/show/s01e01.mkv', '/lib/show/s01e01.transcoding.mp4');
+
+		// Should NOT call for MP4 episode
+		expect(transmuxFile).not.toHaveBeenCalledWith('/lib/show/s01e02.mp4', expect.anything());
+
+		// Should update DB for episode
+		expect(episodesDb.updateFileInfo).toHaveBeenCalledWith('ep1', 0, '/lib/show/s01e01.mp4', 1000);
 	});
 
 	it('should replace original file only if integrity check passes', async () => {

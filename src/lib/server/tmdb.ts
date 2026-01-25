@@ -579,16 +579,16 @@ const TV_PATTERNS = [
 	/\d{4}[.-]\d{2}[.-]\d{2}/,
 
 	// "Season X" or "Series X"
-	/(?:Season|Series)\s*\d+/i,
+	/(?:Season|Series)[\s.]*\d+/i,
 
 	// "Episode X"
-	/Episode\s*\d+/i,
+	/Episode[\s.]*\d+/i,
 
 	// Standalone "E01" if clearer context (often risky, but keeping for coverage)
 	/\bE\d{1,3}\b/i,
 
 	// Mini-series / Multi-part
-	/Part\s*\d+/i,
+	/Part[\s.]*\d+/i,
 
 	// Keyword "Complete" often implies a season pack
 	/Complete\s*(?:Season|Series)/i,

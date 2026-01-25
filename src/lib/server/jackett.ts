@@ -154,8 +154,6 @@ export function selectBestTorrent(results: JackettResult[]): JackettResult | nul
 		return scoreB - scoreA;
 	});
 
-	console.log(sorted);
-
 	return sorted[0];
 }
 
@@ -201,8 +199,6 @@ export async function searchJackett(imdbId: string): Promise<JackettResult[]> {
 export async function findBestTorrent(imdbId: string): Promise<JackettResult | null> {
 	const results = await searchJackett(imdbId);
 
-	console.log('Results: ', results);
-
 	if (results.length === 0) {
 		return null;
 	}
@@ -210,23 +206,15 @@ export async function findBestTorrent(imdbId: string): Promise<JackettResult | n
 	// Filter by quality (remove CAM, TS, etc.)
 	const qualityFiltered = filterByQuality(results);
 
-	console.log(qualityFiltered);
-
 	// Filter by trusted release groups
 	const groupFiltered = filterByReleaseGroup(qualityFiltered, config.jackett.trustedGroups);
-
-	console.log(groupFiltered);
 
 	// If we have trusted group results, use those
 	// Otherwise fall back to quality-filtered results
 	const candidates = groupFiltered.length > 0 ? groupFiltered : qualityFiltered;
 
-	console.log(candidates);
-
 	// Filter by minimum seeders
 	const seederFiltered = candidates.filter((r) => r.seeders >= config.jackett.minSeeders);
-
-	console.log(seederFiltered);
 
 	// Select the best torrent
 	return selectBestTorrent(seederFiltered.length > 0 ? seederFiltered : candidates);
@@ -268,9 +256,9 @@ const SINGLE_EPISODE_PATTERNS = [
  */
 const SEASON_PACK_PATTERNS = [
 	/\bS\d{1,2}\b(?!E)/i, // S01, S02 (not followed by E)
-	/\bSeason\s*\d+\b/i, // Season 1, Season 2
+	/\bSeason[\s.]*\d+\b/i, // Season 1, Season.1
 	/\bComplete\b/i, // Complete
-	/\bFull\s*Season\b/i, // Full Season
+	/\bFull[\s.]*Season\b/i, // Full Season
 ];
 
 /**
@@ -287,7 +275,7 @@ function matchesSeasonNumber(title: string, seasonNumber: number): boolean {
 	const patterns = [
 		new RegExp(`\\bS${paddedSeason}\\b`, 'i'), // S01, S02
 		new RegExp(`\\bS${seasonNumber}\\b`, 'i'), // S1, S2 (without padding)
-		new RegExp(`\\bSeason\\s*${seasonNumber}\\b`, 'i'), // Season 1, Season 2
+		new RegExp(`\\bSeason[\\s.]*${seasonNumber}\\b`, 'i'), // Season 1, Season.1
 	];
 	return patterns.some((pattern) => pattern.test(title));
 }
@@ -412,8 +400,6 @@ export async function findBestSeasonTorrent(
 ): Promise<JackettResult | null> {
 	const results = await searchSeasonTorrent(showTitle, seasonNumber, imdbId);
 
-	console.log(`[Jackett] Season search results for "${showTitle}" S${seasonNumber}:`, results.length);
-
 	if (results.length === 0) {
 		return null;
 	}
@@ -423,8 +409,6 @@ export async function findBestSeasonTorrent(
 
 	// Filter for season packs only
 	const seasonPacks = filterForSeasonPacks(qualityFiltered, seasonNumber);
-
-	console.log('[Jackett] Season packs found:', seasonPacks.length);
 
 	if (seasonPacks.length === 0) {
 		// Fall back to quality filtered results if no clear season packs found

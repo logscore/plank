@@ -65,17 +65,15 @@ This document outlines areas of the codebase identified for refactoring, consoli
 *   **Proposed Solution:**
     *   Rename `torrent-cache.ts` to `discovery-cache.ts` or similar to clearly distinguish it from the active download engine.
 
-## 9. Data Fetching Inconsistencies (TanStack Query)
+## 9. Data Fetching Inconsistencies (TanStack Query) (COMPLETED)
 
-*   **Identified Issue:**
-    *   `src/routes/(app)/movie/[id]/+page.svelte` uses raw `fetch` for mutations (Retry, Delete) instead of the existing `media-mutations`.
-    *   `src/routes/(app)/browse/+page.svelte` implements manual caching (Maps/Promises) for seasons and magnets instead of using `useQuery`.
-    *   `src/lib/queries/media-queries.ts` exports raw fetch functions instead of query hooks.
-    *   Several pages (`search`, `watch`) use raw `fetch` where queries/mutations would provide better state management.
-*   **Proposed Solution:**
-    *   Migrate all client-side `fetch` calls to TanStack Query hooks.
-    *   Convert `browse/+page.svelte` manual caching to `useQuery` (e.g., `useSeasonsQuery`).
-    *   Use centralized mutations (`media-mutations.ts`) in the detail pages to ensure cache invalidation works correctly.
+*   **Identified Issue:** Inconsistent use of raw `fetch` vs TanStack Query.
+*   **Resolution:**
+    *   Migrated `src/routes/(app)/movie/[id]/+page.svelte` to use mutations.
+    *   Refactored `src/routes/(app)/browse/+page.svelte` to use `queryClient.fetchQuery` instead of manual caching maps.
+    *   Updated `src/routes/(app)/search/+page.svelte` to use queries and mutations.
+    *   Refactored `src/routes/(app)/watch/[id]/+page.svelte` to use queries for polling and loading.
+    *   Centralized query hooks in `media-queries.ts` and `browse-queries.ts`.
 
 ## 10. Logging & Error Handling
 

@@ -1,3 +1,5 @@
+import { createQuery } from '@tanstack/svelte-query';
+import { queryKeys } from '$lib/query-keys';
 import type { FetchError } from './media-queries';
 
 // BrowseItem type - matches the server-side type from tmdb.ts
@@ -74,25 +76,6 @@ export async function fetchTrending(filter: 'all' | 'movie' | 'tv' = 'all', page
 }
 
 /**
- * Fetch popular content
- */
-export async function fetchPopular(filter: 'all' | 'movie' | 'tv' = 'all', page = 1): Promise<BrowseResponse> {
-	const params = new URLSearchParams({
-		type: 'popular',
-		filter,
-		page: page.toString(),
-	});
-
-	const response = await fetch(`/api/browse?${params}`);
-
-	if (!response.ok) {
-		throw createFetchError(`Failed to fetch popular: ${response.statusText}`, response.status);
-	}
-
-	return response.json();
-}
-
-/**
  * Fetch browse content (trending or popular)
  */
 export async function fetchBrowse(
@@ -153,6 +136,29 @@ export async function fetchJackettStatus(): Promise<JackettStatus> {
 	return response.json();
 }
 
+/**
+ * Search TMDB
+ */
+export async function searchTMDB(query: string): Promise<BrowseResponse> {
+	if (query.length < 2) {
+		return { items: [], page: 1, totalPages: 0 };
+	}
+
+	const response = await fetch(`/api/tmdb/search?q=${encodeURIComponent(query)}`);
+
+	if (!response.ok) {
+		throw createFetchError(`Failed to search TMDB: ${response.statusText}`, response.status);
+	}
+
+	const data = await response.json();
+	// Normalize response to match BrowseResponse structure
+	return {
+		items: data.results || [],
+		page: data.page || 1,
+		totalPages: data.total_pages || 1,
+	};
+}
+
 // =============================================================================
 // TV Seasons
 // =============================================================================
@@ -195,6 +201,15 @@ export async function fetchSeasons(tmdbId: number): Promise<SeasonsResponse> {
 	}
 
 	return response.json();
+}
+
+export function createSeasonsQuery(tmdbId: number, options?: { enabled?: boolean }) {
+	return createQuery(() => ({
+		queryKey: queryKeys.browse.seasons(tmdbId),
+		queryFn: () => fetchSeasons(tmdbId),
+		enabled: options?.enabled,
+		staleTime: 1000 * 60 * 60, // 1 hour
+	}));
 }
 
 /**

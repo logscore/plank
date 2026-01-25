@@ -93,8 +93,6 @@ async function safeTransmux(sourcePath: string, updateDb: (path: string, size: n
 	const tempPath = path.join(dir, `${name}.transcoding.mp4`);
 	const finalPath = path.join(dir, `${name}.mp4`);
 
-	console.log(`[Transcoder] Processing: ${sourcePath}`);
-
 	try {
 		// Transmux to temp file first
 		await transmuxFile(sourcePath, tempPath);
@@ -120,8 +118,6 @@ async function safeTransmux(sourcePath: string, updateDb: (path: string, size: n
 		if (sourcePath !== finalPath) {
 			await fs.unlink(sourcePath).catch((err) => console.warn(`Failed to delete original: ${sourcePath}`, err));
 		}
-
-		console.log(`[Transcoder] Successfully converted to: ${finalPath}`);
 	} catch (e) {
 		console.error(`[Transcoder] Failed to transmux ${sourcePath}:`, e);
 		// Cleanup temp

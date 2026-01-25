@@ -37,7 +37,6 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 			if (testResponse.ok) {
 				const response = await testResponse.json();
-				console.log('Jackett test search response:', response);
 
 				// If we get any Results, it means at least one indexer is configured and working
 				hasIndexers = response.Results && Array.isArray(response.Results) && response.Results.length > 0;

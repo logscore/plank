@@ -18,6 +18,8 @@ export const queryKeys = {
 		infinite: (type: 'trending' | 'popular', filter: 'all' | 'movie' | 'tv') =>
 			[...queryKeys.browse.all, 'infinite', type, filter] as const,
 		resolve: (tmdbId: number) => [...queryKeys.browse.all, 'resolve', tmdbId] as const,
+		resolveSeason: (tmdbId: number, seasonNumber: number) =>
+			[...queryKeys.browse.all, 'resolve', 'season', tmdbId, seasonNumber] as const,
 		seasons: (tmdbId: number) => [...queryKeys.browse.all, 'seasons', tmdbId] as const,
 	},
 
@@ -37,5 +39,11 @@ export const queryKeys = {
 			status: () => [...queryKeys.system.all, 'jackett', 'status'] as const,
 			test: () => [...queryKeys.system.all, 'jackett', 'test'] as const,
 		},
+	},
+
+	// TMDB queries
+	tmdb: {
+		all: ['tmdb'] as const,
+		search: (query: string) => [...queryKeys.tmdb.all, 'search', query] as const,
 	},
 } as const;
