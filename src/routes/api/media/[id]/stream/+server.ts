@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { mediaDb } from '$lib/server/db';
+import { episodesDb, mediaDb } from '$lib/server/db';
 import { createTransmuxStream, needsTransmux } from '$lib/server/ffmpeg';
 import {
 	getDownloadStatus,
@@ -51,11 +51,15 @@ async function ensureVideoReady(
 			throw error(503, status.error || 'Download failed');
 		}
 		if (status?.status === 'initializing') {
-			return new Response('Torrent is initializing, please try again shortly', {
+			return new Response(JSON.stringify({ message: 'Torrent is initializing, please try again shortly' }), {
 				status: 202,
+				headers: { 'Content-Type': 'application/json' },
 			});
 		}
-		return new Response('Video is buffering, please wait...', { status: 202 });
+		return new Response(JSON.stringify({ message: 'Video is buffering, please wait...' }), {
+			status: 202,
+			headers: { 'Content-Type': 'application/json' },
+		});
 	}
 }
 
@@ -129,11 +133,27 @@ export const GET: RequestHandler = async ({ params, locals, request, url }) => {
 	// Get optional episodeId for TV shows
 	const episodeId = url.searchParams.get('episodeId') ?? undefined;
 
+	let fileIndex: number | undefined;
+
+	if (mediaItem.type === 'tv') {
+		if (!episodeId) {
+			throw error(400, 'Episode ID required for TV shows');
+		}
+
+		const episode = episodesDb.getById(episodeId);
+		if (!episode) {
+			throw error(404, 'Episode not found');
+		}
+		// If fileIndex is null/undefined, waitForVideoReady will return false (buffering)
+		// until the file index is populated by the download manager
+		fileIndex = episode.fileIndex ?? undefined;
+	}
+
 	const readyResponse = await ensureVideoReady(
 		mediaItem.id,
 		mediaItem.magnetLink,
 		mediaItem.status ?? 'added',
-		undefined // fileIndex no longer used
+		fileIndex
 	);
 
 	if (readyResponse) {

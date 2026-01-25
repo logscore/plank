@@ -2,18 +2,13 @@
 
 This document outlines areas of the codebase identified for refactoring, consolidation, and simplification. The goal is to improve maintainability, reduce code duplication, and better separate concerns.
 
-## 1. High Priority: Consolidate Streaming Logic
+## 1. High Priority: Consolidate Streaming Logic (COMPLETED)
 
-The streaming implementation is duplicated across movie and media endpoints.
-
-*   **Identified Issue:** `src/routes/api/media/[id]/stream/+server.ts` and `src/routes/api/movies/[id]/stream/+server.ts` contain nearly identical code (approx. 170 lines each) for:
-    *   `checkDownloadError`
-    *   `ensureVideoReady`
-    *   `createTransmuxResponse`
-    *   `handleRangeRequest`
-    *   Request handling logic.
-*   **Proposed Solution:**
-    *   Merge the routes into a single `api/media/[id]/stream` endpoint.
+*   **Identified Issue:** `src/routes/api/media/[id]/stream/+server.ts` and `src/routes/api/movies/[id]/stream/+server.ts` contain nearly identical code.
+*   **Resolution:**
+    *   Merged the routes into a single `api/media/[id]/stream` endpoint.
+    *   Updated `api/media` endpoint to correctly handle TV show file indexing (fixing a bug where TV streaming would hang/fail).
+    *   Removed `src/routes/api/movies/[id]/stream/+server.ts` and the `api/movies` directory.
 
 ## 2. High Priority: Decompose `torrent.ts`
 
