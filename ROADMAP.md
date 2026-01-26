@@ -14,6 +14,9 @@
 - [ ] Find a way to make scrubbing on MKV/AVI formats work better
 - [ ] Pick where you want the movies saved. S3, Google Drive, file server, local drive, etc.
 - [ ] Auto updater. Just click a button and it checks for updates and updates the app. Privileges are a massive security issue here. We should hold off on this until we have a better plan for security
+- [ ] Adjust progress endpoint to SSE. Stop streaming when video plays, and start again if user opens "stats for nerds"
+- [ ] The torrent index setup page isnt working since the migration to prowlerr. 
+- [ ] add a setting to seed the torrents. This will be a toggle on the settings page and on signup. It will default to false.
 - [ ] Subtitles
 
 

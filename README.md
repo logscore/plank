@@ -52,42 +52,31 @@ The script will install dependencies, clone the repo, configure environment, and
 
 ### Step 0: Installation
 
-We recommend using Docker for installation as it automatically setsup Prowlarr and FlareSolverr for torrent browsing.
+We recommend using Docker for installation as it automatically sets up Prowlarr and FlareSolverr for torrent browsing.
 
-If you wish to use the bare metal version, you will need to manually run those services. That documentation can be found [here](https://github.com/Jackett/Jackett) and [here](https://github.com/flaresolverr/flaresolverr).
+If you wish to use the bare metal version, you will need to manually run those services. That documentation can be found [here](https://wiki.servarr.com/prowlarr/installation) and [here](https://github.com/flaresolverr/flaresolverr).
 
-You can also opt out of those services by not configuring them if you want to manually add media files to your media library via megnet links.
+You can also opt out of those services by not configuring them if you want to manually add media files to your media library via magnet links.
 
-### Step 1: Jackett Configuration
+### Step 1: Prowlarr Configuration
 
-This application uses Jackett as a torrent search proxy. Jackett is pre-configured for connection but requires setup to pull in your desired torrent indexers.
+This application uses Prowlarr as a torrent search proxy. Prowlarr is pre-configured for connection but requires setup to pull in your desired torrent indexers.
 
-#### Access Jackett Web Interface:
-After starting Docker containers, access Jackett at: `http://localhost:9117`
+#### Access Prowlarr Web Interface:
+After starting Docker containers, access Prowlarr at: `http://localhost:9696`
 
-#### Admin Password:
-
-While not needed if you're on a secure network, we recommend you set a password for your Jackett admin account. This will allow you to login to the web interface and manage your torrent indexers securely.
+#### Authentication:
+On first run, Prowlarr may ask you to configure authentication. We recommend you set a username and password to secure your indexer configuration.
 
 #### API Key Configuration:
 
-**Option A: Use Default API Key (Easiest)**
-- Default key: `plank0default0jackett0api0key1`
-- Already configured in docker-compose.yml
-- Ready to use immediately
-
-**Option B: Generate Custom API Key (More Secure)**
-```bash
-# Generate a secure random key
-openssl rand -hex 32
-```
-
-Then update your `.env` file:
-```bash
-JACKETT_API_KEY=your_generated_key_here
-```
-
-Restart the containers to apply the new API key.
+1. Go to **Settings** > **General** in Prowlarr
+2. Copy the **API Key**
+3. Update your env config by navigating to the `/settings` page and add in the key to the API key field, or edit your `.env` file and edit the following line:
+   ```bash
+   PROWLARR_API_KEY=your_copied_api_key_here
+   ```
+4. Restart the containers to apply the new API key (if using the `.env` file).
 
 ### Step 2: Configure Torrent Indexers
 
@@ -96,8 +85,8 @@ Torrent indexers are the sources that provide torrent search results. Choose bas
 #### 🎬 General Entertainment Package
 Recommended for most users seeking movies, TV shows, and general content:
 
-1. **YTS (YIFY)** - Movies only, high quality, small file sizes
-2. **1337x** - Well-established tracker, mixed content types  
+1. **YTS** - Movies only, high quality, small file sizes
+2. **1337x** - Well-established tracker, mixed content types (not stable sometimes)
 3. **The Pirate Bay** - Largest library, requires careful verification
 
 #### 🎌 Anime Fan Package
@@ -118,14 +107,14 @@ Recommended for TV series focus:
 
 Look it up yourself, you filthy animal
 
-### Step 3: Add Indexers in Jackett
+### Step 3: Add Indexers in Prowlarr
 
-1. Open Jackett web interface: `http://localhost:9117`
-2. Click **"Add indexer"** (top right)
+1. Open Prowlarr web interface: `http://localhost:9696`
+2. Click **"Add Indexer"**
 3. Search for your chosen indexers from the lists above
-4. Click **"Configure"** next to each indexer
-5. Most indexers just need to be enabled (no additional setup)
-6. Click **"Apply settings"** and **"Test"** to verify connection
+4. Click on the indexer to configure it
+5. Most indexers just need to be saved (no additional setup)
+6. Click **"Test"** to verify connection, then **"Save"**
 7. Repeat for each indexer you want to add
 
 ### Step 4: Enhanced Environment Setup
@@ -138,12 +127,13 @@ ENABLE_FILE_STORAGE=true # A future flag for strictly streaming torrents and not
 DATABASE_URL=./plank.db
 
 TMDB_API_KEY=your_tmdb_api_key_here # Needed for movie metadata like title, rating and posters. 
-JACKETT_URL=http://localhost:9117
-JACKETT_API_KEY=your_jackett_api_key_here # Needed for torrent search
+PROWLARR_URL=http://prowlarr:9696 # Use service name 'prowlarr' if inside docker, or localhost:9696 if bare metal
+PROWLARR_API_KEY=your_prowlarr_api_key_here # Needed for online media search
 
 BETTER_AUTH_SECRET=
 BETTER_AUTH_URL=http://localhost:3300
 PORT=3300
+ORIGIN=http://localhost:3300 # Required for Docker CSRF protection
 ```
 
 ### Step 5: Verify Your Setup
@@ -157,10 +147,10 @@ PORT=3300
    ```bash
    docker ps
    ```
-   You should see `plank`, `jackett`, and `flaresolverr` running.
+   You should see `plank`, `prowlarr`, and `flaresolverr` running.
 
-3. **Test Jackett:**
-   - Access `http://localhost:9117`
+3. **Test Prowlarr:**
+   - Access `http://localhost:9696`
    - Try searching for content on your configured indexers
 
 4. **Test Plank:**
@@ -190,17 +180,17 @@ PORT=3300
 
 ### 🔧 Troubleshooting Common Issues
 
-#### Jackett Connection Problems:
-**Issue:** Can't access Jackett web interface
+#### Prowlarr Connection Problems:
+**Issue:** Can't access Prowlarr web interface
 - **Solution:** Check if containers are running: `docker ps`
-- **Solution:** Verify port 9117 isn't blocked by firewall
+- **Solution:** Verify port 9696 isn't blocked by firewall
 - **Solution:** Restart containers: `docker compose restart`
 
 #### Indexer Setup Problems:
 **Issue:** Indexer configuration fails
 - **Solution:** Check internet connection
 - **Solution:** Try different indexer url (some may be down)
-- **Solution:** Clear Jackett cache in web interface
+- **Solution:** Check if FlareSolverr is running (needed for some indexers)
 
 **Issue:** No search results
 - **Solution:** Ensure at least one indexer is configured and tested
@@ -211,7 +201,10 @@ PORT=3300
 **Issue:** Container fails to start
 - **Solution:** Check environment variables in `.env` file
 - **Solution:** Verify Docker is running: `docker version`
-- **Solution:** Check port conflicts (3300, 9117, 8191)
+- **Solution:** Check port conflicts (3300, 9696, 8191)
+
+**Issue:** "Cross-site POST form submissions are forbidden"
+- **Solution:** Ensure `ORIGIN` env var matches your browser URL (e.g. `http://localhost:3300`, `http://192.168.1.2:3300`, etc.)
 
 **Issue:** Permission errors
 - **Solution:** Check volume permissions for media directories
@@ -222,12 +215,10 @@ PORT=3300
 - **Solution:** Use an ethernet connection instead of WiFi
 - **Solution:** Configure port forwarding for 6881 (the exposed torrent client port) in your router
 - **Solution:** Check VPN isn't throttling speeds
-- **Solution:** Verify tracker health in Jackett
+- **Solution:** Verify tracker health in Prowlarr
 
 **Issue:** Memory usage high
 - **Solution:** Monitor Docker container resource usage
-- **Solution:** Adjust cache settings in Jackett if needed
-- **Solution:** Consider using a dedicated server for Jackett and FlareSolverr
 - **Solution:** Limit or expand the container resources
 
 #### Getting Help:
@@ -269,6 +260,9 @@ node build
 | `BETTER_AUTH_URL` | Base URL for auth | `http://localhost:3000` |
 | `TMDB_API_KEY` | TMDB API key for metadata | - |
 | `PORT` | Server port | `3000` |
+| `ORIGIN` | Public URL for CSRF (Docker) | `http://localhost:3300` |
+| `PROWLARR_URL` | Prowlarr API URL | `http://prowlarr:9696` |
+| `PROWLARR_API_KEY` | Prowlarr API Key | - |
 
 ## Development
 

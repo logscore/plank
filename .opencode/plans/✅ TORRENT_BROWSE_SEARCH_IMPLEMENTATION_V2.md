@@ -269,7 +269,7 @@ interface ApiError {
 ```
 
 **Error Codes:**
-- `JACKETT_UNAVAILABLE` - Jackett service down
+- `PROWLARR_UNAVAILABLE` - Jackett service down
 - `INVALID_SEARCH_PARAMS` - Malformed search request
 - `RATE_LIMIT_EXCEEDED` - Too many requests
 - `SEARCH_TIMEOUT` - Search query timeout
