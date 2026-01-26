@@ -70,7 +70,8 @@
       "semicolons": "always",
       "arrowParentheses": "always",
       "bracketSpacing": true
-    }
+    },
+    "globals": ["Buffer", "AbortSignal", "fetch", "parseTorrent"]
   },
   "overrides": [
     {

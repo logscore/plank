@@ -25,9 +25,9 @@ export interface BrowseResponse {
 	totalPages: number;
 }
 
-export interface JackettStatus {
-	jackettConfigured: boolean;
-	jackettStatus: string;
+export interface ProwlarrStatus {
+	prowlarrConfigured: boolean;
+	prowlarrStatus: string;
 	hasIndexers: boolean;
 	needsSetup: boolean;
 }
@@ -99,7 +99,7 @@ export async function fetchBrowse(
 }
 
 /**
- * Resolve torrent from IMDB/TMDB ID via Jackett
+ * Resolve torrent from IMDB/TMDB ID via Prowlarr
  */
 export async function resolveTorrent(item: {
 	imdbId: string | null;
@@ -124,13 +124,13 @@ export async function resolveTorrent(item: {
 }
 
 /**
- * Fetch Jackett status
+ * Fetch Prowlarr status
  */
-export async function fetchJackettStatus(): Promise<JackettStatus> {
-	const response = await fetch('/api/jackett/status');
+export async function fetchProwlarrStatus(): Promise<ProwlarrStatus> {
+	const response = await fetch('/api/prowlarr/status');
 
 	if (!response.ok) {
-		throw createFetchError(`Failed to fetch Jackett status: ${response.statusText}`, response.status);
+		throw createFetchError(`Failed to fetch Prowlarr status: ${response.statusText}`, response.status);
 	}
 
 	return response.json();
@@ -213,7 +213,7 @@ export function createSeasonsQuery(tmdbId: number, options?: { enabled?: boolean
 }
 
 /**
- * Resolve season torrent from TMDB ID and season number via Jackett
+ * Resolve season torrent from TMDB ID and season number via Prowlarr
  */
 export async function resolveSeasonTorrent(params: {
 	tmdbId: number;

@@ -11,31 +11,33 @@ services:
       - ENABLE_FILE_STORAGE=true
       - DATABASE_URL=/app/db/plank.db
       - TMDB_API_KEY=${TMDB_API_KEY}
-      - JACKETT_URL=${JACKETT_URL}
-      - JACKETT_API_KEY=${JACKETT_API_KEY}
+      - PROWLARR_URL=${PROWLARR_URL}
+      - PROWLARR_API_KEY=${PROWLARR_API_KEY}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL}
+      # Required for SvelteKit CSRF protection to accept requests from the host port
+      - ORIGIN=${ORIGIN:-http://localhost:3300}
+      # Tell Node adapter to listen on all interfaces (internal port)
+      - PORT=3000
+      - HOST=0.0.0.0
     volumes:
       - plank-db:/app/db
       - plank-data:/app/data
       - ${MEDIA_PATH:-./media}:/app/data/library
     depends_on:
-      - jackett
+      - prowlarr
 
-  jackett:
-    image: lscr.io/linuxserver/jackett:latest
-    container_name: jackett
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=${TZ:-America/New_York}
-      - AUTO_UPDATE=true
     volumes:
-      - jackett-config:/config
-      - ./jackett/ServerConfig.json:/config/Jackett/ServerConfig.json
-      - jackett-downloads:/downloads
+      - prowlarr-config:/config
     ports:
-      - "9117:9117"
+      - "9696:9696"
     restart: unless-stopped
     depends_on:
       - flaresolverr
@@ -55,5 +57,4 @@ services:
 volumes:
   plank-db:
   plank-data:
-  jackett-config:
-  jackett-downloads:
+  prowlarr-config:

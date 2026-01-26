@@ -10,7 +10,7 @@ export interface AppSettings {
 		imageBaseUrl: string;
 		language: string;
 	};
-	jackett: {
+	prowlarr: {
 		url: string;
 		apiKey: string;
 		trustedGroups: string[];
@@ -26,13 +26,13 @@ export async function getSettings(): Promise<AppSettings> {
 		});
 
 		// Default trusted groups from env config
-		const defaultTrustedGroups = envConfig.jackett.trustedGroups;
+		const defaultTrustedGroups = envConfig.prowlarr.trustedGroups;
 
 		// Parse trusted groups if stored
 		let trustedGroups = defaultTrustedGroups;
-		if (stored?.jackettTrustedGroups) {
+		if (stored?.prowlarrTrustedGroups) {
 			try {
-				const parsed = JSON.parse(stored.jackettTrustedGroups);
+				const parsed = JSON.parse(stored.prowlarrTrustedGroups);
 				if (Array.isArray(parsed)) {
 					trustedGroups = parsed;
 				}
@@ -48,11 +48,11 @@ export async function getSettings(): Promise<AppSettings> {
 				imageBaseUrl: envConfig.tmdb.imageBaseUrl,
 				language: stored?.tmdbLanguage || 'en-US',
 			},
-			jackett: {
-				url: stored?.jackettUrl || envConfig.jackett.url,
-				apiKey: stored?.jackettApiKey || envConfig.jackett.apiKey,
+			prowlarr: {
+				url: stored?.prowlarrUrl || envConfig.prowlarr.url,
+				apiKey: stored?.prowlarrApiKey || envConfig.prowlarr.apiKey,
 				trustedGroups,
-				minSeeders: stored?.jackettMinSeeders ?? envConfig.jackett.minSeeders,
+				minSeeders: stored?.prowlarrMinSeeders ?? envConfig.prowlarr.minSeeders,
 			},
 		};
 	} catch (e) {
@@ -62,7 +62,7 @@ export async function getSettings(): Promise<AppSettings> {
 				...envConfig.tmdb,
 				language: 'en-US',
 			},
-			jackett: envConfig.jackett,
+			prowlarr: envConfig.prowlarr,
 		};
 	}
 }
@@ -71,10 +71,10 @@ export async function updateSettings(
 	updates: Partial<{
 		tmdbApiKey: string;
 		tmdbLanguage: string;
-		jackettUrl: string;
-		jackettApiKey: string;
-		jackettTrustedGroups: string[];
-		jackettMinSeeders: number;
+		prowlarrUrl: string;
+		prowlarrApiKey: string;
+		prowlarrTrustedGroups: string[];
+		prowlarrMinSeeders: number;
 	}>
 ) {
 	const values: Partial<typeof configuration.$inferInsert> = {};
@@ -84,17 +84,17 @@ export async function updateSettings(
 	if (updates.tmdbLanguage !== undefined) {
 		values.tmdbLanguage = updates.tmdbLanguage;
 	}
-	if (updates.jackettUrl !== undefined) {
-		values.jackettUrl = updates.jackettUrl;
+	if (updates.prowlarrUrl !== undefined) {
+		values.prowlarrUrl = updates.prowlarrUrl;
 	}
-	if (updates.jackettApiKey !== undefined) {
-		values.jackettApiKey = updates.jackettApiKey;
+	if (updates.prowlarrApiKey !== undefined) {
+		values.prowlarrApiKey = updates.prowlarrApiKey;
 	}
-	if (updates.jackettTrustedGroups !== undefined) {
-		values.jackettTrustedGroups = JSON.stringify(updates.jackettTrustedGroups);
+	if (updates.prowlarrTrustedGroups !== undefined) {
+		values.prowlarrTrustedGroups = JSON.stringify(updates.prowlarrTrustedGroups);
 	}
-	if (updates.jackettMinSeeders !== undefined) {
-		values.jackettMinSeeders = updates.jackettMinSeeders;
+	if (updates.prowlarrMinSeeders !== undefined) {
+		values.prowlarrMinSeeders = updates.prowlarrMinSeeders;
 	}
 
 	// Upsert

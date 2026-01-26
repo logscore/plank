@@ -9,47 +9,19 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		throw error(401, 'Unauthorized');
 	}
 
-	// Check Jackett configuration
-	const jackettConfigured = !!config.jackett.apiKey;
-	let jackettStatus = 'not_configured';
-	let hasIndexers = false;
+	// Check Prowlarr configuration
+	const { prowlarrConfigured, prowlarrStatus, hasIndexers } = await checkProwlarrStatus();
 
-	if (jackettConfigured) {
-		try {
-			// Test Jackett connectivity with a limited movie search
-			// Use a popular movie IMDB ID to test if indexers are working
-			const testResponse = await fetch(
-				`${config.jackett.url}/api/v2.0/indexers/all/results?apikey=${config.jackett.apiKey}&Query=tt0080684&Limit=1`,
-				{
-					headers: { Accept: 'application/json' },
-					signal: AbortSignal.timeout(10_000), // 10 second timeout for search
-				}
-			);
-
-			if (testResponse.ok) {
-				const response = await testResponse.json();
-
-				// If we get any Results, it means at least one indexer is configured and working
-				hasIndexers = response.Results && Array.isArray(response.Results) && response.Results.length > 0;
-				jackettStatus = hasIndexers ? 'configured' : 'no_indexers';
-			} else {
-				jackettStatus = 'connection_failed';
-			}
-		} catch {
-			jackettStatus = 'connection_failed';
-		}
-	}
-
-	// If Jackett is not properly configured, return setup state
-	if (!jackettConfigured || jackettStatus === 'no_indexers') {
+	// If Prowlarr is not properly configured, return setup state
+	if (!prowlarrConfigured || prowlarrStatus === 'no_indexers') {
 		return {
 			items: [],
 			page: 1,
 			totalPages: 0,
 			type: 'trending',
 			filter: 'all',
-			jackettConfigured,
-			jackettStatus,
+			prowlarrConfigured,
+			prowlarrStatus,
 			hasIndexers,
 			needsSetup: true,
 		};
@@ -114,9 +86,51 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		totalPages: result.totalPages,
 		type,
 		filter,
-		jackettConfigured,
-		jackettStatus,
+		prowlarrConfigured,
+		prowlarrStatus,
 		hasIndexers,
 		needsSetup: false,
 	};
 };
+
+async function checkProwlarrStatus() {
+	const prowlarrConfigured = !!config.prowlarr.apiKey;
+	let prowlarrStatus = 'not_configured';
+	let hasIndexers = false;
+
+	if (prowlarrConfigured) {
+		try {
+			// Test Prowlarr connectivity with a limited movie search
+			// Use a popular movie IMDB ID to test if indexers are working
+			const testResponse = await fetch(
+				`${config.prowlarr.url}/api/v1/search?query=tt0080684&type=search&apikey=${config.prowlarr.apiKey}`,
+				{
+					headers: { Accept: 'application/json' },
+					signal: AbortSignal.timeout(10_000), // 10 second timeout for search
+				}
+			);
+
+			if (testResponse.ok) {
+				const response = await testResponse.json();
+
+				// If we get an array, it's working. If it has items, indexers are finding things.
+				if (Array.isArray(response)) {
+					prowlarrStatus = 'configured';
+					hasIndexers = response.length > 0;
+
+					if (response.length === 0) {
+						prowlarrStatus = 'no_indexers';
+					}
+				} else {
+					prowlarrStatus = 'connection_failed';
+				}
+			} else {
+				prowlarrStatus = 'connection_failed';
+			}
+		} catch {
+			prowlarrStatus = 'connection_failed';
+		}
+	}
+
+	return { prowlarrConfigured, prowlarrStatus, hasIndexers };
+}

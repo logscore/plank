@@ -76,9 +76,9 @@ describe('Query Keys', () => {
 			expect(queryKeys.system.all).toEqual(['system']);
 		});
 
-		it('should generate jackett keys', () => {
-			expect(queryKeys.system.jackett.status()).toEqual(['system', 'jackett', 'status']);
-			expect(queryKeys.system.jackett.test()).toEqual(['system', 'jackett', 'test']);
+		it('should generate prowlarr keys', () => {
+			expect(queryKeys.system.prowlarr.status()).toEqual(['system', 'prowlarr', 'status']);
+			expect(queryKeys.system.prowlarr.test()).toEqual(['system', 'prowlarr', 'test']);
 		});
 	});
 

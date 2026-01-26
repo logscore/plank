@@ -6,7 +6,7 @@
  */
 
 import { error, json } from '@sveltejs/kit';
-import { findBestSeasonTorrent, parseTorrentTitle } from '$lib/server/jackett';
+import { findBestSeasonTorrent, parseTorrentTitle } from '$lib/server/prowlarr';
 import { getBrowseItemDetails } from '$lib/server/tmdb';
 import type { RequestHandler } from './$types';
 

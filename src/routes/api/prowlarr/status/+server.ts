@@ -1,7 +1,7 @@
 /**
- * Jackett Status API
+ * Prowlarr Status API
  *
- * Returns configuration status for Jackett integration
+ * Returns configuration status for Prowlarr integration
  */
 
 import { json } from '@sveltejs/kit';
@@ -15,7 +15,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 
 	const settings = await getSettings();
-	const { url, apiKey } = settings.jackett;
+	const { url, apiKey } = settings.prowlarr;
 
 	// Check if basic config is present
 	const hasConfig = !!apiKey;
@@ -26,22 +26,27 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 	if (hasConfig) {
 		try {
-			// Test Jackett connectivity with a limited movie search
-			// Use a popular movie IMDB ID to test if indexers are working
-			const testResponse = await fetch(
-				`${url}/api/v2.0/indexers/all/results?apikey=${apiKey}&Query=tt0080684&Limit=1`,
-				{
-					headers: { Accept: 'application/json' },
-					signal: AbortSignal.timeout(10_000), // 10 second timeout for search
-				}
-			);
+			// Test Prowlarr connectivity with a limited movie search
+			const testResponse = await fetch(`${url}/api/v1/search?query=tt0080684&type=search&apikey=${apiKey}`, {
+				headers: { Accept: 'application/json' },
+				signal: AbortSignal.timeout(10_000), // 10 second timeout
+			});
 
 			if (testResponse.ok) {
 				const response = await testResponse.json();
 
-				// If we get any Results, it means at least one indexer is configured and working
-				hasIndexers = response.Results && Array.isArray(response.Results) && response.Results.length > 0;
-				connectionStatus = hasIndexers ? 'configured' : 'no_indexers';
+				// If we get an array, it's working. If it has items, indexers are finding things.
+				if (Array.isArray(response)) {
+					connectionStatus = 'configured';
+					hasIndexers = response.length > 0;
+
+					// If empty, we might want to flag "no_indexers" or just "connected but no results"
+					if (response.length === 0) {
+						connectionStatus = 'no_indexers';
+					}
+				} else {
+					connectionStatus = 'connection_failed';
+				}
 			} else {
 				connectionStatus = 'connection_failed';
 			}

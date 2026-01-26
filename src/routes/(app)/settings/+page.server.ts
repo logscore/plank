@@ -23,17 +23,17 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const tmdbApiKey = formData.get('tmdbApiKey')?.toString() || '';
 		const tmdbLanguage = formData.get('tmdbLanguage')?.toString() || 'en-US';
-		const jackettUrl = formData.get('jackettUrl')?.toString() || '';
-		const jackettApiKey = formData.get('jackettApiKey')?.toString() || '';
-		const jackettMinSeedersStr = formData.get('jackettMinSeeders')?.toString();
-		const jackettTrustedGroupsStr = formData.get('jackettTrustedGroups')?.toString();
+		const prowlarrUrl = formData.get('prowlarrUrl')?.toString() || '';
+		const prowlarrApiKey = formData.get('prowlarrApiKey')?.toString() || '';
+		const prowlarrMinSeedersStr = formData.get('prowlarrMinSeeders')?.toString();
+		const prowlarrTrustedGroupsStr = formData.get('prowlarrTrustedGroups')?.toString();
 
-		const jackettMinSeeders = jackettMinSeedersStr ? Number.parseInt(jackettMinSeedersStr, 10) : 5;
+		const prowlarrMinSeeders = prowlarrMinSeedersStr ? Number.parseInt(prowlarrMinSeedersStr, 10) : 5;
 
-		let jackettTrustedGroups: string[] = [];
-		if (jackettTrustedGroupsStr) {
+		let prowlarrTrustedGroups: string[] = [];
+		if (prowlarrTrustedGroupsStr) {
 			// Handle comma-separated list
-			jackettTrustedGroups = jackettTrustedGroupsStr
+			prowlarrTrustedGroups = prowlarrTrustedGroupsStr
 				.split(',')
 				.map((g) => g.trim())
 				.filter((g) => g.length > 0);
@@ -43,10 +43,10 @@ export const actions: Actions = {
 			await updateSettings({
 				tmdbApiKey,
 				tmdbLanguage,
-				jackettUrl,
-				jackettApiKey,
-				jackettMinSeeders,
-				jackettTrustedGroups,
+				prowlarrUrl,
+				prowlarrApiKey,
+				prowlarrMinSeeders,
+				prowlarrTrustedGroups,
 			});
 		} catch (err) {
 			console.error('Failed to update settings:', err);

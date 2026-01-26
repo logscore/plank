@@ -35,9 +35,9 @@ export const queryKeys = {
 	// System queries
 	system: {
 		all: ['system'] as const,
-		jackett: {
-			status: () => [...queryKeys.system.all, 'jackett', 'status'] as const,
-			test: () => [...queryKeys.system.all, 'jackett', 'test'] as const,
+		prowlarr: {
+			status: () => [...queryKeys.system.all, 'prowlarr', 'status'] as const,
+			test: () => [...queryKeys.system.all, 'prowlarr', 'test'] as const,
 		},
 	},
 

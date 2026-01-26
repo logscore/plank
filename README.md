@@ -43,7 +43,7 @@ The script will install dependencies, clone the repo, configure environment, and
 
 ### 📋 What This Software Does:
 - Provides a media streaming interface for torrent content
-- Integrates with Jackett for torrent search functionality
+- Integrates with Prowlarr for torrent search functionality
 - Does NOT host, upload, or distribute any copyrighted material accessible on the internet
 
 ---
@@ -52,7 +52,7 @@ The script will install dependencies, clone the repo, configure environment, and
 
 ### Step 0: Installation
 
-We recommend using Docker for installation as it automatically setsup Jackett and FlareSolverr for torrent browsing.
+We recommend using Docker for installation as it automatically setsup Prowlarr and FlareSolverr for torrent browsing.
 
 If you wish to use the bare metal version, you will need to manually run those services. That documentation can be found [here](https://github.com/Jackett/Jackett) and [here](https://github.com/flaresolverr/flaresolverr).
 

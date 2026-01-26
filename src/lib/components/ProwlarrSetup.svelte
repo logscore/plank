@@ -2,21 +2,21 @@
     import { Check, Copy, ExternalLink, Plus, Terminal } from '@lucide/svelte';
 
     interface Props {
-        jackettUrl: string;
+        prowlarrUrl: string;
         hasApiKey: boolean;
     }
 
-    let { jackettUrl, hasApiKey }: Props = $props();
+    let { prowlarrUrl, hasApiKey }: Props = $props();
 
     let copied = $state(false);
 
     function copyDockerCommand() {
         const command = `docker run -d \\
-  --name jackett \\
+  --name prowlarr \\
   --restart unless-stopped \\
-  -v /path/to/jackett/config:/config \\
-  -p 9117:9117 \\
-  linuxserver/jackett`;
+  -v /path/to/prowlarr/config:/config \\
+  -p 9696:9696 \\
+  lscr.io/linuxserver/prowlarr:latest`;
         navigator.clipboard.writeText(command);
         copied = true;
         setTimeout(() => {
@@ -40,7 +40,7 @@
             >
                 <Plus class="w-8 h-8 text-primary animate-pulse" />
             </div>
-            <h2 class="text-3xl font-bold mb-3 tracking-tight">Configure Jackett</h2>
+            <h2 class="text-3xl font-bold mb-3 tracking-tight">Configure Prowlarr</h2>
             <p class="text-muted-foreground max-w-md mx-auto text-balance leading-relaxed">
                 Connect your torrent indexers to expand your library. Follow these simple steps to get started.
             </p>
@@ -58,19 +58,19 @@
                 </div>
                 <div class="flex-1 pt-1">
                     <h3 class="font-semibold text-lg mb-1 group-hover:text-primary transition-colors">
-                        Install Jackett
+                        Install Prowlarr
                     </h3>
                     <p class="text-sm text-muted-foreground mb-4 leading-relaxed">
-                        Download and install Jackett on your system or run it via Docker to manage your indexers.
+                        Download and install Prowlarr on your system or run it via Docker to manage your indexers.
                     </p>
                     <a
-                        href="https://github.com/Jackett/Jackett/releases"
+                        href="https://wiki.servarr.com/prowlarr/installation"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium transition-transform hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
                     >
                         <Plus class="w-4 h-4" />
-                        Download Jackett
+                        Install Prowlarr
                     </a>
                 </div>
             </div>
@@ -89,10 +89,10 @@
                         Add Torrent Indexers
                     </h3>
                     <p class="text-sm text-muted-foreground mb-3 leading-relaxed">
-                        Open the Jackett interface and add your trackers. We recommend these public indexers:
+                        Open the Prowlarr interface and add your trackers. We recommend these public indexers:
                     </p>
                     <div class="space-y-2 mb-4">
-                        {#each ["YTS (YIFY)", "1337x", "The Pirate Bay"] as idx}
+                        {#each ["YTS", "1337x", "The Pirate Bay"] as idx}
                             <div
                                 class="flex items-center gap-2 text-sm text-muted-foreground group-hover:text-foreground transition-colors"
                             >
@@ -104,7 +104,7 @@
                         {/each}
                     </div>
                     <a
-                        href={jackettUrl}
+                        href={prowlarrUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         class="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors group/link"
@@ -129,7 +129,8 @@
                         Configure API Key
                     </h3>
                     <p class="text-sm text-muted-foreground mb-3 leading-relaxed">
-                        Copy the API key from your Jackett dashboard and add it to your environment variables.
+                        Copy the API key from your Prowlarr Settings (General) and add it to your environment variables
+                        or settings page.
                     </p>
 
                     <div
@@ -158,7 +159,7 @@
                                 <p class="text-xs opacity-80 truncate">
                                     {hasApiKey
                                         ? "Your setup is ready to go!"
-                                        : "Set JACKETT_API_KEY env variable"}
+                                        : "Set PROWLARR_API_KEY env variable"}
                                 </p>
                             </div>
                         </div>
@@ -203,25 +204,14 @@
 
                     <span class="text-blue-400">docker</span> run -d \<br>
                     &nbsp;&nbsp;<span class="text-violet-400">--name</span>
-                    flaresolverr \<br>
-                    &nbsp;&nbsp;<span class="text-violet-400">-p</span>
-                    8191:8191 \<br>
-                    &nbsp;&nbsp;<span class="text-violet-400">--restart</span>
-                    unless-stopped \<br>
-                    &nbsp;&nbsp;ghcr.io/flaresolverr/flaresolverr:latest
-                    <br>
-                    <br>
-
-                    <span class="text-blue-400">docker</span> run -d \<br>
-                    &nbsp;&nbsp;<span class="text-violet-400">--name</span>
-                    jackett \<br>
+                    prowlarr \<br>
                     &nbsp;&nbsp;<span class="text-violet-400">--restart</span>
                     unless-stopped \<br>
                     &nbsp;&nbsp;<span class="text-violet-400">-p</span>
-                    9117:9117 \<br>
+                    9696:9696 \<br>
                     &nbsp;&nbsp;<span class="text-violet-400">-v</span>
                     /path/to/config:/config \<br>
-                    &nbsp;&nbsp;linuxserver/jackett
+                    &nbsp;&nbsp;lscr.io/linuxserver/prowlarr:latest
                 </div>
 
                 <button

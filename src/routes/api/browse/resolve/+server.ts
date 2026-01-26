@@ -1,12 +1,12 @@
 /**
- * Torrent Resolution API - Phase 2: Getting the Magnet
+ * Torrent Resolution API
  *
- * Resolves IMDB ID to a magnet link via Jackett.
- * Filters for high-quality releases from trusted groups (YTS, YIFY, BONE).
+ * Resolves IMDB ID to a magnet link via Prowlarr.
+ * Filters for high-quality releases from trusted groups.
  */
 
 import { error, json } from '@sveltejs/kit';
-import { findBestTorrent, parseTorrentTitle } from '$lib/server/jackett';
+import { findBestTorrent, parseTorrentTitle } from '$lib/server/prowlarr';
 import { getBrowseItemDetails } from '$lib/server/tmdb';
 import { cacheTorrent, getCachedTorrent } from '$lib/server/torrent-cache';
 import type { RequestHandler } from './$types';
@@ -56,14 +56,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 	}
 
-	// Search Jackett for best torrent
+	// Search Prowlarr for best torrent
 	const torrent = await findBestTorrent(resolvedImdbId);
 
 	if (!torrent) {
 		return json({
 			success: false,
 			error: 'No suitable torrent found',
-			message: 'Could not find a high-quality torrent from trusted sources (YTS, YIFY, BONE)',
+			message: 'Could not find a high-quality torrent from trusted sources',
 		});
 	}
 

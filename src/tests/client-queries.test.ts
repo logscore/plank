@@ -126,14 +126,14 @@ describe('Client Queries', () => {
 			});
 		});
 
-		it('fetchJackettStatus should call status endpoint', async () => {
+		it('fetchProwlarrStatus should call status endpoint', async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
-				json: async () => ({ jackettConfigured: true }),
+				json: async () => ({ prowlarrConfigured: true }),
 			});
 
-			await import('$lib/queries/browse-queries').then((m) => m.fetchJackettStatus());
-			expect(fetchMock).toHaveBeenCalledWith('/api/jackett/status');
+			await import('$lib/queries/browse-queries').then((m) => m.fetchProwlarrStatus());
+			expect(fetchMock).toHaveBeenCalledWith('/api/prowlarr/status');
 		});
 
 		it('resolveSeasonTorrent should call resolve-season endpoint', async () => {
@@ -325,15 +325,15 @@ describe('Client Queries', () => {
 			);
 		});
 
-		it('fetchJackettStatus should throw error when response is not ok', async () => {
+		it('fetchProwlarrStatus should throw error when response is not ok', async () => {
 			fetchMock.mockResolvedValue({
 				ok: false,
 				status: 500,
 				statusText: 'Error',
 			});
 
-			const { fetchJackettStatus } = await import('$lib/queries/browse-queries');
-			await expect(fetchJackettStatus()).rejects.toThrow('Failed to fetch Jackett status');
+			const { fetchProwlarrStatus } = await import('$lib/queries/browse-queries');
+			await expect(fetchProwlarrStatus()).rejects.toThrow('Failed to fetch Prowlarr status');
 		});
 
 		it('searchTMDB should throw error when response is not ok', async () => {

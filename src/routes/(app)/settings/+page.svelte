@@ -77,56 +77,56 @@
             </div>
         </div>
 
-        <!-- Jackett Section -->
+        <!-- Prowlarr Section -->
         <div class="rounded-xl border border-border bg-card p-6 mb-6">
             <div class="flex items-center gap-3 mb-6">
                 <Server class="w-5 h-5 text-primary" />
-                <h2 class="text-lg font-semibold">Jackett</h2>
+                <h2 class="text-lg font-semibold">Prowlarr</h2>
             </div>
 
             <div class="grid gap-6">
                 <div>
-                    <label for="jackettUrl" class="block text-sm text-muted-foreground mb-2">URL</label>
+                    <label for="prowlarrUrl" class="block text-sm text-muted-foreground mb-2">URL</label>
                     <Input
-                        id="jackettUrl"
-                        name="jackettUrl"
+                        id="prowlarrUrl"
+                        name="prowlarrUrl"
                         type="url"
-                        value={data.settings.jackett.url}
-                        placeholder="http://localhost:9117"
+                        value={data.settings.prowlarr.url}
+                        placeholder="http://localhost:9696"
                     />
                 </div>
                 <div>
-                    <label for="jackettApiKey" class="block text-sm text-muted-foreground mb-2">API Key</label>
+                    <label for="prowlarrApiKey" class="block text-sm text-muted-foreground mb-2">API Key</label>
                     <Input
-                        id="jackettApiKey"
-                        name="jackettApiKey"
+                        id="prowlarrApiKey"
+                        name="prowlarrApiKey"
                         type="password"
-                        value={data.settings.jackett.apiKey}
-                        placeholder="Jackett API Key"
+                        value={data.settings.prowlarr.apiKey}
+                        placeholder="Prowlarr API Key"
                     />
                 </div>
                 <div>
-                    <label for="jackettMinSeeders" class="block text-sm text-muted-foreground mb-2">
+                    <label for="prowlarrMinSeeders" class="block text-sm text-muted-foreground mb-2">
                         Minimum Seeders
                     </label>
                     <Input
-                        id="jackettMinSeeders"
-                        name="jackettMinSeeders"
+                        id="prowlarrMinSeeders"
+                        name="prowlarrMinSeeders"
                         type="number"
-                        value={data.settings.jackett.minSeeders}
+                        value={data.settings.prowlarr.minSeeders}
                         min="0"
                     />
                 </div>
                 <div>
-                    <label for="jackettTrustedGroups" class="block text-sm text-muted-foreground mb-2">
+                    <label for="prowlarrTrustedGroups" class="block text-sm text-muted-foreground mb-2">
                         Trusted Release Groups (comma separated)
                     </label>
                     <Input
-                        id="jackettTrustedGroups"
-                        name="jackettTrustedGroups"
+                        id="prowlarrTrustedGroups"
+                        name="prowlarrTrustedGroups"
                         type="text"
                         value={getTrustedGroupsString(
-                            data.settings.jackett.trustedGroups,
+                            data.settings.prowlarr.trustedGroups,
                         )}
                         placeholder="YTS, YIFY, .BONE., x1337, TVTEAM"
                     />

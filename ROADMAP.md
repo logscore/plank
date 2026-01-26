@@ -1,6 +1,6 @@
 # ROADMAP
 
-- [ ] Handle no TMDB api key by having a poster placeholder
+- [x] Handle no TMDB api key by having a poster placeholder
 - [ ] Public website mode
   - [ ] Stream torrents on the client only. TMDB service is still provided (secures our API key), but that's it. Everything else is handled by the client. We shouldnt even use Jackett for this mode.
   - [ ] When a magnet link is added, stream it right away and store the metadata and magnet link on the browser for restreaming if they want to watch it again.
@@ -13,7 +13,7 @@
 - [ ] Have the download be background jobs instead of main thread processes. Use something light weight like a valkey scheduler
 - [ ] Find a way to make scrubbing on MKV/AVI formats work better
 - [ ] Pick where you want the movies saved. S3, Google Drive, file server, local drive, etc.
-- [ ] Auto updater. Just click a button and it checks for updates and updates the app
+- [ ] Auto updater. Just click a button and it checks for updates and updates the app. Privileges are a massive security issue here. We should hold off on this until we have a better plan for security
 - [ ] Subtitles
 
 

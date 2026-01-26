@@ -43,6 +43,13 @@
       "when": 1769386069040,
       "tag": "0005_slimy_tattoo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1769391799992,
+      "tag": "0006_far_pyro",
+      "breakpoints": true
     }
   ]
 }

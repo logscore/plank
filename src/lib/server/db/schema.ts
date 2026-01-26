@@ -304,10 +304,10 @@ export const configuration = sqliteTable('configuration', {
 		.$default(() => 'default'),
 	tmdbApiKey: text('tmdb_api_key'),
 	tmdbLanguage: text('tmdb_language').default('en-US'),
-	jackettUrl: text('jackett_url'),
-	jackettApiKey: text('jackett_api_key'),
-	jackettTrustedGroups: text('jackett_trusted_groups'), // JSON array
-	jackettMinSeeders: integer('jackett_min_seeders').default(5),
+	prowlarrUrl: text('prowlarr_url'),
+	prowlarrApiKey: text('prowlarr_api_key'),
+	prowlarrTrustedGroups: text('prowlarr_trusted_groups'), // JSON array
+	prowlarrMinSeeders: integer('prowlarr_min_seeders').default(5),
 	updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
 		.$onUpdate(() => new Date())
 		.notNull()

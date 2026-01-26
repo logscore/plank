@@ -15,9 +15,9 @@ export const config = {
 		baseUrl: 'https://api.themoviedb.org/3',
 		imageBaseUrl: 'https://image.tmdb.org/t/p',
 	},
-	jackett: {
-		url: env.JACKETT_URL || 'http://localhost:9117',
-		apiKey: env.JACKETT_API_KEY || '',
+	prowlarr: {
+		url: env.PROWLARR_URL || 'http://localhost:9696',
+		apiKey: env.PROWLARR_API_KEY || '',
 		// Trusted release groups for high-quality content
 		trustedGroups: ['YTS', 'YIFY', '.BONE.', 'x1337', 'TVTEAM'],
 		// Minimum seeders for a valid torrent

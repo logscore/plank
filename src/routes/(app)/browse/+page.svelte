@@ -6,7 +6,7 @@
     import { navigating } from '$app/state';
     import { env } from '$env/dynamic/public';
     import CardSkeleton from '$lib/components/CardSkeleton.svelte';
-    import JackettSetup from '$lib/components/JackettSetup.svelte';
+    import ProwlarrSetup from '$lib/components/ProwlarrSetup.svelte';
     import TorrentCard from '$lib/components/TorrentCard.svelte';
     import type { SeasonData } from '$lib/components/ui/ContextMenu.svelte';
     import { createAddFromBrowseMutation } from '$lib/mutations/browse-mutations';
@@ -29,8 +29,8 @@
             totalPages: number;
             type: 'trending' | 'popular';
             filter: 'all' | 'movie' | 'tv';
-            jackettConfigured: boolean;
-            jackettStatus: string;
+            prowlarrConfigured: boolean;
+            prowlarrStatus: string;
             hasIndexers: boolean;
             needsSetup: boolean;
         };
@@ -75,6 +75,7 @@
 
     // TV show seasons state - keyed by TMDB ID
     // We keep a local reactive cache for the UI to bind to (passed to TorrentCard)
+    // The data fetching uses QueryClient for network caching
     // The data fetching uses QueryClient for network caching
     let seasonsCache = $state<Map<number, SeasonData[]>>(new Map());
     let seasonsLoading = $state<Set<number>>(new Set());
@@ -436,13 +437,13 @@
     <div class="container max-w-7xl mx-auto px-4 py-8">
         {#if data.needsSetup}
             <!-- Setup Instructions -->
-            <JackettSetup jackettUrl={env.PUBLIC_JACKETT_URL!} hasApiKey={data.jackettConfigured} />
+            <ProwlarrSetup prowlarrUrl={env.PUBLIC_PROWLARR_URL!} hasApiKey={data.prowlarrConfigured} />
         {:else if displayItems.length === 0 && !data.needsSetup}
             <!-- Empty State -->
             <div class="text-center py-20 bg-muted/30 rounded-lg border border-dashed border-border mx-auto max-w-2xl">
                 <Trophy class="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
                 <h2 class="text-lg font-medium text-foreground mb-1">No content found</h2>
-                <p class="text-muted-foreground">Check your indexer and Jackett configuration.</p>
+                <p class="text-muted-foreground">Check your indexer and Prowlarr configuration.</p>
             </div>
         {:else}
             <!-- Movie Grid -->
