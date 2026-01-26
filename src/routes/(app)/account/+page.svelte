@@ -6,6 +6,7 @@
         HardDrive,
         Key,
         Mail,
+        Settings,
         Shield,
         ShieldAlert,
         ShieldCheck,

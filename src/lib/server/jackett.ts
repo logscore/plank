@@ -5,7 +5,7 @@
  * Filters for high-quality releases from trusted groups (YTS, YIFY, BONE).
  */
 
-import { config } from '$lib/config';
+import { getSettings } from '$lib/server/settings';
 
 /**
  * Jackett search result
@@ -161,7 +161,8 @@ export function selectBestTorrent(results: JackettResult[]): JackettResult | nul
  * Search Jackett for torrents by IMDB ID
  */
 export async function searchJackett(imdbId: string): Promise<JackettResult[]> {
-	const { url, apiKey } = config.jackett;
+	const settings = await getSettings();
+	const { url, apiKey } = settings.jackett;
 
 	if (!apiKey) {
 		console.error('Jackett API key not configured');
@@ -197,6 +198,7 @@ export async function searchJackett(imdbId: string): Promise<JackettResult[]> {
  * Returns the best matching torrent or null
  */
 export async function findBestTorrent(imdbId: string): Promise<JackettResult | null> {
+	const settings = await getSettings();
 	const results = await searchJackett(imdbId);
 
 	if (results.length === 0) {
@@ -207,14 +209,14 @@ export async function findBestTorrent(imdbId: string): Promise<JackettResult | n
 	const qualityFiltered = filterByQuality(results);
 
 	// Filter by trusted release groups
-	const groupFiltered = filterByReleaseGroup(qualityFiltered, config.jackett.trustedGroups);
+	const groupFiltered = filterByReleaseGroup(qualityFiltered, settings.jackett.trustedGroups);
 
 	// If we have trusted group results, use those
 	// Otherwise fall back to quality-filtered results
 	const candidates = groupFiltered.length > 0 ? groupFiltered : qualityFiltered;
 
 	// Filter by minimum seeders
-	const seederFiltered = candidates.filter((r) => r.seeders >= config.jackett.minSeeders);
+	const seederFiltered = candidates.filter((r) => r.seeders >= settings.jackett.minSeeders);
 
 	// Select the best torrent
 	return selectBestTorrent(seederFiltered.length > 0 ? seederFiltered : candidates);
@@ -327,7 +329,8 @@ export async function searchSeasonTorrent(
 	seasonNumber: number,
 	imdbId?: string
 ): Promise<JackettResult[]> {
-	const { url, apiKey } = config.jackett;
+	const settings = await getSettings();
+	const { url, apiKey } = settings.jackett;
 
 	if (!apiKey) {
 		console.error('Jackett API key not configured');
@@ -398,6 +401,7 @@ export async function findBestSeasonTorrent(
 	seasonNumber: number,
 	imdbId?: string
 ): Promise<JackettResult | null> {
+	const settings = await getSettings();
 	const results = await searchSeasonTorrent(showTitle, seasonNumber, imdbId);
 
 	if (results.length === 0) {
@@ -417,14 +421,14 @@ export async function findBestSeasonTorrent(
 			(r) => !isSingleEpisode(r.title) && matchesSeasonNumber(r.title, seasonNumber)
 		);
 		if (nonEpisodes.length > 0) {
-			const seederFiltered = nonEpisodes.filter((r) => r.seeders >= config.jackett.minSeeders);
+			const seederFiltered = nonEpisodes.filter((r) => r.seeders >= settings.jackett.minSeeders);
 			return selectBestTorrent(seederFiltered.length > 0 ? seederFiltered : nonEpisodes);
 		}
 		return null;
 	}
 
 	// Filter by minimum seeders
-	const seederFiltered = seasonPacks.filter((r) => r.seeders >= config.jackett.minSeeders);
+	const seederFiltered = seasonPacks.filter((r) => r.seeders >= settings.jackett.minSeeders);
 
 	// Select the best torrent
 	return selectBestTorrent(seederFiltered.length > 0 ? seederFiltered : seasonPacks);

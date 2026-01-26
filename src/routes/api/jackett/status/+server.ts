@@ -5,7 +5,7 @@
  */
 
 import { json } from '@sveltejs/kit';
-import { config } from '$lib/config';
+import { getSettings } from '$lib/server/settings';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals }) => {
@@ -14,7 +14,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	const { url, apiKey } = config.jackett;
+	const settings = await getSettings();
+	const { url, apiKey } = settings.jackett;
 
 	// Check if basic config is present
 	const hasConfig = !!apiKey;

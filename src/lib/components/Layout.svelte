@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Film, LogOut, Play, Plus, Search, User, UserPlus } from '@lucide/svelte';
+    import { Film, LogOut, Play, Plus, Search, Settings, User, UserPlus } from '@lucide/svelte';
     import type { Snippet } from 'svelte';
     import { fade, fly } from 'svelte/transition';
     import { page } from '$app/state';
@@ -62,6 +62,15 @@
                         >
                             <User class="w-4 h-4" />
                             View Account
+                        </a>
+                        <a
+                            href="/settings"
+                            class="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-3"
+                            role="menuitem"
+                            onclick={() => (showAccountMenu = false)}
+                        >
+                            <Settings class="w-4 h-4" />
+                            Settings
                         </a>
                         <button
                             onclick={() => {

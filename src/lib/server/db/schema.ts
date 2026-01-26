@@ -298,6 +298,22 @@ export const torrentCache = sqliteTable(
 	(table) => [index('idx_torrent_cache_imdb').on(table.imdbId), index('idx_torrent_cache_tmdb').on(table.tmdbId)]
 );
 
+export const configuration = sqliteTable('configuration', {
+	id: text('id')
+		.primaryKey()
+		.$default(() => 'default'),
+	tmdbApiKey: text('tmdb_api_key'),
+	tmdbLanguage: text('tmdb_language').default('en-US'),
+	jackettUrl: text('jackett_url'),
+	jackettApiKey: text('jackett_api_key'),
+	jackettTrustedGroups: text('jackett_trusted_groups'), // JSON array
+	jackettMinSeeders: integer('jackett_min_seeders').default(5),
+	updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+		.$onUpdate(() => new Date())
+		.notNull()
+		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
+});
+
 // ============================================================================
 // Relations (Defined after all tables to avoid hoisting issues)
 // ============================================================================
@@ -442,4 +458,5 @@ export const schema = {
 	episodes,
 	downloads,
 	torrentCache,
+	configuration,
 } as const;

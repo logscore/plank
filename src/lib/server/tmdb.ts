@@ -1,4 +1,4 @@
-import { config } from '$lib/config';
+import { type AppSettings, getSettings } from '$lib/server/settings';
 
 interface TMDBGenre {
 	id: number;
@@ -200,7 +200,7 @@ const TV_GENRES: Record<number, string> = {
 	37: 'Western',
 };
 
-function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: 'movie' | 'tv'): BrowseItem {
+function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: 'movie' | 'tv', settings: AppSettings): BrowseItem {
 	const type = item.media_type || defaultType;
 	const title = item.title || item.name || 'Unknown Title';
 	const date = item.release_date || item.first_air_date;
@@ -212,8 +212,8 @@ function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: 'movie' | 'tv'
 		imdbId: null, // Will be fetched separately
 		title,
 		year,
-		posterUrl: item.poster_path ? `${config.tmdb.imageBaseUrl}/w342${item.poster_path}` : null,
-		backdropUrl: item.backdrop_path ? `${config.tmdb.imageBaseUrl}/w780${item.backdrop_path}` : null,
+		posterUrl: item.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${item.poster_path}` : null,
+		backdropUrl: item.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${item.backdrop_path}` : null,
 		overview: item.overview ?? null,
 		voteAverage: item.vote_average ?? null,
 		genres,
@@ -231,8 +231,9 @@ export async function getTrending(
 	page = 1,
 	type: 'all' | 'movie' | 'tv' = 'all'
 ): Promise<{ items: BrowseItem[]; totalPages: number }> {
+	const settings = await getSettings();
 	const res = await fetch(
-		`${config.tmdb.baseUrl}/trending/${type}/${timeWindow}?api_key=${config.tmdb.apiKey}&page=${page}`
+		`${settings.tmdb.baseUrl}/trending/${type}/${timeWindow}?api_key=${settings.tmdb.apiKey}&page=${page}&language=${settings.tmdb.language}`
 	);
 
 	if (!res.ok) {
@@ -243,7 +244,9 @@ export async function getTrending(
 	const data: TMDBTrendingResponse = await res.json();
 
 	// If type is 'all', TMDB returns media_type. If specific, it doesn't always, so default.
-	const items: BrowseItem[] = data.results.map((item) => mapTmdbToBrowseItem(item, type === 'all' ? 'movie' : type));
+	const items: BrowseItem[] = data.results.map((item) =>
+		mapTmdbToBrowseItem(item, type === 'all' ? 'movie' : type, settings)
+	);
 
 	return { items, totalPages: data.total_pages };
 }
@@ -255,7 +258,10 @@ export async function getPopular(
 	page = 1,
 	type: 'movie' | 'tv' = 'movie'
 ): Promise<{ items: BrowseItem[]; totalPages: number }> {
-	const res = await fetch(`${config.tmdb.baseUrl}/${type}/popular?api_key=${config.tmdb.apiKey}&page=${page}`);
+	const settings = await getSettings();
+	const res = await fetch(
+		`${settings.tmdb.baseUrl}/${type}/popular?api_key=${settings.tmdb.apiKey}&page=${page}&language=${settings.tmdb.language}`
+	);
 
 	if (!res.ok) {
 		console.error(`[TMDB] Popular ${type} failed: ${res.status}`);
@@ -264,7 +270,7 @@ export async function getPopular(
 
 	const data: TMDBTrendingResponse = await res.json();
 
-	const items: BrowseItem[] = data.results.map((item) => mapTmdbToBrowseItem(item, type));
+	const items: BrowseItem[] = data.results.map((item) => mapTmdbToBrowseItem(item, type, settings));
 
 	return { items, totalPages: data.total_pages };
 }
@@ -276,13 +282,14 @@ export async function getBrowseItemDetails(
 	tmdbId: number,
 	type: 'movie' | 'tv'
 ): Promise<{ imdbId: string | null; certification: string | null }> {
+	const settings = await getSettings();
 	// For movies: append_to_response=external_ids,release_dates
 	// For tv: append_to_response=external_ids,content_ratings
 	const append = type === 'movie' ? 'external_ids,release_dates' : 'external_ids,content_ratings';
 
 	// Cache key could be implemented here if needed to avoid spamming TMDB
 	const res = await fetch(
-		`${config.tmdb.baseUrl}/${type}/${tmdbId}?api_key=${config.tmdb.apiKey}&append_to_response=${append}`
+		`${settings.tmdb.baseUrl}/${type}/${tmdbId}?api_key=${settings.tmdb.apiKey}&append_to_response=${append}&language=${settings.tmdb.language}`
 	);
 
 	if (!res.ok) {
@@ -315,16 +322,18 @@ export async function getBrowseItemDetails(
 // =============================================================================
 
 export async function searchMovie(query: string, year?: number | null): Promise<TMDBMetadata[]> {
+	const settings = await getSettings();
 	const params = new URLSearchParams({
-		api_key: config.tmdb.apiKey,
+		api_key: settings.tmdb.apiKey,
 		query,
+		language: settings.tmdb.language,
 	});
 
 	if (year) {
 		params.set('year', String(year));
 	}
 
-	const res = await fetch(`${config.tmdb.baseUrl}/search/movie?${params}`);
+	const res = await fetch(`${settings.tmdb.baseUrl}/search/movie?${params}`);
 
 	if (!res.ok) {
 		console.error(`[TMDB] Search failed with status ${res.status}: ${res.statusText}`);
@@ -342,8 +351,8 @@ export async function searchMovie(query: string, year?: number | null): Promise<
 		tmdbId: movie.id,
 		title: movie.title,
 		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
-		posterUrl: movie.poster_path ? `${config.tmdb.imageBaseUrl}/w342${movie.poster_path}` : null,
-		backdropUrl: movie.backdrop_path ? `${config.tmdb.imageBaseUrl}/w780${movie.backdrop_path}` : null,
+		posterUrl: movie.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${movie.poster_path}` : null,
+		backdropUrl: movie.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${movie.backdrop_path}` : null,
 		overview: movie.overview ?? null,
 	}));
 }
@@ -359,8 +368,11 @@ interface TMDBReleaseDates {
 }
 
 export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
+	const settings = await getSettings();
 	// Fetch movie details
-	const res = await fetch(`${config.tmdb.baseUrl}/movie/${tmdbId}?api_key=${config.tmdb.apiKey}`);
+	const res = await fetch(
+		`${settings.tmdb.baseUrl}/movie/${tmdbId}?api_key=${settings.tmdb.apiKey}&language=${settings.tmdb.language}`
+	);
 
 	if (!res.ok) {
 		console.error(`[TMDB] Failed to fetch movie details for ${tmdbId}: ${res.status}`);
@@ -378,7 +390,7 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 	let certification: string | null = null;
 	try {
 		const certRes = await fetch(
-			`${config.tmdb.baseUrl}/movie/${tmdbId}/release_dates?api_key=${config.tmdb.apiKey}`
+			`${settings.tmdb.baseUrl}/movie/${tmdbId}/release_dates?api_key=${settings.tmdb.apiKey}`
 		);
 		if (certRes.ok) {
 			const certData: TMDBReleaseDates = await certRes.json();
@@ -398,8 +410,8 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 		tmdbId: movie.id,
 		title: movie.title,
 		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
-		posterUrl: movie.poster_path ? `${config.tmdb.imageBaseUrl}/w342${movie.poster_path}` : null,
-		backdropUrl: movie.backdrop_path ? `${config.tmdb.imageBaseUrl}/w780${movie.backdrop_path}` : null,
+		posterUrl: movie.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${movie.poster_path}` : null,
+		backdropUrl: movie.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${movie.backdrop_path}` : null,
 		overview: movie.overview ?? null,
 		runtime: movie.runtime ?? null,
 		genres: movie.genres ? JSON.stringify(movie.genres.map((g) => g.name)) : null,
@@ -413,16 +425,18 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 // =============================================================================
 
 export async function searchTVShow(query: string, year?: number | null): Promise<TMDBMetadata[]> {
+	const settings = await getSettings();
 	const params = new URLSearchParams({
-		api_key: config.tmdb.apiKey,
+		api_key: settings.tmdb.apiKey,
 		query,
+		language: settings.tmdb.language,
 	});
 
 	if (year) {
 		params.set('first_air_date_year', String(year));
 	}
 
-	const res = await fetch(`${config.tmdb.baseUrl}/search/tv?${params}`);
+	const res = await fetch(`${settings.tmdb.baseUrl}/search/tv?${params}`);
 
 	if (!res.ok) {
 		console.error(`[TMDB] TV search failed with status ${res.status}: ${res.statusText}`);
@@ -440,8 +454,8 @@ export async function searchTVShow(query: string, year?: number | null): Promise
 		tmdbId: show.id,
 		title: show.name,
 		year: show.first_air_date ? Number.parseInt(show.first_air_date.slice(0, 4), 10) : null,
-		posterUrl: show.poster_path ? `${config.tmdb.imageBaseUrl}/w342${show.poster_path}` : null,
-		backdropUrl: show.backdrop_path ? `${config.tmdb.imageBaseUrl}/w780${show.backdrop_path}` : null,
+		posterUrl: show.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${show.poster_path}` : null,
+		backdropUrl: show.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${show.backdrop_path}` : null,
 		overview: show.overview ?? null,
 		totalSeasons: show.number_of_seasons ?? null,
 	}));
@@ -455,7 +469,10 @@ interface TMDBContentRatings {
 }
 
 export async function getTVDetails(tmdbId: number): Promise<TMDBMetadata & { totalSeasons: number }> {
-	const res = await fetch(`${config.tmdb.baseUrl}/tv/${tmdbId}?api_key=${config.tmdb.apiKey}`);
+	const settings = await getSettings();
+	const res = await fetch(
+		`${settings.tmdb.baseUrl}/tv/${tmdbId}?api_key=${settings.tmdb.apiKey}&language=${settings.tmdb.language}`
+	);
 
 	if (!res.ok) {
 		console.error(`[TMDB] Failed to fetch TV details for ${tmdbId}: ${res.status}`);
@@ -473,7 +490,7 @@ export async function getTVDetails(tmdbId: number): Promise<TMDBMetadata & { tot
 	let certification: string | null = null;
 	try {
 		const certRes = await fetch(
-			`${config.tmdb.baseUrl}/tv/${tmdbId}/content_ratings?api_key=${config.tmdb.apiKey}`
+			`${settings.tmdb.baseUrl}/tv/${tmdbId}/content_ratings?api_key=${settings.tmdb.apiKey}`
 		);
 		if (certRes.ok) {
 			const certData: TMDBContentRatings = await certRes.json();
@@ -488,8 +505,8 @@ export async function getTVDetails(tmdbId: number): Promise<TMDBMetadata & { tot
 		tmdbId: show.id,
 		title: show.name,
 		year: show.first_air_date ? Number.parseInt(show.first_air_date.slice(0, 4), 10) : null,
-		posterUrl: show.poster_path ? `${config.tmdb.imageBaseUrl}/w342${show.poster_path}` : null,
-		backdropUrl: show.backdrop_path ? `${config.tmdb.imageBaseUrl}/w780${show.backdrop_path}` : null,
+		posterUrl: show.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${show.poster_path}` : null,
+		backdropUrl: show.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${show.backdrop_path}` : null,
 		overview: show.overview ?? null,
 		totalSeasons: show.number_of_seasons ?? 0,
 		runtime: show.episode_run_time?.[0] ?? null,
@@ -504,7 +521,10 @@ export async function getTVDetails(tmdbId: number): Promise<TMDBMetadata & { tot
  * Excludes specials (season 0) by default
  */
 export async function getTVSeasons(tmdbId: number, includeSpecials = false): Promise<SeasonSummary[]> {
-	const res = await fetch(`${config.tmdb.baseUrl}/tv/${tmdbId}?api_key=${config.tmdb.apiKey}`);
+	const settings = await getSettings();
+	const res = await fetch(
+		`${settings.tmdb.baseUrl}/tv/${tmdbId}?api_key=${settings.tmdb.apiKey}&language=${settings.tmdb.language}`
+	);
 
 	if (!res.ok) {
 		console.error(`[TMDB] Failed to fetch TV seasons for ${tmdbId}: ${res.status}`);
@@ -524,12 +544,15 @@ export async function getTVSeasons(tmdbId: number, includeSpecials = false): Pro
 			name: season.name || `Season ${season.season_number}`,
 			episodeCount: season.episode_count,
 			year: season.air_date ? Number.parseInt(season.air_date.slice(0, 4), 10) : undefined,
-			posterPath: season.poster_path ? `${config.tmdb.imageBaseUrl}/w154${season.poster_path}` : undefined,
+			posterPath: season.poster_path ? `${settings.tmdb.imageBaseUrl}/w154${season.poster_path}` : undefined,
 		}));
 }
 
 export async function getSeasonDetails(tmdbId: number, seasonNumber: number): Promise<SeasonMetadata> {
-	const res = await fetch(`${config.tmdb.baseUrl}/tv/${tmdbId}/season/${seasonNumber}?api_key=${config.tmdb.apiKey}`);
+	const settings = await getSettings();
+	const res = await fetch(
+		`${settings.tmdb.baseUrl}/tv/${tmdbId}/season/${seasonNumber}?api_key=${settings.tmdb.apiKey}&language=${settings.tmdb.language}`
+	);
 
 	if (!res.ok) {
 		console.error(`[TMDB] Failed to fetch season ${seasonNumber} for TV ${tmdbId}: ${res.status}`);
@@ -542,7 +565,7 @@ export async function getSeasonDetails(tmdbId: number, seasonNumber: number): Pr
 		seasonNumber: season.season_number,
 		name: season.name ?? null,
 		overview: season.overview ?? null,
-		posterPath: season.poster_path ? `${config.tmdb.imageBaseUrl}/w342${season.poster_path}` : null,
+		posterPath: season.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${season.poster_path}` : null,
 		airDate: season.air_date ?? null,
 		episodeCount: season.episodes?.length ?? 0,
 		episodes:
@@ -550,7 +573,7 @@ export async function getSeasonDetails(tmdbId: number, seasonNumber: number): Pr
 				episodeNumber: ep.episode_number,
 				title: ep.name ?? null,
 				overview: ep.overview ?? null,
-				stillPath: ep.still_path ? `${config.tmdb.imageBaseUrl}/w300${ep.still_path}` : null,
+				stillPath: ep.still_path ? `${settings.tmdb.imageBaseUrl}/w300${ep.still_path}` : null,
 				runtime: ep.runtime ?? null,
 				airDate: ep.air_date ?? null,
 			})) ?? [],
@@ -628,6 +651,11 @@ export async function saveTmdbImages(
 
 	if (metadata.posterUrl) {
 		try {
+			// metadata.posterUrl already contains the full URL (e.g. from getMovieDetails mapping)
+			// so we can use it directly.
+			// Wait, the previous mapping code uses settings.tmdb.imageBaseUrl to construct metadata.posterUrl
+			// So metadata.posterUrl IS a full URL.
+			// imageStorage.saveFromUrl expects a URL.
 			const storedPath = await imageStorage.saveFromUrl(category, id, 'poster.jpg', metadata.posterUrl);
 			result.posterUrl = `/images/${storedPath}`;
 		} catch (e) {
