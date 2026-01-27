@@ -81,12 +81,6 @@ setup_env() {
     # TMDB API Key
     read -p "Enter TMDB API Key (get yours at https://www.themoviedb.org/settings/api): " TMDB_API_KEY
 
-    # Prowlarr configuration
-    read -p "Enter Prowlarr URL [http://prowlarr:9696]: " PROWLARR_URL
-    PROWLARR_URL=${PROWLARR_URL:-http://prowlarr:9696}
-
-    read -p "Enter Prowlarr API Key: " PROWLARR_API_KEY
-
     # Generate random secret for authentication
     BETTER_AUTH_SECRET=$(openssl rand -hex 32)
     echo -e "Generated auth secret: ${GREEN}${BETTER_AUTH_SECRET:0:16}...${NC}"
@@ -106,9 +100,12 @@ setup_env() {
 DATABASE_URL=${DATABASE_URL}
 DATA_PATH=${DATA_PATH}
 TMDB_API_KEY=${TMDB_API_KEY}
-PROWLARR_URL=${PROWLARR_URL}
-PROWLARR_API_KEY=${PROWLARR_API_KEY}
-PUBLIC_PROWLARR_URL=${PROWLARR_URL}
+
+# Prowlarr/FlareSolverr (auto-configured for Docker, API key extracted automatically)
+PROWLARR_URL=http://prowlarr:9696
+PROWLARR_API_KEY=
+FLARESOLVERR_URL=http://flaresolverr:8191
+
 BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
 BETTER_AUTH_URL=${BETTER_AUTH_URL}
 ENABLE_FILE_STORAGE=${ENABLE_FILE_STORAGE}

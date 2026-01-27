@@ -1,16 +1,18 @@
 services:
   plank:
-    container_name: plank
+    container_name: plank-dev
     build:
       context: ..
       dockerfile: docker/Dockerfile
+      target: deps
     ports:
       - "3300:3000"
       - "6881:6881/tcp"
       - "6881:6881/udp"
     environment:
+      - NODE_ENV=development
       - ENABLE_FILE_STORAGE=true
-      - DATABASE_URL=/app/db/plank.db
+      - DATABASE_URL=/app/plank.db
       - TMDB_API_KEY=${TMDB_API_KEY}
       # Internal Docker network URLs (always use service names)
       - PROWLARR_URL=http://prowlarr:9696
@@ -26,11 +28,15 @@ services:
       # Path to Prowlarr config for auto-configuration
       - PROWLARR_CONFIG_PATH=/prowlarr-config/config.xml
     volumes:
-      - plank-db:/app/db
+      # Mount source code for hot reloading
+      - ..:/app
+      # Preserve container's node_modules (hide local node_modules)
+      - /app/node_modules
       - plank-data:/app/data
       - ${MEDIA_PATH:-./media}:/app/data/library
       # Share Prowlarr config for API key extraction
       - prowlarr-config:/prowlarr-config:ro
+    command: npm run dev -- --host
     depends_on:
       prowlarr:
         condition: service_started

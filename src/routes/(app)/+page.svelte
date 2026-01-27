@@ -68,8 +68,12 @@
             <!-- Tab Navigation -->
             <div class="flex items-center space-x-2 py-2">
                 <Button
-                    variant={activeTab === 'movies' ? 'default' : 'ghost'}
-                    onclick={() => goto('?type=movies', { replaceState: true, noScroll: true })}
+                    variant={activeTab === "movies" ? "default" : "ghost"}
+                    onclick={() =>
+                        goto("?type=movies", {
+                            replaceState: true,
+                            noScroll: true,
+                        })}
                 >
                     <Film class="w-4 h-4 mr-2" />
                     Movies
@@ -80,8 +84,12 @@
                     {/if}
                 </Button>
                 <Button
-                    variant={activeTab === 'tv' ? 'default' : 'ghost'}
-                    onclick={() => goto('?type=tv', { replaceState: true, noScroll: true })}
+                    variant={activeTab === "tv" ? "default" : "ghost"}
+                    onclick={() =>
+                        goto("?type=tv", {
+                            replaceState: true,
+                            noScroll: true,
+                        })}
                 >
                     <Tv class="w-4 h-4 mr-2" />
                     TV Shows
@@ -106,14 +114,14 @@
                 <p class="text-destructive">Failed to load library: {queryError.message}</p>
                 <Button
                     onclick={() => {
-						moviesQuery.refetch();
-						showsQuery.refetch();
-					}}
+                        moviesQuery.refetch();
+                        showsQuery.refetch();
+                    }}
                 >
                     Retry
                 </Button>
             </div>
-        {:else if activeTab === 'movies'}
+        {:else if activeTab === "movies"}
             {#if movies.length === 0}
                 <div class="flex flex-col items-center justify-center p-20 text-center space-y-4">
                     <div class="p-6 rounded-full bg-accent/30">

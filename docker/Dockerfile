@@ -1,33 +1,34 @@
-FROM node:22-alpine
+FROM node:22-alpine AS base
 
-# Install git for lefthook
-RUN apk add --no-cache git
+# Install git for lefthook and curl for healthcheck
+RUN apk add --no-cache git curl
 
 WORKDIR /app
 
 COPY package*.json ./
-# Install all deps (including dev) for build
+
+# Stage 2: Dependencies (Dev)
+FROM base AS deps
+# Install all deps (including dev)
 RUN npm ci
-
 COPY . .
+# Make scripts executable
+RUN chmod +x /app/docker/entrypoint.sh /app/docker/configure-prowlarr.sh
 
-# Build-time dummy values for better-auth (real secrets provided at runtime)
+# Stage 3: Production
+FROM deps AS production
+
+# Build-time dummy values for better-auth
 ENV BETTER_AUTH_SECRET=dummy-build-secret
 ENV BETTER_AUTH_URL=http://localhost:3300
 
 RUN npm run build
 
-# Remove dev deps to keep image light, then reinstall only drizzle-kit for migrations
+# Remove dev deps to keep image light, then reinstall only drizzle-kit
 RUN npm prune --production && npm install drizzle-kit
 
 # Create necessary directories
 RUN mkdir -p /app/db /app/data/library /app/data/temp
-
-# Install curl for healthcheck
-RUN apk add --no-cache curl
-
-# Make entrypoint executable (already copied via COPY . .)
-RUN chmod +x /app/docker/entrypoint.sh
 
 ENV NODE_ENV=production
 
