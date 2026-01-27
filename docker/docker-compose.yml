@@ -1,5 +1,6 @@
 services:
   plank:
+    container_name: plank
     build:
       context: ..
       dockerfile: docker/Dockerfile

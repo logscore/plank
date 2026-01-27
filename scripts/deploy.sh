@@ -18,6 +18,15 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Function to run commands with sudo if not root
+run_privileged() {
+    if [ "$EUID" -eq 0 ]; then
+        "$@"
+    else
+        sudo "$@"
+    fi
+}
+
 # Repository URL
 REPO_URL="https://github.com/logscore/plank.git"
 INSTALL_DIR="plank"
@@ -59,32 +68,63 @@ setup_env() {
 
     echo "Generating .env file..."
 
-    # Generate random secret
+    # Use absolute path for database
+    DEFAULT_DB_PATH="$(pwd)/plank.db"
+    DEFAULT_DATA_PATH="$(pwd)/data"
+
+    # Database
+    DATABASE_URL=$DEFAULT_DB_PATH
+
+    # Data path for downloads
+    DATA_PATH=$DEFAULT_DATA_PATH
+
+    # TMDB API Key
+    read -p "Enter TMDB API Key (get yours at https://www.themoviedb.org/settings/api): " TMDB_API_KEY
+
+    # Prowlarr configuration
+    read -p "Enter Prowlarr URL [http://prowlarr:9696]: " PROWLARR_URL
+    PROWLARR_URL=${PROWLARR_URL:-http://prowlarr:9696}
+
+    read -p "Enter Prowlarr API Key: " PROWLARR_API_KEY
+
+    # Generate random secret for authentication
     BETTER_AUTH_SECRET=$(openssl rand -hex 32)
     echo -e "Generated auth secret: ${GREEN}${BETTER_AUTH_SECRET:0:16}...${NC}"
 
-    read -p "Enter TMDB API Key (optional): " TMDB_API_KEY
-    read -p "Enter Base URL (e.g., http://localhost:3000): " BETTER_AUTH_URL
-    BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+    read -p "Enter Base URL [http://localhost:3300]: " BETTER_AUTH_URL
+    BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3300}
 
-    read -p "Enable File Storage (for uploads)? (true/false) [true]: " ENABLE_FILE_STORAGE
+    # File storage
+    read -p "Enable File Storage? (true/false) [true]: " ENABLE_FILE_STORAGE
     ENABLE_FILE_STORAGE=${ENABLE_FILE_STORAGE:-true}
 
-    read -p "Enter Port [3000]: " PORT
-    PORT=${PORT:-3000}
-
-    # Use absolute path for database
-    DB_PATH="$(pwd)/plank.db"
+    # Port
+    read -p "Enter Port [3300]: " PORT
+    PORT=${PORT:-3300}
 
     cat > .env << EOF
+# Database
+DATABASE_URL=${DATABASE_URL}
+
+# Where the files are saved when downloaded
+DATA_PATH=${DATA_PATH}
+
+# Get yours here https://www.themoviedb.org/settings/api
+TMDB_API_KEY=${TMDB_API_KEY}
+
+# Prowlarr (Torrent Search)
+PROWLARR_URL=${PROWLARR_URL}
+PROWLARR_API_KEY=${PROWLARR_API_KEY}
+
+# Authentication
 BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
 BETTER_AUTH_URL=${BETTER_AUTH_URL}
-TMDB_API_KEY=${TMDB_API_KEY}
+
+# Reserved for future functionality. Keep as true
 ENABLE_FILE_STORAGE=${ENABLE_FILE_STORAGE}
+
 PORT=${PORT}
-DATABASE_URL=${DB_PATH}
 EOF
-# Note: DATABASE_URL might need adjustment for Docker vs Bare Metal, handled in docker-compose usually, but good to have base
 
     echo -e "${GREEN}.env file created successfully!${NC}"
 }
@@ -121,21 +161,41 @@ deploy_docker() {
             case $OS in
                 debian|ubuntu)
                     echo "Using apt package manager..."
-                    apt-get update
+                    run_privileged apt-get update
 
                     if ! command_exists git; then
                         echo "Installing git..."
-                        apt-get install -y git
+                        run_privileged apt-get install -y git
                     fi
 
                     if ! command_exists curl; then
                         echo "Installing curl..."
-                        apt-get install -y curl
+                        run_privileged apt-get install -y curl
                     fi
 
                     if ! command_exists docker; then
                         echo "Installing Docker..."
-                        curl -fsSL https://get.docker.com | sh
+                        # Download script first, then execute (better error handling)
+                        DOCKER_SCRIPT=$(mktemp)
+                        if curl -fsSL https://get.docker.com -o "$DOCKER_SCRIPT"; then
+                            run_privileged sh "$DOCKER_SCRIPT"
+                            rm -f "$DOCKER_SCRIPT"
+
+                            # Verify docker installed before enabling service
+                            if command_exists docker; then
+                                run_privileged systemctl enable docker
+                                run_privileged systemctl start docker
+                                run_privileged usermod -aG docker "$USER"
+                                echo -e "${YELLOW}Added $USER to docker group. You may need to log out and back in, or run 'newgrp docker'.${NC}"
+                            else
+                                echo -e "${RED}Docker installation failed. Please install manually.${NC}"
+                                exit 1
+                            fi
+                        else
+                            rm -f "$DOCKER_SCRIPT"
+                            echo -e "${RED}Failed to download Docker install script. Check your internet connection.${NC}"
+                            exit 1
+                        fi
                     fi
                     ;;
                 fedora|rhel|centos)
@@ -143,12 +203,16 @@ deploy_docker() {
 
                     if ! command_exists git; then
                         echo "Installing git..."
-                        dnf install -y git || yum install -y git
+                        run_privileged dnf install -y git || run_privileged yum install -y git
                     fi
 
                     if ! command_exists docker; then
                         echo "Installing Docker..."
-                        curl -fsSL https://get.docker.com | sh
+                        curl -fsSL https://get.docker.com | run_privileged sh
+                        run_privileged systemctl enable docker
+                        run_privileged systemctl start docker
+                        run_privileged usermod -aG docker "$USER"
+                        echo -e "${YELLOW}Added $USER to docker group. You may need to log out and back in, or run 'newgrp docker'.${NC}"
                     fi
                     ;;
                 arch|manjaro)
@@ -156,14 +220,16 @@ deploy_docker() {
 
                     if ! command_exists git; then
                         echo "Installing git..."
-                        pacman -S --noconfirm git
+                        run_privileged pacman -S --noconfirm git
                     fi
 
                     if ! command_exists docker; then
                         echo "Installing Docker..."
-                        pacman -S --noconfirm docker
-                        systemctl enable docker
-                        systemctl start docker
+                        run_privileged pacman -S --noconfirm docker
+                        run_privileged systemctl enable docker
+                        run_privileged systemctl start docker
+                        run_privileged usermod -aG docker "$USER"
+                        echo -e "${YELLOW}Added $USER to docker group. You may need to log out and back in, or run 'newgrp docker'.${NC}"
                     fi
                     ;;
                 alpine)
@@ -171,14 +237,16 @@ deploy_docker() {
 
                     if ! command_exists git; then
                         echo "Installing git..."
-                        apk add --no-cache git
+                        run_privileged apk add --no-cache git
                     fi
 
                     if ! command_exists docker; then
                         echo "Installing Docker..."
-                        apk add --no-cache docker
-                        rc-update add docker boot
-                        service docker start
+                        run_privileged apk add --no-cache docker
+                        run_privileged rc-update add docker boot
+                        run_privileged service docker start
+                        run_privileged addgroup "$USER" docker
+                        echo -e "${YELLOW}Added $USER to docker group. You may need to log out and back in.${NC}"
                     fi
                     ;;
                 macos)
@@ -213,8 +281,14 @@ deploy_docker() {
     set +a
 
     echo "Starting Docker Compose..."
-    # Explicitly pass .env file to ensure variables are picked up
-    docker compose -f docker/docker-compose.yml up -d --build
+
+    # Try without sudo first, fall back to sudo if permission denied
+    if docker compose -f docker/docker-compose.yml up -d --build 2>/dev/null; then
+        :
+    else
+        echo -e "${YELLOW}Retrying with sudo (you may need to re-login for docker group)...${NC}"
+        run_privileged docker compose -f docker/docker-compose.yml up -d --build
+    fi
 
     echo -e "\n${GREEN}Deployment Complete!${NC}"
     echo -e "Access Plank at: ${GREEN}http://localhost:3300${NC} (or your server IP)"
@@ -242,69 +316,82 @@ deploy_bare_metal() {
         case $OS in
             debian|ubuntu)
                 echo "Using apt package manager..."
-                apt-get update
+                run_privileged apt-get update
 
-                # Install git if not available
                 if ! command_exists git; then
                     echo "Installing git..."
-                    apt-get install -y git
+                    run_privileged apt-get install -y git
                 fi
 
-                # Install curl if not available (needed for NodeSource)
                 if ! command_exists curl; then
                     echo "Installing curl..."
-                    apt-get install -y curl
+                    run_privileged apt-get install -y curl
                 fi
 
                 if ! command_exists node; then
                     echo "Installing Node.js..."
-                    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-                    apt-get install -y nodejs
+                    curl -fsSL https://deb.nodesource.com/setup_22.x | run_privileged bash -
+                    run_privileged apt-get install -y nodejs
                 fi
 
                 if ! command_exists ffmpeg; then
                     echo "Installing ffmpeg..."
-                    apt-get install -y ffmpeg
+                    run_privileged apt-get install -y ffmpeg
                 fi
                 ;;
             fedora|rhel|centos)
                 echo "Using dnf/yum package manager..."
 
+                if ! command_exists git; then
+                    echo "Installing git..."
+                    run_privileged dnf install -y git || run_privileged yum install -y git
+                fi
+
                 if ! command_exists node; then
                     echo "Installing Node.js..."
-                    curl -fsSL https://rpm.nodesource.com/setup_22.x | bash -
-                    dnf install -y nodejs || yum install -y nodejs
+                    curl -fsSL https://rpm.nodesource.com/setup_22.x | run_privileged bash -
+                    run_privileged dnf install -y nodejs || run_privileged yum install -y nodejs
                 fi
 
                 if ! command_exists ffmpeg; then
                     echo "Installing ffmpeg..."
-                    dnf install -y ffmpeg || yum install -y ffmpeg
+                    run_privileged dnf install -y ffmpeg || run_privileged yum install -y ffmpeg
                 fi
                 ;;
             arch|manjaro)
                 echo "Using pacman package manager..."
 
+                if ! command_exists git; then
+                    echo "Installing git..."
+                    run_privileged pacman -S --noconfirm git
+                fi
+
                 if ! command_exists node; then
                     echo "Installing Node.js..."
-                    pacman -S --noconfirm nodejs npm
+                    run_privileged pacman -S --noconfirm nodejs npm
                 fi
 
                 if ! command_exists ffmpeg; then
                     echo "Installing ffmpeg..."
-                    pacman -S --noconfirm ffmpeg
+                    run_privileged pacman -S --noconfirm ffmpeg
                 fi
                 ;;
             alpine)
                 echo "Using apk package manager..."
 
+                if ! command_exists git; then
+                    echo "Installing git..."
+                    run_privileged apk add --no-cache git
+                fi
+
                 if ! command_exists node; then
                     echo "Installing Node.js..."
-                    apk add --no-cache nodejs npm
+                    run_privileged apk add --no-cache nodejs npm
                 fi
 
                 if ! command_exists ffmpeg; then
                     echo "Installing ffmpeg..."
-                    apk add --no-cache ffmpeg
+                    run_privileged apk add --no-cache ffmpeg
                 fi
                 ;;
             macos)
@@ -397,20 +484,21 @@ deploy_bare_metal() {
                 echo -e "${GREEN}Installing systemd service...${NC}"
 
                 SERVICE_FILE="/etc/systemd/system/plank.service"
-                USER=$(whoami)
+                CURRENT_USER=$(whoami)
                 WORKDIR=$(pwd)
                 NODE_PATH=$(which node)
+                NPX_PATH=$(which npx)
 
-                cat > $SERVICE_FILE << EOF
+                run_privileged tee "$SERVICE_FILE" > /dev/null << EOF
 [Unit]
 Description=Plank Media Server
 After=network.target
 
 [Service]
 Type=simple
-User=$USER
+User=$CURRENT_USER
 WorkingDirectory=$WORKDIR
-ExecStartPre=$(which npx) drizzle-kit migrate
+ExecStartPre=$NPX_PATH drizzle-kit migrate
 ExecStart=$NODE_PATH build
 Restart=on-failure
 RestartSec=5
@@ -420,9 +508,9 @@ EnvironmentFile=$WORKDIR/.env
 WantedBy=multi-user.target
 EOF
 
-                systemctl daemon-reload
-                systemctl enable plank
-                systemctl start plank
+                run_privileged systemctl daemon-reload
+                run_privileged systemctl enable plank
+                run_privileged systemctl start plank
 
                 echo -e "\n${GREEN}Plank service installed and started!${NC}"
                 echo -e "Service status: $(systemctl is-active plank)"
