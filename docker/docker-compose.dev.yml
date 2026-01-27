@@ -3,8 +3,7 @@ services:
     container_name: plank-dev
     build:
       context: ..
-      dockerfile: docker/Dockerfile
-      target: deps
+      dockerfile: docker/Dockerfile.dev
     ports:
       - "3300:3000"
       - "6881:6881/tcp"
