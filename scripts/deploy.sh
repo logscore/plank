@@ -103,27 +103,16 @@ setup_env() {
     PORT=${PORT:-3300}
 
     cat > .env << EOF
-# Database
 DATABASE_URL=${DATABASE_URL}
-
-# Where the files are saved when downloaded
 DATA_PATH=${DATA_PATH}
-
-# Get yours here https://www.themoviedb.org/settings/api
 TMDB_API_KEY=${TMDB_API_KEY}
-
-# Prowlarr (Torrent Search)
 PROWLARR_URL=${PROWLARR_URL}
 PROWLARR_API_KEY=${PROWLARR_API_KEY}
-
-# Authentication
 BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
 BETTER_AUTH_URL=${BETTER_AUTH_URL}
-
-# Reserved for future functionality. Keep as true
 ENABLE_FILE_STORAGE=${ENABLE_FILE_STORAGE}
-
 PORT=${PORT}
+ORIGIN=${BETTER_AUTH_URL}
 EOF
 
     echo -e "${GREEN}.env file created successfully!${NC}"
@@ -291,7 +280,7 @@ deploy_docker() {
     fi
 
     echo -e "\n${GREEN}Deployment Complete!${NC}"
-    echo -e "Access Plank at: ${GREEN}http://localhost:3300${NC} (or your server IP)"
+    echo -e "Access Plank at: ${GREEN}${BETTER_AUTH_URL}${NC} (or your server IP)"
 }
 
 deploy_bare_metal() {
