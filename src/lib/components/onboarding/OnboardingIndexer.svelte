@@ -1,20 +1,7 @@
 <script lang="ts">
-    import {
-        AlertCircle,
-        CheckCircle2,
-        ChevronDown,
-        ChevronUp,
-        CircleAlert,
-        CircleCheck,
-        Loader,
-        Plus,
-        RefreshCw,
-        Trash2,
-    } from '@lucide/svelte';
+    import { ChevronDown, Loader, Plus, Trash2 } from '@lucide/svelte';
     import { onMount } from 'svelte';
     import { toast } from 'svelte-sonner';
-    import Button from '$lib/components/ui/Button.svelte';
-    import { confirmDelete } from '$lib/ui-state.svelte';
     import { cn } from '$lib/utils';
 
     // Props

@@ -1,7 +1,7 @@
-FROM node:22-alpine
+FROM node:22-bookworm-slim
 
 # Install git for lefthook and curl for healthcheck
-RUN apk add --no-cache git curl
+RUN apt-get update && apt-get install -y git curl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
