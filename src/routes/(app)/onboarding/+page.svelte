@@ -2,10 +2,15 @@
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import { authClient } from '$lib/auth-client';
+    import IndexerManager from '$lib/components/IndexerManager.svelte';
+    import OnboardingIndexer from '$lib/components/onboarding/OnboardingIndexer.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import Input from '$lib/components/ui/Input.svelte';
+    import type { PageData } from './$types';
 
-    let step = $state(1); // 1: Create Org, 2: Invite
+    let { data } = $props<{ data: PageData }>();
+
+    let step = $state(1); // 1: Create Org, 2: Indexers, 3: Invite
     let loading = $state(false);
     let error = $state('');
 
@@ -46,6 +51,10 @@
         } finally {
             loading = false;
         }
+    }
+
+    async function handleIndexersContinue() {
+        step = 3;
     }
 
     async function handleInvite(e: Event) {
@@ -93,9 +102,23 @@
 <div class="flex items-center justify-center min-h-[80vh]">
     <div class="w-full max-w-md bg-card/50 backdrop-blur-xl rounded-xl p-8 border border-white/10 shadow-2xl">
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold tracking-tight">{step === 1 ? 'Setup Organization' : 'Invite Team'}</h1>
+            <h1 class="text-3xl font-bold tracking-tight">
+                {#if step === 1}
+                    Setup Organization
+                {:else if step === 2}
+                    Configure Indexers
+                {:else}
+                    Invite Team
+                {/if}
+            </h1>
             <p class="text-muted-foreground mt-2">
-                {step === 1 ? 'Create a space for your media' : 'Share access with others'}
+                {#if step === 1}
+                    Create a space for your media
+                {:else if step === 2}
+                    Add torrent sources to find content
+                {:else}
+                    Share access with others
+                {/if}
             </p>
         </div>
 
@@ -139,6 +162,20 @@
                     {loading ? 'Creating...' : 'Create & Continue'}
                 </Button>
             </form>
+        {:else if step === 2}
+            <div class="space-y-6">
+                <!-- Use the custom OnboardingIndexer component -->
+                <div class="-mx-2">
+                    <OnboardingIndexer
+                        prowlarrUrl={data.settings.prowlarr.url}
+                        prowlarrApiKey={data.settings.prowlarr.apiKey}
+                    />
+                </div>
+
+                <div class="pt-4 border-t border-white/10 flex gap-4">
+                    <Button onclick={handleIndexersContinue} class="w-full" size="lg">Continue</Button>
+                </div>
+            </div>
         {:else}
             <div class="space-y-6">
                 <form onsubmit={handleInvite} class="space-y-4">
