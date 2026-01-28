@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Configure Prowlarr via API
 # This script:
 # 1. Waits for Prowlarr to be ready
