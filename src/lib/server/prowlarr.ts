@@ -586,3 +586,215 @@ export async function findBestSeasonTorrent(
 	}
 	return best;
 }
+
+// =============================================================================
+// Indexer Management
+// =============================================================================
+
+export interface ProwlarrIndexer {
+	id: number;
+	name: string;
+	fields: Array<{
+		name: string;
+		value?: string | number | boolean | null;
+	}>;
+	implementationName: string;
+	implementation: string;
+	configContract: string;
+	infoLink: string;
+	tags: number[];
+	enable: boolean;
+	protocol: string;
+	priority: number;
+}
+
+export interface ProwlarrIndexerSchema {
+	id: number;
+	name: string;
+	implementation: string;
+	implementationName: string;
+	configContract: string;
+	infoLink: string;
+	fields: Array<{
+		order: number;
+		name: string;
+		label: string;
+		value?: string | number | boolean | null;
+		type: string;
+		advanced: boolean;
+		helpText?: string;
+		selectOptions?: Array<{
+			value: number | string;
+			name: string;
+		}>;
+	}>;
+	tags: number[];
+}
+
+export const INDEXER_PACKAGES = {
+	general: {
+		name: 'General Entertainment',
+		description: 'Movies & TV (YTS, 1337x, The Pirate Bay)',
+		indexers: ['YTS', '1337x', 'The Pirate Bay'],
+	},
+	anime: {
+		name: 'Anime Fan',
+		description: 'Anime (Nyaa.si, AnimeTosho, AniDex)',
+		indexers: ['Nyaa.si', 'AnimeTosho', 'AniDex'],
+	},
+	tv: {
+		name: 'TV Show Specialists',
+		description: 'TV Series (EZTV, TorrentGalaxy, TorLock)',
+		indexers: ['EZTV', 'TorrentGalaxy', 'TorLock'],
+	},
+};
+
+/**
+ * Get all configured indexers
+ */
+export async function getProwlarrIndexers(): Promise<ProwlarrIndexer[]> {
+	const settings = await getSettings();
+	const { url, apiKey } = settings.prowlarr;
+
+	if (!apiKey) {
+		return [];
+	}
+
+	try {
+		const response = await fetch(`${url}/api/v1/indexer`, {
+			headers: { 'X-Api-Key': apiKey },
+		});
+		if (!response.ok) {
+			return [];
+		}
+		return await response.json();
+	} catch (error) {
+		console.error('Failed to get indexers:', error);
+		return [];
+	}
+}
+
+/**
+ * Get available indexer schemas (indexers that can be added)
+ */
+export async function getProwlarrIndexerSchemas(): Promise<ProwlarrIndexerSchema[]> {
+	const settings = await getSettings();
+	const { url, apiKey } = settings.prowlarr;
+
+	if (!apiKey) {
+		return [];
+	}
+
+	try {
+		const response = await fetch(`${url}/api/v1/indexer/schema`, {
+			headers: { 'X-Api-Key': apiKey },
+		});
+		if (!response.ok) {
+			return [];
+		}
+		return await response.json();
+	} catch (error) {
+		console.error('Failed to get indexer schemas:', error);
+		return [];
+	}
+}
+
+/**
+ * Add a new indexer
+ */
+export async function addProwlarrIndexer(indexer: Partial<ProwlarrIndexer>): Promise<boolean> {
+	const settings = await getSettings();
+	const { url, apiKey } = settings.prowlarr;
+
+	if (!apiKey) {
+		return false;
+	}
+
+	try {
+		// Ensure basic fields are present
+		const payload = {
+			...indexer,
+			id: 0, // Force ID to 0 for creation
+			enable: true,
+			priority: 25,
+			appProfileId: 1, // Default profile
+		};
+
+		console.log('Adding Prowlarr indexer with payload:', JSON.stringify(payload));
+
+		const response = await fetch(`${url}/api/v1/indexer`, {
+			method: 'POST',
+			headers: {
+				'X-Api-Key': apiKey,
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify(payload),
+		});
+
+		if (!response.ok) {
+			const text = await response.text();
+			console.error('Failed to add indexer, Prowlarr response:', response.status, text);
+			return false;
+		}
+
+		return response.ok;
+	} catch (error) {
+		console.error('Failed to add indexer:', error);
+		return false;
+	}
+}
+
+/**
+ * Delete an indexer
+ */
+export async function deleteProwlarrIndexer(id: number): Promise<boolean> {
+	const settings = await getSettings();
+	const { url, apiKey } = settings.prowlarr;
+
+	if (!apiKey) {
+		return false;
+	}
+
+	try {
+		const response = await fetch(`${url}/api/v1/indexer/${id}`, {
+			method: 'DELETE',
+			headers: { 'X-Api-Key': apiKey },
+		});
+
+		return response.ok;
+	} catch (error) {
+		console.error('Failed to delete indexer:', error);
+		return false;
+	}
+}
+
+/**
+ * Test indexer connectivity
+ */
+export async function testProwlarrConnection(
+	prowlarrUrl?: string,
+	prowlarrApiKey?: string
+): Promise<{ success: boolean; message?: string }> {
+	const settings = await getSettings();
+	const url = prowlarrUrl || settings.prowlarr.url;
+	const apiKey = prowlarrApiKey || settings.prowlarr.apiKey;
+
+	if (!(url && apiKey)) {
+		return { success: false, message: 'URL or API Key missing' };
+	}
+
+	try {
+		// Use /ping endpoint which is public, but we want to test auth too
+		// So we use /api/v1/health which requires auth
+		const response = await fetch(`${url}/api/v1/health`, {
+			headers: { 'X-Api-Key': apiKey },
+		});
+
+		if (response.ok) {
+			return { success: true };
+		}
+		return { success: false, message: `Status: ${response.status}` };
+	} catch (error) {
+		return { success: false, message: error instanceof Error ? error.message : 'Connection failed' };
+	}
+}

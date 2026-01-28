@@ -2,14 +2,16 @@
     import { Film, Save, Server, Settings } from '@lucide/svelte';
     import { toast } from 'svelte-sonner';
     import { enhance } from '$app/forms';
+    import IndexerManager from '$lib/components/IndexerManager.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import Input from '$lib/components/ui/Input.svelte';
-    import { LANGUAGES } from '$lib/constants';
     import type { PageData } from './$types';
 
     let { data } = $props<{ data: PageData }>();
 
     let saving = $state(false);
+    let prowlarrUrl = $state(data.settings.prowlarr.url);
+    let prowlarrApiKey = $state(data.settings.prowlarr.apiKey);
 
     function getTrustedGroupsString(groups: string[]) {
         return groups.join(', ');
@@ -55,25 +57,6 @@
                         placeholder="TMDB API Key"
                     />
                 </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="tmdbLanguage" class="block text-sm text-muted-foreground mb-2">
-                            Torrent Language
-                        </label>
-                        <select
-                            id="tmdbLanguage"
-                            name="tmdbLanguage"
-                            value={data.settings.tmdb.language.split("-")[0]}
-                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            {#each LANGUAGES as lang}
-                                <option value={lang.code}>{lang.name}</option>
-                            {/each}
-                        </select>
-                        <p class="text-xs text-muted-foreground mt-1">Default: English</p>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -91,7 +74,7 @@
                         id="prowlarrUrl"
                         name="prowlarrUrl"
                         type="url"
-                        value={data.settings.prowlarr.url}
+                        bind:value={prowlarrUrl}
                         placeholder="http://localhost:9696"
                     />
                 </div>
@@ -101,10 +84,15 @@
                         id="prowlarrApiKey"
                         name="prowlarrApiKey"
                         type="password"
-                        value={data.settings.prowlarr.apiKey}
+                        bind:value={prowlarrApiKey}
                         placeholder="Prowlarr API Key"
                     />
                 </div>
+
+                <div class="border-t pt-6 -mx-6 px-6">
+                    <IndexerManager {prowlarrUrl} {prowlarrApiKey} />
+                </div>
+
                 <div>
                     <label for="prowlarrMinSeeders" class="block text-sm text-muted-foreground mb-2">
                         Minimum Seeders

@@ -22,7 +22,6 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const tmdbApiKey = formData.get('tmdbApiKey')?.toString() || '';
-		const tmdbLanguage = formData.get('tmdbLanguage')?.toString() || 'en-US';
 		const prowlarrUrl = formData.get('prowlarrUrl')?.toString() || '';
 		const prowlarrApiKey = formData.get('prowlarrApiKey')?.toString() || '';
 		const prowlarrMinSeedersStr = formData.get('prowlarrMinSeeders')?.toString();
@@ -42,7 +41,6 @@ export const actions: Actions = {
 		try {
 			await updateSettings({
 				tmdbApiKey,
-				tmdbLanguage,
 				prowlarrUrl,
 				prowlarrApiKey,
 				prowlarrMinSeeders,

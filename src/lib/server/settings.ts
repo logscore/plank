@@ -46,7 +46,7 @@ export async function getSettings(): Promise<AppSettings> {
 				apiKey: stored?.tmdbApiKey || envConfig.tmdb.apiKey,
 				baseUrl: envConfig.tmdb.baseUrl,
 				imageBaseUrl: envConfig.tmdb.imageBaseUrl,
-				language: stored?.tmdbLanguage || 'en-US',
+				language: 'en-US',
 			},
 			prowlarr: {
 				url: stored?.prowlarrUrl || envConfig.prowlarr.url,
@@ -70,7 +70,6 @@ export async function getSettings(): Promise<AppSettings> {
 export async function updateSettings(
 	updates: Partial<{
 		tmdbApiKey: string;
-		tmdbLanguage: string;
 		prowlarrUrl: string;
 		prowlarrApiKey: string;
 		prowlarrTrustedGroups: string[];
@@ -80,9 +79,6 @@ export async function updateSettings(
 	const values: Partial<typeof configuration.$inferInsert> = {};
 	if (updates.tmdbApiKey !== undefined) {
 		values.tmdbApiKey = updates.tmdbApiKey;
-	}
-	if (updates.tmdbLanguage !== undefined) {
-		values.tmdbLanguage = updates.tmdbLanguage;
 	}
 	if (updates.prowlarrUrl !== undefined) {
 		values.prowlarrUrl = updates.prowlarrUrl;

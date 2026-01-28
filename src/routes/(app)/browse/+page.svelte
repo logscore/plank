@@ -435,11 +435,10 @@
 
     <!-- Content -->
     <div class="container max-w-7xl mx-auto px-4 py-8">
-        <!-- {#if data.needsSetup} -->
-        <!-- Setup Instructions -->
-        <!-- <ProwlarrSetup prowlarrUrl={env.PUBLIC_PROWLARR_URL!} hasApiKey={data.prowlarrConfigured} /> -->
-        <!-- {:else if displayItems.length === 0 && !data.needsSetup} -->
-        {#if displayItems.length === 0 && !data.needsSetup}
+        {#if data.needsSetup}
+            <!-- Setup Instructions -->
+            <ProwlarrSetup prowlarrUrl={env.PUBLIC_PROWLARR_URL!} hasApiKey={data.prowlarrConfigured} />
+        {:else if displayItems.length === 0 && !data.needsSetup}
             <!-- Empty State -->
             <div class="text-center py-20 bg-muted/30 rounded-lg border border-dashed border-border mx-auto max-w-2xl">
                 <Trophy class="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
