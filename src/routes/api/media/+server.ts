@@ -80,6 +80,57 @@ async function fetchTmdbMetadata(
 	}
 }
 
+/**
+ * Build metadata from browse view data, enriching with TMDB details
+ * for fields the browse view doesn't carry (runtime, totalSeasons).
+ */
+async function enrichBrowseMetadata(
+	tmdbId: number,
+	mediaType: MediaType,
+	title: string,
+	year: number | null,
+	posterUrl: string | null,
+	backdropUrl: string | null,
+	overview: string | null,
+	genres: string[] | null,
+	certification: string | null
+): Promise<MediaMetadata> {
+	const metadata: MediaMetadata = {
+		title,
+		year,
+		posterUrl,
+		backdropUrl,
+		overview,
+		tmdbId,
+		runtime: null,
+		genres: genres ? JSON.stringify(genres) : null,
+		originalLanguage: null,
+		certification,
+		totalSeasons: null,
+	};
+
+	// Fetch full details for fields the browse view doesn't provide
+	if (config.tmdb.apiKey) {
+		try {
+			const details = mediaType === 'tv' ? await getTVDetails(tmdbId) : await getMovieDetails(tmdbId);
+			metadata.runtime = details.runtime ?? null;
+			metadata.originalLanguage = details.originalLanguage ?? null;
+			metadata.totalSeasons = details.totalSeasons ?? null;
+			// Use browse genres/certification if provided, otherwise use details
+			if (!metadata.genres) {
+				metadata.genres = details.genres ?? null;
+			}
+			if (!metadata.certification) {
+				metadata.certification = details.certification ?? null;
+			}
+		} catch (e) {
+			console.error(`[TMDB] Failed to enrich browse metadata for ${tmdbId}:`, e);
+		}
+	}
+
+	return metadata;
+}
+
 function saveImagesAsync(metadata: MediaMetadata, mediaId: string): void {
 	if (!(metadata.posterUrl || metadata.backdropUrl)) {
 		return;
@@ -134,13 +185,72 @@ function determineMediaType(providedType: MediaType | undefined, name: string, t
 	return 'movie';
 }
 
+/** Resume an existing download if it's in a resumable state */
+function resumeIfNeeded(mediaId: string, magnetLink: string): void {
+	startDownload(mediaId, magnetLink).catch((e) => {
+		console.error(`Failed to resume download for ${mediaId}:`, e);
+		mediaDb.updateProgress(mediaId, 0, 'error');
+	});
+}
+
+/** Check for duplicate media/downloads and return existing record if found */
+function findExistingMedia(infohash: string, userId: string, magnetLink: string): Response | null {
+	// Check by infohash on media table
+	const existing = mediaDb.getByInfohash(infohash, userId);
+	if (existing) {
+		if (existing.status === 'added' || existing.status === 'downloading') {
+			resumeIfNeeded(existing.id, magnetLink);
+		}
+		return json(existing, { status: 200 }) as unknown as Response;
+	}
+
+	// Check by infohash on downloads table
+	const existingDownload = downloadsDb.infohashExistsForUser(infohash, userId);
+	if (existingDownload) {
+		const { download, media } = existingDownload;
+		if (download.status === 'added' || download.status === 'downloading') {
+			resumeIfNeeded(media.id, magnetLink);
+		}
+		return json(media, { status: 200 }) as unknown as Response;
+	}
+
+	return null;
+}
+
+/** Resolve metadata from browse data or TMDB search */
+async function resolveMetadata(
+	body: Record<string, unknown>,
+	magnetTitle: string,
+	magnetYear: number | undefined,
+	mediaType: MediaType
+): Promise<MediaMetadata> {
+	const { tmdbId, title: browseTitle, posterUrl, backdropUrl, overview, genres, certification } = body;
+	const hasBrowseMetadata = posterUrl || backdropUrl || overview;
+
+	if (hasBrowseMetadata && tmdbId) {
+		return enrichBrowseMetadata(
+			tmdbId as number,
+			mediaType,
+			(browseTitle as string) || magnetTitle,
+			(body.year as number) ?? magnetYear ?? null,
+			(posterUrl as string) ?? null,
+			(backdropUrl as string) ?? null,
+			(overview as string) ?? null,
+			(genres as string[]) ?? null,
+			(certification as string) ?? null
+		);
+	}
+
+	return fetchTmdbMetadata(magnetTitle, magnetYear, mediaType, tmdbId as number | undefined);
+}
+
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
 	}
 
 	const body = await request.json();
-	const { magnetLink, type: providedType, tmdbId } = body;
+	const { magnetLink, type: providedType } = body;
 
 	if (!magnetLink?.startsWith('magnet:')) {
 		throw error(400, 'Invalid magnet link');
@@ -151,47 +261,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		throw error(400, 'Invalid magnet link - could not extract infohash');
 	}
 
-	// Determine media type
 	const mediaType = determineMediaType(providedType, name, title);
 
-	// Check for existing media by infohash (exact same torrent)
-	const existing = mediaDb.getByInfohash(infohash, locals.user.id);
-	if (existing) {
-		if (existing.status === 'added' || existing.status === 'downloading') {
-			startDownload(existing.id, magnetLink).catch((e) => {
-				console.error(`Failed to resume download for ${existing.id}:`, e);
-				mediaDb.updateProgress(existing.id, 0, 'error');
-			});
-		}
-		return json(existing, { status: 200 });
+	// Check for duplicates
+	const existingResponse = findExistingMedia(infohash, locals.user.id, magnetLink);
+	if (existingResponse) {
+		return existingResponse;
 	}
 
-	// Check if this infohash already exists as a download for any media
-	const existingDownload = downloadsDb.infohashExistsForUser(infohash, locals.user.id);
-	if (existingDownload) {
-		// This exact torrent is already being tracked
-		const { download, media } = existingDownload;
-		if (download.status === 'added' || download.status === 'downloading') {
-			startDownload(media.id, magnetLink).catch((e) => {
-				console.error(`Failed to resume download for ${media.id}:`, e);
-				downloadsDb.updateProgress(download.id, 0, 'error');
-			});
-		}
-		return json(media, { status: 200 });
-	}
+	// Resolve metadata (browse data or TMDB search)
+	const metadata = await resolveMetadata(body, title, year, mediaType);
 
-	// Fetch TMDB metadata
-	const metadata = await fetchTmdbMetadata(title, year, mediaType, tmdbId);
-
-	// For TV shows, check if we already have this show (by TMDB ID) and should merge seasons
+	// For TV shows, check if we should merge into an existing show
 	if (mediaType === 'tv' && metadata.tmdbId) {
 		const existingShow = mediaDb.getByTmdbId(metadata.tmdbId, locals.user.id, 'tv');
 		if (existingShow) {
-			// console.log(
-			// 	`[POST /api/media] Found existing TV show "${existingShow.title}" (${existingShow.id}), adding new season download`
-			// );
-
-			// Create a download record for this new torrent
 			const download = downloadsDb.create({
 				mediaId: existingShow.id,
 				magnetLink,
@@ -200,20 +284,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				progress: 0,
 			});
 
-			// Start download - episodes will be added to the existing show
 			startDownload(existingShow.id, magnetLink).catch((e) => {
 				console.error(`Failed to start download for ${existingShow.id}:`, e);
 				downloadsDb.updateProgress(download.id, 0, 'error');
 			});
 
-			// Return with seasonAdded flag so frontend knows this was a season addition, not a new show
 			return json({ ...existingShow, _seasonAdded: true }, { status: 200 });
 		}
 	}
 
 	// Get user's organization
 	const [userOrganization] = await auth.api.listOrganizations({
-		// This endpoint requires session cookies.
 		headers: request.headers,
 	});
 
@@ -241,7 +322,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		totalSeasons: metadata.totalSeasons,
 	});
 
-	// Create initial download record for the new media
+	// Create initial download record
 	downloadsDb.create({
 		mediaId: mediaItem.id,
 		magnetLink,

@@ -9,5 +9,5 @@ build
 .gitignore
 *.md
 .claude
-data
-media
+**/data
+**/media

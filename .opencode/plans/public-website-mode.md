@@ -1,5 +1,7 @@
 # Public Website Mode Implementation Plan
 
+> NOT POSSIBLE WITH CURRENT TECHNOLOGY
+
 ## Overview
 
 Implement a "public website" mode that streams torrent data on the client instead of the server. This mode is designed to avoid saving or processing data on the server, making it suitable for public-facing deployments.
