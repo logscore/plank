@@ -1,5 +1,3 @@
-@import "./assets/defaults.css";
-@import "./assets/base.css";
 @import "tailwindcss";
 
 @theme {

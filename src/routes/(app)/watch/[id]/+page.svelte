@@ -1,9 +1,13 @@
 <script lang="ts">
-    import 'vidstack/define/media-player.js';
-    import 'vidstack/define/media-community-skin.js';
+    import 'vidstack/player/styles/default/theme.css';
+    import 'vidstack/player/styles/default/layouts/video.css';
+    import 'vidstack/player';
+    import 'vidstack/player/layouts';
+    import 'vidstack/player/ui';
     import { ArrowLeft, Download, EllipsisVertical, Users } from '@lucide/svelte';
     import { createQuery } from '@tanstack/svelte-query';
     import { onDestroy, onMount } from 'svelte';
+    import type { MediaPlayerElement } from 'vidstack/elements';
     import { browser } from '$app/environment';
     import { page } from '$app/state';
     import Button from '$lib/components/ui/Button.svelte';
@@ -41,9 +45,8 @@
     const isTVEpisode = $derived(episodeId !== null);
 
     // Player state
-    let playerEl: HTMLElement | undefined = $state(undefined);
+    let playerEl: MediaPlayerElement | undefined = $state(undefined);
     let showOverlay = $state(true);
-    let overlayTimeout: ReturnType<typeof setTimeout> | null = null;
 
     // Menu state
     let showMenu = $state(false);
@@ -83,21 +86,13 @@
         );
     }
 
-    // Overlay auto-hide
-    function handleMouseMove() {
-        showOverlay = true;
-        resetOverlayTimeout();
-    }
-
-    function resetOverlayTimeout() {
-        if (overlayTimeout) {
-            clearTimeout(overlayTimeout);
+    // Sync custom overlay with vidstack controls visibility
+    function onControlsChange(event: Event) {
+        const visible = (event as CustomEvent).detail;
+        if (showMenu) {
+            return;
         }
-        overlayTimeout = setTimeout(() => {
-            if (!showMenu) {
-                showOverlay = false;
-            }
-        }, 3000);
+        showOverlay = visible;
     }
 
     function toggleStats() {
@@ -129,28 +124,27 @@
     // Player event handlers
     function onCanPlay() {
         if (!positionRestored && initialPosition && initialPosition > 0 && playerEl) {
-            (playerEl as unknown as { currentTime: number }).currentTime = initialPosition;
+            playerEl.currentTime = initialPosition;
             positionRestored = true;
         }
     }
 
-    function onTimeUpdate(event: CustomEvent) {
+    function onTimeUpdate() {
         const now = Date.now();
         if (now - lastSaveTime < SAVE_INTERVAL_MS) {
             return;
         }
         lastSaveTime = now;
 
-        const detail = event.detail;
-        const currentTime = detail?.currentTime ?? 0;
-        const duration = (playerEl as unknown as { duration: number })?.duration;
+        const currentTime = playerEl?.currentTime ?? 0;
+        const duration = playerEl?.duration;
         if (currentTime > 0) {
             savePosition(currentTime, duration);
         }
     }
 
     function onEnded() {
-        const duration = (playerEl as unknown as { duration: number })?.duration;
+        const duration = playerEl?.duration;
         if (duration) {
             savePosition(duration, duration);
         }
@@ -164,18 +158,19 @@
 
         const el = playerEl;
         el.addEventListener('can-play', onCanPlay);
-        el.addEventListener('time-update', onTimeUpdate as EventListener);
+        el.addEventListener('time-update', onTimeUpdate);
         el.addEventListener('ended', onEnded);
+        el.addEventListener('controls-change', onControlsChange);
 
         return () => {
             el.removeEventListener('can-play', onCanPlay);
-            el.removeEventListener('time-update', onTimeUpdate as EventListener);
+            el.removeEventListener('time-update', onTimeUpdate);
             el.removeEventListener('ended', onEnded);
+            el.removeEventListener('controls-change', onControlsChange);
         };
     });
 
     onMount(async () => {
-        resetOverlayTimeout();
         document.addEventListener('click', handleGlobalClick);
 
         const mediaId = page.params.id;
@@ -199,18 +194,14 @@
     });
 
     onDestroy(() => {
-        if (overlayTimeout) {
-            clearTimeout(overlayTimeout);
-        }
-
         if (browser) {
             document.removeEventListener('click', handleGlobalClick);
 
             // Save final position via sendBeacon on page leave
             const id = page.params.id;
             if (id && playerEl) {
-                const currentTime = (playerEl as unknown as { currentTime: number })?.currentTime;
-                const duration = (playerEl as unknown as { duration: number })?.duration;
+                const currentTime = playerEl.currentTime;
+                const duration = playerEl.duration;
                 if (currentTime > 0) {
                     const payload = JSON.stringify({
                         position: currentTime,
@@ -224,11 +215,7 @@
     });
 </script>
 
-<div
-    class="relative w-screen h-screen bg-black overflow-hidden group"
-    onmousemove={handleMouseMove}
-    role="presentation"
->
+<div class="relative w-screen h-screen bg-black overflow-hidden group" role="presentation">
     {#if loading}
         <div class="flex items-center justify-center w-full h-full">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -295,11 +282,14 @@
                     bind:this={playerEl}
                     src={getVideoSrc()}
                     autoplay
+                    playsinline
+                    crossorigin
+                    streamType="on-demand"
+                    controlsDelay={3000}
                     title={media?.title ?? ""}
-                    class="w-full h-full"
-                    style="--video-border: none; --video-border-radius: 0;"
+                    class="player dark"
                 >
-                    <media-outlet>
+                    <media-provider>
                         {#each subtitleTracks as track (track.id)}
                             <track
                                 src={track.src}
@@ -309,8 +299,8 @@
                                 default={track.isDefault}
                             >
                         {/each}
-                    </media-outlet>
-                    <media-community-skin></media-community-skin>
+                    </media-provider>
+                    <media-video-layout></media-video-layout>
                 </media-player>
             {:else}
                 <div class="relative w-full h-full">
@@ -363,3 +353,44 @@
         {/if}
     {/if}
 </div>
+
+<style>
+    /* Player sizing — fullscreen-style, no border/radius */
+    .player {
+        display: block;
+        width: 100%;
+        height: 100%;
+
+        --video-brand: hsl(0 84% 60%);
+        --video-border: none;
+        --video-border-radius: 0;
+        --video-bg: black;
+        --video-focus-ring-color: hsl(0 84% 60%);
+        --video-controls-color: #f5f5f5;
+        --media-font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
+
+        /* Match overlay fade: 300ms transition, synced with back button */
+        --media-controls-in-transition: opacity 0.3s ease-in;
+        --media-controls-out-transition: opacity 0.3s ease-out;
+
+        /* Slightly larger buttons for a cinematic feel */
+        --media-button-border-radius: 9999px;
+        --media-button-hover-bg: rgb(255 255 255 / 0.15);
+
+        /* Slider/progress bar in brand red */
+        --media-slider-track-fill-bg: hsl(0 84% 60%);
+        --media-slider-track-bg: rgb(255 255 255 / 0.2);
+
+        /* Tooltip styling to match glassmorphism */
+        --media-tooltip-bg-color: rgb(0 0 0 / 0.85);
+        --media-tooltip-border: 1px solid rgb(255 255 255 / 0.1);
+        --media-tooltip-color: #f5f5f5;
+
+        /* Menu styling */
+        --media-menu-bg: rgb(10 10 10 / 0.95);
+        --media-menu-border: 1px solid rgb(255 255 255 / 0.1);
+
+        /* Buffering spinner in brand red */
+        --media-buffering-track-fill-color: hsl(0 84% 60%);
+    }
+</style>

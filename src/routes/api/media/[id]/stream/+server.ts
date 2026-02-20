@@ -120,7 +120,8 @@ async function handleRangeRequest(
 	});
 }
 
-export const GET: RequestHandler = async ({ params, locals, request, url }) => {
+/** Resolve media item, episode, and file index from request params */
+function resolveMedia(params: { id: string }, locals: App.Locals, url: URL) {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
 	}
@@ -130,24 +131,62 @@ export const GET: RequestHandler = async ({ params, locals, request, url }) => {
 		throw error(404, 'Media not found');
 	}
 
-	// Get optional episodeId for TV shows
 	const episodeId = url.searchParams.get('episodeId') ?? undefined;
-
 	let fileIndex: number | undefined;
 
 	if (mediaItem.type === 'tv') {
 		if (!episodeId) {
 			throw error(400, 'Episode ID required for TV shows');
 		}
-
 		const episode = episodesDb.getById(episodeId);
 		if (!episode) {
 			throw error(404, 'Episode not found');
 		}
-		// If fileIndex is null/undefined, waitForVideoReady will return false (buffering)
-		// until the file index is populated by the download manager
 		fileIndex = episode.fileIndex ?? undefined;
 	}
+
+	return { mediaItem, episodeId, fileIndex };
+}
+
+export const HEAD: RequestHandler = async ({ params, locals, url }) => {
+	const { mediaItem, episodeId, fileIndex } = resolveMedia(params, locals, url);
+
+	const readyResponse = await ensureVideoReady(
+		mediaItem.id,
+		mediaItem.magnetLink,
+		mediaItem.status ?? 'added',
+		fileIndex
+	);
+
+	if (readyResponse) {
+		return new Response(null, { status: readyResponse.status, headers: readyResponse.headers });
+	}
+
+	const streamInfo = await getVideoStream(params.id, episodeId);
+	if (!streamInfo) {
+		throw error(404, 'Video not available');
+	}
+
+	// Immediately destroy the stream — HEAD only needs metadata
+	streamInfo.stream.destroy();
+
+	const { fileSize, fileName, mimeType, isComplete } = streamInfo;
+	const contentType = needsTransmux(fileName) ? 'video/mp4' : mimeType;
+
+	return new Response(null, {
+		status: 200,
+		headers: {
+			'Accept-Ranges': needsTransmux(fileName) ? 'none' : 'bytes',
+			'Content-Length': fileSize.toString(),
+			'Content-Type': contentType,
+			'Content-Disposition': `inline; filename="${fileName}"`,
+			'Cache-Control': isComplete ? 'private, max-age=3600' : 'no-cache',
+		},
+	});
+};
+
+export const GET: RequestHandler = async ({ params, locals, request, url }) => {
+	const { mediaItem, episodeId, fileIndex } = resolveMedia(params, locals, url);
 
 	const readyResponse = await ensureVideoReady(
 		mediaItem.id,

@@ -15,5 +15,6 @@ export default defineConfig({
 	},
 	ssr: {
 		external: ['webtorrent'],
+		noExternal: ['vidstack'],
 	},
 });
