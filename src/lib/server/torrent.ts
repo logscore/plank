@@ -9,7 +9,10 @@ import type { MediaType } from '$lib/types';
 import { downloadsDb, episodesDb, mediaDb, seasonsDb } from './db';
 import { isSupportedFormat, SUPPORTED_VIDEO_FORMATS } from './ffmpeg';
 import { parseMagnet } from './magnet';
+import { discoverSubtitles } from './subtitles';
 import { searchMovie, searchTVShow } from './tmdb';
+
+const SUBTITLE_EXTENSIONS = ['.srt', '.ass', '.ssa', '.vtt', '.sub'];
 
 // WebTorrent types
 interface TorrentFile {
@@ -71,6 +74,7 @@ interface ActiveDownload {
 	torrent: Torrent;
 	videoFile: TorrentFile | null; // Single file for movies
 	videoFiles: TorrentFile[]; // Multiple files for TV shows
+	subtitleFiles: TorrentFile[]; // Subtitle files (.srt, .ass, etc.)
 	selectedFileIndex: number | null; // Currently selected file for streaming
 	episodeMapping: Map<number, number>; // episodeKey (S*100+E) -> fileIndex
 	progress: number;
@@ -189,6 +193,13 @@ function findVideoFiles(files: TorrentFile[]): TorrentFile[] {
 	return files
 		.filter((f) => isSupportedFormat(f.name))
 		.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+}
+
+function findSubtitleFiles(files: TorrentFile[]): TorrentFile[] {
+	return files.filter((f) => {
+		const ext = path.extname(f.name).toLowerCase();
+		return SUBTITLE_EXTENSIONS.includes(ext);
+	});
 }
 
 async function ensureDirectories(): Promise<void> {
@@ -646,6 +657,12 @@ async function handleTVShowReady(
 		f.select();
 	}
 
+	// Also select subtitle files for download
+	download.subtitleFiles = findSubtitleFiles(torrent.files);
+	for (const f of download.subtitleFiles) {
+		f.select();
+	}
+
 	fetchAndUpdateMetadata(mediaId, download.videoFiles[0]?.name ?? torrent.name, 'tv');
 	return true;
 }
@@ -680,6 +697,12 @@ function handleMovieReady(
 		f.deselect();
 	}
 	videoFile.select();
+
+	// Also select subtitle files for download
+	download.subtitleFiles = findSubtitleFiles(torrent.files);
+	for (const f of download.subtitleFiles) {
+		f.select();
+	}
 
 	download.videoFile = videoFile;
 	download.totalSize = videoFile.length;
@@ -748,6 +771,7 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 			torrent,
 			videoFile: null,
 			videoFiles: [],
+			subtitleFiles: [],
 			selectedFileIndex: null,
 			episodeMapping: new Map(),
 			progress: 0,
@@ -854,9 +878,25 @@ async function moveMovieToLibrary(mediaId: string, download: ActiveDownload): Pr
 		await fs.mkdir(destDir, { recursive: true });
 		await fs.copyFile(sourcePath, destPath);
 
+		// Copy subtitle files alongside the video
+		for (const subFile of download.subtitleFiles) {
+			try {
+				const subSource = path.join(download.torrent.path, subFile.path);
+				const subDest = path.join(destDir, subFile.name);
+				await fs.copyFile(subSource, subDest);
+			} catch (subErr) {
+				console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
+			}
+		}
+
 		const stats = await fs.stat(destPath);
 		mediaDb.updateFilePath(mediaId, destPath, stats.size);
-		// console.log(`${logPrefix} File copied to library: ${destPath} (${stats.size} bytes)`);
+
+		// Trigger subtitle discovery (sidecar + embedded) in background
+		discoverSubtitles(mediaId, destPath, destDir).catch((err) => {
+			console.error(`${logPrefix} Subtitle discovery failed:`, err);
+		});
+
 		cleanupDownload(download.infohash, true);
 	} catch (e) {
 		console.error(`${logPrefix} Failed to copy file to library:`, e);
@@ -942,7 +982,18 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 		filesBySeason.set(seasonNum, files);
 	}
 
-	// Copy files organized by season
+	// Copy subtitle files to the base library directory
+	for (const subFile of download.subtitleFiles) {
+		try {
+			const subSource = path.join(download.torrent.path, subFile.path);
+			const subDest = path.join(baseDir, subFile.name);
+			await fs.copyFile(subSource, subDest);
+		} catch (subErr) {
+			console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
+		}
+	}
+
+	// Copy video files organized by season and trigger per-episode subtitle discovery
 	for (const [seasonNum, files] of filesBySeason.entries()) {
 		const seasonDir = path.join(baseDir, `Season ${seasonNum.toString().padStart(2, '0')}`);
 		await fs.mkdir(seasonDir, { recursive: true });
@@ -953,8 +1004,12 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 
 			try {
 				await fs.copyFile(sourcePath, destPath);
-				// console.log(`${logPrefix} Copied to Season ${seasonNum}: ${videoFile.name}`);
 				await updateEpisodeFileInfo(mediaId, download, videoFile, destPath);
+
+				// Trigger subtitle discovery for this episode in background
+				discoverSubtitles(mediaId, destPath, seasonDir).catch((err) => {
+					console.error(`${logPrefix} Subtitle discovery failed for ${videoFile.name}:`, err);
+				});
 			} catch (e) {
 				console.error(`${logPrefix} Failed to copy ${videoFile.name}:`, e);
 			}

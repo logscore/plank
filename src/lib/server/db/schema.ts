@@ -11,6 +11,9 @@ export const user = sqliteTable('user', {
 	email: text('email').notNull().unique(),
 	emailVerified: integer('email_verified', { mode: 'boolean' }).default(false).notNull(),
 	image: text('image'),
+	role: text('role', { enum: ['admin', 'user'] })
+		.default('user')
+		.notNull(),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' })
 		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 		.notNull(),
@@ -25,6 +28,7 @@ export const organization = sqliteTable('organization', {
 	name: text('name').notNull(),
 	slug: text('slug').notNull().unique(),
 	logo: text('logo'),
+	color: text('color').default('#6366F1').notNull(),
 	metadata: text('metadata'), // JSON
 	createdAt: integer('created_at', { mode: 'timestamp_ms' })
 		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
@@ -186,6 +190,8 @@ export const media = sqliteTable(
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 			.notNull(),
 		lastPlayedAt: integer('last_played_at', { mode: 'timestamp_ms' }),
+		playPosition: real('play_position').default(0),
+		playDuration: real('play_duration'),
 	},
 	(table) => [
 		uniqueIndex('media_user_infohash_unique').on(table.userId, table.infohash),
@@ -239,6 +245,8 @@ export const episodes = sqliteTable(
 		downloadedBytes: integer('downloaded_bytes').default(0),
 		displayOrder: integer('display_order').notNull(),
 		status: text('status', { enum: ['pending', 'downloading', 'complete', 'error'] }).default('pending'),
+		playPosition: real('play_position').default(0),
+		playDuration: real('play_duration'),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 			.notNull(),
@@ -314,6 +322,29 @@ export const configuration = sqliteTable('configuration', {
 		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
 });
 
+export const subtitles = sqliteTable(
+	'subtitles',
+	{
+		id: text('id').primaryKey(),
+		mediaId: text('media_id')
+			.notNull()
+			.references(() => media.id, { onDelete: 'cascade' }),
+		episodeId: text('episode_id').references(() => episodes.id, { onDelete: 'cascade' }),
+		language: text('language').notNull(),
+		label: text('label').notNull(),
+		source: text('source', { enum: ['sidecar', 'embedded', 'opensubtitles', 'manual'] }).notNull(),
+		format: text('format').default('vtt'),
+		filePath: text('file_path'),
+		streamIndex: integer('stream_index'),
+		isDefault: integer('is_default', { mode: 'boolean' }).default(false),
+		isForced: integer('is_forced', { mode: 'boolean' }).default(false),
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+			.notNull(),
+	},
+	(table) => [index('idx_subtitles_media').on(table.mediaId), index('idx_subtitles_episode').on(table.episodeId)]
+);
+
 // ============================================================================
 // Relations (Defined after all tables to avoid hoisting issues)
 // ============================================================================
@@ -385,6 +416,7 @@ export const mediaRelations = relations(media, ({ one, many }) => ({
 	}),
 	seasons: many(seasons),
 	downloads: many(downloads),
+	subtitles: many(subtitles),
 }));
 
 export const seasonsRelations = relations(seasons, ({ one, many }) => ({
@@ -395,7 +427,7 @@ export const seasonsRelations = relations(seasons, ({ one, many }) => ({
 	episodes: many(episodes),
 }));
 
-export const episodesRelations = relations(episodes, ({ one }) => ({
+export const episodesRelations = relations(episodes, ({ one, many }) => ({
 	season: one(seasons, {
 		fields: [episodes.seasonId],
 		references: [seasons.id],
@@ -404,6 +436,7 @@ export const episodesRelations = relations(episodes, ({ one }) => ({
 		fields: [episodes.downloadId],
 		references: [downloads.id],
 	}),
+	subtitles: many(subtitles),
 }));
 
 export const downloadsRelations = relations(downloads, ({ one, many }) => ({
@@ -412,6 +445,17 @@ export const downloadsRelations = relations(downloads, ({ one, many }) => ({
 		references: [media.id],
 	}),
 	episodes: many(episodes),
+}));
+
+export const subtitlesRelations = relations(subtitles, ({ one }) => ({
+	media: one(media, {
+		fields: [subtitles.mediaId],
+		references: [media.id],
+	}),
+	episode: one(episodes, {
+		fields: [subtitles.episodeId],
+		references: [episodes.id],
+	}),
 }));
 
 // ============================================================================
@@ -440,6 +484,8 @@ export type Download = typeof downloads.$inferSelect;
 export type NewDownload = typeof downloads.$inferInsert;
 export type TorrentCache = typeof torrentCache.$inferSelect;
 export type NewTorrentCache = typeof torrentCache.$inferInsert;
+export type Subtitle = typeof subtitles.$inferSelect;
+export type NewSubtitle = typeof subtitles.$inferInsert;
 
 // ============================================================================
 // Tables object for consolidated import
@@ -459,4 +505,5 @@ export const schema = {
 	downloads,
 	torrentCache,
 	configuration,
+	subtitles,
 } as const;

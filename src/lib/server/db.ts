@@ -10,8 +10,11 @@ import {
 	type NewEpisode,
 	type NewMedia,
 	type NewSeason,
+	type NewSubtitle,
 	type Season,
+	type Subtitle,
 	seasons as seasonsTable,
+	subtitles as subtitlesTable,
 } from '$lib/server/db/schema';
 import type { MediaType } from '$lib/types';
 import { db } from './db/index';
@@ -180,6 +183,31 @@ export const mediaDb = {
 	 */
 	updateLastPlayed(id: string) {
 		db.update(mediaTable).set({ lastPlayedAt: new Date() }).where(eq(mediaTable.id, id)).run();
+	},
+
+	updatePlayPosition(id: string, position: number, duration?: number) {
+		const updates: Record<string, unknown> = { playPosition: position };
+		if (duration !== undefined) {
+			updates.playDuration = duration;
+		}
+		db.update(mediaTable).set(updates).where(eq(mediaTable.id, id)).run();
+	},
+
+	getRecentlyWatched(orgId: string, limit = 20): Media[] {
+		return db
+			.select()
+			.from(mediaTable)
+			.where(
+				and(
+					eq(mediaTable.organizationId, orgId),
+					sql`${mediaTable.lastPlayedAt} IS NOT NULL`,
+					sql`${mediaTable.playPosition} > 0`,
+					sql`(${mediaTable.playDuration} IS NULL OR ${mediaTable.playPosition} < ${mediaTable.playDuration} * 0.95)`
+				)
+			)
+			.orderBy(desc(mediaTable.lastPlayedAt))
+			.limit(limit)
+			.all();
 	},
 
 	/**
@@ -477,6 +505,14 @@ export const episodesDb = {
 	/**
 	 * Delete all episodes for a season
 	 */
+	updatePlayPosition(id: string, position: number, duration?: number) {
+		const updates: Record<string, unknown> = { playPosition: position };
+		if (duration !== undefined) {
+			updates.playDuration = duration;
+		}
+		db.update(episodesTable).set(updates).where(eq(episodesTable.id, id)).run();
+	},
+
 	deleteBySeasonId(seasonId: string) {
 		db.delete(episodesTable).where(eq(episodesTable.seasonId, seasonId)).run();
 	},
@@ -581,3 +617,34 @@ export const downloadsDb = {
 };
 
 // =============================================================================
+// Subtitle operations
+// =============================================================================
+
+export const subtitlesDb = {
+	create(subtitle: Omit<NewSubtitle, 'id' | 'createdAt'>): Subtitle {
+		const id = crypto.randomUUID();
+		const newSub: NewSubtitle = { id, ...subtitle };
+		db.insert(subtitlesTable).values(newSub).run();
+		return { ...newSub, createdAt: new Date() } as Subtitle;
+	},
+
+	getByMediaId(mediaId: string): Subtitle[] {
+		return db
+			.select()
+			.from(subtitlesTable)
+			.where(and(eq(subtitlesTable.mediaId, mediaId), sql`${subtitlesTable.episodeId} IS NULL`))
+			.all();
+	},
+
+	getByEpisodeId(episodeId: string): Subtitle[] {
+		return db.select().from(subtitlesTable).where(eq(subtitlesTable.episodeId, episodeId)).all();
+	},
+
+	getById(id: string): Subtitle | undefined {
+		return db.select().from(subtitlesTable).where(eq(subtitlesTable.id, id)).get();
+	},
+
+	deleteByMediaId(mediaId: string) {
+		db.delete(subtitlesTable).where(eq(subtitlesTable.mediaId, mediaId)).run();
+	},
+};

@@ -106,3 +106,54 @@ export function createMediaProgressQuery(id: string, options?: { enabled?: boole
 		refetchInterval: options?.refetchInterval ?? 1000,
 	}));
 }
+
+export async function fetchContinueWatching(): Promise<Media[]> {
+	const response = await fetch('/api/media/continue-watching');
+	if (!response.ok) {
+		throw createFetchError('Failed to fetch continue watching', response.status);
+	}
+	return response.json();
+}
+
+export function createContinueWatchingQuery() {
+	return createQuery(() => ({
+		queryKey: queryKeys.media.continueWatching(),
+		queryFn: fetchContinueWatching,
+		staleTime: 30 * 1000,
+	}));
+}
+
+export interface PlayPosition {
+	position: number;
+	duration: number | null;
+}
+
+export async function fetchPlayPosition(id: string, episodeId?: string): Promise<PlayPosition> {
+	const params = episodeId ? `?episodeId=${episodeId}` : '';
+	const response = await fetch(`/api/media/${id}/position${params}`);
+	if (!response.ok) {
+		throw createFetchError('Failed to fetch position', response.status);
+	}
+	return response.json();
+}
+
+export interface SubtitleTrackResponse {
+	id: string;
+	mediaId: string;
+	episodeId: string | null;
+	language: string;
+	label: string;
+	source: string;
+	isDefault: boolean;
+	isForced: boolean;
+	src: string;
+}
+
+export async function fetchSubtitleTracks(id: string, episodeId?: string): Promise<SubtitleTrackResponse[]> {
+	const params = episodeId ? `?episodeId=${episodeId}` : '';
+	const response = await fetch(`/api/media/${id}/subtitles${params}`);
+	if (!response.ok) {
+		throw createFetchError('Failed to fetch subtitles', response.status);
+	}
+	return response.json();
+}

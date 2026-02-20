@@ -1,11 +1,20 @@
 <script lang="ts">
+    import 'vidstack/define/media-player.js';
+    import 'vidstack/define/media-community-skin.js';
     import { ArrowLeft, Download, EllipsisVertical, Users } from '@lucide/svelte';
     import { createQuery } from '@tanstack/svelte-query';
     import { onDestroy, onMount } from 'svelte';
     import { browser } from '$app/environment';
     import { page } from '$app/state';
     import Button from '$lib/components/ui/Button.svelte';
-    import { createMediaDetailQuery, fetchMediaProgress } from '$lib/queries/media-queries';
+    import { createSavePositionMutation } from '$lib/mutations/media-mutations';
+    import {
+        createMediaDetailQuery,
+        fetchMediaProgress,
+        fetchPlayPosition,
+        fetchSubtitleTracks,
+        type SubtitleTrackResponse,
+    } from '$lib/queries/media-queries';
 
     // Queries
     const mediaQuery = createMediaDetailQuery(page.params.id ?? '');
@@ -27,17 +36,28 @@
 
     const progressInfo = $derived(progressQuery.data);
 
-    let videoElement: HTMLVideoElement | undefined = $state(undefined);
-    let showControls = $state(true);
-    let controlsTimeout: ReturnType<typeof setTimeout> | null = null;
-
-    // Menu State
-    let showMenu = $state(false);
-    let showStats = $state(false);
-
     // Get episodeId from URL for TV episodes
     const episodeId = $derived(page.url.searchParams.get('episodeId'));
     const isTVEpisode = $derived(episodeId !== null);
+
+    // Player state
+    let playerEl: HTMLElement | undefined = $state(undefined);
+    let showOverlay = $state(true);
+    let overlayTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    // Menu state
+    let showMenu = $state(false);
+    let showStats = $state(false);
+
+    // Play position state
+    let initialPosition: number | null = $state(null);
+    let positionRestored = $state(false);
+    const savePositionMutation = createSavePositionMutation();
+    let lastSaveTime = 0;
+    const SAVE_INTERVAL_MS = 5000;
+
+    // Subtitle state
+    let subtitleTracks: SubtitleTrackResponse[] = $state([]);
 
     function formatSpeed(bytesPerSecond: number): string {
         if (bytesPerSecond < 1024) {
@@ -47,27 +67,6 @@
             return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
         }
         return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
-    }
-
-    onMount(() => {
-        resetControlsTimeout();
-        // Close menu on click outside
-        document.addEventListener('click', handleGlobalClick);
-    });
-
-    onDestroy(() => {
-        if (controlsTimeout) {
-            clearTimeout(controlsTimeout);
-        }
-        if (browser) {
-            document.removeEventListener('click', handleGlobalClick);
-        }
-    });
-
-    function handleGlobalClick(e: MouseEvent) {
-        if (showMenu && !(e.target as HTMLElement).closest('#player-menu')) {
-            showMenu = false;
-        }
     }
 
     function getVideoSrc(): string {
@@ -84,19 +83,19 @@
         );
     }
 
+    // Overlay auto-hide
     function handleMouseMove() {
-        showControls = true;
-        resetControlsTimeout();
+        showOverlay = true;
+        resetOverlayTimeout();
     }
 
-    function resetControlsTimeout() {
-        if (controlsTimeout) {
-            clearTimeout(controlsTimeout);
+    function resetOverlayTimeout() {
+        if (overlayTimeout) {
+            clearTimeout(overlayTimeout);
         }
-        controlsTimeout = setTimeout(() => {
-            // Hide controls if video is playing and menu is closed
-            if (videoElement && !videoElement.paused && !showMenu) {
-                showControls = false;
+        overlayTimeout = setTimeout(() => {
+            if (!showMenu) {
+                showOverlay = false;
             }
         }, 3000);
     }
@@ -105,6 +104,124 @@
         showStats = !showStats;
         showMenu = false;
     }
+
+    function handleGlobalClick(e: MouseEvent) {
+        if (showMenu && !(e.target as HTMLElement).closest('#player-menu')) {
+            showMenu = false;
+        }
+    }
+
+    // Play position: save current time
+    function savePosition(currentTime: number, duration?: number) {
+        const id = page.params.id;
+        if (!id || currentTime <= 0) {
+            return;
+        }
+
+        savePositionMutation.mutate({
+            id,
+            position: currentTime,
+            duration,
+            episodeId: episodeId ?? undefined,
+        });
+    }
+
+    // Player event handlers
+    function onCanPlay() {
+        if (!positionRestored && initialPosition && initialPosition > 0 && playerEl) {
+            (playerEl as unknown as { currentTime: number }).currentTime = initialPosition;
+            positionRestored = true;
+        }
+    }
+
+    function onTimeUpdate(event: CustomEvent) {
+        const now = Date.now();
+        if (now - lastSaveTime < SAVE_INTERVAL_MS) {
+            return;
+        }
+        lastSaveTime = now;
+
+        const detail = event.detail;
+        const currentTime = detail?.currentTime ?? 0;
+        const duration = (playerEl as unknown as { duration: number })?.duration;
+        if (currentTime > 0) {
+            savePosition(currentTime, duration);
+        }
+    }
+
+    function onEnded() {
+        const duration = (playerEl as unknown as { duration: number })?.duration;
+        if (duration) {
+            savePosition(duration, duration);
+        }
+    }
+
+    // Lifecycle: attach player event listeners
+    $effect(() => {
+        if (!playerEl) {
+            return;
+        }
+
+        const el = playerEl;
+        el.addEventListener('can-play', onCanPlay);
+        el.addEventListener('time-update', onTimeUpdate as EventListener);
+        el.addEventListener('ended', onEnded);
+
+        return () => {
+            el.removeEventListener('can-play', onCanPlay);
+            el.removeEventListener('time-update', onTimeUpdate as EventListener);
+            el.removeEventListener('ended', onEnded);
+        };
+    });
+
+    onMount(async () => {
+        resetOverlayTimeout();
+        document.addEventListener('click', handleGlobalClick);
+
+        const mediaId = page.params.id;
+        if (!mediaId) {
+            return;
+        }
+
+        // Fetch initial position and subtitle tracks in parallel
+        const [posResult, subsResult] = await Promise.allSettled([
+            fetchPlayPosition(mediaId, episodeId ?? undefined),
+            fetchSubtitleTracks(mediaId, episodeId ?? undefined),
+        ]);
+
+        if (posResult.status === 'fulfilled' && posResult.value.position > 0) {
+            initialPosition = posResult.value.position;
+        }
+
+        if (subsResult.status === 'fulfilled') {
+            subtitleTracks = subsResult.value;
+        }
+    });
+
+    onDestroy(() => {
+        if (overlayTimeout) {
+            clearTimeout(overlayTimeout);
+        }
+
+        if (browser) {
+            document.removeEventListener('click', handleGlobalClick);
+
+            // Save final position via sendBeacon on page leave
+            const id = page.params.id;
+            if (id && playerEl) {
+                const currentTime = (playerEl as unknown as { currentTime: number })?.currentTime;
+                const duration = (playerEl as unknown as { duration: number })?.duration;
+                if (currentTime > 0) {
+                    const payload = JSON.stringify({
+                        position: currentTime,
+                        duration,
+                        episodeId: episodeId ?? undefined,
+                    });
+                    navigator.sendBeacon(`/api/media/${id}/position`, payload);
+                }
+            }
+        }
+    });
 </script>
 
 <div
@@ -126,12 +243,11 @@
     {:else}
         <!-- Controls Overlay (Top) -->
         <div
-            class="absolute top-0 left-0 w-full p-6 z-50 flex justify-between items-start transition-opacity duration-300 {showControls
+            class="absolute top-0 left-0 w-full p-6 z-50 flex justify-between items-start transition-opacity duration-300 {showOverlay
                 ? 'opacity-100'
-                : 'opacity-0'}"
+                : 'opacity-0 pointer-events-none'}"
         >
             <!-- Back Button -->
-
             <button
                 onclick={() => window.history.back()}
                 class="bg-black/50 hover:bg-black/70 text-white rounded-full p-3 backdrop-blur-sm transition-all hover:scale-105"
@@ -151,7 +267,6 @@
                     <EllipsisVertical class="w-6 h-6" />
                 </button>
 
-                <!-- Menu Dropdown -->
                 {#if showMenu}
                     <div
                         class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-black/90 border border-white/10 ring-1 ring-black ring-opacity-5 backdrop-blur-md overflow-hidden"
@@ -174,17 +289,29 @@
         </div>
 
         <!-- Video Player -->
-        <div class="w-full h-full flex items-center justify-center">
+        <div class="w-full h-full">
             {#if getIsReady()}
-                <!-- svelte-ignore a11y_media_has_caption -->
-                <video
-                    bind:this={videoElement}
+                <media-player
+                    bind:this={playerEl}
                     src={getVideoSrc()}
-                    controls
                     autoplay
-                    class="w-full h-full object-contain"
-                    onplay={() => resetControlsTimeout()}
-                ></video>
+                    title={media?.title ?? ""}
+                    class="w-full h-full"
+                    style="--video-border: none; --video-border-radius: 0;"
+                >
+                    <media-outlet>
+                        {#each subtitleTracks as track (track.id)}
+                            <track
+                                src={track.src}
+                                kind="subtitles"
+                                label={track.label}
+                                srclang={track.language}
+                                default={track.isDefault}
+                            >
+                        {/each}
+                    </media-outlet>
+                    <media-community-skin></media-community-skin>
+                </media-player>
             {:else}
                 <div class="relative w-full h-full">
                     <!-- Background Poster blurred -->
@@ -214,7 +341,7 @@
         <!-- Stats Overlay -->
         {#if showStats && progressInfo && progressInfo.status !== "complete"}
             <div
-                class="absolute bottom-20 left-6 z-40 p-4 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 text-xs font-mono space-y-2 transition-opacity duration-300 {showControls
+                class="absolute bottom-20 left-6 z-40 p-4 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 text-xs font-mono space-y-2 transition-opacity duration-300 {showOverlay
                     ? 'opacity-100'
                     : 'opacity-0'}"
             >

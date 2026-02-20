@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { Tv } from '@lucide/svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
     import { authClient } from '$lib/auth-client';
@@ -25,20 +24,8 @@
             if (result.error) {
                 error = result.error.message || 'Invalid credentials';
             } else {
-                // Check for redirect URL
                 const redirectTo = page.url.searchParams.get('redirectTo');
-                if (redirectTo) {
-                    goto(redirectTo);
-                    return;
-                }
-
-                // Check if user has any organizations
-                const orgs = await authClient.organization.list();
-                if (orgs.data && orgs.data.length > 0) {
-                    goto('/');
-                } else {
-                    goto('/onboarding');
-                }
+                goto(redirectTo || '/profiles');
             }
         } catch (e) {
             error = 'An error occurred. Please try again.';

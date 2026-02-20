@@ -1,6 +1,5 @@
 import { error, json } from '@sveltejs/kit';
 import { config } from '$lib/config';
-import { auth } from '$lib/server/auth';
 import { downloadsDb, mediaDb } from '$lib/server/db';
 import { parseMagnet } from '$lib/server/magnet';
 import {
@@ -98,23 +97,18 @@ function saveImagesAsync(metadata: MediaMetadata, mediaId: string): void {
 	})();
 }
 
-export const GET: RequestHandler = async ({ locals, url, request }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
 	}
 
-	// Get user's organization
-	const [userOrganization] = await auth.api.listOrganizations({
-		// This endpoint requires session cookies.
-		headers: request.headers,
-	});
-
-	if (!userOrganization) {
-		throw error(400, 'No organization found');
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
+		throw error(400, 'No active profile selected');
 	}
 
 	const type = url.searchParams.get('type') as MediaType | null;
-	const list = mediaDb.list(userOrganization.id, type ?? undefined);
+	const list = mediaDb.list(organizationId, type ?? undefined);
 	return json(list);
 };
 
@@ -211,20 +205,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 	}
 
-	// Get user's organization
-	const [userOrganization] = await auth.api.listOrganizations({
-		// This endpoint requires session cookies.
-		headers: request.headers,
-	});
-
-	if (!userOrganization) {
-		throw error(400, 'No organization found');
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
+		throw error(400, 'No active profile selected');
 	}
 
 	// Create new media record
 	const mediaItem = mediaDb.create({
 		userId: locals.user.id,
-		organizationId: userOrganization.id,
+		organizationId,
 		type: mediaType,
 		title: metadata.title,
 		year: metadata.year,

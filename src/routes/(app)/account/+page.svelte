@@ -196,13 +196,13 @@
         </div>
     </div>
 
-    <!-- Organization -->
+    <!-- Profile -->
     {#if data.organization}
         <div class="rounded-xl border border-border bg-card p-6 mb-6">
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-3">
                     <Users class="w-5 h-5 text-primary" />
-                    <h3 class="text-lg font-semibold">Organization: {data.organization.name}</h3>
+                    <h3 class="text-lg font-semibold">Profile: {data.organization.name}</h3>
                 </div>
                 {#if data.userRole === "owner" || data.userRole === "admin"}
                     <Button variant="secondary" size="sm" onclick={() => uiState.toggleInviteMemberDialog()}>
