@@ -11,6 +11,7 @@ import { isSupportedFormat, SUPPORTED_VIDEO_FORMATS } from './ffmpeg';
 import { parseMagnet } from './magnet';
 import { discoverSubtitles } from './subtitles';
 import { searchMovie, searchTVShow } from './tmdb';
+import { transcodeMovieFile, transcodeTVEpisodes } from './transcoder';
 
 const SUBTITLE_EXTENSIONS = ['.srt', '.ass', '.ssa', '.vtt', '.sub'];
 
@@ -129,13 +130,23 @@ const NXNN_PATTERN = /(\d{1,2})x(\d{1,2})/i;
 
 async function getClient(): Promise<WebTorrentClient> {
 	if (!client) {
-		// console.log('[WebTorrent] Initializing client...');
+		// Suppress expected 'utp-native not found' warning during WebTorrent import
+		const originalError = console.error;
+		console.error = (...args: unknown[]) => {
+			if (typeof args[0] === 'string' && args[0].includes('uTP not supported')) {
+				return;
+			}
+			originalError.apply(console, args);
+		};
+
 		const WebTorrent = await import('webtorrent');
 		client = new WebTorrent.default({
 			maxConns: 100,
 			downloadLimit: -1,
 			uploadLimit: -1,
 		}) as unknown as WebTorrentClient;
+
+		console.error = originalError;
 
 		// Add global error handler
 		(client as unknown as { on: (event: string, handler: (err: Error) => void) => void }).on(
@@ -503,6 +514,17 @@ async function handleDownloadComplete(infohash: string, download: ActiveDownload
 
 	await moveToLibrary(download.mediaId, download);
 	// console.log(`${logPrefix} moveToLibrary completed`);
+
+	// Trigger immediate transcoding in background (non-blocking)
+	if (download.mediaType === 'movie') {
+		transcodeMovieFile(download.mediaId).catch((err) => {
+			console.error('[Transcoder] Post-download movie transcoding failed:', err);
+		});
+	} else {
+		transcodeTVEpisodes(download.mediaId).catch((err) => {
+			console.error('[Transcoder] Post-download TV transcoding failed:', err);
+		});
+	}
 
 	// Update download record in database
 	const downloadRecord = downloadsDb.getByInfohash(download.mediaId, infohash);

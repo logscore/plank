@@ -87,6 +87,56 @@ async function scanTVShows(): Promise<void> {
 	);
 }
 
+/** Transcode a single movie file immediately after download */
+export async function transcodeMovieFile(mediaId: string): Promise<void> {
+	const media = mediaDb.getById(mediaId);
+	if (!(media?.filePath && existsSync(media.filePath))) {
+		return;
+	}
+
+	const ext = path.extname(media.filePath).toLowerCase();
+	if (ext === '.mp4' || ext === '.webm') {
+		return;
+	}
+
+	console.log(`[Transcoder] Transmuxing movie ${mediaId}: ${media.filePath}`);
+	await safeTransmux(media.filePath, (newPath, newSize) => {
+		mediaDb.updateFilePath(mediaId, newPath, newSize);
+	});
+}
+
+/** Transcode all episodes for a single TV media item immediately after download */
+export async function transcodeTVEpisodes(mediaId: string): Promise<void> {
+	const allEpisodes = episodesDb.getByMediaId(mediaId);
+
+	const episodesToTranscode = allEpisodes.filter(
+		({ episode }) =>
+			episode.filePath &&
+			existsSync(episode.filePath) &&
+			episode.fileIndex !== null &&
+			!['.mp4', '.webm'].includes(path.extname(episode.filePath).toLowerCase())
+	);
+
+	if (episodesToTranscode.length === 0) {
+		return;
+	}
+
+	console.log(`[Transcoder] Transmuxing ${episodesToTranscode.length} episodes for media ${mediaId}`);
+	await Promise.all(
+		episodesToTranscode.map(async ({ episode }) => {
+			if (!episode.filePath || episode.fileIndex === null) {
+				return;
+			}
+
+			await safeTransmux(episode.filePath, (newPath, newSize) => {
+				if (episode.fileIndex !== null) {
+					episodesDb.updateFileInfo(episode.id, episode.fileIndex, newPath, newSize);
+				}
+			});
+		})
+	);
+}
+
 async function safeTransmux(sourcePath: string, updateDb: (path: string, size: number) => void): Promise<void> {
 	const dir = path.dirname(sourcePath);
 	const name = path.basename(sourcePath, path.extname(sourcePath));

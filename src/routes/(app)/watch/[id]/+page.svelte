@@ -283,7 +283,6 @@
                     src={getVideoSrc()}
                     autoplay
                     playsinline
-                    crossorigin
                     streamType="on-demand"
                     controlsDelay={3000}
                     title={media?.title ?? ""}
@@ -320,7 +319,7 @@
                             ></div>
                         </div>
                         <div class="text-center space-y-2">
-                            <h2 class="text-2xl font-bold text-white">Buffering {media?.title}...</h2>
+                            <h2 class="text-2xl font-bold text-white">Loading {media?.title}...</h2>
                             <p class="text-zinc-400">Waiting for video to stream in from space</p>
                         </div>
                     </div>
