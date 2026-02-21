@@ -10,8 +10,8 @@
     let { data } = $props<{ data: PageData }>();
 
     let saving = $state(false);
-    let prowlarrUrl = $state(data.settings.prowlarr.url);
-    let prowlarrApiKey = $state(data.settings.prowlarr.apiKey);
+    let prowlarrUrl = $derived(data.settings.prowlarr.url);
+    let prowlarrApiKey = $derived(data.settings.prowlarr.apiKey);
 
     function getTrustedGroupsString(groups: string[]) {
         return groups.join(', ');
