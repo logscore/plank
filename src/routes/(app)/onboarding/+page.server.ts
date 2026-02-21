@@ -7,6 +7,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(302, '/login');
 	}
 
+	// Only admin can access onboarding
+	if (locals.user.role !== 'admin') {
+		throw redirect(302, '/profiles');
+	}
+
 	const settings = await getSettings();
 
 	return {

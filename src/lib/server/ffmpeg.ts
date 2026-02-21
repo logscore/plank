@@ -103,6 +103,73 @@ export async function transmuxFile(inputPath: string, outputPath: string): Promi
 	});
 }
 
+// Subtitle formats that cannot be converted to text-based VTT
+const BITMAP_SUBTITLE_CODECS = ['hdmv_pgs_subtitle', 'dvb_subtitle', 'dvd_subtitle'];
+
+export interface SubtitleStreamInfo {
+	index: number;
+	language: string;
+	title: string;
+	codec: string;
+	isDefault: boolean;
+	isForced: boolean;
+}
+
+export async function probeSubtitleStreams(filePath: string): Promise<SubtitleStreamInfo[]> {
+	return new Promise((resolve, reject) => {
+		ffmpeg.ffprobe(filePath, (err, metadata) => {
+			if (err) {
+				reject(err);
+				return;
+			}
+
+			const streams = metadata.streams
+				.filter((s) => s.codec_type === 'subtitle')
+				.filter((s) => !BITMAP_SUBTITLE_CODECS.includes(s.codec_name ?? ''))
+				.map((s, i) => ({
+					index: s.index,
+					language: s.tags?.language ?? 'und',
+					title: s.tags?.title ?? `Track ${i + 1}`,
+					codec: s.codec_name ?? 'unknown',
+					isDefault: s.disposition?.default === 1,
+					isForced: s.disposition?.forced === 1,
+				}));
+
+			resolve(streams);
+		});
+	});
+}
+
+export async function extractSubtitleAsVtt(inputPath: string, streamIndex: number, outputPath: string): Promise<void> {
+	return new Promise((resolve, reject) => {
+		ffmpeg(inputPath)
+			.outputOptions(['-map', `0:${streamIndex}`, '-c:s', 'webvtt'])
+			.output(outputPath)
+			.on('error', (err: Error) => {
+				reject(err);
+			})
+			.on('end', () => {
+				resolve();
+			})
+			.run();
+	});
+}
+
+export async function convertSubtitleToVtt(inputPath: string, outputPath: string): Promise<void> {
+	return new Promise((resolve, reject) => {
+		ffmpeg(inputPath)
+			.outputOptions(['-c:s', 'webvtt'])
+			.output(outputPath)
+			.on('error', (err: Error) => {
+				reject(err);
+			})
+			.on('end', () => {
+				resolve();
+			})
+			.run();
+	});
+}
+
 // Probe a file to get its codec information
 export async function probeFile(filePath: string): Promise<{
 	videoCodec: string | null;

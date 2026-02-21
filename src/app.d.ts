@@ -7,11 +7,13 @@ declare global {
 				id: string;
 				email: string;
 				name: string | null;
+				role: string;
 			} | null;
 			session: {
 				id: string;
 				userId: string;
 				expiresAt: Date;
+				activeOrganizationId?: string | null;
 			} | null;
 		}
 	}

@@ -6,6 +6,11 @@ export const queryKeys = {
 		list: (type: 'movie' | 'tv' | 'all') => [...queryKeys.media.lists(), type] as const,
 		detail: (id: string) => [...queryKeys.media.all, 'detail', id] as const,
 		search: (query: string) => [...queryKeys.media.all, 'search', query] as const,
+		continueWatching: () => [...queryKeys.media.all, 'continue-watching'] as const,
+		position: (id: string, episodeId?: string) =>
+			[...queryKeys.media.all, 'position', id, episodeId ?? 'movie'] as const,
+		subtitles: (id: string, episodeId?: string) =>
+			[...queryKeys.media.all, 'subtitles', id, episodeId ?? 'movie'] as const,
 	},
 
 	// Browse queries

@@ -37,6 +37,7 @@
     "parse-torrent-title": "2.1.0",
     "svelte-sonner": "^1.0.7",
     "tailwind-merge": "3.4.0",
+    "vidstack": "^1.12.13",
     "webtorrent": "2.8.5"
   },
   "devDependencies": {

@@ -1,8 +1,7 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import { authClient } from '$lib/auth-client';
-    import IndexerManager from '$lib/components/IndexerManager.svelte';
+    import Facehash from '$lib/components/facehash/Facehash.svelte';
     import OnboardingIndexer from '$lib/components/onboarding/OnboardingIndexer.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import Input from '$lib/components/ui/Input.svelte';
@@ -10,43 +9,47 @@
 
     let { data } = $props<{ data: PageData }>();
 
-    let step = $state(1); // 1: Create Org, 2: Indexers, 3: Invite
+    let step = $state(1); // 1: Create Profile, 2: Indexers, 3: Invite
     let loading = $state(false);
     let error = $state('');
 
-    // Organization form
-    let orgName = $state('');
-    let orgSlug = $state('');
+    // Profile form
+    let profileName = $state('');
     let organizationId = $state('');
 
     // Invitation form
     let inviteEmail = $state('');
     let invitedEmails = $state<string[]>([]);
 
-    async function handleCreateOrg(e: Event) {
+    async function handleCreateProfile(e: Event) {
         e.preventDefault();
         loading = true;
         error = '';
 
         try {
-            console.log('Creating organization:', { name: orgName, slug: orgSlug });
+            const slug =
+                profileName
+                    .toLowerCase()
+                    .replace(/\s+/g, '-')
+                    .replace(/[^a-z0-9-]/g, '') || `profile-${Date.now()}`;
+
             const result = await authClient.organization.create({
-                name: orgName,
-                slug: orgSlug || orgName.toLowerCase().replace(/\s+/g, '-'),
+                name: profileName,
+                slug,
             });
-            console.log('Organization creation result:', result);
 
             if (result.error) {
-                error = result.error.message || 'Failed to create organization';
+                error = result.error.message || 'Failed to create profile';
             } else if (result.data) {
                 organizationId = result.data.id;
+
                 // Automatically set as active
                 await authClient.organization.setActive({
                     organizationId: result.data.id,
                 });
                 step = 2;
             }
-        } catch (e) {
+        } catch {
             error = 'An error occurred. Please try again.';
         } finally {
             loading = false;
@@ -79,7 +82,7 @@
                 invitedEmails = [...invitedEmails, inviteEmail];
                 inviteEmail = '';
             }
-        } catch (e) {
+        } catch {
             error = 'An error occurred inviting member.';
         } finally {
             loading = false;
@@ -89,14 +92,6 @@
     async function handleFinish() {
         goto('/');
     }
-
-    // Auto-generate slug from name
-    $effect(() => {
-        if (step === 1 && orgName && !orgSlug) {
-            // Only auto-update if user hasn't manually edited slug (simplified logic here)
-            // simplified: just suggest it in placeholder or let backend handle if empty
-        }
-    });
 </script>
 
 <div class="flex items-center justify-center min-h-[80vh]">
@@ -104,16 +99,16 @@
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold tracking-tight">
                 {#if step === 1}
-                    Setup Organization
+                    Create Your First Profile
                 {:else if step === 2}
                     Configure Indexers
                 {:else}
-                    Invite Team
+                    Invite Members
                 {/if}
             </h1>
             <p class="text-muted-foreground mt-2">
                 {#if step === 1}
-                    Create a space for your media
+                    Set up a space for your media collection
                 {:else if step === 2}
                     Add torrent sources to find content
                 {:else}
@@ -123,7 +118,7 @@
         </div>
 
         {#if step === 1}
-            <form onsubmit={handleCreateOrg} class="space-y-4">
+            <form onsubmit={handleCreateProfile} class="space-y-4">
                 {#if error}
                     <div
                         class="p-3 bg-destructive/15 border border-destructive/50 rounded-lg text-destructive text-sm text-center"
@@ -133,28 +128,20 @@
                 {/if}
 
                 <div class="space-y-4">
-                    <div class="space-y-2">
-                        <label for="orgName" class="text-sm font-medium leading-none">Organization Name</label>
-                        <Input
-                            type="text"
-                            id="orgName"
-                            bind:value={orgName}
-                            required
-                            placeholder="My Movie Club"
-                            class="bg-background/50"
-                        />
+                    <div class="flex flex-col items-center gap-4">
+                        <Facehash name={profileName || 'Profile'} size={96} class="rounded-xl text-white" enableBlink />
                     </div>
 
                     <div class="space-y-2">
-                        <label for="orgSlug" class="text-sm font-medium leading-none">Slug (Optional)</label>
+                        <label for="profileName" class="text-sm font-medium leading-none">Profile Name</label>
                         <Input
                             type="text"
-                            id="orgSlug"
-                            bind:value={orgSlug}
-                            placeholder={orgName ? orgName.toLowerCase().replace(/\s+/g, '-') : 'my-movie-club'}
+                            id="profileName"
+                            bind:value={profileName}
+                            required
+                            placeholder="e.g. Family, Kids, Movie Night"
                             class="bg-background/50"
                         />
-                        <p class="text-xs text-muted-foreground">Unique identifier for your organization URL</p>
                     </div>
                 </div>
 
@@ -164,7 +151,6 @@
             </form>
         {:else if step === 2}
             <div class="space-y-6">
-                <!-- Use the custom OnboardingIndexer component -->
                 <div class="-mx-2">
                     <OnboardingIndexer
                         prowlarrUrl={data.settings.prowlarr.url}

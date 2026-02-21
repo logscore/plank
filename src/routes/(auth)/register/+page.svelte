@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { Tv } from '@lucide/svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
     import { authClient } from '$lib/auth-client';
@@ -41,11 +40,7 @@
                 error = result.error.message || 'Registration failed';
             } else {
                 const redirectTo = page.url.searchParams.get('redirectTo');
-                if (redirectTo) {
-                    goto(redirectTo);
-                } else {
-                    goto('/onboarding');
-                }
+                goto(redirectTo || '/profiles');
             }
         } catch (e) {
             error = 'An error occurred. Please try again.';

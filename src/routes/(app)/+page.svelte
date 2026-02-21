@@ -3,10 +3,11 @@
     import { createQuery } from '@tanstack/svelte-query';
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
+    import ContinueWatchingCard from '$lib/components/ContinueWatchingCard.svelte';
     import MediaCard from '$lib/components/MediaCard.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import { createDeleteMediaMutation } from '$lib/mutations/media-mutations';
-    import { fetchMediaList } from '$lib/queries/media-queries';
+    import { createContinueWatchingQuery, fetchMediaList } from '$lib/queries/media-queries';
     import { queryKeys } from '$lib/query-keys';
     import { confirmDelete } from '$lib/ui-state.svelte';
 
@@ -22,6 +23,10 @@
         queryFn: () => fetchMediaList('tv'),
         staleTime: 2 * 60 * 1000, // 2 minutes
     }));
+
+    // Continue watching
+    const continueWatchingQuery = createContinueWatchingQuery();
+    const continueWatching = $derived(continueWatchingQuery.data ?? []);
 
     // Mutation hooks
     const deleteMutation = createDeleteMediaMutation();
@@ -102,6 +107,18 @@
             </div>
         </div>
     </div>
+
+    <!-- Continue Watching -->
+    {#if continueWatching.length > 0}
+        <div class="container max-w-7xl mx-auto px-4 pt-6">
+            <h2 class="text-lg font-semibold mb-3">Continue Watching</h2>
+            <div class="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+                {#each continueWatching as item (item.id)}
+                    <ContinueWatchingCard media={item} />
+                {/each}
+            </div>
+        </div>
+    {/if}
 
     <!-- Content -->
     <div class="container max-w-7xl mx-auto px-4 py-8">

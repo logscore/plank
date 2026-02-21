@@ -6,12 +6,9 @@
         HardDrive,
         Key,
         Mail,
-        Settings,
-        Shield,
         ShieldAlert,
         ShieldCheck,
         Trash2,
-        User,
         UserPlus,
         Users,
         X,
@@ -20,6 +17,7 @@
     import { toast } from 'svelte-sonner';
     import { invalidateAll } from '$app/navigation';
     import { authClient } from '$lib/auth-client';
+    import Facehash from '$lib/components/facehash/Facehash.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import Input from '$lib/components/ui/Input.svelte';
     import { confirmDelete, uiState } from '$lib/ui-state.svelte';
@@ -87,7 +85,7 @@
                 invitationId,
             });
             if (res.error) {
-                toast.error(res.error.message);
+                toast.error(res.error.message || 'There was an error revoking invitation.');
             } else {
                 await invalidateAll();
             }
@@ -164,9 +162,13 @@
     <!-- User Info Card -->
     <div class="rounded-xl border border-border bg-card p-6 mb-6">
         <div class="flex items-center gap-4 mb-6">
-            <div class="w-16 h-16 rounded-full bg-accent flex items-center justify-center">
-                <User class="w-8 h-8 text-muted-foreground" />
-            </div>
+            <Facehash
+                class="rounded-full bg-accent flex items-center justify-center"
+                name={data.user.name}
+                variant="gradient"
+                size={60}
+                intensity3d="medium"
+            />
             <div>
                 <h2 class="text-xl font-semibold">{data.user.name || "User"}</h2>
                 <div class="flex items-center gap-2 text-muted-foreground">
@@ -196,13 +198,13 @@
         </div>
     </div>
 
-    <!-- Organization -->
+    <!-- Profile -->
     {#if data.organization}
         <div class="rounded-xl border border-border bg-card p-6 mb-6">
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-3">
                     <Users class="w-5 h-5 text-primary" />
-                    <h3 class="text-lg font-semibold">Organization: {data.organization.name}</h3>
+                    <h3 class="text-lg font-semibold">Profile: {data.organization.name}</h3>
                 </div>
                 {#if data.userRole === "owner" || data.userRole === "admin"}
                     <Button variant="secondary" size="sm" onclick={() => uiState.toggleInviteMemberDialog()}>
@@ -222,9 +224,13 @@
                                 class="flex items-center justify-between p-3 rounded-lg border border-border bg-background/50"
                             >
                                 <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
-                                        <User class="w-4 h-4 text-muted-foreground" />
-                                    </div>
+                                    <Facehash
+                                        class="rounded-full flex items-center justify-center"
+                                        name={data.user.name}
+                                        variant="solid"
+                                        size={36}
+                                        intensity3d="medium"
+                                    />
                                     <div>
                                         <p class="font-medium text-sm">{member.user.name}</p>
                                         <p class="text-xs text-muted-foreground">{member.user.email}</p>

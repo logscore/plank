@@ -158,3 +158,36 @@ export function createRetryDownloadMutation() {
 
 	return createMutation<void, Error, string, unknown>(() => options);
 }
+
+export interface SavePositionParams {
+	id: string;
+	position: number;
+	duration?: number;
+	episodeId?: string;
+}
+
+export function createSavePositionMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation<void, Error, SavePositionParams>(() => ({
+		mutationFn: async (params: SavePositionParams): Promise<void> => {
+			const response = await fetch(`/api/media/${params.id}/position`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					position: params.position,
+					duration: params.duration,
+					episodeId: params.episodeId,
+				}),
+			});
+			if (!response.ok) {
+				throw new Error('Failed to save position');
+			}
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.media.continueWatching(),
+			});
+		},
+	}));
+}

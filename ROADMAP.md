@@ -1,10 +1,9 @@
 # ROADMAP
 
 - [ ] Handle no TMDB api key by having a poster placeholder
-- [ ] Public website mode
-  - [ ] Stream torrents on the client only. TMDB service is still provided (secures our API key), but that's it. Everything else is handled by the client. We shouldnt even use Jackett for this mode.
-  - [ ] When a magnet link is added, stream it right away and store the metadata and magnet link on the browser for restreaming if they want to watch it again.
-- [ ] Im noticing some mental frictin with search. I think we can try having search for the browser be on the browser page and default to its browser selection on the selection page. or something like that
+- [ ] Subtitles
+- [ ] Fix the onboarding flow so that the indexers update optimistically
+- [ ] Im noticing some mental friction with search. I think we can try having search for the browser be on the browser page and default to its browser selection on the selection page. or something like that
 - [ ] Ensure that when I add a movie or TV show to my library, the data from the torrent card gets added into the database. So that the media card in my library is the exact same as what is displayed on the browse page. 
 - [ ] Improve the details cards on tv shows. they currently dont have a redownload button, dont show the mb/sec # of peers or size of torrent, and they dont show the location of the episodes, which should be where the seasons are located as it holds multiple files. I want the same functionality as the movies version of the page
 - [ ] Improve the episode cards on the tv show details page. Maybe add the title, the description of the episode, runtime, and a poster image
@@ -17,7 +16,6 @@
 - [ ] Adjust progress endpoint to SSE. Stop streaming when video plays, and start again if user opens "stats for nerds"
 - [ ] The torrent index setup page isnt working since the migration to prowlerr. 
 - [ ] add a setting to seed the torrents. This will be a toggle on the settings page and on signup. It will default to false.
-- [ ] Subtitles
 - [ ] **Content Request & Voting System (Backburner)**
   - Family/friends can request movies/shows
   - In person movie party people can request and vote on movies/shows via QR code page
@@ -30,6 +28,9 @@
   - Smart quality selection based on preferences
   - Release group preferences
   - Auto-download when new episodes air, notify when available via text
+- [ ] Public website mode
+  - [ ] Stream torrents on the client only. TMDB service is still provided (secures our API key), but that's it. Everything else is handled by the client. We shouldnt even use Jackett for this mode.
+  - [ ] When a magnet link is added, stream it right away and store the metadata and magnet link on the browser for restreaming if they want to watch it again.
 
 
 - [x] Migrate user manaement to organizations so admin users can add new people to access their stuff

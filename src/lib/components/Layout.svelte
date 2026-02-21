@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Film, LogOut, Play, Plus, Search, Settings, User, UserPlus } from '@lucide/svelte';
+    import { Film, LogOut, Play, Plus, Search, Settings, User, Users } from '@lucide/svelte';
     import type { Snippet } from 'svelte';
     import { fade, fly } from 'svelte/transition';
     import { page } from '$app/state';
@@ -22,6 +22,14 @@
         { href: '/search', icon: Search, label: 'Search' },
     ];
 
+    // Hide nav on player, profile selection, and onboarding pages
+    const hideNav = $derived(
+        page.url.pathname.startsWith('/watch') ||
+            page.url.pathname === '/profiles' ||
+            page.url.pathname.startsWith('/profiles/') ||
+            page.url.pathname.startsWith('/onboarding')
+    );
+
     function handleClickOutside(e: MouseEvent) {
         if (showAccountMenu && !(e.target as HTMLElement).closest('.account-menu')) {
             showAccountMenu = false;
@@ -31,11 +39,9 @@
 
 <svelte:document onclick={handleClickOutside} />
 
-<div
-    class={cn("min-h-screen bg-background text-foreground flex flex-col relative", !page.url.pathname.startsWith("/watch") && "pb-24")}
->
+<div class={cn('min-h-screen bg-background text-foreground flex flex-col relative', !hideNav && 'pb-24')}>
     <!-- Account Button - Bottom Right Corner -->
-    {#if !page.url.pathname.startsWith("/watch")}
+    {#if !hideNav}
         <div class="fixed bottom-8 right-8 z-50 account-menu" transition:fly={{ y: 20, duration: 300 }}>
             <div class="p-1.5 rounded-full border border-white/10 bg-black/80 backdrop-blur-xl shadow-2xl">
                 <button
@@ -50,10 +56,19 @@
             <!-- Context Menu -->
             {#if showAccountMenu}
                 <div
-                    class="absolute bottom-full right-0 mb-4 w-40 rounded-md shadow-lg bg-black/95 border border-white/10 ring-1 ring-black ring-opacity-5 backdrop-blur-md overflow-hidden z-50"
+                    class="absolute bottom-full right-0 mb-4 w-48 rounded-md shadow-lg bg-black/95 border border-white/10 ring-1 ring-black ring-opacity-5 backdrop-blur-md overflow-hidden z-50"
                     transition:fly={{ y: 10, duration: 150 }}
                 >
                     <div class="py-1" role="menu">
+                        <a
+                            href="/profiles"
+                            class="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-3"
+                            role="menuitem"
+                            onclick={() => (showAccountMenu = false)}
+                        >
+                            <Users class="w-4 h-4" />
+                            Switch Profile
+                        </a>
                         <a
                             href="/account"
                             class="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-3"
@@ -97,23 +112,20 @@
         {@render children()}
     </main>
 
-    <!-- Bottom Floating Pill Navigation (Hidden on Player) -->
-    {#if !page.url.pathname.startsWith("/watch")}
+    <!-- Bottom Floating Pill Navigation (Hidden on Player and Profiles) -->
+    {#if !hideNav}
         <div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50" transition:fly={{ y: 20, duration: 300 }}>
             <nav
                 class="flex items-center gap-1 p-1.5 rounded-full border border-white/10 bg-black/80 backdrop-blur-xl shadow-2xl"
             >
-                <!-- Browse & Search -->
                 {#each navItems as item}
                     {@const isActive = page.url.pathname === item.href}
                     <div class="group relative">
                         <a
                             href={item.href}
                             class={cn(
-                                "flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 relative hover:bg-white/10",
-                                isActive
-                                    ? "text-white bg-white/10"
-                                    : "text-zinc-400 hover:text-white",
+                                'flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 relative hover:bg-white/10',
+                                isActive ? 'text-white bg-white/10' : 'text-zinc-400 hover:text-white',
                             )}
                             aria-label={item.label}
                         >

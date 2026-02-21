@@ -15,6 +15,6 @@
 <QueryClientProvider client={queryClient}>
     {@render children()}
     {#if dev}
-        <SvelteQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+    <!-- <SvelteQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" /> -->
     {/if}
 </QueryClientProvider>

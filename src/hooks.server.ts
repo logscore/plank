@@ -1,5 +1,8 @@
-import { type Handle, redirect } from '@sveltejs/kit';
+import { type Handle, type RequestEvent, redirect } from '@sveltejs/kit';
+import { eq } from 'drizzle-orm';
 import { auth } from '$lib/server/auth';
+import { db } from '$lib/server/db/index';
+import { user as userTable } from '$lib/server/db/schema';
 import { tempFolderScheduler, transcodeScheduler } from '$lib/server/scheduler';
 import { recoverDownloads } from '$lib/server/torrent';
 
@@ -9,59 +12,114 @@ recoverDownloads().catch((e) => {
 });
 
 // Start scheduled tasks
-// Start scheduled tasks
 transcodeScheduler();
 tempFolderScheduler();
+
+function classifyRoute(path: string) {
+	const isAuthPage = path.startsWith('/login') || path.startsWith('/register');
+	return {
+		isAuthPage,
+		isAuthRoute: isAuthPage || path.startsWith('/api/auth'),
+		isApiRoute: path.startsWith('/api'),
+		isProfilesRoute: path === '/profiles' || path.startsWith('/profiles/'),
+		isOnboardingRoute: path.startsWith('/onboarding'),
+		isAcceptInvitation: path.startsWith('/accept-invitation'),
+		isAppRoute:
+			path === '/' ||
+			path.startsWith('/watch') ||
+			path.startsWith('/search') ||
+			path.startsWith('/account') ||
+			path.startsWith('/browse') ||
+			path.startsWith('/settings') ||
+			path.startsWith('/movie') ||
+			path.startsWith('/show') ||
+			path.startsWith('/onboarding') ||
+			path === '/profiles' ||
+			path.startsWith('/profiles/'),
+	};
+}
+
+function getUserRole(userId: string): string {
+	const dbUser = db.select({ role: userTable.role }).from(userTable).where(eq(userTable.id, userId)).get();
+	return dbUser?.role ?? 'user';
+}
+
+async function enforceProfileSelection(event: RequestEvent, activeOrgId: string | null | undefined) {
+	if (activeOrgId) {
+		return;
+	}
+
+	const orgs = await auth.api.listOrganizations({
+		headers: event.request.headers,
+	});
+	const memberOrgs = orgs || [];
+
+	if (memberOrgs.length === 0) {
+		const isAdmin = event.locals.user?.role === 'admin';
+		throw redirect(302, isAdmin ? '/onboarding' : '/profiles');
+	}
+
+	if (memberOrgs.length === 1) {
+		await auth.api.setActiveOrganization({
+			headers: event.request.headers,
+			body: { organizationId: memberOrgs[0].id },
+		});
+		if (event.locals.session) {
+			event.locals.session = {
+				...event.locals.session,
+				activeOrganizationId: memberOrgs[0].id,
+			};
+		}
+		return;
+	}
+
+	throw redirect(302, '/profiles');
+}
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const session = await auth.api.getSession({
 		headers: event.request.headers,
 	});
 
-	event.locals.user = session?.user ?? null;
-	event.locals.session = session?.session ?? null;
+	if (session?.user) {
+		const role = getUserRole(session.user.id);
+		event.locals.user = { ...session.user, role };
+	} else {
+		event.locals.user = null;
+	}
+	event.locals.session = session?.session
+		? {
+				id: session.session.id,
+				userId: session.session.userId,
+				expiresAt: session.session.expiresAt,
+				activeOrganizationId: session.session.activeOrganizationId ?? null,
+			}
+		: null;
 
-	// Protect app routes
-	const isAppRoute =
-		event.url.pathname.startsWith('/watch') ||
-		event.url.pathname.startsWith('/search') ||
-		event.url.pathname.startsWith('/account') ||
-		event.url.pathname.startsWith('/browse') ||
-		event.url.pathname.startsWith('/onboarding') ||
-		event.url.pathname === '/';
-	const isAuthRoute =
-		event.url.pathname.startsWith('/login') ||
-		event.url.pathname.startsWith('/register') ||
-		event.url.pathname.startsWith('/api/auth');
-	const isAuthPage = event.url.pathname.startsWith('/login') || event.url.pathname.startsWith('/register');
-	const isApiRoute = event.url.pathname.startsWith('/api');
-	const isOnboardingRoute = event.url.pathname.startsWith('/onboarding');
+	const routes = classifyRoute(event.url.pathname);
 
-	if (isAppRoute && !event.locals.user) {
+	if (routes.isAppRoute && !event.locals.user) {
 		throw redirect(302, '/login');
 	}
 
-	// Redirect logged-in users away from auth pages (but allow api/auth)
-	if (isAuthPage && event.locals.user) {
-		throw redirect(302, '/');
+	if (routes.isAuthPage && event.locals.user) {
+		throw redirect(302, '/profiles');
 	}
 
-	// Enforce organization setup for app routes
-	if (isAppRoute && !isOnboardingRoute && event.locals.user) {
-		// Check if user has an organization
-		const orgs = await auth.api.listOrganizations({
-			headers: event.request.headers,
-		});
-
-		if (!orgs || orgs.length === 0) {
-			throw redirect(302, '/onboarding');
-		}
-	}
-
-	// Protect API routes (except auth routes)
-	if (isApiRoute && !isAuthRoute && !event.locals.user) {
-		// Return 401 for API requests instead of redirect
+	if (routes.isApiRoute && !routes.isAuthRoute && !event.locals.user) {
 		return new Response('Unauthorized', { status: 401 });
+	}
+
+	if (routes.isProfilesRoute || routes.isAcceptInvitation) {
+		return resolve(event);
+	}
+
+	if (routes.isOnboardingRoute && event.locals.user?.role !== 'admin') {
+		throw redirect(302, '/profiles');
+	}
+
+	if (routes.isAppRoute && event.locals.user && !routes.isOnboardingRoute) {
+		await enforceProfileSelection(event, session?.session?.activeOrganizationId);
 	}
 
 	return resolve(event);

@@ -27,6 +27,8 @@ export interface Media {
 	totalSeasons: number | null; // TV shows only
 	addedAt: Date;
 	lastPlayedAt: Date | null;
+	playPosition: number | null;
+	playDuration: number | null;
 }
 
 interface Season {
@@ -57,6 +59,8 @@ export interface Episode {
 	downloadedBytes: number | null;
 	displayOrder: number;
 	status: EpisodeStatus | null;
+	playPosition: number | null;
+	playDuration: number | null;
 	createdAt: Date;
 }
 
@@ -64,6 +68,21 @@ export interface Episode {
 
 export interface SeasonWithEpisodes extends Season {
 	episodes: Episode[];
+}
+
+// Subtitle types
+
+export type SubtitleSource = 'sidecar' | 'embedded' | 'opensubtitles' | 'manual';
+
+export interface SubtitleTrack {
+	id: string;
+	mediaId: string;
+	episodeId: string | null;
+	language: string;
+	label: string;
+	source: SubtitleSource;
+	isDefault: boolean;
+	src: string;
 }
 
 // TMDB search result types
