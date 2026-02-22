@@ -12,6 +12,9 @@
     let saving = $state(false);
     let prowlarrUrl = $derived(data.settings.prowlarr.url);
     let prowlarrApiKey = $derived(data.settings.prowlarr.apiKey);
+    let opensubtitlesApiKey = $derived(data.settings.opensubtitles.apiKey);
+    let opensubtitlesUsername = $derived(data.settings.opensubtitles.username);
+    let opensubtitlesPassword = $derived(data.settings.opensubtitles.password);
 
     function getTrustedGroupsString(groups: string[]) {
         return groups.join(', ');
@@ -84,7 +87,7 @@
                         id="opensubtitlesApiKey"
                         name="opensubtitlesApiKey"
                         type="password"
-                        value={data.settings.opensubtitles.apiKey}
+                        bind:value={opensubtitlesApiKey}
                         placeholder="OpenSubtitles API Key"
                     />
                     <p class="text-xs text-muted-foreground mt-2">
@@ -96,6 +99,29 @@
                             class="text-primary hover:underline"
                             >opensubtitles.com</a
                         >
+                    </p>
+                </div>
+                <div>
+                    <label for="opensubtitlesUsername" class="block text-sm text-muted-foreground mb-2">Username</label>
+                    <Input
+                        id="opensubtitlesUsername"
+                        name="opensubtitlesUsername"
+                        type="text"
+                        bind:value={opensubtitlesUsername}
+                        placeholder="OpenSubtitles Username"
+                    />
+                </div>
+                <div>
+                    <label for="opensubtitlesPassword" class="block text-sm text-muted-foreground mb-2">Password</label>
+                    <Input
+                        id="opensubtitlesPassword"
+                        name="opensubtitlesPassword"
+                        type="password"
+                        bind:value={opensubtitlesPassword}
+                        placeholder="OpenSubtitles Password"
+                    />
+                    <p class="text-xs text-muted-foreground mt-2">
+                        Credentials authenticate downloads. Without login, downloads are limited to 5 per day per IP.
                     </p>
                 </div>
             </div>

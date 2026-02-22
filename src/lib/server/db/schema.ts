@@ -317,6 +317,8 @@ export const configuration = sqliteTable('configuration', {
 	prowlarrTrustedGroups: text('prowlarr_trusted_groups'), // JSON array
 	prowlarrMinSeeders: integer('prowlarr_min_seeders').default(5),
 	opensubtitlesApiKey: text('opensubtitles_api_key'),
+	opensubtitlesUsername: text('opensubtitles_username'),
+	opensubtitlesPassword: text('opensubtitles_password'),
 	updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
 		.$onUpdate(() => new Date())
 		.notNull()

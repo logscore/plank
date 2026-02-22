@@ -23,4 +23,9 @@ export const config = {
 		// Minimum seeders for a valid torrent
 		minSeeders: 5,
 	},
+	opensubtitles: {
+		apiKey: env.OPENSUBTITLES_API_KEY || '',
+		username: env.OPENSUBTITLES_USERNAME || '',
+		password: env.OPENSUBTITLES_PASSWORD || '',
+	},
 };

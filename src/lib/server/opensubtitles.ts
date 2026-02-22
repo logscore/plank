@@ -83,6 +83,17 @@ interface OSDownloadResponse {
 	reset_time_utc: string;
 }
 
+interface OSLoginResponse {
+	user: {
+		allowed_downloads: number;
+		level: string;
+		user_id: number;
+		vip: boolean;
+	};
+	base_url: string;
+	token: string;
+}
+
 export interface OpenSubtitleResult {
 	id: string;
 	fileId: number;
@@ -195,12 +206,64 @@ async function getApiKey(): Promise<string> {
 	return settings.opensubtitles.apiKey;
 }
 
-function buildHeaders(apiKey: string): Record<string, string> {
+async function getCredentials(): Promise<{ username: string; password: string }> {
+	const settings = await getSettings();
 	return {
+		username: settings.opensubtitles.username,
+		password: settings.opensubtitles.password,
+	};
+}
+
+let cachedToken: string | null = null;
+let tokenExpiry = 0;
+
+function buildHeaders(apiKey: string, token?: string): Record<string, string> {
+	const headers: Record<string, string> = {
 		'Content-Type': 'application/json',
 		'Api-Key': apiKey,
 		'User-Agent': USER_AGENT,
 	};
+	if (token) {
+		headers.Authorization = `Bearer ${token}`;
+	}
+	return headers;
+}
+
+async function login(apiKey: string): Promise<string> {
+	const { username, password } = await getCredentials();
+	if (!(username && password)) {
+		throw new Error('OpenSubtitles credentials not configured');
+	}
+
+	const response = await fetch(`${BASE_URL}/login`, {
+		method: 'POST',
+		headers: buildHeaders(apiKey),
+		body: JSON.stringify({ username, password }),
+	});
+
+	if (!response.ok) {
+		const text = await response.text();
+		console.error(`[OpenSubtitles] Login failed: ${response.status} ${text}`);
+		throw new Error(`OpenSubtitles login failed: ${response.status}`);
+	}
+
+	const data: OSLoginResponse = await response.json();
+	cachedToken = data.token;
+	tokenExpiry = Date.now() + 23 * 60 * 60 * 1000;
+	return data.token;
+}
+
+async function getValidToken(apiKey: string): Promise<string | null> {
+	const { username, password } = await getCredentials();
+	if (!(username && password)) {
+		return null;
+	}
+
+	if (cachedToken && Date.now() < tokenExpiry) {
+		return cachedToken;
+	}
+
+	return login(apiKey);
 }
 
 // ============================================================================
@@ -304,10 +367,11 @@ export async function downloadSubtitle(
 		throw new Error('OpenSubtitles API key not configured');
 	}
 
-	// Step 1: Get download link
+	const token = await getValidToken(apiKey);
+
 	const response = await fetch(`${BASE_URL}/download`, {
 		method: 'POST',
-		headers: buildHeaders(apiKey),
+		headers: buildHeaders(apiKey, token ?? undefined),
 		body: JSON.stringify({ file_id: fileId }),
 	});
 

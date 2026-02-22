@@ -71,6 +71,13 @@
       "when": 1771706417599,
       "tag": "0009_acoustic_jean_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1771742633369,
+      "tag": "0010_exotic_rocket_raccoon",
+      "breakpoints": true
     }
   ]
 }

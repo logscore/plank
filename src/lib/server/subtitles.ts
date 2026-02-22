@@ -2,7 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { config } from '$lib/config';
 import { subtitlesDb } from './db';
-import { convertSubtitleToVtt, extractSubtitleAsVtt, probeSubtitleStreams } from './ffmpeg';
+
+// import { convertSubtitleToVtt, extractSubtitleAsVtt, probeSubtitleStreams } from './ffmpeg';
 
 const SIDECAR_EXTENSIONS = ['.srt', '.ass', '.ssa', '.vtt', '.sub'];
 
@@ -33,6 +34,8 @@ const LANGUAGE_MAP: Record<string, string> = {
 	und: 'Unknown',
 };
 
+// Used by discoverEmbeddedSubtitles — keep for when it's re-enabled
+// biome-ignore lint/correctness/noUnusedVariables: temporarily unused while embedded discovery is disabled
 function getLanguageLabel(langCode: string, title: string): string {
 	if (title && !title.startsWith('Track ')) {
 		return title;
@@ -114,21 +117,25 @@ export async function discoverSidecarSubtitles(mediaId: string, libraryDir: stri
 		const ext = path.extname(fileName).toLowerCase();
 		const { language, label } = parseLanguageFromFilename(fileName);
 
-		let vttPath: string;
-		if (ext === '.vtt') {
-			// Already VTT, use directly
-			vttPath = sourcePath;
-		} else {
-			// Convert to VTT
-			const baseName = path.basename(fileName, ext);
-			vttPath = path.join(subtitleDir, `${baseName}.vtt`);
-			try {
-				await convertSubtitleToVtt(sourcePath, vttPath);
-			} catch (err) {
-				console.error(`[Subtitles] Failed to convert ${fileName}:`, err);
-				continue;
-			}
+		// Only process VTT files directly — FFmpeg-based conversion is disabled for now
+		// TODO: Re-enable sidecar conversion once FFmpeg subtitle issues are resolved
+		// let vttPath: string;
+		// if (ext === '.vtt') {
+		// 	vttPath = sourcePath;
+		// } else {
+		// 	const baseName = path.basename(fileName, ext);
+		// 	vttPath = path.join(subtitleDir, `${baseName}.vtt`);
+		// 	try {
+		// 		await convertSubtitleToVtt(sourcePath, vttPath);
+		// 	} catch (err) {
+		// 		console.error(`[Subtitles] Failed to convert ${fileName}:`, err);
+		// 		continue;
+		// 	}
+		// }
+		if (ext !== '.vtt') {
+			continue;
 		}
+		const vttPath = sourcePath;
 
 		subtitlesDb.create({
 			mediaId,
@@ -147,63 +154,66 @@ export async function discoverSidecarSubtitles(mediaId: string, libraryDir: stri
 
 /**
  * Tier 2: Discover embedded subtitle streams inside a video file via FFmpeg.
+ * TODO: Re-enable once FFmpeg/FFprobe subtitle issues are resolved.
  */
-export async function discoverEmbeddedSubtitles(mediaId: string, filePath: string, episodeId?: string): Promise<void> {
-	const streams = await probeSubtitleStreams(filePath);
-	if (streams.length === 0) {
-		return;
-	}
-
-	const subtitleDir = getSubtitleDir(mediaId);
-	await fs.mkdir(subtitleDir, { recursive: true });
-
-	// Check which streams are already extracted
-	const existing = episodeId ? subtitlesDb.getByEpisodeId(episodeId) : subtitlesDb.getByMediaId(mediaId);
-	const existingIndices = new Set(existing.filter((s) => s.source === 'embedded').map((s) => s.streamIndex));
-
-	for (const stream of streams) {
-		if (existingIndices.has(stream.index)) {
-			continue;
-		}
-
-		const suffix = episodeId ? `${episodeId}_${stream.index}` : `${mediaId}_${stream.index}`;
-		const vttPath = path.join(subtitleDir, `${suffix}.vtt`);
-
-		try {
-			await extractSubtitleAsVtt(filePath, stream.index, vttPath);
-		} catch (err) {
-			console.error(`[Subtitles] Failed to extract stream ${stream.index} from ${filePath}:`, err);
-			continue;
-		}
-
-		const label = getLanguageLabel(stream.language, stream.title);
-
-		subtitlesDb.create({
-			mediaId,
-			episodeId: episodeId ?? null,
-			language: stream.language,
-			label,
-			source: 'embedded',
-			format: 'vtt',
-			filePath: vttPath,
-			streamIndex: stream.index,
-			isDefault: stream.isDefault,
-			isForced: stream.isForced,
-		});
-	}
-}
+// export async function discoverEmbeddedSubtitles(mediaId: string, filePath: string, episodeId?: string): Promise<void> {
+// 	const streams = await probeSubtitleStreams(filePath);
+// 	if (streams.length === 0) {
+// 		return;
+// 	}
+//
+// 	const subtitleDir = getSubtitleDir(mediaId);
+// 	await fs.mkdir(subtitleDir, { recursive: true });
+//
+// 	// Check which streams are already extracted
+// 	const existing = episodeId ? subtitlesDb.getByEpisodeId(episodeId) : subtitlesDb.getByMediaId(mediaId);
+// 	const existingIndices = new Set(existing.filter((s) => s.source === 'embedded').map((s) => s.streamIndex));
+//
+// 	for (const stream of streams) {
+// 		if (existingIndices.has(stream.index)) {
+// 			continue;
+// 		}
+//
+// 		const suffix = episodeId ? `${episodeId}_${stream.index}` : `${mediaId}_${stream.index}`;
+// 		const vttPath = path.join(subtitleDir, `${suffix}.vtt`);
+//
+// 		try {
+// 			await extractSubtitleAsVtt(filePath, stream.index, vttPath);
+// 		} catch (err) {
+// 			console.error(`[Subtitles] Failed to extract stream ${stream.index} from ${filePath}:`, err);
+// 			continue;
+// 		}
+//
+// 		const label = getLanguageLabel(stream.language, stream.title);
+//
+// 		subtitlesDb.create({
+// 			mediaId,
+// 			episodeId: episodeId ?? null,
+// 			language: stream.language,
+// 			label,
+// 			source: 'embedded',
+// 			format: 'vtt',
+// 			filePath: vttPath,
+// 			streamIndex: stream.index,
+// 			isDefault: stream.isDefault,
+// 			isForced: stream.isForced,
+// 		});
+// 	}
+// }
 
 /**
- * Orchestrator: runs Tier 1 (sidecar) then Tier 2 (embedded) subtitle discovery.
+ * Orchestrator: runs subtitle discovery.
+ * Tier 2 (embedded via FFmpeg) is disabled — use OpenSubtitles for subtitle discovery instead.
+ * TODO: Re-enable embedded discovery once FFmpeg/FFprobe subtitle issues are resolved.
  */
 export async function discoverSubtitles(
 	mediaId: string,
-	videoFilePath: string,
+	_videoFilePath: string,
 	libraryDir: string,
 	episodeId?: string
 ): Promise<void> {
 	await discoverSidecarSubtitles(mediaId, libraryDir, episodeId);
-	await discoverEmbeddedSubtitles(mediaId, videoFilePath, episodeId);
+	// await discoverEmbeddedSubtitles(mediaId, videoFilePath, episodeId);
 }
 
 /**

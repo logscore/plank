@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { config as envConfig } from '$lib/config';
+import { decrypt, encrypt, isEncrypted } from '$lib/server/crypto';
 import { db } from '$lib/server/db/index';
 import { configuration } from '$lib/server/db/schema';
 
@@ -18,7 +19,47 @@ export interface AppSettings {
 	};
 	opensubtitles: {
 		apiKey: string;
+		username: string;
+		password: string;
 	};
+}
+
+/** Sensitive fields that should be encrypted at rest */
+const SENSITIVE_FIELDS = [
+	'tmdbApiKey',
+	'prowlarrApiKey',
+	'opensubtitlesApiKey',
+	'opensubtitlesUsername',
+	'opensubtitlesPassword',
+] as const;
+
+/** Decrypt a stored value, returning empty string for nullish values */
+function decryptField(value: string | null | undefined): string {
+	if (!value) {
+		return '';
+	}
+	return decrypt(value);
+}
+
+/**
+ * Migrate unencrypted values to encrypted on read.
+ * If any sensitive field is stored as plaintext, re-encrypt and persist it.
+ */
+async function migrateUnencryptedFields(stored: typeof configuration.$inferSelect): Promise<void> {
+	const updates: Partial<typeof configuration.$inferInsert> = {};
+	let needsMigration = false;
+
+	for (const field of SENSITIVE_FIELDS) {
+		const value = stored[field];
+		if (value && !isEncrypted(value)) {
+			updates[field] = encrypt(value);
+			needsMigration = true;
+		}
+	}
+
+	if (needsMigration) {
+		await db.update(configuration).set(updates).where(eq(configuration.id, 'default'));
+	}
 }
 
 export async function getSettings(): Promise<AppSettings> {
@@ -27,6 +68,11 @@ export async function getSettings(): Promise<AppSettings> {
 		const stored = await db.query.configuration.findFirst({
 			where: eq(configuration.id, 'default'),
 		});
+
+		// Transparently migrate any plaintext credentials to encrypted
+		if (stored) {
+			await migrateUnencryptedFields(stored);
+		}
 
 		// Default trusted groups from env config
 		const defaultTrustedGroups = envConfig.prowlarr.trustedGroups;
@@ -46,19 +92,21 @@ export async function getSettings(): Promise<AppSettings> {
 
 		return {
 			tmdb: {
-				apiKey: stored?.tmdbApiKey || envConfig.tmdb.apiKey,
+				apiKey: decryptField(stored?.tmdbApiKey) || envConfig.tmdb.apiKey,
 				baseUrl: envConfig.tmdb.baseUrl,
 				imageBaseUrl: envConfig.tmdb.imageBaseUrl,
 				language: 'en-US',
 			},
 			prowlarr: {
 				url: stored?.prowlarrUrl || envConfig.prowlarr.url,
-				apiKey: stored?.prowlarrApiKey || envConfig.prowlarr.apiKey,
+				apiKey: decryptField(stored?.prowlarrApiKey) || envConfig.prowlarr.apiKey,
 				trustedGroups,
 				minSeeders: stored?.prowlarrMinSeeders ?? envConfig.prowlarr.minSeeders,
 			},
 			opensubtitles: {
-				apiKey: stored?.opensubtitlesApiKey || '',
+				apiKey: decryptField(stored?.opensubtitlesApiKey) || envConfig.opensubtitles.apiKey,
+				username: decryptField(stored?.opensubtitlesUsername) || envConfig.opensubtitles.username,
+				password: decryptField(stored?.opensubtitlesPassword) || envConfig.opensubtitles.password,
 			},
 		};
 	} catch (e) {
@@ -69,9 +117,7 @@ export async function getSettings(): Promise<AppSettings> {
 				language: 'en-US',
 			},
 			prowlarr: envConfig.prowlarr,
-			opensubtitles: {
-				apiKey: '',
-			},
+			opensubtitles: envConfig.opensubtitles,
 		};
 	}
 }
@@ -84,17 +130,21 @@ export async function updateSettings(
 		prowlarrTrustedGroups: string[];
 		prowlarrMinSeeders: number;
 		opensubtitlesApiKey: string;
+		opensubtitlesUsername: string;
+		opensubtitlesPassword: string;
 	}>
 ) {
 	const values: Partial<typeof configuration.$inferInsert> = {};
+
+	// Encrypt sensitive fields before storing
 	if (updates.tmdbApiKey !== undefined) {
-		values.tmdbApiKey = updates.tmdbApiKey;
+		values.tmdbApiKey = updates.tmdbApiKey ? encrypt(updates.tmdbApiKey) : '';
 	}
 	if (updates.prowlarrUrl !== undefined) {
 		values.prowlarrUrl = updates.prowlarrUrl;
 	}
 	if (updates.prowlarrApiKey !== undefined) {
-		values.prowlarrApiKey = updates.prowlarrApiKey;
+		values.prowlarrApiKey = updates.prowlarrApiKey ? encrypt(updates.prowlarrApiKey) : '';
 	}
 	if (updates.prowlarrTrustedGroups !== undefined) {
 		values.prowlarrTrustedGroups = JSON.stringify(updates.prowlarrTrustedGroups);
@@ -103,7 +153,13 @@ export async function updateSettings(
 		values.prowlarrMinSeeders = updates.prowlarrMinSeeders;
 	}
 	if (updates.opensubtitlesApiKey !== undefined) {
-		values.opensubtitlesApiKey = updates.opensubtitlesApiKey;
+		values.opensubtitlesApiKey = updates.opensubtitlesApiKey ? encrypt(updates.opensubtitlesApiKey) : '';
+	}
+	if (updates.opensubtitlesUsername !== undefined) {
+		values.opensubtitlesUsername = updates.opensubtitlesUsername ? encrypt(updates.opensubtitlesUsername) : '';
+	}
+	if (updates.opensubtitlesPassword !== undefined) {
+		values.opensubtitlesPassword = updates.opensubtitlesPassword ? encrypt(updates.opensubtitlesPassword) : '';
 	}
 
 	// Upsert

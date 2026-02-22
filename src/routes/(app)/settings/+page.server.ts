@@ -27,6 +27,8 @@ export const actions: Actions = {
 		const prowlarrMinSeedersStr = formData.get('prowlarrMinSeeders')?.toString();
 		const prowlarrTrustedGroupsStr = formData.get('prowlarrTrustedGroups')?.toString();
 		const opensubtitlesApiKey = formData.get('opensubtitlesApiKey')?.toString() || '';
+		const opensubtitlesUsername = formData.get('opensubtitlesUsername')?.toString() || '';
+		const opensubtitlesPassword = formData.get('opensubtitlesPassword')?.toString() || '';
 
 		const prowlarrMinSeeders = prowlarrMinSeedersStr ? Number.parseInt(prowlarrMinSeedersStr, 10) : 5;
 
@@ -47,6 +49,8 @@ export const actions: Actions = {
 				prowlarrMinSeeders,
 				prowlarrTrustedGroups,
 				opensubtitlesApiKey,
+				opensubtitlesUsername,
+				opensubtitlesPassword,
 			});
 		} catch (err) {
 			console.error('Failed to update settings:', err);
