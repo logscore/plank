@@ -515,15 +515,15 @@ async function handleDownloadComplete(infohash: string, download: ActiveDownload
 	await moveToLibrary(download.mediaId, download);
 	// console.log(`${logPrefix} moveToLibrary completed`);
 
-	// Trigger immediate transcoding in background (non-blocking)
-	if (download.mediaType === 'movie') {
-		transcodeMovieFile(download.mediaId).catch((err) => {
-			console.error('[Transcoder] Post-download movie transcoding failed:', err);
-		});
-	} else {
-		transcodeTVEpisodes(download.mediaId).catch((err) => {
-			console.error('[Transcoder] Post-download TV transcoding failed:', err);
-		});
+	// Transmux non-mp4/webm files to mp4 before marking complete
+	try {
+		if (download.mediaType === 'movie') {
+			await transcodeMovieFile(download.mediaId);
+		} else {
+			await transcodeTVEpisodes(download.mediaId);
+		}
+	} catch (err) {
+		console.error('[Transcoder] Post-download transcoding failed:', err);
 	}
 
 	// Update download record in database
@@ -1565,8 +1565,21 @@ async function finalizeFromTemp(mediaId: string, videoPath: string, fileName: st
 		const fileSize = stats.size;
 
 		mediaDb.updateFilePath(mediaId, destPath, fileSize);
-		mediaDb.updateProgress(mediaId, 1, 'complete');
 		// console.log(`[Recovery] [${mediaId}] Finalized from temp: ${destPath} (${fileSize} bytes)`);
+
+		// Transmux to mp4 if needed before marking complete
+		const mediaItem = mediaDb.getById(mediaId);
+		try {
+			if (mediaItem?.type === 'tv') {
+				await transcodeTVEpisodes(mediaId);
+			} else {
+				await transcodeMovieFile(mediaId);
+			}
+		} catch (err) {
+			console.error(`[Recovery] [${mediaId}] Transcoding failed:`, err);
+		}
+
+		mediaDb.updateProgress(mediaId, 1, 'complete');
 
 		// Clean up temp directory
 		const tempDir = path.join(config.paths.temp, mediaId);

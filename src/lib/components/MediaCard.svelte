@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Info, MoreVertical, Play, RotateCcw, Trash2 } from '@lucide/svelte';
+    import { Ellipsis, EllipsisVertical, Info, MoreVertical, Play, RotateCcw, Trash2 } from '@lucide/svelte';
     import { goto } from '$app/navigation';
     import EpisodeSelector from '$lib/components/EpisodeSelector.svelte';
     import type { Media, SeasonWithEpisodes } from '$lib/types';
@@ -176,7 +176,12 @@
                     <span>• {formatRuntime(media.runtime)}</span>
                 {/if}
                 {#if media.type === "tv" && media.totalSeasons}
-                    <span>• {media.totalSeasons} season{media.totalSeasons === 1 ? "" : "s"}</span>
+                    <span
+                        >• {media.totalSeasons} season
+                        {media.totalSeasons === 1
+                            ? ""
+                            : "s"}</span
+                    >
                 {/if}
             </div>
             {#if media.overview}
@@ -217,11 +222,11 @@
                 <Button
                     variant="ghost"
                     size="icon"
-                    class="text-white hover:bg-neutral-800 shrink-0"
+                    class="text-white hover:bg-neutral-800 shrink-0 size-9.25"
                     onclick={handleMenuClick}
                     title="Options"
                 >
-                    <MoreVertical class="w-4 h-4" />
+                    <EllipsisVertical class="w-5 h-5" />
                 </Button>
 
                 <!-- Context Menu Dropdown -->

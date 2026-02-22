@@ -5,11 +5,14 @@ import { db } from '$lib/server/db/index';
 import { user as userTable } from '$lib/server/db/schema';
 import { tempFolderScheduler, transcodeScheduler } from '$lib/server/scheduler';
 import { recoverDownloads } from '$lib/server/torrent';
+import { transcodeLibrary } from '$lib/server/transcoder';
 
-// Recover incomplete downloads on server startup
-recoverDownloads().catch((e) => {
-	console.error('[Startup] Failed to recover downloads:', e);
-});
+// Recover incomplete downloads on server startup, then transcode any pending files
+recoverDownloads()
+	.then(() => transcodeLibrary())
+	.catch((e) => {
+		console.error('[Startup] Failed to recover downloads:', e);
+	});
 
 // Start scheduled tasks
 transcodeScheduler();

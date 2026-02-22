@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Check, ChevronDown, Globe, Plus, Trash2 } from '@lucide/svelte';
+    import { Check, ChevronDown, ClosedCaption, Globe, Plus, Subtitles, Trash2 } from '@lucide/svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import { createDeleteSubtitleMutation, createSetDefaultSubtitleMutation } from '$lib/mutations/media-mutations';
     import type { SubtitleTrackResponse } from '$lib/queries/media-queries';
@@ -98,10 +98,10 @@
         <Button
             variant="ghost"
             size="sm"
-            class="h-8 px-2 text-muted-foreground hover:text-white {buttonClass}"
+            class="h-8 text-muted-foreground hover:text-white {buttonClass}"
             onclick={toggleMenu}
         >
-            <Globe class="w-4 h-4" />
+            <ClosedCaption class="w-6 h-6" />
             {#if trackCount > 0}
                 <span class="text-xs ml-1">{trackCount}</span>
             {/if}
@@ -109,23 +109,28 @@
     {:else}
         <Button
             variant="ghost"
-            size={buttonSize}
-            class="text-white hover:bg-neutral-800 {buttonClass}"
+            size={"sm"}
+            class="text-white hover:bg-neutral-800 h-11 {buttonClass}"
             onclick={toggleMenu}
         >
-            <Globe class="w-5 h-5 mr-2" />
-            Subtitles
+            <ClosedCaption class="w-6 h-6 mr-2" />
             {#if trackCount > 0}
                 <span class="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full"> {trackCount} </span>
             {/if}
-            <ChevronDown class="w-4 h-4 ml-2 transition-transform shrink-0 {isOpen ? 'rotate-180' : ''}" />
+            <ChevronDown
+                class="w-4 h-4 ml-2 transition-transform shrink-0 {isOpen
+                    ? 'rotate-180'
+                    : ''}"
+            />
         </Button>
     {/if}
 
     <!-- Dropdown Menu -->
     {#if isOpen}
         <div
-            class="absolute top-full {compact ? 'right-0' : 'left-0'} mt-2 w-72 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden"
+            class="absolute top-full {compact
+                ? 'right-0'
+                : 'left-0'} mt-2 w-72 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden"
         >
             <!-- Header -->
             <div class="px-4 py-2.5 border-b border-border bg-accent/30">
@@ -152,7 +157,9 @@
                                     ? 'border-primary bg-primary/20 text-primary'
                                     : 'border-white/20 text-transparent hover:border-white/40 hover:text-white/40'}"
                                 onclick={() => handleSetDefault(track)}
-                                title={track.isDefault ? 'Remove as default' : 'Set as default'}
+                                title={track.isDefault
+                                    ? "Remove as default"
+                                    : "Set as default"}
                             >
                                 <Check class="w-3 h-3" />
                             </button>
@@ -178,7 +185,7 @@
                             </div>
 
                             <!-- Delete button (only for opensubtitles/manual) -->
-                            {#if track.source === 'opensubtitles' || track.source === 'manual'}
+                            {#if track.source === "opensubtitles" || track.source === "manual"}
                                 <button
                                     class="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
                                     onclick={() => handleDelete(track)}

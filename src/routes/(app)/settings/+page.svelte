@@ -56,6 +56,16 @@
                         value={data.settings.tmdb.apiKey}
                         placeholder="TMDB API Key"
                     />
+                    <p class="text-xs text-muted-foreground mt-2">
+                        Get a free API key at
+                        <a
+                            href="https://www.themoviedb.org/settings/api"
+                            target="_blank"
+                            rel="noopener"
+                            class="text-primary hover:underline"
+                            >themoviedb.org</a
+                        >
+                    </p>
                 </div>
             </div>
         </div>
@@ -118,6 +128,14 @@
                         bind:value={prowlarrApiKey}
                         placeholder="Prowlarr API Key"
                     />
+                    {#if !prowlarrApiKey}
+                        <p class="text-xs text-muted-foreground mt-2">
+                            Get the API key at
+                            <a href={prowlarrUrl} target="_blank" rel="noopener" class="text-primary hover:underline"
+                                >{prowlarrUrl}</a
+                            >
+                        </p>
+                    {/if}
                 </div>
 
                 <div class="border-t pt-6 -mx-6 px-6">
@@ -136,8 +154,11 @@
                         min="0"
                     />
                 </div>
-                <div>
-                    <label for="prowlarrTrustedGroups" class="block text-sm text-muted-foreground mb-2">
+                <!-- <div>
+                    <label
+                        for="prowlarrTrustedGroups"
+                        class="block text-sm text-muted-foreground mb-2"
+                    >
                         Trusted Release Groups (comma separated)
                     </label>
                     <Input
@@ -150,9 +171,10 @@
                         placeholder="YTS, YIFY, .BONE., x1337, TVTEAM"
                     />
                     <p class="text-xs text-muted-foreground mt-2">
-                        Leave empty to allow all groups (not recommended for quality).
+                        Leave empty to allow all groups (not recommended for
+                        quality).
                     </p>
-                </div>
+                </div> -->
             </div>
         </div>
 

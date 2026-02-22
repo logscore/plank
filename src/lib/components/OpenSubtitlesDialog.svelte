@@ -141,7 +141,7 @@
     });
 </script>
 
-<Dialog bind:open title="Search Subtitles" description="Find subtitles for {mediaTitle}">
+<Dialog bind:open title="Search Subtitles" description="Find subtitles for {mediaTitle}" class="w-2xl">
     <div class="space-y-4 mt-2">
         <!-- Language filter toggle + search -->
         <div class="flex items-center gap-2">
