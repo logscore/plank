@@ -4,6 +4,8 @@
     import { page } from '$app/state';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
     import EpisodeSelector from '$lib/components/EpisodeSelector.svelte';
+    import OpenSubtitlesDialog from '$lib/components/OpenSubtitlesDialog.svelte';
+    import SubtitleMenu from '$lib/components/SubtitleMenu.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import type { Episode, Media, SeasonWithEpisodes } from '$lib/types';
     import { confirmDelete, uiState } from '$lib/ui-state.svelte';
@@ -14,6 +16,29 @@
     let selectedSeason = $state<number | null>(null);
     let deleting = $state(false);
     let copied = $state(false);
+
+    // OpenSubtitles dialog state
+    let openSubtitlesDialogOpen = $state(false);
+    let subtitleDialogEpisodeId = $state<string | undefined>(undefined);
+    let subtitleDialogSeasonNumber = $state<number | undefined>(undefined);
+    let subtitleDialogEpisodeNumber = $state<number | undefined>(undefined);
+    let subtitleDialogTitle = $state('');
+
+    function openSubtitlesForEpisode(episode: Episode) {
+        subtitleDialogEpisodeId = episode.id;
+        subtitleDialogSeasonNumber = currentSeason?.seasonNumber;
+        subtitleDialogEpisodeNumber = episode.episodeNumber;
+        subtitleDialogTitle = `${media?.title} - S${String(currentSeason?.seasonNumber ?? 0).padStart(2, '0')}E${String(episode.episodeNumber).padStart(2, '0')}`;
+        openSubtitlesDialogOpen = true;
+    }
+
+    function openSubtitlesForShow() {
+        subtitleDialogEpisodeId = undefined;
+        subtitleDialogSeasonNumber = undefined;
+        subtitleDialogEpisodeNumber = undefined;
+        subtitleDialogTitle = media?.title ?? '';
+        openSubtitlesDialogOpen = true;
+    }
 
     async function loadShow() {
         loading = true;
@@ -269,6 +294,7 @@
                     <!-- Action Buttons -->
                     <div class="flex items-center gap-3 pt-4">
                         <EpisodeSelector {seasons} onPlayEpisode={handlePlayEpisode} />
+                        <SubtitleMenu mediaId={media.id} onAddSubtitles={openSubtitlesForShow} />
                         <Button
                             variant="ghost"
                             size="lg"
@@ -387,20 +413,29 @@
                                                 </p>
                                             {/if}
 
-                                            <Button
-                                                size="sm"
-                                                disabled={episode.fileIndex ===
-                                                    null}
-                                                onclick={() =>
-                                                    handlePlayEpisode(
-                                                        episode.id,
-                                                        episode,
-                                                    )}
-                                                class="shrink-0 ml-auto"
-                                            >
-                                                <Play class="w-4 h-4 mr-1 fill-current" />
-                                                Play
-                                            </Button>
+                                            <div class="flex items-center gap-1 shrink-0 ml-auto">
+                                                {#if media}
+                                                    <SubtitleMenu
+                                                        mediaId={media.id}
+                                                        episodeId={episode.id}
+                                                        onAddSubtitles={() => openSubtitlesForEpisode(episode)}
+                                                        compact
+                                                    />
+                                                {/if}
+                                                <Button
+                                                    size="sm"
+                                                    disabled={episode.fileIndex ===
+                                                        null}
+                                                    onclick={() =>
+                                                        handlePlayEpisode(
+                                                            episode.id,
+                                                            episode,
+                                                        )}
+                                                >
+                                                    <Play class="w-4 h-4 mr-1 fill-current" />
+                                                    Play
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -524,6 +559,15 @@
         description={uiState.deleteConfirmation.description}
         onConfirm={uiState.deleteConfirmation.confirmAction}
         loading={deleting}
+    />
+
+    <OpenSubtitlesDialog
+        bind:open={openSubtitlesDialogOpen}
+        mediaId={media.id}
+        mediaTitle={subtitleDialogTitle}
+        episodeId={subtitleDialogEpisodeId}
+        seasonNumber={subtitleDialogSeasonNumber}
+        episodeNumber={subtitleDialogEpisodeNumber}
     />
 {:else}
     <div class="flex items-center justify-center min-h-screen">

@@ -78,7 +78,7 @@ describe('Media API / DB Logic', () => {
 			expect(created.status).toBe('added');
 			expect(created.type).toBe('movie');
 
-			const fetched = mediaDb.get(created.id, testUser.id);
+			const fetched = mediaDb.get(created.id, testOrg.id);
 			expect(fetched).toBeDefined();
 			expect(fetched?.title).toBe('Test Movie');
 		});
@@ -138,12 +138,12 @@ describe('Media API / DB Logic', () => {
 			});
 
 			mediaDb.updateProgress(created.id, 0.5, 'downloading');
-			let fetched = mediaDb.get(created.id, testUser.id);
+			let fetched = mediaDb.get(created.id, testOrg.id);
 			expect(fetched?.progress).toBe(0.5);
 			expect(fetched?.status).toBe('downloading');
 
 			mediaDb.updateProgress(created.id, 1, 'complete');
-			fetched = mediaDb.get(created.id, testUser.id);
+			fetched = mediaDb.get(created.id, testOrg.id);
 			expect(fetched?.progress).toBe(1);
 			expect(fetched?.status).toBe('complete');
 		});
@@ -165,7 +165,7 @@ describe('Media API / DB Logic', () => {
 				certification: 'PG-13',
 			});
 
-			const fetched = mediaDb.get(created.id, testUser.id);
+			const fetched = mediaDb.get(created.id, testOrg.id);
 			expect(fetched?.overview).toBe('Updated overview');
 			expect(fetched?.year).toBe(2025);
 			expect(fetched?.runtime).toBe(120);
@@ -183,7 +183,7 @@ describe('Media API / DB Logic', () => {
 			});
 
 			mediaDb.updateFilePath(created.id, '/path/to/file.mp4', 1024);
-			const fetched = mediaDb.get(created.id, testUser.id);
+			const fetched = mediaDb.get(created.id, testOrg.id);
 			expect(fetched?.filePath).toBe('/path/to/file.mp4');
 			expect(fetched?.fileSize).toBe(1024);
 			expect(fetched?.status).toBe('complete');
@@ -199,8 +199,8 @@ describe('Media API / DB Logic', () => {
 				type: 'movie',
 			});
 
-			mediaDb.delete(created.id, testUser.id);
-			const fetched = mediaDb.get(created.id, testUser.id);
+			mediaDb.delete(created.id, testOrg.id);
+			const fetched = mediaDb.get(created.id, testOrg.id);
 			expect(fetched).toBeUndefined();
 		});
 	});

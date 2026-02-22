@@ -8,8 +8,13 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		throw error(401, 'Unauthorized');
 	}
 
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
+		throw error(400, 'No active profile selected');
+	}
+
 	const episodeId = url.searchParams.get('episodeId') ?? undefined;
-	const mediaItem = mediaDb.get(params.id, locals.user.id);
+	const mediaItem = mediaDb.get(params.id, organizationId);
 	if (!mediaItem) {
 		throw error(404, 'Media not found');
 	}

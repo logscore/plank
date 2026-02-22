@@ -7,7 +7,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		throw error(401, 'Unauthorized');
 	}
 
-	const media = mediaDb.get(params.id, locals.user.id);
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
+		throw error(400, 'No active profile selected');
+	}
+
+	const media = mediaDb.get(params.id, organizationId);
 	if (!media) {
 		throw error(404, 'Media not found');
 	}

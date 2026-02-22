@@ -188,9 +188,9 @@ function resumeIfNeeded(mediaId: string, magnetLink: string): void {
 }
 
 /** Check for duplicate media/downloads and return existing record if found */
-function findExistingMedia(infohash: string, userId: string, magnetLink: string): Response | null {
+function findExistingMedia(infohash: string, organizationId: string, magnetLink: string): Response | null {
 	// Check by infohash on media table
-	const existing = mediaDb.getByInfohash(infohash, userId);
+	const existing = mediaDb.getByInfohash(infohash, organizationId);
 	if (existing) {
 		if (existing.status === 'added' || existing.status === 'downloading') {
 			resumeIfNeeded(existing.id, magnetLink);
@@ -199,7 +199,7 @@ function findExistingMedia(infohash: string, userId: string, magnetLink: string)
 	}
 
 	// Check by infohash on downloads table
-	const existingDownload = downloadsDb.infohashExistsForUser(infohash, userId);
+	const existingDownload = downloadsDb.infohashExistsForOrg(infohash, organizationId);
 	if (existingDownload) {
 		const { download, media } = existingDownload;
 		if (download.status === 'added' || download.status === 'downloading') {
@@ -243,6 +243,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		throw error(401, 'Unauthorized');
 	}
 
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
+		throw error(400, 'No active profile selected');
+	}
+
 	const body = await request.json();
 	const { magnetLink, type: providedType } = body;
 
@@ -257,8 +262,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const mediaType = determineMediaType(providedType, name, title);
 
-	// Check for duplicates
-	const existingResponse = findExistingMedia(infohash, locals.user.id, magnetLink);
+	// Check for duplicates within this profile
+	const existingResponse = findExistingMedia(infohash, organizationId, magnetLink);
 	if (existingResponse) {
 		return existingResponse;
 	}
@@ -266,9 +271,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Resolve metadata (browse data or TMDB search)
 	const metadata = await resolveMetadata(body, title, year, mediaType);
 
-	// For TV shows, check if we should merge into an existing show
+	// For TV shows, check if we should merge into an existing show within this profile
 	if (mediaType === 'tv' && metadata.tmdbId) {
-		const existingShow = mediaDb.getByTmdbId(metadata.tmdbId, locals.user.id, 'tv');
+		const existingShow = mediaDb.getByTmdbId(metadata.tmdbId, organizationId, 'tv');
 		if (existingShow) {
 			const download = downloadsDb.create({
 				mediaId: existingShow.id,
@@ -285,11 +290,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 			return json({ ...existingShow, _seasonAdded: true }, { status: 200 });
 		}
-	}
-
-	const organizationId = locals.session?.activeOrganizationId;
-	if (!organizationId) {
-		throw error(400, 'No active profile selected');
 	}
 
 	// Create new media record

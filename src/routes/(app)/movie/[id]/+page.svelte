@@ -15,6 +15,8 @@
     import { onDestroy, onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
+    import OpenSubtitlesDialog from '$lib/components/OpenSubtitlesDialog.svelte';
+    import SubtitleMenu from '$lib/components/SubtitleMenu.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import Dialog from '$lib/components/ui/Dialog.svelte';
     import Input from '$lib/components/ui/Input.svelte';
@@ -40,6 +42,9 @@
     let magnetInput = $state('');
     let magnetError = $state('');
     let adding = $state(false);
+
+    // OpenSubtitles Dialog state
+    let openSubtitlesDialogOpen = $state(false);
 
     // Live stats (updated via SSE)
     let liveStatus = $state<string | null>(null);
@@ -351,6 +356,7 @@
                             </Button>
                         </a>
                     {/if}
+                    <SubtitleMenu mediaId={data.media.id} onAddSubtitles={() => (openSubtitlesDialogOpen = true)} />
                     <Button
                         variant="ghost"
                         size="lg"
@@ -546,3 +552,5 @@
     onConfirm={uiState.deleteConfirmation.confirmAction}
     loading={deleting}
 />
+
+<OpenSubtitlesDialog bind:open={openSubtitlesDialogOpen} mediaId={data.media.id} mediaTitle={data.media.title} />

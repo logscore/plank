@@ -7,6 +7,11 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		throw error(401, 'Unauthorized');
 	}
 
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
+		throw error(400, 'No active profile selected');
+	}
+
 	const episodeId = url.searchParams.get('episodeId');
 
 	if (episodeId) {
@@ -17,7 +22,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		});
 	}
 
-	const mediaItem = mediaDb.get(params.id, locals.user.id);
+	const mediaItem = mediaDb.get(params.id, organizationId);
 	if (!mediaItem) {
 		throw error(404, 'Media not found');
 	}
@@ -33,13 +38,18 @@ export const PUT: RequestHandler = async ({ params, locals, request }) => {
 		throw error(401, 'Unauthorized');
 	}
 
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
+		throw error(400, 'No active profile selected');
+	}
+
 	const { position, duration, episodeId } = await request.json();
 
 	if (typeof position !== 'number' || position < 0) {
 		throw error(400, 'Invalid position');
 	}
 
-	const mediaItem = mediaDb.get(params.id, locals.user.id);
+	const mediaItem = mediaDb.get(params.id, organizationId);
 	if (!mediaItem) {
 		throw error(404, 'Media not found');
 	}
@@ -61,6 +71,11 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		return new Response(null, { status: 401 });
 	}
 
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
+		return new Response(null, { status: 400 });
+	}
+
 	const contentType = request.headers.get('content-type') ?? '';
 	let body: { position: number; duration?: number; episodeId?: string };
 
@@ -75,7 +90,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		return new Response(null, { status: 400 });
 	}
 
-	const mediaItem = mediaDb.get(params.id, locals.user.id);
+	const mediaItem = mediaDb.get(params.id, organizationId);
 	if (!mediaItem) {
 		return new Response(null, { status: 404 });
 	}

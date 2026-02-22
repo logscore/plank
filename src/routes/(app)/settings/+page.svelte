@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Film, Save, Server, Settings } from '@lucide/svelte';
+    import { Captions, Film, Save, Server, Settings } from '@lucide/svelte';
     import { toast } from 'svelte-sonner';
     import { enhance } from '$app/forms';
     import IndexerManager from '$lib/components/IndexerManager.svelte';
@@ -56,6 +56,37 @@
                         value={data.settings.tmdb.apiKey}
                         placeholder="TMDB API Key"
                     />
+                </div>
+            </div>
+        </div>
+
+        <!-- OpenSubtitles Section -->
+        <div class="rounded-xl border border-border bg-card p-6 mb-6">
+            <div class="flex items-center gap-3 mb-6">
+                <Captions class="w-5 h-5 text-primary" />
+                <h2 class="text-lg font-semibold">OpenSubtitles</h2>
+            </div>
+
+            <div class="grid gap-6">
+                <div>
+                    <label for="opensubtitlesApiKey" class="block text-sm text-muted-foreground mb-2">API Key</label>
+                    <Input
+                        id="opensubtitlesApiKey"
+                        name="opensubtitlesApiKey"
+                        type="password"
+                        value={data.settings.opensubtitles.apiKey}
+                        placeholder="OpenSubtitles API Key"
+                    />
+                    <p class="text-xs text-muted-foreground mt-2">
+                        Get a free API key at
+                        <a
+                            href="https://www.opensubtitles.com/consumers"
+                            target="_blank"
+                            rel="noopener"
+                            class="text-primary hover:underline"
+                            >opensubtitles.com</a
+                        >
+                    </p>
                 </div>
             </div>
         </div>

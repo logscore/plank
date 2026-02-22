@@ -25,7 +25,7 @@
 >
     <div
         class={cn(
-            "w-24 h-24 md:w-28 md:h-28 rounded-xl overflow-hidden transition-all shadow-lg",
+            `w-24 h-24 md:w-28 md:h-28 rounded-xl overflow-hidden transition-all shadow-lg`,
             isMember
                 ? "group-hover:ring-2 group-hover:ring-white group-hover:shadow-xl"
                 : "opacity-40 grayscale",

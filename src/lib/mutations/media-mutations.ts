@@ -159,6 +159,106 @@ export function createRetryDownloadMutation() {
 	return createMutation<void, Error, string, unknown>(() => options);
 }
 
+// =============================================================================
+// Subtitle mutations
+// =============================================================================
+
+export interface DownloadSubtitleParams {
+	mediaId: string;
+	fileId: number;
+	language: string;
+	episodeId?: string;
+}
+
+export function createDownloadSubtitleMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation<unknown, Error, DownloadSubtitleParams>(() => ({
+		mutationFn: async (params: DownloadSubtitleParams) => {
+			const response = await fetch(`/api/media/${params.mediaId}/subtitles/download`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					fileId: params.fileId,
+					language: params.language,
+					episodeId: params.episodeId,
+				}),
+			});
+			if (!response.ok) {
+				const data = await response.json().catch(() => ({}));
+				throw new Error(data.message || 'Failed to download subtitle');
+			}
+			return response.json();
+		},
+		onSuccess: (_data, params) => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.media.subtitles(params.mediaId, params.episodeId),
+			});
+		},
+	}));
+}
+
+export interface SetDefaultSubtitleParams {
+	mediaId: string;
+	subtitleId: string;
+	isDefault: boolean;
+	episodeId?: string;
+}
+
+export function createSetDefaultSubtitleMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation<unknown, Error, SetDefaultSubtitleParams>(() => ({
+		mutationFn: async (params: SetDefaultSubtitleParams) => {
+			const response = await fetch(`/api/media/${params.mediaId}/subtitles/${params.subtitleId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ isDefault: params.isDefault }),
+			});
+			if (!response.ok) {
+				throw new Error('Failed to update subtitle');
+			}
+			return response.json();
+		},
+		onSuccess: (_data, params) => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.media.subtitles(params.mediaId, params.episodeId),
+			});
+		},
+	}));
+}
+
+export interface DeleteSubtitleParams {
+	mediaId: string;
+	subtitleId: string;
+	episodeId?: string;
+}
+
+export function createDeleteSubtitleMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation<unknown, Error, DeleteSubtitleParams>(() => ({
+		mutationFn: async (params: DeleteSubtitleParams) => {
+			const response = await fetch(`/api/media/${params.mediaId}/subtitles/${params.subtitleId}`, {
+				method: 'DELETE',
+			});
+			if (!response.ok) {
+				throw new Error('Failed to delete subtitle');
+			}
+			return response.json();
+		},
+		onSuccess: (_data, params) => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.media.subtitles(params.mediaId, params.episodeId),
+			});
+		},
+	}));
+}
+
+// =============================================================================
+// Position mutations
+// =============================================================================
+
 export interface SavePositionParams {
 	id: string;
 	position: number;

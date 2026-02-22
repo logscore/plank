@@ -15,9 +15,9 @@ function isControllerClosedError(e: unknown): boolean {
 }
 
 /** Build progress data object from current state */
-function buildProgressData(mediaId: string, userId?: string) {
+function buildProgressData(mediaId: string, organizationId?: string) {
 	const downloadStatus = getDownloadStatus(mediaId);
-	const currentMedia = userId ? mediaDb.get(mediaId, userId) : mediaDb.getById(mediaId);
+	const currentMedia = organizationId ? mediaDb.get(mediaId, organizationId) : mediaDb.getById(mediaId);
 
 	return {
 		status: downloadStatus?.status ?? currentMedia?.status ?? 'added',
@@ -37,7 +37,12 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		throw error(401, 'Unauthorized');
 	}
 
-	const mediaItem = mediaDb.get(params.id, locals.user.id);
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
+		throw error(400, 'No active profile selected');
+	}
+
+	const mediaItem = mediaDb.get(params.id, organizationId);
 	if (!mediaItem) {
 		throw error(404, 'Media not found');
 	}
@@ -76,7 +81,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 				}
 
 				try {
-					const data = buildProgressData(params.id, locals.user?.id);
+					const data = buildProgressData(params.id, organizationId);
 
 					if (isClosed) {
 						return;

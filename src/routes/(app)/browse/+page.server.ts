@@ -4,33 +4,7 @@ import { type BrowseItem, getBrowseItemDetails, getPopular, getTrending } from '
 import { getCachedTorrents } from '$lib/server/torrent-cache';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ url, locals }) => {
-	if (!locals.user) {
-		throw error(401, 'Unauthorized');
-	}
-
-	// Check Prowlarr configuration
-	const { prowlarrConfigured, prowlarrStatus, hasIndexers } = await checkProwlarrStatus();
-
-	// If Prowlarr is not properly configured, return setup state
-	if (!prowlarrConfigured || prowlarrStatus === 'no_indexers') {
-		return {
-			items: [],
-			page: 1,
-			totalPages: 0,
-			type: 'trending',
-			filter: 'all',
-			prowlarrConfigured,
-			prowlarrStatus,
-			hasIndexers,
-			needsSetup: true,
-		};
-	}
-
-	const type = (url.searchParams.get('type') as 'trending' | 'popular') || 'trending';
-	const filter = (url.searchParams.get('filter') as 'all' | 'movie' | 'tv') || 'all';
-	const page = Number.parseInt(url.searchParams.get('page') || '1', 10);
-
+async function fetchBrowseData(type: 'trending' | 'popular', filter: 'all' | 'movie' | 'tv', page: number) {
 	let result: { items: BrowseItem[]; totalPages: number };
 
 	switch (type) {
@@ -38,9 +12,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			result = await getTrending('day', page, filter);
 			break;
 		case 'popular':
-			// TMDB popular endpoint separates movie/tv, no "all" mixed endpoint
-			// If all is selected, we default to movie for popularity or force one.
-			// Let's default to movie if 'all', passing it as 'movie' to getPopular.
 			result = await getPopular(page, filter === 'all' ? 'movie' : filter);
 			break;
 		default:
@@ -64,7 +35,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 	// Check cache for magnet links
 	const imdbIds = itemsWithDetails.filter((item) => item.imdbId).map((item) => item.imdbId as string);
-
 	const cachedTorrents = await getCachedTorrents(imdbIds);
 
 	// Attach cached magnet links
@@ -84,12 +54,26 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		items: enrichedItems,
 		page,
 		totalPages: result.totalPages,
+	};
+}
+
+export const load: PageServerLoad = async ({ url, locals }) => {
+	if (!locals.user) {
+		throw error(401, 'Unauthorized');
+	}
+
+	const type = (url.searchParams.get('type') as 'trending' | 'popular') || 'trending';
+	const filter = (url.searchParams.get('filter') as 'all' | 'movie' | 'tv') || 'all';
+	const page = Number.parseInt(url.searchParams.get('page') || '1', 10);
+
+	// Return synchronous metadata immediately, stream heavy data as promises.
+	// This lets SvelteKit render the page shell instantly while data loads.
+	return {
 		type,
 		filter,
-		prowlarrConfigured,
-		prowlarrStatus,
-		hasIndexers,
-		needsSetup: false,
+		// Streamed: these resolve in the background while the page shows skeletons
+		prowlarrCheck: checkProwlarrStatus(),
+		browseData: fetchBrowseData(type, filter, page),
 	};
 };
 

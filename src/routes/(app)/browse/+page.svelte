@@ -24,15 +24,18 @@
 
     interface Props {
         data: {
-            items: BrowseItem[];
-            page: number;
-            totalPages: number;
             type: 'trending' | 'popular';
             filter: 'all' | 'movie' | 'tv';
-            prowlarrConfigured: boolean;
-            prowlarrStatus: string;
-            hasIndexers: boolean;
-            needsSetup: boolean;
+            prowlarrCheck: Promise<{
+                prowlarrConfigured: boolean;
+                prowlarrStatus: string;
+                hasIndexers: boolean;
+            }>;
+            browseData: Promise<{
+                items: BrowseItem[];
+                page: number;
+                totalPages: number;
+            }>;
         };
     }
 
@@ -44,28 +47,44 @@
     // Query client for caching
     const queryClient = useQueryClient();
 
-    // Derive params from URL
+    // Derive params from URL (available immediately, not streamed)
     const activeTab = $derived(data.type);
     const activeFilter = $derived(data.filter || 'all');
 
-    // Infinite query for loading more pages
+    // Track resolved browse data for initializing infinite query
+    let resolvedBrowseData = $state<{ items: BrowseItem[]; page: number; totalPages: number } | null>(null);
+
+    // Resolve streamed browse data when it arrives
+    $effect(() => {
+        resolvedBrowseData = null;
+        data.browseData.then((result) => {
+            resolvedBrowseData = result;
+        });
+    });
+
+    // Infinite query for loading more pages - only initialized once data resolves
     const browseQuery = createInfiniteQuery(() => ({
         queryKey: queryKeys.browse.infinite(activeTab, activeFilter),
         queryFn: ({ pageParam }) => fetchBrowse(activeTab, activeFilter, pageParam),
         initialPageParam: 1,
-        initialData: {
-            pages: [
-                {
-                    items: data.items,
-                    page: data.page,
-                    totalPages: data.totalPages,
-                },
-            ],
-            pageParams: [1],
-        },
+        ...(resolvedBrowseData
+            ? {
+                  initialData: {
+                      pages: [
+                          {
+                              items: resolvedBrowseData.items,
+                              page: resolvedBrowseData.page,
+                              totalPages: resolvedBrowseData.totalPages,
+                          },
+                      ],
+                      pageParams: [1],
+                  },
+              }
+            : {}),
         getNextPageParam: (lastPage: BrowseResponse) => {
             return lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined;
         },
+        enabled: resolvedBrowseData !== null,
         staleTime: 30 * 60 * 1000, // 30 minutes
     }));
 
@@ -435,56 +454,74 @@
 
     <!-- Content -->
     <div class="container max-w-7xl mx-auto px-4 py-8">
-        {#if data.needsSetup}
-            <!-- Setup Instructions -->
-            <ProwlarrSetup prowlarrUrl={env.PUBLIC_PROWLARR_URL!} hasApiKey={data.prowlarrConfigured} />
-        {:else if displayItems.length === 0 && !data.needsSetup}
-            <!-- Empty State -->
-            <div class="text-center py-20 bg-muted/30 rounded-lg border border-dashed border-border mx-auto max-w-2xl">
-                <Trophy class="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-                <h2 class="text-lg font-medium text-foreground mb-1">No content found</h2>
-                <p class="text-muted-foreground">Check your indexer and Prowlarr configuration.</p>
-            </div>
-        {:else}
-            <!-- Movie Grid -->
+        {#await data.prowlarrCheck}
+            <!-- Loading: show skeleton grid immediately -->
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {#if navigating.to}
+                {#each { length: 12 } as _}
+                    <CardSkeleton />
+                {/each}
+            </div>
+        {:then prowlarr}
+            {#if !prowlarr.prowlarrConfigured || prowlarr.prowlarrStatus === 'no_indexers'}
+                <!-- Setup Instructions -->
+                <ProwlarrSetup prowlarrUrl={env.PUBLIC_PROWLARR_URL!} hasApiKey={prowlarr.prowlarrConfigured} />
+            {:else if !resolvedBrowseData}
+                <!-- Browse data still loading after prowlarr check resolved -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                     {#each { length: 12 } as _}
                         <CardSkeleton />
                     {/each}
-                {:else}
-                    {#each displayItems as item (item._key)}
-                        <TorrentCard
-                            {item}
-                            onAddToLibrary={handleAddToLibrary}
-                            onWatchNow={handleWatchNow}
-                            onPrefetch={handlePrefetch}
-                            onSelectSeason={handleSelectSeason}
-                            onPrefetchSeasons={handlePrefetchSeasons}
-                            onPrefetchSeasonTorrent={handlePrefetchSeasonTorrent}
-                            isAdding={addingItems.has(item.tmdbId)}
-                            isResolving={resolvingItems.has(item.tmdbId)}
-                            seasons={getSeasonsForItem(item.tmdbId)}
-                            seasonsLoading={seasonsLoading.has(item.tmdbId)}
-                        />
-                    {/each}
-
-                    {#if isFetchingMore}
-                        {#each { length: 5 } as _}
+                </div>
+            {:else if displayItems.length === 0}
+                <!-- Empty State -->
+                <div
+                    class="text-center py-20 bg-muted/30 rounded-lg border border-dashed border-border mx-auto max-w-2xl"
+                >
+                    <Trophy class="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+                    <h2 class="text-lg font-medium text-foreground mb-1">No content found</h2>
+                    <p class="text-muted-foreground">Check your indexer and Prowlarr configuration.</p>
+                </div>
+            {:else}
+                <!-- Movie Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {#if navigating.to}
+                        {#each { length: 12 } as _}
                             <CardSkeleton />
                         {/each}
-                    {/if}
-                {/if}
-            </div>
+                    {:else}
+                        {#each displayItems as item (item._key)}
+                            <TorrentCard
+                                {item}
+                                onAddToLibrary={handleAddToLibrary}
+                                onWatchNow={handleWatchNow}
+                                onPrefetch={handlePrefetch}
+                                onSelectSeason={handleSelectSeason}
+                                onPrefetchSeasons={handlePrefetchSeasons}
+                                onPrefetchSeasonTorrent={handlePrefetchSeasonTorrent}
+                                isAdding={addingItems.has(item.tmdbId)}
+                                isResolving={resolvingItems.has(item.tmdbId)}
+                                seasons={getSeasonsForItem(item.tmdbId)}
+                                seasonsLoading={seasonsLoading.has(item.tmdbId)}
+                            />
+                        {/each}
 
-            <!-- Load More Trigger -->
-            {#if hasMore && !navigating.to}
-                <div bind:this={loadMoreTrigger} class="flex justify-center py-12">
-                    {#if !isFetchingMore}
-                        <span class="h-6 block"></span>
+                        {#if isFetchingMore}
+                            {#each { length: 5 } as _}
+                                <CardSkeleton />
+                            {/each}
+                        {/if}
                     {/if}
                 </div>
+
+                <!-- Load More Trigger -->
+                {#if hasMore && !navigating.to}
+                    <div bind:this={loadMoreTrigger} class="flex justify-center py-12">
+                        {#if !isFetchingMore}
+                            <span class="h-6 block"></span>
+                        {/if}
+                    </div>
+                {/if}
             {/if}
-        {/if}
+        {/await}
     </div>
 </div>

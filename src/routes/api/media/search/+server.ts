@@ -9,6 +9,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		throw error(401, 'Unauthorized');
 	}
 
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
+		throw error(400, 'No active profile selected');
+	}
+
 	const query = url.searchParams.get('q');
 	const type = url.searchParams.get('type');
 
@@ -19,7 +24,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	try {
 		const results = await db.query.media.findMany({
 			where: and(
-				eq(media.userId, locals.user.id),
+				eq(media.organizationId, organizationId),
 				like(media.title, `%${query}%`),
 				type ? eq(media.type, type as 'movie' | 'tv') : undefined
 			),

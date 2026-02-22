@@ -59,24 +59,24 @@ export const mediaDb = {
 	},
 
 	/**
-	 * Get single media item by id and userId
+	 * Get single media item by id, scoped to an organization (profile)
 	 */
-	get(id: string, userId: string): Media | undefined {
+	get(id: string, organizationId: string): Media | undefined {
 		return db
 			.select()
 			.from(mediaTable)
-			.where(and(eq(mediaTable.id, id), eq(mediaTable.userId, userId)))
+			.where(and(eq(mediaTable.id, id), eq(mediaTable.organizationId, organizationId)))
 			.get();
 	},
 
 	/**
-	 * Get media by infohash for a user (check duplicates)
+	 * Get media by infohash, scoped to an organization (profile)
 	 */
-	getByInfohash(infohash: string, userId: string): Media | undefined {
+	getByInfohash(infohash: string, organizationId: string): Media | undefined {
 		return db
 			.select()
 			.from(mediaTable)
-			.where(and(eq(mediaTable.infohash, infohash), eq(mediaTable.userId, userId)))
+			.where(and(eq(mediaTable.infohash, infohash), eq(mediaTable.organizationId, organizationId)))
 			.get();
 	},
 
@@ -88,13 +88,19 @@ export const mediaDb = {
 	},
 
 	/**
-	 * Get TV show by TMDB ID for a user (for merging seasons)
+	 * Get TV show by TMDB ID, scoped to an organization (profile)
 	 */
-	getByTmdbId(tmdbId: number, userId: string, type: MediaType = 'tv'): Media | undefined {
+	getByTmdbId(tmdbId: number, organizationId: string, type: MediaType = 'tv'): Media | undefined {
 		return db
 			.select()
 			.from(mediaTable)
-			.where(and(eq(mediaTable.tmdbId, tmdbId), eq(mediaTable.userId, userId), eq(mediaTable.type, type)))
+			.where(
+				and(
+					eq(mediaTable.tmdbId, tmdbId),
+					eq(mediaTable.organizationId, organizationId),
+					eq(mediaTable.type, type)
+				)
+			)
 			.get();
 	},
 
@@ -170,11 +176,11 @@ export const mediaDb = {
 	},
 
 	/**
-	 * Delete media item
+	 * Delete media item, scoped to an organization (profile)
 	 */
-	delete(id: string, userId: string) {
+	delete(id: string, organizationId: string) {
 		db.delete(mediaTable)
-			.where(and(eq(mediaTable.id, id), eq(mediaTable.userId, userId)))
+			.where(and(eq(mediaTable.id, id), eq(mediaTable.organizationId, organizationId)))
 			.run();
 	},
 
@@ -572,9 +578,9 @@ export const downloadsDb = {
 	},
 
 	/**
-	 * Check if infohash exists for any media of a user
+	 * Check if infohash exists for any media in an organization (profile)
 	 */
-	infohashExistsForUser(infohash: string, userId: string): { download: Download; media: Media } | undefined {
+	infohashExistsForOrg(infohash: string, organizationId: string): { download: Download; media: Media } | undefined {
 		const result = db
 			.select({
 				download: downloadsTable,
@@ -582,7 +588,7 @@ export const downloadsDb = {
 			})
 			.from(downloadsTable)
 			.innerJoin(mediaTable, eq(downloadsTable.mediaId, mediaTable.id))
-			.where(and(eq(downloadsTable.infohash, infohash), eq(mediaTable.userId, userId)))
+			.where(and(eq(downloadsTable.infohash, infohash), eq(mediaTable.organizationId, organizationId)))
 			.get();
 		return result;
 	},
@@ -642,6 +648,35 @@ export const subtitlesDb = {
 
 	getById(id: string): Subtitle | undefined {
 		return db.select().from(subtitlesTable).where(eq(subtitlesTable.id, id)).get();
+	},
+
+	/**
+	 * Set a subtitle as the default (unsets all others for the same media/episode first)
+	 */
+	setDefault(id: string, mediaId: string, episodeId: string | null, isDefault: boolean) {
+		if (isDefault) {
+			// Unset all other defaults for this media/episode
+			if (episodeId) {
+				db.update(subtitlesTable)
+					.set({ isDefault: false })
+					.where(eq(subtitlesTable.episodeId, episodeId))
+					.run();
+			} else {
+				db.update(subtitlesTable)
+					.set({ isDefault: false })
+					.where(and(eq(subtitlesTable.mediaId, mediaId), sql`${subtitlesTable.episodeId} IS NULL`))
+					.run();
+			}
+		}
+		// Set the target subtitle
+		db.update(subtitlesTable).set({ isDefault }).where(eq(subtitlesTable.id, id)).run();
+	},
+
+	/**
+	 * Delete a single subtitle by ID
+	 */
+	deleteById(id: string) {
+		db.delete(subtitlesTable).where(eq(subtitlesTable.id, id)).run();
 	},
 
 	deleteByMediaId(mediaId: string) {

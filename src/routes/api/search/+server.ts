@@ -9,13 +9,16 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
+		return json({ error: 'No active profile selected' }, { status: 400 });
+	}
+
 	const query = url.searchParams.get('q')?.trim() || '';
 
 	if (query.length < 2) {
 		return json([]);
 	}
-
-	const userId = locals.user.id;
 
 	try {
 		// Get underlying sqlite instance for raw FTS query
@@ -28,6 +31,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       SELECT 
         m.id,
         m.user_id as userId,
+        m.organization_id as organizationId,
         m.type,
         m.title,
         m.year,
@@ -52,13 +56,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         1 as priority
       FROM media_fts fts
       JOIN media m ON fts.rowid = m.rowid
-      WHERE m.user_id = ? AND media_fts MATCH ? || '*'
+      WHERE m.organization_id = ? AND media_fts MATCH ? || '*'
       
       UNION ALL
       
       SELECT 
         m.id,
         m.user_id as userId,
+        m.organization_id as organizationId,
         m.type,
         m.title,
         m.year,
@@ -82,7 +87,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         NULL as fts_rank,
         2 as priority
       FROM media m
-      WHERE m.user_id = ? AND m.title LIKE '%' || ? || '%'
+      WHERE m.organization_id = ? AND m.title LIKE '%' || ? || '%'
         AND m.rowid NOT IN (
           SELECT rowid FROM media_fts WHERE media_fts MATCH ? || '*'
         )
@@ -90,7 +95,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       ORDER BY priority, fts_rank
       LIMIT 20
     `)
-			.all(userId, query, userId, query, query);
+			.all(organizationId, query, organizationId, query, query);
 
 		return json(results);
 	} catch (error) {
@@ -100,7 +105,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const fallbackResults = db
 			.select()
 			.from(media)
-			.where(and(eq(media.userId, userId), like(media.title, `%${query}%`)))
+			.where(and(eq(media.organizationId, organizationId), like(media.title, `%${query}%`)))
 			.limit(20)
 			.all();
 

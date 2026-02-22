@@ -16,6 +16,9 @@ export interface AppSettings {
 		trustedGroups: string[];
 		minSeeders: number;
 	};
+	opensubtitles: {
+		apiKey: string;
+	};
 }
 
 export async function getSettings(): Promise<AppSettings> {
@@ -54,6 +57,9 @@ export async function getSettings(): Promise<AppSettings> {
 				trustedGroups,
 				minSeeders: stored?.prowlarrMinSeeders ?? envConfig.prowlarr.minSeeders,
 			},
+			opensubtitles: {
+				apiKey: stored?.opensubtitlesApiKey || '',
+			},
 		};
 	} catch (e) {
 		console.error('Failed to load settings from DB, falling back to env:', e);
@@ -63,6 +69,9 @@ export async function getSettings(): Promise<AppSettings> {
 				language: 'en-US',
 			},
 			prowlarr: envConfig.prowlarr,
+			opensubtitles: {
+				apiKey: '',
+			},
 		};
 	}
 }
@@ -74,6 +83,7 @@ export async function updateSettings(
 		prowlarrApiKey: string;
 		prowlarrTrustedGroups: string[];
 		prowlarrMinSeeders: number;
+		opensubtitlesApiKey: string;
 	}>
 ) {
 	const values: Partial<typeof configuration.$inferInsert> = {};
@@ -91,6 +101,9 @@ export async function updateSettings(
 	}
 	if (updates.prowlarrMinSeeders !== undefined) {
 		values.prowlarrMinSeeders = updates.prowlarrMinSeeders;
+	}
+	if (updates.opensubtitlesApiKey !== undefined) {
+		values.opensubtitlesApiKey = updates.opensubtitlesApiKey;
 	}
 
 	// Upsert

@@ -173,7 +173,7 @@ describe('Database Service', () => {
 			expect(created.id).toBeDefined();
 			expect(created.status).toBe('added');
 
-			const fetched = mediaDb.get(created.id, testUser.id);
+			const fetched = mediaDb.get(created.id, testOrg.id);
 			expect(fetched).toBeDefined();
 			expect(fetched?.title).toBe(sampleMedia.title);
 		});
@@ -188,7 +188,7 @@ describe('Database Service', () => {
 
 		it('getByInfohash', () => {
 			mediaDb.create({ userId: testUser.id, organizationId: testOrg.id, ...sampleMedia });
-			const result = mediaDb.getByInfohash(sampleMedia.infohash, testUser.id);
+			const result = mediaDb.getByInfohash(sampleMedia.infohash, testOrg.id);
 			expect(result).toBeDefined();
 		});
 
@@ -215,7 +215,7 @@ describe('Database Service', () => {
 
 		it('delete media', () => {
 			const created = mediaDb.create({ userId: testUser.id, organizationId: testOrg.id, ...sampleMedia });
-			mediaDb.delete(created.id, testUser.id);
+			mediaDb.delete(created.id, testOrg.id);
 			const fetched = mediaDb.getById(created.id);
 			expect(fetched).toBeUndefined();
 		});
@@ -320,13 +320,13 @@ describe('Database Service', () => {
 			expect(updated?.status).toBe('downloading');
 		});
 
-		it('infohashExistsForUser', () => {
+		it('infohashExistsForOrg', () => {
 			downloadsDb.create({
 				mediaId,
 				magnetLink: 'magnet:...',
 				infohash: '111',
 			});
-			const exists = downloadsDb.infohashExistsForUser('111', testUser.id);
+			const exists = downloadsDb.infohashExistsForOrg('111', testOrg.id);
 			expect(exists).toBeDefined();
 			expect(exists?.media.id).toBe(mediaId);
 		});

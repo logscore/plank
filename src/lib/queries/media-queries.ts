@@ -157,3 +157,59 @@ export async function fetchSubtitleTracks(id: string, episodeId?: string): Promi
 	}
 	return response.json();
 }
+
+export function createSubtitleTracksQuery(id: string, episodeId?: string) {
+	return createQuery(() => ({
+		queryKey: queryKeys.media.subtitles(id, episodeId),
+		queryFn: () => fetchSubtitleTracks(id, episodeId),
+		enabled: !!id,
+	}));
+}
+
+export interface OpenSubtitleSearchResult {
+	id: string;
+	fileId: number;
+	fileName: string;
+	language: string;
+	languageName: string;
+	release: string;
+	downloadCount: number;
+	hearingImpaired: boolean;
+	aiTranslated: boolean;
+	machineTranslated: boolean;
+	fromTrusted: boolean;
+	fps: number;
+	votes: number;
+	ratings: number;
+	uploadDate: string;
+	isExactMatch: boolean;
+	featureTitle: string;
+	featureYear: number;
+	seasonNumber?: number;
+	episodeNumber?: number;
+}
+
+export async function searchOpenSubtitles(
+	mediaId: string,
+	options?: {
+		languages?: string;
+		seasonNumber?: number;
+		episodeNumber?: number;
+	}
+): Promise<OpenSubtitleSearchResult[]> {
+	const params = new URLSearchParams();
+	if (options?.languages) {
+		params.set('languages', options.languages);
+	}
+	if (options?.seasonNumber !== undefined) {
+		params.set('seasonNumber', String(options.seasonNumber));
+	}
+	if (options?.episodeNumber !== undefined) {
+		params.set('episodeNumber', String(options.episodeNumber));
+	}
+	const response = await fetch(`/api/media/${mediaId}/subtitles/search?${params.toString()}`);
+	if (!response.ok) {
+		throw createFetchError('Failed to search subtitles', response.status);
+	}
+	return response.json();
+}

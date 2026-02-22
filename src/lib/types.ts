@@ -85,6 +85,31 @@ export interface SubtitleTrack {
 	src: string;
 }
 
+// OpenSubtitles search result type
+
+export interface OpenSubtitleResult {
+	id: string;
+	fileId: number;
+	fileName: string;
+	language: string;
+	languageName: string;
+	release: string;
+	downloadCount: number;
+	hearingImpaired: boolean;
+	aiTranslated: boolean;
+	machineTranslated: boolean;
+	fromTrusted: boolean;
+	fps: number;
+	votes: number;
+	ratings: number;
+	uploadDate: string;
+	isExactMatch: boolean;
+	featureTitle: string;
+	featureYear: number;
+	seasonNumber?: number;
+	episodeNumber?: number;
+}
+
 // TMDB search result types
 
 // Episode reorder request type

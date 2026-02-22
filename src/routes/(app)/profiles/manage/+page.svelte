@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { ArrowLeft, Pencil, Trash2, Users, X } from '@lucide/svelte';
+    import { ArrowLeft, Check, Loader2, Pencil, Trash2, Users, X } from '@lucide/svelte';
+    import { tick } from 'svelte';
     import { toast } from 'svelte-sonner';
     import { goto, invalidateAll } from '$app/navigation';
     import { authClient } from '$lib/auth-client';
@@ -53,9 +54,13 @@
         }
     }
 
-    function startEdit(profile: (typeof data.profiles)[0]) {
+    async function startEdit(profile: (typeof data.profiles)[0]) {
         editingId = profile.id;
         editName = profile.name;
+        await tick();
+        const input = document.querySelector<HTMLInputElement>(`[data-edit-input="${profile.id}"]`);
+        input?.focus();
+        input?.select();
     }
 
     function cancelEdit() {
@@ -126,7 +131,12 @@
         <h2 class="text-lg font-semibold mb-4">Create New Profile</h2>
         <form onsubmit={createProfile} class="space-y-4">
             <div class="flex items-center gap-4">
-                <Facehash name={newName || "Profile"} size={48} class="rounded-lg text-white shrink-0" />
+                <Facehash
+                    name={newName || ""}
+                    size={48}
+                    class="rounded-lg text-white shrink-0"
+                    intensity3d={newName ? "dramatic" : "none"}
+                />
                 <div class="flex-1 space-y-2">
                     <label for="profile-name" class="text-sm font-medium">Profile Name</label>
                     <Input
@@ -155,27 +165,53 @@
                     <div class="flex items-center justify-between p-4 rounded-lg border border-border bg-background/50">
                         {#if editingId === profile.id}
                             <!-- Edit mode -->
-                            <div class="flex-1 space-y-3">
-                                <div class="flex items-center gap-3">
-                                    <Facehash
-                                        name={editName || "Profile"}
-                                        size={56}
-                                        class="rounded-lg text-white shrink-0"
-                                        interactive={true}
-                                    />
-                                    <Input
+                            <div class="flex items-center gap-3 flex-1">
+                                <Facehash
+                                    name={editName || "Profile"}
+                                    size={40}
+                                    class="rounded-lg text-white shrink-0"
+                                    interactive={true}
+                                    intensity3d="medium"
+                                />
+                                <div class="relative flex-1">
+                                    <input
                                         bind:value={editName}
+                                        data-edit-input={profile.id}
                                         placeholder="Profile name"
-                                        class="bg-background/50 flex-1"
-                                    />
-                                </div>
-                                <div class="flex gap-2">
-                                    <Button size="sm" onclick={saveEdit} disabled={saving}>
-                                        {saving ? "Saving..." : "Save"}
-                                    </Button>
-                                    <Button size="sm" variant="ghost" onclick={cancelEdit}>
-                                        <X class="w-4 h-4" />
-                                    </Button>
+                                        class="flex h-10 w-full rounded-md border border-input bg-background/50 pl-3 pr-20 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        onkeydown={(e) => {
+                                            if (e.key === "Enter") {
+                                                e.preventDefault();
+                                                saveEdit();
+                                            }
+                                            if (e.key === "Escape") {
+                                                e.preventDefault();
+                                                cancelEdit();
+                                            }
+                                        }}
+                                    >
+                                    <div class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                        <button
+                                            class="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-white hover:bg-accent transition-colors"
+                                            onclick={cancelEdit}
+                                            title="Cancel (Esc)"
+                                        >
+                                            <X class="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            class="flex items-center justify-center w-7 h-7 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                            onclick={saveEdit}
+                                            disabled={saving ||
+                                                !editName.trim()}
+                                            title="Save (Enter)"
+                                        >
+                                            {#if saving}
+                                                <Loader2 class="w-4 h-4 animate-spin" />
+                                            {:else}
+                                                <Check class="w-4 h-4" />
+                                            {/if}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         {:else}
@@ -194,8 +230,7 @@
                                         <Users class="w-3 h-3" />
                                         <span
                                             >{profile.memberCount} member
-                                            {profile.memberCount !==
-                                            1
+                                            {profile.memberCount !== 1
                                                 ? "s"
                                                 : ""}</span
                                         >
