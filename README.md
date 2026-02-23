@@ -2,6 +2,8 @@
 
 A self-hosted media server for streaming movies via torrents.
 
+> ⚠️ This repo is under heavy development and we dont have a consistent way to migrat your media data in your loal db or on the file system when we make breaking changes. Use this project at your own peril.
+
 ## Features
 
 - Add magnet links and stream while downloading
@@ -25,33 +27,35 @@ The script will install dependencies, clone the repo, configure environment, and
 
 ---
 
-## 🚨 Legal Disclaimer & Safety Warning
+## Legal Disclaimer & Safety Warning
 
 **IMPORTANT:** This software is provided for educational and legitimate use only. Users are solely responsible for ensuring compliance with their local copyright laws and regulations.
 
-### ⚠️ Your Responsibility:
+### Your Responsibility:
 - **Copyright Laws:** Check your country's copyright laws before using torrents
 - **File Safety:** I as the developer have **no control** over torrent content, safety, or legality
 - **Use at Your Own Discretion:** All torrent downloads are at your own risk
 - **Privacy Protection:** Strongly consider using a torrent-ready VPN for privacy protection
 
-### 🔒 Security Recommendations:
+### Security Recommendations:
 - Use a reputable VPN or tunnel service for all torrent activities
 - Scan downloaded files with antivirus software (soon-to-be-feature)
 - Verify file contents before opening
 - Never download suspicious or unverified torrents
 - Never run executable likes like .exe, .bat, .scr unless you explicitly intend to (ie. video games)
 
-### 📋 What This Software Does:
+### What This Software Does:
 - Provides a media streaming interface for torrent content
 - Integrates with Prowlarr for torrent search functionality
 - Does NOT host, upload, or distribute any copyrighted material accessible on the internet
 
 ---
 
-## 📋 First-Time Setup Guide
+## First-Time Setup Guide
 
-### Step 0: Installation
+> The fastest way to get started is my running the script above. It handles nearly everything for you.
+
+### Prerequisites
 
 We recommend using Docker for installation as it automatically sets up Prowlarr (media torrent searching) and FlareSolverr (captchas) for torrent browsing.
 
@@ -93,16 +97,33 @@ Look it up yourself, you filthy animal
 Update your `.env` file with these essential variables:
 
 ```bash
-# Required variables (edit as needed)
-ENABLE_FILE_STORAGE=true # A future flag for strictly streaming torrents and not saving them. Leave as true
+# Database
 DATABASE_URL=./plank.db
 
-TMDB_API_KEY=your_tmdb_api_key_here # Needed for movie metadata like title, rating and posters. 
-PROWLARR_URL=http://prowlarr:9696 # Use service name 'prowlarr' if inside docker, or localhost:9696 if bare metal
-PROWLARR_API_KEY=your_prowlarr_api_key_here # Needed for online media search
+# Where the files are saved when downloaded
+DATA_PATH=./data
 
-BETTER_AUTH_SECRET=
+# Get yours here https://www.themoviedb.org/settings/api
+TMDB_API_KEY=your_tmdb_api_key_here
+
+# Prowlarr (Torrent Search)
+PROWLARR_URL=http://prowlarr:9696 # Use service name 'prowlarr' if inside docker, or localhost:9696 if bare metal
+PUBLIC_PROWLARR_URL=${PROWLARR_URL}
+PROWLARR_API_KEY= # We recommend leaving this blank when running fully self hosted. Configured automatically
+
+# OpenSubtitles (Subtitle Downloads)
+# Create and account and get API key at https://www.opensubtitles.com/consumers
+OPENSUBTITLES_API_KEY=
+OPENSUBTITLES_USERNAME=
+OPENSUBTITLES_PASSWORD=
+
+# Authentication
+BETTER_AUTH_SECRET=super-secret-32-char-string
 BETTER_AUTH_URL=http://localhost:3300
+
+# Reserved for future functionality. Keep as true
+ENABLE_FILE_STORAGE=true
+
 PORT=3300
 ORIGIN=http://localhost:3300 # Required for Docker CSRF protection
 ```
@@ -235,19 +256,28 @@ node build
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DATABASE_URL` | Path to SQLite database | `./plank.db` |
+| `DATA_PATH` | Where downloaded files are saved | `./data` |
+| `TMDB_API_KEY` | TMDB API key for metadata ([get one here](https://www.themoviedb.org/settings/api)) | - |
+| `PROWLARR_URL` | Prowlarr API URL | `http://localhost:9696` |
+| `PUBLIC_PROWLARR_URL` | Public-facing Prowlarr URL | Same as `PROWLARR_URL` |
+| `PROWLARR_API_KEY` | Prowlarr API key (auto-configured when fully self hosted) | - |
+| `OPENSUBTITLES_API_KEY` | OpenSubtitles API key ([get one here](https://www.opensubtitles.com/consumers)) | - |
+| `OPENSUBTITLES_USERNAME` | OpenSubtitles account username | - |
+| `OPENSUBTITLES_PASSWORD` | OpenSubtitles account password | - |
 | `BETTER_AUTH_SECRET` | Auth secret (auto-generated) | - |
-| `BETTER_AUTH_URL` | Base URL for auth | `http://localhost:3000` |
-| `TMDB_API_KEY` | TMDB API key for metadata | - |
-| `PORT` | Server port | `3000` |
+| `BETTER_AUTH_URL` | Base URL for auth | `http://localhost:3300` |
+| `ENABLE_FILE_STORAGE` | Save downloaded files to disk (reserved for future use) | `true` |
+| `PORT` | Server port | `3300` |
 | `ORIGIN` | Public URL for CSRF (Docker) | `http://localhost:3300` |
-| `PROWLARR_URL` | Prowlarr API URL | `http://prowlarr:9696` |
-| `PROWLARR_API_KEY` | Prowlarr API Key | - |
 
 ## Development
 
+We develop in Docker containers with live reloads. It keeps the dev environment and production closely knit so writing code that runs everywhere is easier.
+
+Fill in your `.env` then run:
+
 ```bash
-npm install
-npm run dev
+./scripts/dev.sh
 ```
 
 ## [License](./LICENSE)
