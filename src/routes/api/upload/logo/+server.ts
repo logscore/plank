@@ -6,6 +6,8 @@ import { processAndSave, validateImage } from '$lib/server/image-processing';
 import { imageStorage } from '$lib/server/storage';
 import type { RequestHandler } from './$types';
 
+const IMAGES_PREFIX = /^\/images\//;
+
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
@@ -48,15 +50,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	if (currentOrg?.logo) {
 		try {
-			await imageStorage.delete(currentOrg.logo);
+			const storagePath = currentOrg.logo.replace(IMAGES_PREFIX, '');
+			await imageStorage.delete(storagePath);
 		} catch {
 			// File may not exist, ignore
 		}
 	}
 
 	const relativePath = await processAndSave(buffer, 'logos', organizationId);
+	const imagePath = `/images/${relativePath}`;
 
-	db.update(schema.organization).set({ logo: relativePath }).where(eq(schema.organization.id, organizationId)).run();
+	db.update(schema.organization).set({ logo: imagePath }).where(eq(schema.organization.id, organizationId)).run();
 
-	return json({ success: true, logo: `/images/${relativePath}` });
+	return json({ success: true, logo: imagePath });
 };

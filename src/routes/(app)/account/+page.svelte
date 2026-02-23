@@ -35,15 +35,21 @@
     let passwordSuccess = $state('');
     let changingPassword = $state(false);
     let showPasswordForm = $state(false);
-    let uploadingAvatar = $state(false);
+    // User edit state
+    let editingUser = $state(false);
+    let editUserName = $state('');
+    let savingUser = $state(false);
     let avatarInput: HTMLInputElement | undefined = $state();
+    let pendingAvatarFile = $state<File | null>(null);
+    let pendingAvatarPreview = $state<string | null>(null);
 
     // Profile edit state
     let editingProfile = $state(false);
     let editProfileName = $state('');
     let editProfileLogo = $state<string | null>(null);
+    let pendingLogoFile = $state<File | null>(null);
+    let pendingLogoPreview = $state<string | null>(null);
     let savingProfile = $state(false);
-    let uploadingLogo = $state(false);
     let logoInput: HTMLInputElement | undefined = $state();
 
     async function updateRole(memberId: string, memberName: string, newRole: 'admin' | 'member') {
@@ -162,29 +168,23 @@
         }
     }
 
-    async function uploadAvatar(file: File) {
-        uploadingAvatar = true;
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
+    function startEditUser() {
+        editingUser = true;
+        editUserName = data.user.name || '';
+        pendingAvatarFile = null;
+        pendingAvatarPreview = null;
+    }
 
-            const res = await fetch('/api/upload/avatar', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!res.ok) {
-                const err = await res.json();
-                toast.error(err.message || 'Failed to upload avatar');
-                return;
-            }
-
-            toast.success('Avatar updated');
-            await invalidateAll();
-        } catch (e) {
-            toast.error('Failed to upload avatar');
-        } finally {
-            uploadingAvatar = false;
+    function cancelEditUser() {
+        editingUser = false;
+        editUserName = '';
+        if (pendingAvatarPreview) {
+            URL.revokeObjectURL(pendingAvatarPreview);
+        }
+        pendingAvatarFile = null;
+        pendingAvatarPreview = null;
+        if (avatarInput) {
+            avatarInput.value = '';
         }
     }
 
@@ -192,7 +192,48 @@
         const target = e.target as HTMLInputElement;
         const file = target.files?.[0];
         if (file) {
-            uploadAvatar(file);
+            if (pendingAvatarPreview) {
+                URL.revokeObjectURL(pendingAvatarPreview);
+            }
+            pendingAvatarFile = file;
+            pendingAvatarPreview = URL.createObjectURL(file);
+        }
+    }
+
+    async function saveUser() {
+        if (!editUserName.trim()) {
+            return;
+        }
+
+        savingUser = true;
+        try {
+            if (pendingAvatarFile) {
+                const formData = new FormData();
+                formData.append('file', pendingAvatarFile);
+
+                const avatarRes = await fetch('/api/upload/avatar', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!avatarRes.ok) {
+                    const err = await avatarRes.json();
+                    toast.error(err.message || 'Failed to upload avatar');
+                    return;
+                }
+            }
+
+            if (editUserName.trim() !== data.user.name) {
+                await authClient.updateUser({ name: editUserName.trim() });
+            }
+
+            toast.success('Account updated');
+            cancelEditUser();
+            await invalidateAll();
+        } catch {
+            toast.error('Failed to update account');
+        } finally {
+            savingUser = false;
         }
     }
 
@@ -203,12 +244,19 @@
         editingProfile = true;
         editProfileName = data.organization.name;
         editProfileLogo = data.organization.logo;
+        pendingLogoFile = null;
+        pendingLogoPreview = null;
     }
 
     function cancelEditProfile() {
         editingProfile = false;
         editProfileName = '';
         editProfileLogo = null;
+        if (pendingLogoPreview) {
+            URL.revokeObjectURL(pendingLogoPreview);
+        }
+        pendingLogoFile = null;
+        pendingLogoPreview = null;
     }
 
     async function saveProfile() {
@@ -218,6 +266,23 @@
 
         savingProfile = true;
         try {
+            if (pendingLogoFile) {
+                const formData = new FormData();
+                formData.append('file', pendingLogoFile);
+                formData.append('organizationId', data.organization.id);
+
+                const logoRes = await fetch('/api/upload/logo', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!logoRes.ok) {
+                    const err = await logoRes.json();
+                    toast.error(err.message || 'Failed to upload logo');
+                    return;
+                }
+            }
+
             const res = await fetch(`/api/profiles/${data.organization.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -231,7 +296,7 @@
             }
 
             toast.success('Profile updated');
-            editingProfile = false;
+            cancelEditProfile();
             await invalidateAll();
         } catch {
             toast.error('Failed to update profile');
@@ -240,44 +305,15 @@
         }
     }
 
-    async function uploadLogo(file: File) {
-        if (!data.organization) {
-            return;
-        }
-
-        uploadingLogo = true;
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('organizationId', data.organization.id);
-
-            const res = await fetch('/api/upload/logo', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!res.ok) {
-                const err = await res.json();
-                toast.error(err.message || 'Failed to upload logo');
-                return;
-            }
-
-            const result = await res.json();
-            editProfileLogo = result.logo;
-            toast.success('Logo updated');
-            await invalidateAll();
-        } catch {
-            toast.error('Failed to upload logo');
-        } finally {
-            uploadingLogo = false;
-        }
-    }
-
     function handleLogoChange(e: Event) {
         const target = e.target as HTMLInputElement;
         const file = target.files?.[0];
         if (file) {
-            uploadLogo(file);
+            if (pendingLogoPreview) {
+                URL.revokeObjectURL(pendingLogoPreview);
+            }
+            pendingLogoFile = file;
+            pendingLogoPreview = URL.createObjectURL(file);
         }
     }
 </script>
@@ -294,49 +330,131 @@
     <!-- User Info Card -->
     <div class="rounded-xl border border-border bg-card p-6 mb-6">
         <div class="flex items-center gap-4 mb-2">
-            <div class="relative group">
-                {#if data.user.image}
-                    <img
-                        src={data.user.image}
-                        alt={data.user.name || "User"}
-                        class="w-15 h-15 rounded-full object-cover bg-accent"
+            {#if editingUser}
+                <!-- Edit mode -->
+                <div class="relative group shrink-0">
+                    {#if pendingAvatarPreview}
+                        <img
+                            src={pendingAvatarPreview}
+                            alt={editUserName || "User"}
+                            class="w-15 h-15 rounded-full object-cover bg-accent"
+                        >
+                    {:else if data.user.image}
+                        <img
+                            src={data.user.image}
+                            alt={editUserName || "User"}
+                            class="w-15 h-15 rounded-full object-cover bg-accent"
+                        >
+                    {:else}
+                        <Facehash
+                            class="rounded-full bg-accent flex items-center justify-center"
+                            name={editUserName}
+                            variant="gradient"
+                            size={60}
+                            intensity3d="medium"
+                        />
+                    {/if}
+                    <button
+                        type="button"
+                        class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        onclick={() => avatarInput?.click()}
+                        disabled={savingUser}
                     >
-                {:else}
-                    <Facehash
-                        class="rounded-full bg-accent flex items-center justify-center"
-                        name={data.user.name}
-                        variant="gradient"
-                        size={60}
-                        intensity3d="medium"
-                    />
-                {/if}
-                <button
-                    type="button"
-                    class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                    onclick={() => avatarInput?.click()}
-                    disabled={uploadingAvatar}
-                >
-                    <Camera class="w-5 h-5 text-white" />
-                </button>
-                <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    class="hidden"
-                    bind:this={avatarInput}
-                    onchange={handleAvatarChange}
-                >
-            </div>
-            <div>
-                <h2 class="text-xl font-semibold">{data.user.name || "User"}</h2>
-                <div class="flex items-center gap-2 text-muted-foreground">
-                    <Mail class="w-4 h-4" />
-                    <span>{data.user.email}</span>
+                        <Camera class="w-5 h-5 text-white" />
+                    </button>
+                    <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        class="hidden"
+                        bind:this={avatarInput}
+                        onchange={handleAvatarChange}
+                    >
                 </div>
-            </div>
+                <div>
+                    <div class="relative w-64">
+                        <input
+                            bind:value={editUserName}
+                            placeholder="Display name"
+                            class="flex h-10 w-full rounded-md border border-input bg-background/50 pl-3 pr-20 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            onkeydown={(e) => {
+                                if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    saveUser();
+                                }
+                                if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    cancelEditUser();
+                                }
+                            }}
+                        >
+                        <div class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                            <button
+                                class="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-white hover:bg-accent transition-colors"
+                                onclick={cancelEditUser}
+                                title="Cancel (Esc)"
+                            >
+                                <X class="w-4 h-4" />
+                            </button>
+                            <button
+                                class="flex items-center justify-center w-7 h-7 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                onclick={saveUser}
+                                disabled={savingUser || !editUserName.trim()}
+                                title="Save (Enter)"
+                            >
+                                {#if savingUser}
+                                    <Loader class="w-4 h-4 animate-spin" />
+                                {:else}
+                                    <Check class="w-4 h-4" />
+                                {/if}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 text-muted-foreground mt-1">
+                        <Mail class="w-4 h-4" />
+                        <span>{data.user.email}</span>
+                    </div>
+                </div>
+            {:else}
+                <!-- Display mode -->
+                <div class="relative group">
+                    {#if data.user.image}
+                        <img
+                            src={data.user.image}
+                            alt={data.user.name || "User"}
+                            class="w-15 h-15 rounded-full object-cover bg-accent"
+                        >
+                    {:else}
+                        <Facehash
+                            class="rounded-full bg-accent flex items-center justify-center"
+                            name={data.user.name}
+                            variant="gradient"
+                            size={60}
+                            intensity3d="medium"
+                        />
+                    {/if}
+                </div>
+                <div class="flex items-center gap-3">
+                    <div>
+                        <div class="flex gap-2">
+                            <h2 class="text-xl font-semibold">{data.user.name || "User"}</h2>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                class="h-8 w-8 text-muted-foreground hover:text-primary"
+                                onclick={startEditUser}
+                                title="Edit Account"
+                            >
+                                <Pencil class="w-4 h-4" />
+                            </Button>
+                        </div>
+                        <div class="flex items-center gap-2 text-muted-foreground">
+                            <Mail class="w-4 h-4" />
+                            <span>{data.user.email}</span>
+                        </div>
+                    </div>
+                </div>
+            {/if}
         </div>
-        {#if uploadingAvatar}
-            <p class="text-sm text-muted-foreground">Uploading avatar...</p>
-        {/if}
     </div>
 
     <!-- Stats Cards -->
@@ -366,7 +484,13 @@
                     {#if editingProfile && (data.userRole === "owner" || data.userRole === "admin")}
                         <!-- Edit mode -->
                         <div class="relative group shrink-0">
-                            {#if editProfileLogo}
+                            {#if pendingLogoPreview}
+                                <img
+                                    src={pendingLogoPreview}
+                                    alt={editProfileName || "Profile"}
+                                    class="w-10 h-10 rounded-full object-cover"
+                                >
+                            {:else if editProfileLogo}
                                 <img
                                     src={editProfileLogo}
                                     alt={editProfileName || "Profile"}
@@ -385,7 +509,7 @@
                                 type="button"
                                 class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                                 onclick={() => logoInput?.click()}
-                                disabled={uploadingLogo}
+                                disabled={savingProfile}
                             >
                                 <Camera class="w-4 h-4 text-white" />
                             </button>
@@ -474,9 +598,6 @@
                     </Button>
                 {/if}
             </div>
-            {#if uploadingLogo}
-                <p class="text-sm text-muted-foreground mb-4">Uploading logo...</p>
-            {/if}
 
             <div class="space-y-6">
                 <!-- Members -->

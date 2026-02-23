@@ -20,8 +20,9 @@
     let editingId = $state<string | null>(null);
     let editName = $state('');
     let editLogo = $state<string | null>(null);
+    let pendingLogoFile = $state<File | null>(null);
+    let pendingLogoPreview = $state<string | null>(null);
     let saving = $state(false);
-    let uploadingLogo = $state(false);
     let logoInput: HTMLInputElement | undefined = $state();
 
     async function createProfile(e: Event) {
@@ -61,6 +62,8 @@
         editingId = profile.id;
         editName = profile.name;
         editLogo = profile.logo;
+        pendingLogoFile = null;
+        pendingLogoPreview = null;
         await tick();
         const input = document.querySelector<HTMLInputElement>(`[data-edit-input="${profile.id}"]`);
         input?.focus();
@@ -71,45 +74,22 @@
         editingId = null;
         editName = '';
         editLogo = null;
-    }
-
-    async function uploadLogo(file: File) {
-        if (!editingId) {
-            return;
+        if (pendingLogoPreview) {
+            URL.revokeObjectURL(pendingLogoPreview);
         }
-
-        uploadingLogo = true;
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('organizationId', editingId);
-
-            const res = await fetch('/api/upload/logo', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!res.ok) {
-                const err = await res.json();
-                toast.error(err.message || 'Failed to upload logo');
-                return;
-            }
-
-            const result = await res.json();
-            editLogo = result.logo;
-            toast.success('Logo updated');
-        } catch {
-            toast.error('Failed to upload logo');
-        } finally {
-            uploadingLogo = false;
-        }
+        pendingLogoFile = null;
+        pendingLogoPreview = null;
     }
 
     function handleLogoChange(e: Event) {
         const target = e.target as HTMLInputElement;
         const file = target.files?.[0];
         if (file) {
-            uploadLogo(file);
+            if (pendingLogoPreview) {
+                URL.revokeObjectURL(pendingLogoPreview);
+            }
+            pendingLogoFile = file;
+            pendingLogoPreview = URL.createObjectURL(file);
         }
     }
 
@@ -120,6 +100,23 @@
 
         saving = true;
         try {
+            if (pendingLogoFile) {
+                const formData = new FormData();
+                formData.append('file', pendingLogoFile);
+                formData.append('organizationId', editingId);
+
+                const logoRes = await fetch('/api/upload/logo', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!logoRes.ok) {
+                    const err = await logoRes.json();
+                    toast.error(err.message || 'Failed to upload logo');
+                    return;
+                }
+            }
+
             const res = await fetch(`/api/profiles/${editingId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -133,7 +130,7 @@
             }
 
             toast.success('Profile updated');
-            editingId = null;
+            cancelEdit();
             await invalidateAll();
         } catch {
             toast.error('Failed to update profile');
@@ -212,7 +209,13 @@
                             <!-- Edit mode -->
                             <div class="flex items-center gap-3 flex-1">
                                 <div class="relative group shrink-0">
-                                    {#if editLogo}
+                                    {#if pendingLogoPreview}
+                                        <img
+                                            src={pendingLogoPreview}
+                                            alt={editName || 'Profile'}
+                                            class="w-[40px] h-[40px] rounded-full object-cover"
+                                        >
+                                    {:else if editLogo}
                                         <img
                                             src={editLogo}
                                             alt={editName || 'Profile'}
@@ -231,7 +234,7 @@
                                         type="button"
                                         class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                                         onclick={() => logoInput?.click()}
-                                        disabled={uploadingLogo}
+                                        disabled={saving}
                                     >
                                         <Camera class="w-4 h-4 text-white" />
                                     </button>

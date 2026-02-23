@@ -1,8 +1,8 @@
-import sharp from 'sharp';
+import { Jimp } from 'jimp';
 import { imageStorage } from './storage';
 
 export const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
-export const MAX_FILE_SIZE = 5 * 1024 * 1024;
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const OUTPUT_SIZE = 512;
 const OUTPUT_QUALITY = 85;
@@ -47,13 +47,10 @@ export function validateImage(buffer: Buffer, declaredType: string | null): { va
 }
 
 export async function processAndSave(buffer: Buffer, category: 'avatars' | 'logos', id: string): Promise<string> {
-	const processed = await sharp(buffer)
-		.resize(OUTPUT_SIZE, OUTPUT_SIZE, {
-			fit: 'cover',
-			position: 'center',
-		})
-		.jpeg({ quality: OUTPUT_QUALITY })
-		.toBuffer();
+	const image = await Jimp.read(buffer);
+	image.cover({ w: OUTPUT_SIZE, h: OUTPUT_SIZE });
 
-	return imageStorage.save(category, id, 'image.jpg', processed);
+	const processed = await image.getBuffer('image/jpeg', { quality: OUTPUT_QUALITY });
+
+	return imageStorage.save(category, id, 'image.jpg', Buffer.from(processed));
 }

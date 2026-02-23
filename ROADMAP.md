@@ -2,6 +2,7 @@
 
 - [ ] Handle no TMDB api key by having a poster placeholder
 - [x] Subtitles
+  - [ ] Fix the code to grab other non vtt subtitles and use those or convert them to vtt immediately. FOr example, k-pop demon hunters has over a dozen subtitles built in. We dont use any because they're srt
 - [ ] I think i might remove the tabs between movies and tv shows and instead add a simple filter system. Mainly this is because i dont want a different continue watching banner on both tabs
   - [ ] Secondarily, there may be a need for a categories filter (definitely on the search, but also as netflix-like scrollable rows)
 - [ ] Move the total space and number of media cards in `/account` to the profile and make it per-profile instead of per-user-per-profile
