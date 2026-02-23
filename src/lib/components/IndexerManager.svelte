@@ -1,17 +1,5 @@
 <script lang="ts">
-    import {
-        AlertCircle,
-        CheckCircle2,
-        ChevronDown,
-        ChevronUp,
-        CircleAlert,
-        CircleCheck,
-        Loader,
-        Loader2,
-        Plus,
-        RefreshCw,
-        Trash2,
-    } from '@lucide/svelte';
+    import { ChevronDown, ChevronUp, CircleAlert, CircleCheck, Loader, Plus, RefreshCw, Trash2 } from '@lucide/svelte';
     import { onMount } from 'svelte';
     import { toast } from 'svelte-sonner';
     import Button from '$lib/components/ui/Button.svelte';
@@ -39,7 +27,6 @@
     // State
     let testingConnection = $state(false);
     let connectionStatus = $state<'connected' | 'failed' | 'unchecked'>('unchecked');
-    let connectionMessage = $state('');
 
     let indexers = $state<Indexer[]>([]);
     let schemas = $state<IndexerSchema[]>([]);
@@ -100,7 +87,6 @@
             }
         } catch (e) {
             connectionStatus = 'failed';
-            connectionMessage = 'Network error';
         } finally {
             testingConnection = false;
         }
@@ -319,7 +305,12 @@
                         >
                             <option value="">Select an indexer to add...</option>
                             {#each sortedSchemas as schema}
-                                <option value={schema.name}>{schema.name} ({schema.protocol || "torrent"})</option>
+                                <option value={schema.name}>
+                                    {schema.name} (
+                                    {schema.protocol ||
+                                        "torrent"}
+                                    )
+                                </option>
                             {/each}
                         </select>
                         <Button

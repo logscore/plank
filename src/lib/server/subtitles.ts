@@ -35,13 +35,12 @@ const LANGUAGE_MAP: Record<string, string> = {
 };
 
 // Used by discoverEmbeddedSubtitles — keep for when it's re-enabled
-// biome-ignore lint/correctness/noUnusedVariables: temporarily unused while embedded discovery is disabled
-function getLanguageLabel(langCode: string, title: string): string {
-	if (title && !title.startsWith('Track ')) {
-		return title;
-	}
-	return LANGUAGE_MAP[langCode] ?? langCode.toUpperCase();
-}
+// function getLanguageLabel(langCode: string, title: string): string {
+// 	if (title && !title.startsWith('Track ')) {
+// 		return title;
+// 	}
+// 	return LANGUAGE_MAP[langCode] ?? langCode.toUpperCase();
+// }
 
 /** Parse language from a sidecar subtitle filename like "Movie.English.srt" or "Movie.eng.srt" */
 function parseLanguageFromFilename(fileName: string): { language: string; label: string } {

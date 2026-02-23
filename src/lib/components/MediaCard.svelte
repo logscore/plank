@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Ellipsis, EllipsisVertical, Info, MoreVertical, Play, RotateCcw, Trash2 } from '@lucide/svelte';
+    import { EllipsisVertical, Info, Play, RotateCcw, Trash2 } from '@lucide/svelte';
     import { goto } from '$app/navigation';
     import EpisodeSelector from '$lib/components/EpisodeSelector.svelte';
     import type { Media, SeasonWithEpisodes } from '$lib/types';
@@ -178,9 +178,7 @@
                 {#if media.type === "tv" && media.totalSeasons}
                     <span
                         >• {media.totalSeasons} season
-                        {media.totalSeasons === 1
-                            ? ""
-                            : "s"}</span
+                        {media.totalSeasons === 1 ? "" : "s"}</span
                     >
                 {/if}
             </div>

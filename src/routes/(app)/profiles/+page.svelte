@@ -10,24 +10,19 @@
 
     let { data } = $props<{ data: PageData }>();
 
-    let selecting = $state(false);
-
     async function selectProfile(profileId: string) {
-        selecting = true;
         try {
             const result = await authClient.organization.setActive({
                 organizationId: profileId,
             });
             if (result.error) {
                 toast.error('Failed to select profile');
-                selecting = false;
                 return;
             }
             queryClient.clear();
             goto('/');
         } catch {
             toast.error('Failed to select profile');
-            selecting = false;
         }
     }
 
@@ -36,7 +31,7 @@
         goto('/login');
     }
 
-    const accessibleProfiles = $derived(data.profiles.filter((p) => p.isMember));
+    const accessibleProfiles = $derived(data.profiles.filter((p: (typeof data.profiles)[number]) => p.isMember));
     const hasProfiles = $derived(data.profiles.length > 0);
 </script>
 

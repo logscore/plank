@@ -15,7 +15,7 @@
 
 <a
     href={link}
-    class="relative flex-shrink-0 w-72 aspect-video rounded-lg overflow-hidden group shadow-lg border border-border/50 hover:border-primary/50 transition-all duration-300 hover:scale-[1.03]"
+    class="relative shrink-0 w-92 aspect-video rounded-lg overflow-hidden group shadow-lg border border-border/50 hover:border-primary/50 transition-all duration-300 hover:scale-[1.03]"
 >
     <!-- Backdrop Image -->
     {#if media.backdropUrl}
@@ -27,7 +27,7 @@
     {/if}
 
     <!-- Gradient Overlay -->
-    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
+    <div class="absolute inset-0 bg-linear-to- from-black/90 via-black/30 to-transparent"></div>
 
     <!-- Play Icon -->
     <div

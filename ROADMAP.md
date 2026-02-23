@@ -1,8 +1,11 @@
 # ROADMAP
 
 - [ ] Handle no TMDB api key by having a poster placeholder
-- [ ] Subtitles
+- [x] Subtitles
+- [ ] I think i might remove the tabs between movies and tv shows and instead add a simple filter system. Mainly this is because i dont want a different continue watching banner on both tabs
+  - [ ] Secondarily, there may be a need for a categories filter (definitely on the search, but also as netflix-like scrollable rows)
 - [ ] Fix the onboarding flow so that the indexers update optimistically
+- [ ] A better copyable error log in the error page
 - [ ] Im noticing some mental friction with search. I think we can try having search for the browser be on the browser page and default to its browser selection on the selection page. or something like that
 - [ ] Ensure that when I add a movie or TV show to my library, the data from the torrent card gets added into the database. So that the media card in my library is the exact same as what is displayed on the browse page. 
 - [ ] Improve the details cards on tv shows. they currently dont have a redownload button, dont show the mb/sec # of peers or size of torrent, and they dont show the location of the episodes, which should be where the seasons are located as it holds multiple files. I want the same functionality as the movies version of the page

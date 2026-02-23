@@ -1,7 +1,20 @@
-FROM node:22-bookworm-slim
+FROM node:22-bookworm
 
-# Install git for lefthook and curl for healthcheck
-RUN rm -rf /var/lib/apt/lists/* && apt-get update && apt-get install -y --no-install-recommends git curl ffmpeg ca-certificates && rm -rf /var/lib/apt/lists/*
+# Install curl for healthcheck and ffmpeg for transmuxing and subtitle probing
+# I don't like this and would rather apt-get install ffmpeg, but the Debian mirrors were broken
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "arm64" ]; then \
+    ARCH_NAME="linuxarm64"; \
+    else \
+    ARCH_NAME="linux64"; \
+    fi && \
+    curl -L https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-${ARCH_NAME}-GPL.tar.xz -o /tmp/ffmpeg.tar.xz && \
+    mkdir -p /tmp/ffmpeg-extract && \
+    tar -xf /tmp/ffmpeg.tar.xz -C /tmp/ffmpeg-extract --strip-components=1 && \
+    cp /tmp/ffmpeg-extract/bin/ffmpeg /usr/local/bin/ && \
+    cp /tmp/ffmpeg-extract/bin/ffprobe /usr/local/bin/ && \
+    rm -rf /tmp/ffmpeg* && \
+    chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe
 
 WORKDIR /app
 

@@ -84,7 +84,8 @@ User Agent: ${details.userAgent}`;
         <!-- Error Message -->
         <div class="p-4 bg-card border border-border rounded-lg text-center">
             <p class="text-muted-foreground">
-                {$page.error?.message || 'An unexpected error occurred. Please try again.'}
+                {$page.error?.message ||
+                    "An unexpected error occurred. Please try again."}
             </p>
         </div>
 
@@ -101,7 +102,7 @@ User Agent: ${details.userAgent}`;
         </div>
 
         <!-- Error Console Log -->
-        <div class="space-y-3">
+        <!-- <div class="space-y-3">
             <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-muted-foreground">Error Details</span>
                 <Button onclick={copyErrorLog} variant="ghost" size="sm" class="gap-2 h-8">
@@ -119,7 +120,7 @@ User Agent: ${details.userAgent}`;
             >
                 <pre class="whitespace-pre-wrap break-all">{errorLog()}</pre>
             </div>
-        </div>
+        </div> -->
 
         <!-- Report Bug Section -->
         <div class="p-4 bg-accent/30 border border-border rounded-lg space-y-3">

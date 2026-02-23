@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Check, Download, Ear, Globe, Loader2, Search, Shield, Star } from '@lucide/svelte';
+    import { Check, Download, Ear, Globe, Loader, Search, Shield, Star } from '@lucide/svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import Dialog from '$lib/components/ui/Dialog.svelte';
     import { createDownloadSubtitleMutation } from '$lib/mutations/media-mutations';
@@ -156,7 +156,7 @@
 
             <Button size="sm" onclick={performSearch} disabled={searching}>
                 {#if searching}
-                    <Loader2 class="w-4 h-4 mr-1 animate-spin" />
+                    <Loader class="w-4 h-4 mr-1 animate-spin" />
                     Searching...
                 {:else}
                     <Search class="w-4 h-4 mr-1" />
@@ -194,7 +194,7 @@
         <div class="max-h-96 overflow-y-auto space-y-1 -mx-2 px-2">
             {#if searching}
                 <div class="flex items-center justify-center py-12">
-                    <Loader2 class="w-6 h-6 animate-spin text-muted-foreground" />
+                    <Loader class="w-6 h-6 animate-spin text-muted-foreground" />
                 </div>
             {:else if results.length === 0 && !searchError}
                 <div class="text-center py-12 text-muted-foreground text-sm">
@@ -275,7 +275,7 @@
                                 </Button>
                             {:else if downloadingIds.has(result.id)}
                                 <Button variant="ghost" size="icon" class="h-8 w-8" disabled>
-                                    <Loader2 class="w-4 h-4 animate-spin" />
+                                    <Loader class="w-4 h-4 animate-spin" />
                                 </Button>
                             {:else}
                                 <Button

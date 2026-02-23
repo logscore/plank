@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ArrowLeft, Check, Loader2, Pencil, Trash2, Users, X } from '@lucide/svelte';
+    import { ArrowLeft, Check, Loader, Pencil, Trash2, Users, X } from '@lucide/svelte';
     import { tick } from 'svelte';
     import { toast } from 'svelte-sonner';
     import { goto, invalidateAll } from '$app/navigation';
@@ -206,7 +206,7 @@
                                             title="Save (Enter)"
                                         >
                                             {#if saving}
-                                                <Loader2 class="w-4 h-4 animate-spin" />
+                                                <Loader class="w-4 h-4 animate-spin" />
                                             {:else}
                                                 <Check class="w-4 h-4" />
                                             {/if}

@@ -6,11 +6,12 @@ A self-hosted media server for streaming movies via torrents.
 
 - Add magnet links and stream while downloading
 - Browse and search your movie collection 
-- Search for movies and TV shows, just like Netflix
-- Movie metadata from TMDB
+- Search for movies and TV shows, add to library or stream directly, just like Netflix
+- Access to any movie or show
 - Secure user accounts
+- Profile-like organizations with admin controls
 - Docker ready
-- Automatically resumes incomplete downloads on restart
+- Get subtitles in any language
 
 ## Quick Start
 
@@ -32,11 +33,11 @@ The script will install dependencies, clone the repo, configure environment, and
 - **Copyright Laws:** Check your country's copyright laws before using torrents
 - **File Safety:** I as the developer have **no control** over torrent content, safety, or legality
 - **Use at Your Own Discretion:** All torrent downloads are at your own risk
-- **Privacy Protection:** Strongly consider using a VPN for privacy protection
+- **Privacy Protection:** Strongly consider using a torrent-ready VPN for privacy protection
 
 ### 🔒 Security Recommendations:
 - Use a reputable VPN or tunnel service for all torrent activities
-- Scan downloaded files with antivirus software
+- Scan downloaded files with antivirus software (soon-to-be-feature)
 - Verify file contents before opening
 - Never download suspicious or unverified torrents
 - Never run executable likes like .exe, .bat, .scr unless you explicitly intend to (ie. video games)
@@ -52,33 +53,13 @@ The script will install dependencies, clone the repo, configure environment, and
 
 ### Step 0: Installation
 
-We recommend using Docker for installation as it automatically sets up Prowlarr and FlareSolverr for torrent browsing.
+We recommend using Docker for installation as it automatically sets up Prowlarr (media torrent searching) and FlareSolverr (captchas) for torrent browsing.
 
 If you wish to use the bare metal version, you will need to manually run those services. That documentation can be found [here](https://wiki.servarr.com/prowlarr/installation) and [here](https://github.com/flaresolverr/flaresolverr).
 
-You can also opt out of those services by not configuring them if you want to manually add media files to your media library via magnet links.
+You can also opt out of those services by not configuring them if you want to manually add media files to your media library via magnet links. The choice is yours.
 
-### Step 1: Prowlarr Configuration
-
-This application uses Prowlarr as a torrent search proxy. Prowlarr is pre-configured for connection but requires setup to pull in your desired torrent indexers.
-
-#### Access Prowlarr Web Interface:
-After starting Docker containers, access Prowlarr at: `http://localhost:9696`
-
-#### Authentication:
-On first run, Prowlarr may ask you to configure authentication. We recommend you set a username and password to secure your indexer configuration.
-
-#### API Key Configuration:
-
-1. Go to **Settings** > **General** in Prowlarr
-2. Copy the **API Key**
-3. Update your env config by navigating to the `/settings` page and add in the key to the API key field, or edit your `.env` file and edit the following line:
-   ```bash
-   PROWLARR_API_KEY=your_copied_api_key_here
-   ```
-4. Restart the containers to apply the new API key (if using the `.env` file).
-
-### Step 2: Configure Torrent Indexers
+### Torrent Indexer Guide
 
 Torrent indexers are the sources that provide torrent search results. Choose based on your content preferences:
 
@@ -87,7 +68,7 @@ Recommended for most users seeking movies, TV shows, and general content:
 
 1. **YTS** - Movies only, high quality, small file sizes
 2. **1337x** - Well-established tracker, mixed content types (not stable sometimes)
-3. **The Pirate Bay** - Largest library, requires careful verification
+3. **The Pirate Bay** - Largest library, requires careful verification of media
 
 #### 🎌 Anime Fan Package
 Recommended for anime enthusiasts:
@@ -107,17 +88,7 @@ Recommended for TV series focus:
 
 Look it up yourself, you filthy animal
 
-### Step 3: Add Indexers in Prowlarr
-
-1. Open Prowlarr web interface: `http://localhost:9696`
-2. Click **"Add Indexer"**
-3. Search for your chosen indexers from the lists above
-4. Click on the indexer to configure it
-5. Most indexers just need to be saved (no additional setup)
-6. Click **"Test"** to verify connection, then **"Save"**
-7. Repeat for each indexer you want to add
-
-### Step 4: Enhanced Environment Setup
+### Enhanced Environment Setup
 
 Update your `.env` file with these essential variables:
 
@@ -136,7 +107,9 @@ PORT=3300
 ORIGIN=http://localhost:3300 # Required for Docker CSRF protection
 ```
 
-### Step 5: Verify Your Setup
+### Verify Your Setup
+
+In an ineractive shell:
 
 1. **Start containers:**
    ```bash
@@ -157,12 +130,12 @@ ORIGIN=http://localhost:3300 # Required for Docker CSRF protection
    - Access `http://localhost:3300`
    - Create an account and try searching for content
 
-### Step 6: Security Best Practices
+### Security Best Practices
 
 #### 🛡️ Essential Security Measures:
 
 **VPN Usage (Strongly Recommended):**
-- Use a reputable VPN service for all torrent activities
+- Use a reputable torrent VPN service for all torrent activities
 - Ensure your VPN has a no-logs policy
 - Consider a kill switch feature for connection drops
 
@@ -174,16 +147,17 @@ ORIGIN=http://localhost:3300 # Required for Docker CSRF protection
 
 **File Safety:**
 - Scan downloaded files before opening
-- Be cautious of executable files (.exe, .bat, .scr)
+- Never run executable files (.exe, .bat, .scr)
 - Verify file sizes and types match expectations
 - Use file scanning tools for suspicious content
 
 ### 🔧 Troubleshooting Common Issues
 
 #### Prowlarr Connection Problems:
-**Issue:** Can't access Prowlarr web interface
+**Issue:** Can't access Prowlarr api
 - **Solution:** Check if containers are running: `docker ps`
-- **Solution:** Verify port 9696 isn't blocked by firewall
+- **Solution:** Ensure you have the Prowlarr api key by checking the `/settings` page
+- **Solution:** Verify port 9696 isn't blocked by firewall (if running outside the docker network)
 - **Solution:** Restart containers: `docker compose restart`
 
 #### Indexer Setup Problems:
@@ -193,6 +167,7 @@ ORIGIN=http://localhost:3300 # Required for Docker CSRF protection
 - **Solution:** Check if FlareSolverr is running (needed for some indexers)
 
 **Issue:** No search results
+- **Solution:** Ensure you have a TMDB api key configured in `/settings` search results are dependant on TMDB
 - **Solution:** Ensure at least one indexer is configured and tested
 - **Solution:** Check if FlareSolverr is running: `http://localhost:8191`
 - **Solution:** Try different search terms
@@ -202,6 +177,7 @@ ORIGIN=http://localhost:3300 # Required for Docker CSRF protection
 - **Solution:** Check environment variables in `.env` file
 - **Solution:** Verify Docker is running: `docker version`
 - **Solution:** Check port conflicts (3300, 9696, 8191)
+- **Solution:** Sometimes distro mirrors are out of sync. Wait and try again.
 
 **Issue:** "Cross-site POST form submissions are forbidden"
 - **Solution:** Ensure `ORIGIN` env var matches your browser URL (e.g. `http://localhost:3300`, `http://192.168.1.2:3300`, etc.)
@@ -214,21 +190,24 @@ ORIGIN=http://localhost:3300 # Required for Docker CSRF protection
 **Issue:** Slow torrent downloads
 - **Solution:** Use an ethernet connection instead of WiFi
 - **Solution:** Configure port forwarding for 6881 (the exposed torrent client port) in your router
-- **Solution:** Check VPN isn't throttling speeds
+- **Solution:** Check VPN isn't throttling speeds, or that it isnt blocking torrent traffic all together
 - **Solution:** Verify tracker health in Prowlarr
 
 **Issue:** Memory usage high
 - **Solution:** Monitor Docker container resource usage
 - **Solution:** Limit or expand the container resources
+- **Solution:** Restart the containers in case of a memory leak
 
 #### Getting Help:
 1. Check container logs: `docker compose logs -f`
 2. Verify each service is accessible individually
 3. Test with minimal configuration first
 4. Check GitHub issues for known problems
-5. [Email me](mailto:lsreedercontact@gmail.com)
+5. [Email me](mailto:lsreedercontact@gmail.com) if you genuinely can't figure it out. No AI slop or you're insta-banned.
 
 ### Docker
+
+> I highly recommend running `./scripts/deploy` for Docker and bare metal deployments.
 
 ```bash
 git clone https://github.com/logscore/plank.git
@@ -271,4 +250,4 @@ npm install
 npm run dev
 ```
 
-## License
+## [License](./LICENSE)

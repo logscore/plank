@@ -112,15 +112,20 @@ export function createDeleteMediaMutation() {
 			}
 		},
 		onSettled: (deletedId: string | undefined) => {
-			// Always refetch after error or success
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.media.lists(),
+				queryKey: queryKeys.media.all,
+				refetchType: 'all',
 			});
 
-			// Remove the detail cache for the deleted item
 			if (deletedId) {
 				queryClient.removeQueries({
 					queryKey: queryKeys.media.detail(deletedId),
+				});
+				queryClient.removeQueries({
+					queryKey: queryKeys.media.position(deletedId),
+				});
+				queryClient.removeQueries({
+					queryKey: queryKeys.media.position(deletedId, 'episode'),
 				});
 			}
 		},
