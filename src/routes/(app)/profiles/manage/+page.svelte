@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ArrowLeft, Check, Loader, Pencil, Trash2, Users, X } from '@lucide/svelte';
+    import { ArrowLeft, Camera, Check, Loader, Pencil, Trash2, Users, X } from '@lucide/svelte';
     import { tick } from 'svelte';
     import { toast } from 'svelte-sonner';
     import { goto, invalidateAll } from '$app/navigation';
@@ -19,7 +19,10 @@
     // Edit state
     let editingId = $state<string | null>(null);
     let editName = $state('');
+    let editLogo = $state<string | null>(null);
     let saving = $state(false);
+    let uploadingLogo = $state(false);
+    let logoInput: HTMLInputElement | undefined = $state();
 
     async function createProfile(e: Event) {
         e.preventDefault();
@@ -57,6 +60,7 @@
     async function startEdit(profile: (typeof data.profiles)[0]) {
         editingId = profile.id;
         editName = profile.name;
+        editLogo = profile.logo;
         await tick();
         const input = document.querySelector<HTMLInputElement>(`[data-edit-input="${profile.id}"]`);
         input?.focus();
@@ -66,6 +70,47 @@
     function cancelEdit() {
         editingId = null;
         editName = '';
+        editLogo = null;
+    }
+
+    async function uploadLogo(file: File) {
+        if (!editingId) {
+            return;
+        }
+
+        uploadingLogo = true;
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('organizationId', editingId);
+
+            const res = await fetch('/api/upload/logo', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                toast.error(err.message || 'Failed to upload logo');
+                return;
+            }
+
+            const result = await res.json();
+            editLogo = result.logo;
+            toast.success('Logo updated');
+        } catch {
+            toast.error('Failed to upload logo');
+        } finally {
+            uploadingLogo = false;
+        }
+    }
+
+    function handleLogoChange(e: Event) {
+        const target = e.target as HTMLInputElement;
+        const file = target.files?.[0];
+        if (file) {
+            uploadLogo(file);
+        }
     }
 
     async function saveEdit() {
@@ -166,13 +211,38 @@
                         {#if editingId === profile.id}
                             <!-- Edit mode -->
                             <div class="flex items-center gap-3 flex-1">
-                                <Facehash
-                                    name={editName || "Profile"}
-                                    size={40}
-                                    class="rounded-lg text-white shrink-0"
-                                    interactive={true}
-                                    intensity3d="medium"
-                                />
+                                <div class="relative group shrink-0">
+                                    {#if editLogo}
+                                        <img
+                                            src={editLogo}
+                                            alt={editName || 'Profile'}
+                                            class="w-[40px] h-[40px] rounded-full object-cover"
+                                        >
+                                    {:else}
+                                        <Facehash
+                                            name={editName || 'Profile'}
+                                            size={40}
+                                            class="rounded-full text-white"
+                                            interactive={true}
+                                            intensity3d="medium"
+                                        />
+                                    {/if}
+                                    <button
+                                        type="button"
+                                        class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                        onclick={() => logoInput?.click()}
+                                        disabled={uploadingLogo}
+                                    >
+                                        <Camera class="w-4 h-4 text-white" />
+                                    </button>
+                                    <input
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp,image/gif"
+                                        class="hidden"
+                                        bind:this={logoInput}
+                                        onchange={handleLogoChange}
+                                    >
+                                </div>
                                 <div class="relative flex-1">
                                     <input
                                         bind:value={editName}
@@ -217,13 +287,21 @@
                         {:else}
                             <!-- Display mode -->
                             <div class="flex items-center gap-3">
-                                <Facehash
-                                    name={profile.name}
-                                    size={40}
-                                    class="rounded-lg text-white"
-                                    interactive={true}
-                                    intensity3d={"medium"}
-                                />
+                                {#if profile.logo}
+                                    <img
+                                        src={profile.logo}
+                                        alt={profile.name}
+                                        class="w-[40px] h-[40px] rounded-full object-cover"
+                                    >
+                                {:else}
+                                    <Facehash
+                                        name={profile.name}
+                                        size={40}
+                                        class="rounded-full text-white"
+                                        interactive={true}
+                                        intensity3d="medium"
+                                    />
+                                {/if}
                                 <div>
                                     <p class="font-medium">{profile.name}</p>
                                     <div class="flex items-center gap-1 text-xs text-muted-foreground">

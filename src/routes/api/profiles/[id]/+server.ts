@@ -18,6 +18,9 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	if (body.color !== undefined) {
 		updates.color = body.color;
 	}
+	if (body.logo === null) {
+		updates.logo = null;
+	}
 
 	if (Object.keys(updates).length === 0) {
 		throw error(400, 'No updates provided');

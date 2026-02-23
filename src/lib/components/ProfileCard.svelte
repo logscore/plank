@@ -5,10 +5,12 @@
 
     let {
         name,
+        logo,
         isMember,
         onclick,
     }: {
         name: string;
+        logo?: string | null;
         isMember: boolean;
         onclick?: () => void;
     } = $props();
@@ -35,6 +37,8 @@
             <div class="w-full h-full flex items-center justify-center bg-zinc-700 text-white">
                 <Lock class="w-8 h-8" />
             </div>
+        {:else if logo}
+            <img src={logo} alt={name} class="w-full h-full object-cover">
         {:else}
             <Facehash {name} size="100%" class="w-full h-full text-white" interactive={true} enableBlink />
         {/if}

@@ -5,6 +5,7 @@
     import { page } from '$app/state';
     import { uiState } from '$lib/ui-state.svelte';
     import { cn } from '$lib/utils';
+    import Facehash from './facehash/Facehash.svelte';
 
     let {
         children,
@@ -39,17 +40,36 @@
 
 <svelte:document onclick={handleClickOutside} />
 
-<div class={cn('min-h-screen bg-background text-foreground flex flex-col relative', !hideNav && 'pb-24')}>
+<div
+    class={cn(
+        "min-h-screen bg-background text-foreground flex flex-col relative",
+        !hideNav && "pb-24",
+    )}
+>
     <!-- Account Button - Bottom Right Corner -->
     {#if !hideNav}
         <div class="fixed bottom-8 right-8 z-50 account-menu" transition:fly={{ y: 20, duration: 300 }}>
             <div class="p-1.5 rounded-full border border-white/10 bg-black/80 backdrop-blur-xl shadow-2xl">
                 <button
                     onclick={() => (showAccountMenu = !showAccountMenu)}
-                    class="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                    class="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 hover:bg-white/10 cursor-pointer"
                     aria-label="Account"
                 >
-                    <User class="w-6 h-6" />
+                    {#if page.data.user?.image}
+                        <img
+                            src={page.data.user.image}
+                            alt={page.data.user.name || "User"}
+                            class="w-12.5 h-12.5 rounded-full object-cover"
+                        >
+                    {:else}
+                        <Facehash
+                            class="rounded-full flex items-center justify-center"
+                            name={page.data.user?.name || ""}
+                            variant="solid"
+                            size={50}
+                            intensity3d="dramatic"
+                        />
+                    {/if}
                 </button>
             </div>
 
@@ -124,8 +144,10 @@
                         <a
                             href={item.href}
                             class={cn(
-                                'flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 relative hover:bg-white/10',
-                                isActive ? 'text-white bg-white/10' : 'text-zinc-400 hover:text-white',
+                                "flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 relative hover:bg-white/10",
+                                isActive
+                                    ? "text-white bg-white/10"
+                                    : "text-zinc-400 hover:text-white",
                             )}
                             aria-label={item.label}
                         >

@@ -63,6 +63,7 @@
             {#each data.profiles as profile}
                 <ProfileCard
                     name={profile.name}
+                    logo={profile.logo}
                     isMember={profile.isMember}
                     onclick={() => selectProfile(profile.id)}
                 />

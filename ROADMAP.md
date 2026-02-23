@@ -4,6 +4,8 @@
 - [x] Subtitles
 - [ ] I think i might remove the tabs between movies and tv shows and instead add a simple filter system. Mainly this is because i dont want a different continue watching banner on both tabs
   - [ ] Secondarily, there may be a need for a categories filter (definitely on the search, but also as netflix-like scrollable rows)
+- [ ] Move the total space and number of media cards in `/account` to the profile and make it per-profile instead of per-user-per-profile
+- [ ] BUG: When a movie exists in one profile, it cant be added by another. Solution. If it exists in another profile, just point to that data and serve that while adding the movie entry to the db.
 - [ ] Fix the onboarding flow so that the indexers update optimistically
 - [ ] A better copyable error log in the error page
 - [ ] Im noticing some mental friction with search. I think we can try having search for the browser be on the browser page and default to its browser selection on the selection page. or something like that

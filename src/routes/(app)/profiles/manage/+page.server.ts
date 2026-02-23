@@ -33,6 +33,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		name: org.name,
 		slug: org.slug,
 		color: org.color,
+		logo: org.logo,
 		memberCount: countMap.get(org.id) ?? 0,
 	}));
 
