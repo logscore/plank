@@ -194,7 +194,7 @@ export const media = sqliteTable(
 		playDuration: real('play_duration'),
 	},
 	(table) => [
-		uniqueIndex('media_user_infohash_unique').on(table.userId, table.infohash),
+		uniqueIndex('media_organization_infohash_unique').on(table.organizationId, table.infohash),
 		index('idx_media_user').on(table.userId),
 		index('idx_media_status').on(table.status),
 		index('idx_media_type').on(table.userId, table.type),
