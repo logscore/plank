@@ -19,6 +19,7 @@
         isResolving = false,
         seasons = [],
         seasonsLoading = false,
+        eagerLoad = false,
         class: className,
     }: {
         item: BrowseItem;
@@ -32,6 +33,8 @@
         isResolving?: boolean;
         seasons?: SeasonData[];
         seasonsLoading?: boolean;
+        /** Load image eagerly (for above-the-fold cards) */
+        eagerLoad?: boolean;
         class?: string;
     } = $props();
 
@@ -212,7 +215,8 @@
                 src={item.posterUrl}
                 alt={item.title}
                 class="w-full h-full object-cover transition-all duration-300 group-hover:scale-105 group-hover:blur-sm"
-                loading="lazy"
+                loading={eagerLoad ? "eager" : "lazy"}
+                decoding={eagerLoad ? "sync" : "async"}
             >
         {:else}
             <div class="w-full h-full flex items-center justify-center bg-accent text-muted-foreground">

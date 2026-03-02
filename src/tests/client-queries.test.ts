@@ -129,7 +129,14 @@ describe('Client Queries', () => {
 		it('fetchProwlarrStatus should call status endpoint', async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
-				json: async () => ({ prowlarrConfigured: true }),
+				json: async () => ({
+					configured: true,
+					url: '',
+					connectionStatus: 'connected',
+					indexerCount: 1,
+					indexers: [],
+					needsSetup: false,
+				}),
 			});
 
 			await import('$lib/queries/browse-queries').then((m) => m.fetchProwlarrStatus());

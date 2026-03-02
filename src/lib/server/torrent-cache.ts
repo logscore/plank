@@ -5,7 +5,7 @@
  * Used to avoid repeated Jackett queries for the same content.
  */
 
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { db } from './db/index';
 import { torrentCache } from './db/schema';
 
@@ -56,23 +56,21 @@ export async function getCachedTorrents(imdbIds: string[]): Promise<Map<string, 
 		return new Map();
 	}
 
-	const results = await db.select().from(torrentCache);
+	const results = await db.select().from(torrentCache).where(inArray(torrentCache.imdbId, imdbIds));
 
 	const map = new Map<string, CachedTorrent>();
 	for (const row of results) {
-		if (imdbIds.includes(row.imdbId)) {
-			map.set(row.imdbId, {
-				imdbId: row.imdbId,
-				tmdbId: row.tmdbId ?? undefined,
-				magnetLink: row.magnetLink,
-				infohash: row.infohash,
-				title: row.title,
-				quality: row.quality ?? undefined,
-				releaseGroup: row.releaseGroup ?? undefined,
-				size: row.size ?? undefined,
-				seeders: row.seeders ?? undefined,
-			});
-		}
+		map.set(row.imdbId, {
+			imdbId: row.imdbId,
+			tmdbId: row.tmdbId ?? undefined,
+			magnetLink: row.magnetLink,
+			infohash: row.infohash,
+			title: row.title,
+			quality: row.quality ?? undefined,
+			releaseGroup: row.releaseGroup ?? undefined,
+			size: row.size ?? undefined,
+			seeders: row.seeders ?? undefined,
+		});
 	}
 
 	return map;

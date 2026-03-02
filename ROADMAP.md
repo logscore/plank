@@ -1,5 +1,9 @@
 # ROADMAP
 
+- [ ] Video player bug: when scrubbing around the video, it will get stuck and go back to 0:00 and be stuck in a loading state until refreshed. Also sometimes just goes back to 0:00 on MKVs
+- [ ] Be able to edit the details of a movie/show and episodes
+- [ ] We need to rethink tv shows. We need metadata for episodes along with the thumbnails of episodes. 
+  - [ ] We need better show identification systems in plank. 
 - [ ] Handle no TMDB api key by having a poster placeholder
 - [x] Subtitles
   - [ ] Fix the code to grab other non vtt subtitles and use those or convert them to vtt immediately. FOr example, k-pop demon hunters has over a dozen subtitles built in. We dont use any because they're srt

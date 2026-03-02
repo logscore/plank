@@ -26,9 +26,11 @@ export interface BrowseResponse {
 }
 
 export interface ProwlarrStatus {
-	prowlarrConfigured: boolean;
-	prowlarrStatus: string;
-	hasIndexers: boolean;
+	configured: boolean;
+	url: string;
+	connectionStatus: string;
+	indexerCount: number;
+	indexers: unknown[];
 	needsSetup: boolean;
 }
 
@@ -55,6 +57,49 @@ function createFetchError(message: string, status?: number): FetchError {
 	error.status = status;
 	return error;
 }
+
+// =============================================================================
+// Lazy Detail Enrichment
+// =============================================================================
+
+export interface BrowseDetailItem {
+	tmdbId: number;
+	imdbId: string | null;
+	certification: string | null;
+	magnetLink?: string;
+}
+
+export interface BrowseDetailsResponse {
+	details: BrowseDetailItem[];
+}
+
+/**
+ * Fetch IMDB IDs, certifications, and cached magnet links for a batch of items.
+ * Called lazily after browse/search items render.
+ */
+export async function fetchBrowseDetails(
+	items: { tmdbId: number; mediaType: 'movie' | 'tv' }[]
+): Promise<BrowseDetailsResponse> {
+	if (items.length === 0) {
+		return { details: [] };
+	}
+
+	const response = await fetch('/api/browse/details', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ items }),
+	});
+
+	if (!response.ok) {
+		throw createFetchError(`Failed to fetch browse details: ${response.statusText}`, response.status);
+	}
+
+	return response.json();
+}
+
+// =============================================================================
+// Browse Content
+// =============================================================================
 
 /**
  * Fetch trending content

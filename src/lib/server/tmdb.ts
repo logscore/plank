@@ -276,18 +276,38 @@ export async function getPopular(
 }
 
 /**
+ * In-memory cache for browse item details (IMDB ID + certification).
+ * These rarely change, so a 3-hour TTL avoids hammering TMDB with
+ * ~20 requests per browse page load.
+ */
+const browseDetailsCache = new Map<
+	string,
+	{ imdbId: string | null; certification: string | null; expiresAt: number }
+>();
+const BROWSE_DETAILS_TTL = 3 * 60 * 60 * 1000; // 3 hours
+const BROWSE_DETAILS_MAX_SIZE = 500; // Evict oldest when cache exceeds this
+
+/**
  * Get cached item details (IMDB ID + Certification)
  */
 export async function getBrowseItemDetails(
 	tmdbId: number,
 	type: 'movie' | 'tv'
 ): Promise<{ imdbId: string | null; certification: string | null }> {
+	const cacheKey = `${type}:${tmdbId}`;
+	const now = Date.now();
+
+	// Check in-memory cache first
+	const cached = browseDetailsCache.get(cacheKey);
+	if (cached && now < cached.expiresAt) {
+		return { imdbId: cached.imdbId, certification: cached.certification };
+	}
+
 	const settings = await getSettings();
 	// For movies: append_to_response=external_ids,release_dates
 	// For tv: append_to_response=external_ids,content_ratings
 	const append = type === 'movie' ? 'external_ids,release_dates' : 'external_ids,content_ratings';
 
-	// Cache key could be implemented here if needed to avoid spamming TMDB
 	const res = await fetch(
 		`${settings.tmdb.baseUrl}/${type}/${tmdbId}?api_key=${settings.tmdb.apiKey}&append_to_response=${append}&language=${settings.tmdb.language}`
 	);
@@ -313,6 +333,15 @@ export async function getBrowseItemDetails(
 		const usRating = data.content_ratings.results.find((r: { iso_3166_1: string }) => r.iso_3166_1 === 'US');
 		certification = usRating?.rating || null;
 	}
+
+	// Store in cache (evict oldest entries if over limit)
+	if (browseDetailsCache.size >= BROWSE_DETAILS_MAX_SIZE) {
+		const firstKey = browseDetailsCache.keys().next().value;
+		if (firstKey) {
+			browseDetailsCache.delete(firstKey);
+		}
+	}
+	browseDetailsCache.set(cacheKey, { imdbId, certification, expiresAt: now + BROWSE_DETAILS_TTL });
 
 	return { imdbId, certification };
 }

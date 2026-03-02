@@ -62,7 +62,18 @@ async function migrateUnencryptedFields(stored: typeof configuration.$inferSelec
 	}
 }
 
+/** In-memory cache for settings to avoid repeated DB queries + decryption */
+let settingsCache: AppSettings | null = null;
+let settingsCacheTime = 0;
+const SETTINGS_CACHE_TTL = 60_000; // 1 minute
+
 export async function getSettings(): Promise<AppSettings> {
+	// Return cached settings if still fresh
+	const now = Date.now();
+	if (settingsCache && now - settingsCacheTime < SETTINGS_CACHE_TTL) {
+		return settingsCache;
+	}
+
 	try {
 		// Try to get from DB
 		const stored = await db.query.configuration.findFirst({
@@ -90,7 +101,7 @@ export async function getSettings(): Promise<AppSettings> {
 			}
 		}
 
-		return {
+		const settings: AppSettings = {
 			tmdb: {
 				apiKey: decryptField(stored?.tmdbApiKey) || envConfig.tmdb.apiKey,
 				baseUrl: envConfig.tmdb.baseUrl,
@@ -109,6 +120,10 @@ export async function getSettings(): Promise<AppSettings> {
 				password: decryptField(stored?.opensubtitlesPassword) || envConfig.opensubtitles.password,
 			},
 		};
+
+		settingsCache = settings;
+		settingsCacheTime = now;
+		return settings;
 	} catch (e) {
 		console.error('Failed to load settings from DB, falling back to env:', e);
 		return {
@@ -120,6 +135,12 @@ export async function getSettings(): Promise<AppSettings> {
 			opensubtitles: envConfig.opensubtitles,
 		};
 	}
+}
+
+/** Invalidate the settings cache (call after updateSettings) */
+export function invalidateSettingsCache(): void {
+	settingsCache = null;
+	settingsCacheTime = 0;
 }
 
 export async function updateSettings(
@@ -170,4 +191,7 @@ export async function updateSettings(
 			target: configuration.id,
 			set: values,
 		});
+
+	// Invalidate in-memory cache so next getSettings() reads fresh values
+	invalidateSettingsCache();
 }

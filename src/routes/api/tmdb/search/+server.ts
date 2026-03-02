@@ -1,11 +1,14 @@
 /**
  * TMDB Search API - Search movies and shows
+ *
+ * Returns search results immediately without detail enrichment.
+ * IMDB IDs, certifications, and cached magnets are fetched lazily
+ * by the client via /api/browse/details.
  */
 
 import { error, json } from '@sveltejs/kit';
 import type { BrowseItem } from '$lib/server/tmdb';
-import { getBrowseItemDetails, searchMovie, searchTVShow } from '$lib/server/tmdb';
-import { getCachedTorrents } from '$lib/server/torrent-cache';
+import { searchMovie, searchTVShow } from '$lib/server/tmdb';
 import type { RequestHandler } from './$types';
 
 interface SearchResponse {
@@ -31,7 +34,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	try {
 		const searchPromises: Promise<BrowseItem[]>[] = [];
 
-		// Search movies and TV shows based on type filter
 		if (type === 'all' || type === 'movie') {
 			searchPromises.push(
 				searchMovie(query).then((movies) =>
@@ -91,7 +93,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const results = await Promise.all(searchPromises);
 		const allResults = results.flat();
 
-		// Sort by relevance (simple title matching for now)
+		// Sort by relevance (simple title matching)
 		const sortedResults = allResults.sort((a, b) => {
 			const aLower = a.title.toLowerCase();
 			const bLower = b.title.toLowerCase();
@@ -125,39 +127,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const endIndex = startIndex + 20;
 		const paginatedResults = sortedResults.slice(startIndex, endIndex);
 
-		// Get additional details (IMDB ID, certification) for paginated results
-		const itemsWithDetails = await Promise.all(
-			paginatedResults.map(async (item) => {
-				const details = await getBrowseItemDetails(item.tmdbId, item.mediaType);
-				return {
-					...item,
-					imdbId: details.imdbId,
-					certification: details.certification,
-					genres: item.genres || [], // Ensure genres is always an array
-				};
-			})
-		);
-
-		// Check cache for magnet links
-		const imdbIds = itemsWithDetails.filter((item) => item.imdbId).map((item) => item.imdbId as string);
-
-		const cachedTorrents = await getCachedTorrents(imdbIds);
-
-		// Attach cached magnet links
-		const enrichedResults = itemsWithDetails.map((item) => {
-			if (item.imdbId && cachedTorrents.has(item.imdbId)) {
-				const cached = cachedTorrents.get(item.imdbId);
-				return {
-					...item,
-					magnetLink: cached?.magnetLink,
-					needsResolve: false,
-				};
-			}
-			return item;
-		});
-
 		const response: SearchResponse = {
-			results: enrichedResults,
+			results: paginatedResults,
 			total: sortedResults.length,
 			page,
 			totalPages: Math.ceil(sortedResults.length / 20),

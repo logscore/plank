@@ -22,6 +22,7 @@ export const queryKeys = {
 			[...queryKeys.browse.all, 'popular', filter, page] as const,
 		infinite: (type: 'trending' | 'popular', filter: 'all' | 'movie' | 'tv') =>
 			[...queryKeys.browse.all, 'infinite', type, filter] as const,
+		details: (tmdbIds: number[]) => [...queryKeys.browse.all, 'details', ...tmdbIds.toSorted()] as const,
 		resolve: (tmdbId: number) => [...queryKeys.browse.all, 'resolve', tmdbId] as const,
 		resolveSeason: (tmdbId: number, seasonNumber: number) =>
 			[...queryKeys.browse.all, 'resolve', 'season', tmdbId, seasonNumber] as const,

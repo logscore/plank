@@ -12,7 +12,9 @@
     import { createAddFromBrowseMutation } from '$lib/mutations/browse-mutations';
     import { createAddMediaMutation, createDeleteMediaMutation } from '$lib/mutations/media-mutations';
     import {
+        type BrowseDetailItem,
         type BrowseItem,
+        fetchBrowseDetails,
         fetchSeasons,
         resolveSeasonTorrent,
         resolveTorrent,
@@ -50,6 +52,56 @@
     let seasonsCache = $state<Map<number, SeasonData[]>>(new Map());
     let seasonsLoading = $state<Set<number>>(new Set());
 
+    // Lazy enrichment for TMDB search results
+    let enrichmentMap = $state<Map<number, BrowseDetailItem>>(new Map());
+    let enrichedIds = $state<Set<number>>(new Set());
+
+    // Enrich TMDB results lazily after they load
+    function enrichItems(items: BrowseItem[]) {
+        const unenriched = items.filter((item) => !enrichedIds.has(item.tmdbId));
+        if (unenriched.length === 0) {
+            return;
+        }
+
+        const newIds = new Set(enrichedIds);
+        for (const item of unenriched) {
+            newIds.add(item.tmdbId);
+        }
+        enrichedIds = newIds;
+
+        const batch = unenriched.map((item) => ({ tmdbId: item.tmdbId, mediaType: item.mediaType }));
+        queryClient
+            .fetchQuery({
+                queryKey: queryKeys.browse.details(batch.map((b) => b.tmdbId)),
+                queryFn: () => fetchBrowseDetails(batch),
+                staleTime: 30 * 60 * 1000,
+            })
+            .then((response) => {
+                const updated = new Map(enrichmentMap);
+                for (const detail of response.details) {
+                    updated.set(detail.tmdbId, detail);
+                }
+                enrichmentMap = updated;
+            });
+    }
+
+    // Merge enrichment into displayed TMDB results
+    const enrichedTmdbResults = $derived(
+        tmdbResults.map((item) => {
+            const detail = enrichmentMap.get(item.tmdbId);
+            if (detail) {
+                return {
+                    ...item,
+                    imdbId: detail.imdbId ?? item.imdbId,
+                    certification: detail.certification ?? item.certification,
+                    magnetLink: detail.magnetLink ?? item.magnetLink,
+                    needsResolve: !detail.magnetLink && item.needsResolve,
+                };
+            }
+            return item;
+        })
+    );
+
     async function performSearch() {
         if (query.trim().length < 2) {
             localResults = [];
@@ -75,6 +127,8 @@
                 });
                 tmdbResults = res.items;
                 localResults = [];
+                // Trigger lazy enrichment for the search results
+                enrichItems(res.items);
             }
         } catch (e) {
             console.error('Search failed:', e);
@@ -437,7 +491,7 @@
         <div class="flex items-center justify-center p-12">
             <LoaderCircle class="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
-    {:else if query.length >= 2 && localResults.length === 0 && tmdbResults.length === 0}
+    {:else if query.length >= 2 && localResults.length === 0 && enrichedTmdbResults.length === 0}
         <div class="flex flex-col items-center justify-center p-12 text-center space-y-4">
             <div class="p-4 rounded-full bg-accent/30">
                 <Film class="w-8 h-8 text-muted-foreground" />
@@ -451,9 +505,9 @@
                 <MediaCard {media} onDelete={deleteMedia} />
             {/each}
         </div>
-    {:else if tmdbResults.length > 0}
+    {:else if enrichedTmdbResults.length > 0}
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-            {#each tmdbResults as item (item.tmdbId)}
+            {#each enrichedTmdbResults as item (item.tmdbId)}
                 <TorrentCard
                     {item}
                     onAddToLibrary={handleAddToLibrary}

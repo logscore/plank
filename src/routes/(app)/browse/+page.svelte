@@ -1,20 +1,22 @@
 <script lang="ts">
     import { Flame, Trophy } from '@lucide/svelte';
-    import { createInfiniteQuery, useQueryClient } from '@tanstack/svelte-query';
+    import { createInfiniteQuery, createQuery, useQueryClient } from '@tanstack/svelte-query';
     import { toast } from 'svelte-sonner';
     import { goto } from '$app/navigation';
-    import { navigating } from '$app/state';
     import { env } from '$env/dynamic/public';
     import CardSkeleton from '$lib/components/CardSkeleton.svelte';
     import ProwlarrSetup from '$lib/components/ProwlarrSetup.svelte';
     import TorrentCard from '$lib/components/TorrentCard.svelte';
     import type { SeasonData } from '$lib/components/ui/ContextMenu.svelte';
     import { createAddFromBrowseMutation } from '$lib/mutations/browse-mutations';
-    import { prefetchBothBrowseTabs, prefetchBrowse } from '$lib/prefetch';
+    import { prefetchBrowse } from '$lib/prefetch';
     import {
+        type BrowseDetailItem,
         type BrowseItem,
         type BrowseResponse,
         fetchBrowse,
+        fetchBrowseDetails,
+        fetchProwlarrStatus,
         fetchSeasons,
         resolveSeasonTorrent,
         resolveTorrent,
@@ -26,16 +28,6 @@
         data: {
             type: 'trending' | 'popular';
             filter: 'all' | 'movie' | 'tv';
-            prowlarrCheck: Promise<{
-                prowlarrConfigured: boolean;
-                prowlarrStatus: string;
-                hasIndexers: boolean;
-            }>;
-            browseData: Promise<{
-                items: BrowseItem[];
-                page: number;
-                totalPages: number;
-            }>;
         };
     }
 
@@ -51,62 +43,42 @@
     const activeTab = $derived(data.type);
     const activeFilter = $derived(data.filter || 'all');
 
-    // Track resolved browse data for initializing infinite query
-    let resolvedBrowseData = $state<{ items: BrowseItem[]; page: number; totalPages: number } | null>(null);
+    // Prowlarr status via TanStack Query (long staleTime - rarely changes)
+    const prowlarrQuery = createQuery(() => ({
+        queryKey: queryKeys.system.prowlarr.status(),
+        queryFn: fetchProwlarrStatus,
+        staleTime: 60 * 60 * 1000, // 1 hour
+    }));
 
-    // Resolve streamed browse data when it arrives
-    $effect(() => {
-        resolvedBrowseData = null;
-        data.browseData.then((result) => {
-            resolvedBrowseData = result;
-        });
-    });
+    const prowlarrReady = $derived(
+        prowlarrQuery.isSuccess && prowlarrQuery.data?.configured && !prowlarrQuery.data?.needsSetup
+    );
 
-    // Infinite query for loading more pages - only initialized once data resolves
+    // Infinite query for browse data
     const browseQuery = createInfiniteQuery(() => ({
         queryKey: queryKeys.browse.infinite(activeTab, activeFilter),
         queryFn: ({ pageParam }) => fetchBrowse(activeTab, activeFilter, pageParam),
         initialPageParam: 1,
-        ...(resolvedBrowseData
-            ? {
-                  initialData: {
-                      pages: [
-                          {
-                              items: resolvedBrowseData.items,
-                              page: resolvedBrowseData.page,
-                              totalPages: resolvedBrowseData.totalPages,
-                          },
-                      ],
-                      pageParams: [1],
-                  },
-              }
-            : {}),
         getNextPageParam: (lastPage: BrowseResponse) => {
             return lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined;
         },
-        enabled: resolvedBrowseData !== null,
+        enabled: prowlarrReady,
         staleTime: 30 * 60 * 1000, // 30 minutes
     }));
 
-    // UI State
-    let addingItems = $state<Set<number>>(new Set());
-    let resolvingItems = $state<Set<number>>(new Set());
+    // ==========================================================================
+    // Lazy Detail Enrichment
+    // ==========================================================================
 
-    // TV show seasons state - keyed by TMDB ID
-    // We keep a local reactive cache for the UI to bind to (passed to TorrentCard)
-    // The data fetching uses QueryClient for network caching
-    // The data fetching uses QueryClient for network caching
-    let seasonsCache = $state<Map<number, SeasonData[]>>(new Map());
-    let seasonsLoading = $state<Set<number>>(new Set());
+    // Map of tmdbId -> enrichment data (imdbId, certification, magnetLink)
+    let enrichmentMap = $state<Map<number, BrowseDetailItem>>(new Map());
+    // Track which tmdbIds we've already requested enrichment for
+    let enrichedIds = $state<Set<number>>(new Set());
 
-    // Load more trigger element
-    let loadMoreTrigger: HTMLDivElement | null = $state(null);
-
-    // Flatten and deduplicate items from all pages
-    const displayItems = $derived.by(() => {
+    // Flatten and deduplicate raw items from all pages (before enrichment)
+    const rawItems = $derived.by(() => {
         const pages = browseQuery.data?.pages ?? [];
         const seen = new Set<number>();
-        const ctx = `${activeTab}-${activeFilter}`;
 
         return pages
             .flatMap((page) => page.items)
@@ -116,12 +88,79 @@
                 }
                 seen.add(item.tmdbId);
                 return true;
-            })
-            .map((item) => ({ ...item, _key: `${ctx}-${item.tmdbId}` }));
+            });
     });
+
+    // Trigger lazy enrichment whenever new items appear
+    $effect(() => {
+        const unenriched = rawItems.filter((item) => !enrichedIds.has(item.tmdbId));
+        if (unenriched.length === 0) {
+            return;
+        }
+
+        // Mark as requested immediately to prevent duplicate calls
+        const newIds = new Set(enrichedIds);
+        for (const item of unenriched) {
+            newIds.add(item.tmdbId);
+        }
+        enrichedIds = newIds;
+
+        // Fire the batch request (uses server-side in-memory cache for repeat items)
+        const batch = unenriched.map((item) => ({
+            tmdbId: item.tmdbId,
+            mediaType: item.mediaType,
+        }));
+        queryClient
+            .fetchQuery({
+                queryKey: queryKeys.browse.details(batch.map((b) => b.tmdbId)),
+                queryFn: () => fetchBrowseDetails(batch),
+                staleTime: 30 * 60 * 1000, // 30 minutes
+            })
+            .then((response) => {
+                const updated = new Map(enrichmentMap);
+                for (const detail of response.details) {
+                    updated.set(detail.tmdbId, detail);
+                }
+                enrichmentMap = updated;
+            });
+    });
+
+    // Merge enrichment data into display items
+    const displayItems = $derived.by(() => {
+        const ctx = `${activeTab}-${activeFilter}`;
+
+        return rawItems.map((item) => {
+            const detail = enrichmentMap.get(item.tmdbId);
+            if (detail) {
+                return {
+                    ...item,
+                    imdbId: detail.imdbId ?? item.imdbId,
+                    certification: detail.certification ?? item.certification,
+                    magnetLink: detail.magnetLink ?? item.magnetLink,
+                    needsResolve: !detail.magnetLink && item.needsResolve,
+                    _key: `${ctx}-${item.tmdbId}`,
+                };
+            }
+            return { ...item, _key: `${ctx}-${item.tmdbId}` };
+        });
+    });
+
+    // UI State
+    let addingItems = $state<Set<number>>(new Set());
+    let resolvingItems = $state<Set<number>>(new Set());
+
+    // TV show seasons state - keyed by TMDB ID
+    // We keep a local reactive cache for the UI to bind to (passed to TorrentCard)
+    // The data fetching uses QueryClient for network caching
+    let seasonsCache = $state<Map<number, SeasonData[]>>(new Map());
+    let seasonsLoading = $state<Set<number>>(new Set());
+
+    // Load more trigger element
+    let loadMoreTrigger: HTMLDivElement | null = $state(null);
 
     const hasMore = $derived(browseQuery.hasNextPage);
     const isFetchingMore = $derived(browseQuery.isFetchingNextPage);
+    const isLoading = $derived(prowlarrQuery.isLoading || browseQuery.isLoading);
 
     // Intersection observer for infinite scroll
     $effect(() => {
@@ -144,9 +183,10 @@
         return () => observer.disconnect();
     });
 
-    // Prefetch both tabs on page load for instant tab switching
+    // Prefetch the other tab for instant tab switching
     $effect(() => {
-        prefetchBothBrowseTabs(activeFilter);
+        const otherTab = activeTab === 'trending' ? 'popular' : 'trending';
+        prefetchBrowse(otherTab, activeFilter);
     });
 
     // Get magnet link - uses QueryClient for caching
@@ -454,74 +494,65 @@
 
     <!-- Content -->
     <div class="container max-w-7xl mx-auto px-4 py-8">
-        {#await data.prowlarrCheck}
-            <!-- Loading: show skeleton grid immediately -->
+        {#if prowlarrQuery.isLoading}
+            <!-- Prowlarr status loading -->
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {#each { length: 12 } as _}
                     <CardSkeleton />
                 {/each}
             </div>
-        {:then prowlarr}
-            {#if !prowlarr.prowlarrConfigured || prowlarr.prowlarrStatus === 'no_indexers'}
-                <!-- Setup Instructions -->
-                <ProwlarrSetup prowlarrUrl={env.PUBLIC_PROWLARR_URL!} hasApiKey={prowlarr.prowlarrConfigured} />
-            {:else if !resolvedBrowseData}
-                <!-- Browse data still loading after prowlarr check resolved -->
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                    {#each { length: 12 } as _}
+        {:else if prowlarrQuery.isSuccess && (!prowlarrQuery.data.configured || prowlarrQuery.data.needsSetup)}
+            <!-- Setup Instructions -->
+            <ProwlarrSetup prowlarrUrl={env.PUBLIC_PROWLARR_URL!} hasApiKey={prowlarrQuery.data.configured} />
+        {:else if isLoading}
+            <!-- Browse data loading -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                {#each { length: 12 } as _}
+                    <CardSkeleton />
+                {/each}
+            </div>
+        {:else if displayItems.length === 0}
+            <!-- Empty State -->
+            <div class="text-center py-20 bg-muted/30 rounded-lg border border-dashed border-border mx-auto max-w-2xl">
+                <Trophy class="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+                <h2 class="text-lg font-medium text-foreground mb-1">No content found</h2>
+                <p class="text-muted-foreground">Check your indexer and Prowlarr configuration.</p>
+            </div>
+        {:else}
+            <!-- Movie Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                {#each displayItems as item, i (item._key)}
+                    <TorrentCard
+                        {item}
+                        onAddToLibrary={handleAddToLibrary}
+                        onWatchNow={handleWatchNow}
+                        onPrefetch={handlePrefetch}
+                        onSelectSeason={handleSelectSeason}
+                        onPrefetchSeasons={handlePrefetchSeasons}
+                        onPrefetchSeasonTorrent={handlePrefetchSeasonTorrent}
+                        isAdding={addingItems.has(item.tmdbId)}
+                        isResolving={resolvingItems.has(item.tmdbId)}
+                        seasons={getSeasonsForItem(item.tmdbId)}
+                        seasonsLoading={seasonsLoading.has(item.tmdbId)}
+                        eagerLoad={i < 18}
+                    />
+                {/each}
+
+                {#if isFetchingMore}
+                    {#each { length: 5 } as _}
                         <CardSkeleton />
                     {/each}
-                </div>
-            {:else if displayItems.length === 0}
-                <!-- Empty State -->
-                <div
-                    class="text-center py-20 bg-muted/30 rounded-lg border border-dashed border-border mx-auto max-w-2xl"
-                >
-                    <Trophy class="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-                    <h2 class="text-lg font-medium text-foreground mb-1">No content found</h2>
-                    <p class="text-muted-foreground">Check your indexer and Prowlarr configuration.</p>
-                </div>
-            {:else}
-                <!-- Movie Grid -->
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                    {#if navigating.to}
-                        {#each { length: 12 } as _}
-                            <CardSkeleton />
-                        {/each}
-                    {:else}
-                        {#each displayItems as item (item._key)}
-                            <TorrentCard
-                                {item}
-                                onAddToLibrary={handleAddToLibrary}
-                                onWatchNow={handleWatchNow}
-                                onPrefetch={handlePrefetch}
-                                onSelectSeason={handleSelectSeason}
-                                onPrefetchSeasons={handlePrefetchSeasons}
-                                onPrefetchSeasonTorrent={handlePrefetchSeasonTorrent}
-                                isAdding={addingItems.has(item.tmdbId)}
-                                isResolving={resolvingItems.has(item.tmdbId)}
-                                seasons={getSeasonsForItem(item.tmdbId)}
-                                seasonsLoading={seasonsLoading.has(item.tmdbId)}
-                            />
-                        {/each}
+                {/if}
+            </div>
 
-                        {#if isFetchingMore}
-                            {#each { length: 5 } as _}
-                                <CardSkeleton />
-                            {/each}
-                        {/if}
+            <!-- Load More Trigger -->
+            {#if hasMore}
+                <div bind:this={loadMoreTrigger} class="flex justify-center py-12">
+                    {#if !isFetchingMore}
+                        <span class="h-6 block"></span>
                     {/if}
                 </div>
-
-                <!-- Load More Trigger -->
-                {#if hasMore && !navigating.to}
-                    <div bind:this={loadMoreTrigger} class="flex justify-center py-12">
-                        {#if !isFetchingMore}
-                            <span class="h-6 block"></span>
-                        {/if}
-                    </div>
-                {/if}
             {/if}
-        {/await}
+        {/if}
     </div>
 </div>
