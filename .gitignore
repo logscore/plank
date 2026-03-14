@@ -17,3 +17,5 @@ docker/media
 biome-cache/
 .lefthook-local.yml
 coverage/
+opencode.json
+.mcp_data

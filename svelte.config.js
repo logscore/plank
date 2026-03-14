@@ -7,6 +7,9 @@ const config = {
 	kit: {
 		adapter: adapter(),
 	},
+	server: {
+		allowedHosts: ['localhost', '.test'],
+	},
 };
 
 export default config;

@@ -1,12 +1,14 @@
 # ROADMAP
 
 - [ ] Video player bug: when scrubbing around the video, it will get stuck and go back to 0:00 and be stuck in a loading state until refreshed. Also sometimes just goes back to 0:00 on MKVs
+- [ ] Find some way to let the user pick which torrent source they want to download from. Redownloads have the same feature
+  - Maybe a dropdown in the browse/search?
 - [ ] Be able to edit the details of a movie/show and episodes
 - [ ] We need to rethink tv shows. We need metadata for episodes along with the thumbnails of episodes. 
   - [ ] We need better show identification systems in plank. 
 - [ ] Handle no TMDB api key by having a poster placeholder
 - [x] Subtitles
-  - [ ] Fix the code to grab other non vtt subtitles and use those or convert them to vtt immediately. FOr example, k-pop demon hunters has over a dozen subtitles built in. We dont use any because they're srt
+  - [ ] Fix the code to grab other non vtt subtitles and use those or convert them to vtt immediately. For example, k-pop demon hunters has over a dozen subtitles built in. We dont use any because they're srt. Or maybe we can just support them?
 - [ ] I think i might remove the tabs between movies and tv shows and instead add a simple filter system. Mainly this is because i dont want a different continue watching banner on both tabs
   - [ ] Secondarily, there may be a need for a categories filter (definitely on the search, but also as netflix-like scrollable rows)
 - [ ] Move the total space and number of media cards in `/account` to the profile and make it per-profile instead of per-user-per-profile

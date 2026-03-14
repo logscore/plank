@@ -4,6 +4,8 @@ set -e
 echo "Running database migrations..."
 npx drizzle-kit migrate
 
+curl -fsSL https://raw.githubusercontent.com/logscore/roxy/master/install.sh | bash
+
 # Configure Prowlarr if config path is set and script exists
 if [ -n "$PROWLARR_CONFIG_PATH" ] && [ -f "/app/docker/configure-prowlarr.sh" ]; then
     echo "Configuring Prowlarr..."
@@ -31,7 +33,7 @@ echo "Starting application..."
 
 # Execute provided command or default to node build
 if [ "$#" -gt 0 ]; then
-    exec "$@"
+    exec 'roxy run "$@" --tls'
 else
-    exec node build
+    exec roxy run "node build" --tls
 fi
