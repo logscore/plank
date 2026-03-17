@@ -3,12 +3,6 @@ import { createMutation, useQueryClient } from '@tanstack/svelte-query';
 import { queryKeys } from '$lib/query-keys';
 import type { Media } from '$lib/types';
 
-export interface ResolveTorrentParams {
-	imdbId: string | null;
-	tmdbId: number;
-	title: string;
-}
-
 export interface AddFromBrowseParams {
 	magnetLink: string;
 	title: string;
@@ -16,9 +10,6 @@ export interface AddFromBrowseParams {
 	tmdbId?: number;
 }
 
-/**
- * Create a mutation for adding media to library from browse
- */
 export function createAddFromBrowseMutation() {
 	const queryClient = useQueryClient();
 
@@ -37,19 +28,9 @@ export function createAddFromBrowseMutation() {
 			return response.json();
 		},
 		onSuccess: () => {
-			// Invalidate media list queries
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.media.lists(),
-			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.media.lists() });
 		},
 	};
 
 	return createMutation<Media, Error, AddFromBrowseParams, undefined>(() => options);
-}
-
-export interface ResolveSeasonParams {
-	tmdbId: number;
-	seasonNumber: number;
-	showTitle: string;
-	imdbId?: string;
 }

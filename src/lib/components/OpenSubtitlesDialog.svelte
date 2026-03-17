@@ -3,7 +3,8 @@
     import Button from '$lib/components/ui/Button.svelte';
     import Dialog from '$lib/components/ui/Dialog.svelte';
     import { createDownloadSubtitleMutation } from '$lib/mutations/media-mutations';
-    import { type OpenSubtitleSearchResult, searchOpenSubtitles } from '$lib/queries/media-queries';
+    import { searchOpenSubtitles } from '$lib/queries/media-queries';
+    import type { OpenSubtitleResult } from '$lib/types';
 
     let {
         open = $bindable(false),
@@ -21,7 +22,7 @@
         episodeNumber?: number;
     } = $props();
 
-    let results: OpenSubtitleSearchResult[] = $state([]);
+    let results: OpenSubtitleResult[] = $state([]);
     let searching = $state(false);
     let searchError = $state('');
     let selectedLanguages = $state('en');
@@ -40,27 +41,27 @@
         { code: 'ja', name: 'Japanese' },
         { code: 'ko', name: 'Korean' },
         { code: 'zh', name: 'Chinese' },
-        { code: 'ar', name: 'Arabic' },
+        // { code: 'ar', name: 'Arabic' },
         { code: 'ru', name: 'Russian' },
-        { code: 'hi', name: 'Hindi' },
-        { code: 'pl', name: 'Polish' },
-        { code: 'tr', name: 'Turkish' },
-        { code: 'nl', name: 'Dutch' },
-        { code: 'sv', name: 'Swedish' },
-        { code: 'no', name: 'Norwegian' },
-        { code: 'da', name: 'Danish' },
-        { code: 'fi', name: 'Finnish' },
-        { code: 'cs', name: 'Czech' },
-        { code: 'ro', name: 'Romanian' },
-        { code: 'hu', name: 'Hungarian' },
-        { code: 'el', name: 'Greek' },
-        { code: 'he', name: 'Hebrew' },
-        { code: 'th', name: 'Thai' },
-        { code: 'vi', name: 'Vietnamese' },
-        { code: 'id', name: 'Indonesian' },
-        { code: 'uk', name: 'Ukrainian' },
-        { code: 'bg', name: 'Bulgarian' },
-        { code: 'hr', name: 'Croatian' },
+        // { code: 'hi', name: 'Hindi' },
+        // { code: 'pl', name: 'Polish' },
+        // { code: 'tr', name: 'Turkish' },
+        // { code: 'nl', name: 'Dutch' },
+        // { code: 'sv', name: 'Swedish' },
+        // { code: 'no', name: 'Norwegian' },
+        // { code: 'da', name: 'Danish' },
+        // { code: 'fi', name: 'Finnish' },
+        // { code: 'cs', name: 'Czech' },
+        // { code: 'ro', name: 'Romanian' },
+        // { code: 'hu', name: 'Hungarian' },
+        // { code: 'el', name: 'Greek' },
+        // { code: 'he', name: 'Hebrew' },
+        // { code: 'th', name: 'Thai' },
+        // { code: 'vi', name: 'Vietnamese' },
+        // { code: 'id', name: 'Indonesian' },
+        // { code: 'uk', name: 'Ukrainian' },
+        // { code: 'bg', name: 'Bulgarian' },
+        // { code: 'hr', name: 'Croatian' },
     ];
 
     async function performSearch() {
@@ -81,7 +82,7 @@
         }
     }
 
-    async function handleDownload(result: OpenSubtitleSearchResult) {
+    async function handleDownload(result: OpenSubtitleResult) {
         if (downloadingIds.has(result.id) || downloadedIds.has(result.id)) {
             return;
         }

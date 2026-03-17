@@ -2,11 +2,8 @@ import { error, json } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index';
 import { schema } from '$lib/server/db/schema';
-import { processAndSave, validateImage } from '$lib/server/image-processing';
-import { imageStorage } from '$lib/server/storage';
+import { replaceStoredImage } from '$lib/server/image-processing';
 import type { RequestHandler } from './$types';
-
-const IMAGES_PREFIX = /^\/images\//;
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
@@ -35,32 +32,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		throw error(403, 'Only owners and admins can update organization logo');
 	}
 
-	const buffer = Buffer.from(await file.arrayBuffer());
-	const validation = validateImage(buffer, file.type);
-
-	if (!validation.valid) {
-		throw error(400, validation.error);
-	}
-
 	const currentOrg = db
 		.select({ logo: schema.organization.logo })
 		.from(schema.organization)
 		.where(eq(schema.organization.id, organizationId))
 		.get();
 
-	if (currentOrg?.logo) {
-		try {
-			const storagePath = currentOrg.logo.replace(IMAGES_PREFIX, '');
-			await imageStorage.delete(storagePath);
-		} catch {
-			// File may not exist, ignore
-		}
+	const buffer = Buffer.from(await file.arrayBuffer());
+	const result = await replaceStoredImage(currentOrg?.logo, buffer, file.type, 'logos', organizationId);
+
+	if ('error' in result) {
+		throw error(400, result.error);
 	}
 
-	const relativePath = await processAndSave(buffer, 'logos', organizationId);
-	const imagePath = `/images/${relativePath}`;
+	db.update(schema.organization)
+		.set({ logo: result.imagePath })
+		.where(eq(schema.organization.id, organizationId))
+		.run();
 
-	db.update(schema.organization).set({ logo: imagePath }).where(eq(schema.organization.id, organizationId)).run();
-
-	return json({ success: true, logo: imagePath });
+	return json({ success: true, logo: result.imagePath });
 };

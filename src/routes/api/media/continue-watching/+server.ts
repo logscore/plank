@@ -1,17 +1,9 @@
-import { error, json } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
+import { requireAuth } from '$lib/server/api-guard';
 import { mediaDb } from '$lib/server/db';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals }) => {
-	if (!locals.user) {
-		throw error(401, 'Unauthorized');
-	}
-
-	const organizationId = locals.session?.activeOrganizationId;
-	if (!organizationId) {
-		throw error(400, 'No active profile selected');
-	}
-
-	const items = mediaDb.getRecentlyWatched(organizationId, 20);
-	return json(items);
+	const { organizationId } = requireAuth(locals);
+	return json(mediaDb.getRecentlyWatched(organizationId, 20));
 };

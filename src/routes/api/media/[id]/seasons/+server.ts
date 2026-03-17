@@ -1,29 +1,16 @@
 import { error, json } from '@sveltejs/kit';
-import { episodesDb, mediaDb, seasonsDb } from '$lib/server/db';
+import { requireMediaAccess } from '$lib/server/api-guard';
+import { episodesDb, seasonsDb } from '$lib/server/db';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-	if (!locals.user) {
-		throw error(401, 'Unauthorized');
-	}
-
-	const organizationId = locals.session?.activeOrganizationId;
-	if (!organizationId) {
-		throw error(400, 'No active profile selected');
-	}
-
-	const mediaItem = mediaDb.get(params.id, organizationId);
-	if (!mediaItem) {
-		throw error(404, 'Media not found');
-	}
+	const { mediaItem } = requireMediaAccess(locals, params.id);
 
 	if (mediaItem.type !== 'tv') {
 		throw error(400, 'Not a TV show');
 	}
 
 	const seasons = seasonsDb.getByMediaId(params.id);
-
-	// Include episodes for each season
 	const seasonsWithEpisodes = seasons.map((season) => ({
 		...season,
 		episodes: episodesDb.getBySeasonId(season.id),

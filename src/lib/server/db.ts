@@ -1,4 +1,15 @@
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
+
+// Takes an object, removes any key whose value is undefined and returns the object
+//
+// Input:
+//    { title: 'Breaking Bad', year: undefined, overview: 'A chemistry teacher...' }
+// Output:
+//    { title: 'Breaking Bad', overview: 'A chemistry teacher...' }
+function removeUndefinedFromObject<T extends Record<string, unknown>>(obj: T): Partial<T> {
+	return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>;
+}
+
 import {
 	type Download,
 	downloads as downloadsTable,
@@ -236,44 +247,7 @@ export const mediaDb = {
 			type?: MediaType;
 		}
 	) {
-		const updates: Record<string, unknown> = {};
-		if (metadata.title !== undefined) {
-			updates.title = metadata.title;
-		}
-		if (metadata.year !== undefined) {
-			updates.year = metadata.year;
-		}
-		if (metadata.posterUrl !== undefined) {
-			updates.posterUrl = metadata.posterUrl;
-		}
-		if (metadata.backdropUrl !== undefined) {
-			updates.backdropUrl = metadata.backdropUrl;
-		}
-		if (metadata.overview !== undefined) {
-			updates.overview = metadata.overview;
-		}
-		if (metadata.tmdbId !== undefined) {
-			updates.tmdbId = metadata.tmdbId;
-		}
-		if (metadata.runtime !== undefined) {
-			updates.runtime = metadata.runtime;
-		}
-		if (metadata.genres !== undefined) {
-			updates.genres = metadata.genres;
-		}
-		if (metadata.originalLanguage !== undefined) {
-			updates.originalLanguage = metadata.originalLanguage;
-		}
-		if (metadata.certification !== undefined) {
-			updates.certification = metadata.certification;
-		}
-		if (metadata.totalSeasons !== undefined) {
-			updates.totalSeasons = metadata.totalSeasons;
-		}
-		if (metadata.type !== undefined) {
-			updates.type = metadata.type;
-		}
-
+		const updates = removeUndefinedFromObject(metadata as Record<string, unknown>);
 		if (Object.keys(updates).length > 0) {
 			db.update(mediaTable).set(updates).where(eq(mediaTable.id, id)).run();
 		}

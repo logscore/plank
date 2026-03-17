@@ -1,7 +1,8 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { error } from '@sveltejs/kit';
-import { episodesDb, mediaDb } from '$lib/server/db';
+import { requireMediaAccess } from '$lib/server/api-guard';
+import { episodesDb } from '$lib/server/db';
 import { createTransmuxStream, needsTransmux } from '$lib/server/ffmpeg';
 import {
 	getDownloadStatus,
@@ -160,19 +161,7 @@ async function handleRangeRequest(
 
 /** Resolve media item, episode, and file index from request params */
 function resolveMedia(params: { id: string }, locals: App.Locals, url: URL) {
-	if (!locals.user) {
-		throw error(401, 'Unauthorized');
-	}
-
-	const organizationId = locals.session?.activeOrganizationId;
-	if (!organizationId) {
-		throw error(400, 'No active profile selected');
-	}
-
-	const mediaItem = mediaDb.get(params.id, organizationId);
-	if (!mediaItem) {
-		throw error(404, 'Media not found');
-	}
+	const { mediaItem } = requireMediaAccess(locals, params.id);
 
 	const episodeId = url.searchParams.get('episodeId') ?? undefined;
 	let fileIndex: number | undefined;

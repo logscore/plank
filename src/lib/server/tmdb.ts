@@ -350,33 +350,39 @@ export async function getBrowseItemDetails(
 // Movie Search & Details
 // =============================================================================
 
-export async function searchMovie(query: string, year?: number | null): Promise<TMDBMetadata[]> {
+async function tmdbSearch<T extends { results: unknown[] }>(
+	endpoint: string,
+	extraParams: Record<string, string> = {}
+): Promise<T['results']> {
 	const settings = await getSettings();
 	const params = new URLSearchParams({
 		api_key: settings.tmdb.apiKey,
-		query,
 		language: settings.tmdb.language,
+		...extraParams,
 	});
-
-	if (year) {
-		params.set('year', String(year));
-	}
-
-	const res = await fetch(`${settings.tmdb.baseUrl}/search/movie?${params}`);
-
+	const res = await fetch(`${settings.tmdb.baseUrl}${endpoint}?${params}`);
 	if (!res.ok) {
-		console.error(`[TMDB] Search failed with status ${res.status}: ${res.statusText}`);
+		console.error(`[TMDB] Search ${endpoint} failed: ${res.status} ${res.statusText}`);
 		return [];
 	}
-
-	const data: TMDBSearchResult = await res.json();
-
+	const data: T = await res.json();
 	if (!(data.results && Array.isArray(data.results))) {
 		console.error('[TMDB] Invalid response - no results array:', data);
 		return [];
 	}
+	return data.results;
+}
 
-	return data.results.map((movie) => ({
+export async function searchMovie(query: string, year?: number | null): Promise<TMDBMetadata[]> {
+	const settings = await getSettings();
+	const extra: Record<string, string> = { query };
+	if (year) {
+		extra.year = String(year);
+	}
+
+	const results = await tmdbSearch<TMDBSearchResult>('/search/movie', extra);
+
+	return (results as TMDBMovie[]).map((movie) => ({
 		tmdbId: movie.id,
 		title: movie.title,
 		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
@@ -386,21 +392,10 @@ export async function searchMovie(query: string, year?: number | null): Promise<
 	}));
 }
 
-interface TMDBReleaseDates {
-	results: Array<{
-		iso_3166_1: string;
-		release_dates: Array<{
-			certification: string;
-			type: number;
-		}>;
-	}>;
-}
-
 export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 	const settings = await getSettings();
-	// Fetch movie details
 	const res = await fetch(
-		`${settings.tmdb.baseUrl}/movie/${tmdbId}?api_key=${settings.tmdb.apiKey}&language=${settings.tmdb.language}`
+		`${settings.tmdb.baseUrl}/movie/${tmdbId}?api_key=${settings.tmdb.apiKey}&append_to_response=release_dates&language=${settings.tmdb.language}`
 	);
 
 	if (!res.ok) {
@@ -408,31 +403,23 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 		throw new Error(`TMDB API error: ${res.status}`);
 	}
 
-	const movie: TMDBMovie = await res.json();
+	const movie: TMDBMovie & {
+		release_dates?: {
+			results: Array<{ iso_3166_1: string; release_dates: Array<{ certification: string; type: number }> }>;
+		};
+	} = await res.json();
 
 	if (!movie?.id) {
 		console.error(`[TMDB] Invalid movie response for ${tmdbId}:`, movie);
 		throw new Error('Invalid TMDB response');
 	}
 
-	// Fetch US certification from release_dates
 	let certification: string | null = null;
-	try {
-		const certRes = await fetch(
-			`${settings.tmdb.baseUrl}/movie/${tmdbId}/release_dates?api_key=${settings.tmdb.apiKey}`
-		);
-		if (certRes.ok) {
-			const certData: TMDBReleaseDates = await certRes.json();
-			const usRelease = certData.results?.find((r) => r.iso_3166_1 === 'US');
-			if (usRelease) {
-				// Prefer theatrical release (type 3), then any with certification
-				const theatrical = usRelease.release_dates.find((r) => r.type === 3 && r.certification);
-				const anyCert = usRelease.release_dates.find((r) => r.certification);
-				certification = theatrical?.certification || anyCert?.certification || null;
-			}
-		}
-	} catch (e) {
-		console.error(`[TMDB] Failed to fetch certification for ${tmdbId}:`, e);
+	const usRelease = movie.release_dates?.results?.find((r) => r.iso_3166_1 === 'US');
+	if (usRelease) {
+		const theatrical = usRelease.release_dates.find((r) => r.type === 3 && r.certification);
+		const anyCert = usRelease.release_dates.find((r) => r.certification);
+		certification = theatrical?.certification || anyCert?.certification || null;
 	}
 
 	return {
@@ -455,31 +442,14 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 
 export async function searchTVShow(query: string, year?: number | null): Promise<TMDBMetadata[]> {
 	const settings = await getSettings();
-	const params = new URLSearchParams({
-		api_key: settings.tmdb.apiKey,
-		query,
-		language: settings.tmdb.language,
-	});
-
+	const extra: Record<string, string> = { query };
 	if (year) {
-		params.set('first_air_date_year', String(year));
+		extra.first_air_date_year = String(year);
 	}
 
-	const res = await fetch(`${settings.tmdb.baseUrl}/search/tv?${params}`);
+	const results = await tmdbSearch<TMDBTVSearchResult>('/search/tv', extra);
 
-	if (!res.ok) {
-		console.error(`[TMDB] TV search failed with status ${res.status}: ${res.statusText}`);
-		return [];
-	}
-
-	const data: TMDBTVSearchResult = await res.json();
-
-	if (!(data.results && Array.isArray(data.results))) {
-		console.error('[TMDB] Invalid TV response - no results array:', data);
-		return [];
-	}
-
-	return data.results.map((show) => ({
+	return (results as TMDBTVShow[]).map((show) => ({
 		tmdbId: show.id,
 		title: show.name,
 		year: show.first_air_date ? Number.parseInt(show.first_air_date.slice(0, 4), 10) : null,
@@ -490,17 +460,10 @@ export async function searchTVShow(query: string, year?: number | null): Promise
 	}));
 }
 
-interface TMDBContentRatings {
-	results: Array<{
-		iso_3166_1: string;
-		rating: string;
-	}>;
-}
-
 export async function getTVDetails(tmdbId: number): Promise<TMDBMetadata & { totalSeasons: number }> {
 	const settings = await getSettings();
 	const res = await fetch(
-		`${settings.tmdb.baseUrl}/tv/${tmdbId}?api_key=${settings.tmdb.apiKey}&language=${settings.tmdb.language}`
+		`${settings.tmdb.baseUrl}/tv/${tmdbId}?api_key=${settings.tmdb.apiKey}&append_to_response=content_ratings&language=${settings.tmdb.language}`
 	);
 
 	if (!res.ok) {
@@ -508,27 +471,16 @@ export async function getTVDetails(tmdbId: number): Promise<TMDBMetadata & { tot
 		throw new Error(`TMDB API error: ${res.status}`);
 	}
 
-	const show: TMDBTVShow = await res.json();
+	const show: TMDBTVShow & { content_ratings?: { results: Array<{ iso_3166_1: string; rating: string }> } } =
+		await res.json();
 
 	if (!show?.id) {
 		console.error(`[TMDB] Invalid TV response for ${tmdbId}:`, show);
 		throw new Error('Invalid TMDB response');
 	}
 
-	// Fetch US certification from content_ratings
-	let certification: string | null = null;
-	try {
-		const certRes = await fetch(
-			`${settings.tmdb.baseUrl}/tv/${tmdbId}/content_ratings?api_key=${settings.tmdb.apiKey}`
-		);
-		if (certRes.ok) {
-			const certData: TMDBContentRatings = await certRes.json();
-			const usRating = certData.results?.find((r) => r.iso_3166_1 === 'US');
-			certification = usRating?.rating || null;
-		}
-	} catch (e) {
-		console.error(`[TMDB] Failed to fetch TV certification for ${tmdbId}:`, e);
-	}
+	const usRating = show.content_ratings?.results?.find((r) => r.iso_3166_1 === 'US');
+	const certification = usRating?.rating || null;
 
 	return {
 		tmdbId: show.id,

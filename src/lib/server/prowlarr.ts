@@ -60,8 +60,8 @@ const LOW_QUALITY_PATTERNS = [
  * Keys are uppercase to match extractQuality output
  */
 const QUALITY_SCORES: Record<string, number> = {
-	'2160P': 110,
 	'1080P': 100,
+	'2160P': 85,
 	UHD: 80,
 	'720P': 60,
 	'4K': 40,

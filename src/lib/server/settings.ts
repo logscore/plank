@@ -24,14 +24,28 @@ export interface AppSettings {
 	};
 }
 
-/** Sensitive fields that should be encrypted at rest */
-const SENSITIVE_FIELDS = [
+/** Fields stored encrypted at rest */
+const ENCRYPTED_FIELDS = [
 	'tmdbApiKey',
 	'prowlarrApiKey',
 	'opensubtitlesApiKey',
 	'opensubtitlesUsername',
 	'opensubtitlesPassword',
 ] as const;
+
+/** Fields stored as plain text (or serialized JSON) */
+const PLAIN_FIELDS = ['prowlarrUrl', 'prowlarrMinSeeders'] as const;
+
+type SettingsUpdate = Partial<{
+	tmdbApiKey: string;
+	prowlarrUrl: string;
+	prowlarrApiKey: string;
+	prowlarrTrustedGroups: string[];
+	prowlarrMinSeeders: number;
+	opensubtitlesApiKey: string;
+	opensubtitlesUsername: string;
+	opensubtitlesPassword: string;
+}>;
 
 /** Decrypt a stored value, returning empty string for nullish values */
 function decryptField(value: string | null | undefined): string {
@@ -49,7 +63,7 @@ async function migrateUnencryptedFields(stored: typeof configuration.$inferSelec
 	const updates: Partial<typeof configuration.$inferInsert> = {};
 	let needsMigration = false;
 
-	for (const field of SENSITIVE_FIELDS) {
+	for (const field of ENCRYPTED_FIELDS) {
 		const value = stored[field];
 		if (value && !isEncrypted(value)) {
 			updates[field] = encrypt(value);
@@ -143,55 +157,29 @@ export function invalidateSettingsCache(): void {
 	settingsCacheTime = 0;
 }
 
-export async function updateSettings(
-	updates: Partial<{
-		tmdbApiKey: string;
-		prowlarrUrl: string;
-		prowlarrApiKey: string;
-		prowlarrTrustedGroups: string[];
-		prowlarrMinSeeders: number;
-		opensubtitlesApiKey: string;
-		opensubtitlesUsername: string;
-		opensubtitlesPassword: string;
-	}>
-) {
+export async function updateSettings(updates: SettingsUpdate) {
 	const values: Partial<typeof configuration.$inferInsert> = {};
 
-	// Encrypt sensitive fields before storing
-	if (updates.tmdbApiKey !== undefined) {
-		values.tmdbApiKey = updates.tmdbApiKey ? encrypt(updates.tmdbApiKey) : '';
+	for (const field of ENCRYPTED_FIELDS) {
+		if (updates[field] !== undefined) {
+			values[field] = updates[field] ? encrypt(updates[field] as string) : '';
+		}
 	}
-	if (updates.prowlarrUrl !== undefined) {
-		values.prowlarrUrl = updates.prowlarrUrl;
+
+	for (const field of PLAIN_FIELDS) {
+		if (updates[field] !== undefined) {
+			(values as Record<string, unknown>)[field] = updates[field];
+		}
 	}
-	if (updates.prowlarrApiKey !== undefined) {
-		values.prowlarrApiKey = updates.prowlarrApiKey ? encrypt(updates.prowlarrApiKey) : '';
-	}
+
 	if (updates.prowlarrTrustedGroups !== undefined) {
 		values.prowlarrTrustedGroups = JSON.stringify(updates.prowlarrTrustedGroups);
 	}
-	if (updates.prowlarrMinSeeders !== undefined) {
-		values.prowlarrMinSeeders = updates.prowlarrMinSeeders;
-	}
-	if (updates.opensubtitlesApiKey !== undefined) {
-		values.opensubtitlesApiKey = updates.opensubtitlesApiKey ? encrypt(updates.opensubtitlesApiKey) : '';
-	}
-	if (updates.opensubtitlesUsername !== undefined) {
-		values.opensubtitlesUsername = updates.opensubtitlesUsername ? encrypt(updates.opensubtitlesUsername) : '';
-	}
-	if (updates.opensubtitlesPassword !== undefined) {
-		values.opensubtitlesPassword = updates.opensubtitlesPassword ? encrypt(updates.opensubtitlesPassword) : '';
-	}
 
-	// Upsert
 	await db
 		.insert(configuration)
 		.values({ id: 'default', ...values })
-		.onConflictDoUpdate({
-			target: configuration.id,
-			set: values,
-		});
+		.onConflictDoUpdate({ target: configuration.id, set: values });
 
-	// Invalidate in-memory cache so next getSettings() reads fresh values
 	invalidateSettingsCache();
 }

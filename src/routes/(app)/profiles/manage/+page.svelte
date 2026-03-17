@@ -212,18 +212,18 @@
                                     {#if pendingLogoPreview}
                                         <img
                                             src={pendingLogoPreview}
-                                            alt={editName || 'Profile'}
-                                            class="w-[40px] h-[40px] rounded-full object-cover"
+                                            alt={editName || "Profile"}
+                                            class="w-10 h-10 rounded-full object-cover"
                                         >
                                     {:else if editLogo}
                                         <img
                                             src={editLogo}
-                                            alt={editName || 'Profile'}
-                                            class="w-[40px] h-[40px] rounded-full object-cover"
+                                            alt={editName || "Profile"}
+                                            class="w-10 h-10 rounded-full object-cover"
                                         >
                                     {:else}
                                         <Facehash
-                                            name={editName || 'Profile'}
+                                            name={editName || "Profile"}
                                             size={40}
                                             class="rounded-full text-white"
                                             interactive={true}
@@ -294,7 +294,7 @@
                                     <img
                                         src={profile.logo}
                                         alt={profile.name}
-                                        class="w-[40px] h-[40px] rounded-full object-cover"
+                                        class="w-10 h-10 rounded-full object-cover"
                                     >
                                 {:else}
                                     <Facehash

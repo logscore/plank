@@ -1,16 +1,24 @@
 import { error, json } from '@sveltejs/kit';
+import { requireAuth } from '$lib/server/api-guard';
 import { episodesDb, mediaDb } from '$lib/server/db';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ params, locals, url }) => {
-	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+function savePosition(
+	mediaId: string,
+	position: number,
+	duration: number | undefined,
+	episodeId: string | undefined
+): void {
+	if (episodeId) {
+		episodesDb.updatePlayPosition(episodeId, position, duration);
+	} else {
+		mediaDb.updatePlayPosition(mediaId, position, duration);
 	}
+	mediaDb.updateLastPlayed(mediaId);
+}
 
-	const organizationId = locals.session?.activeOrganizationId;
-	if (!organizationId) {
-		throw error(400, 'No active profile selected');
-	}
+export const GET: RequestHandler = async ({ params, locals, url }) => {
+	const { organizationId } = requireAuth(locals);
 
 	const episodeId = url.searchParams.get('episodeId');
 
@@ -34,14 +42,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 };
 
 export const PUT: RequestHandler = async ({ params, locals, request }) => {
-	if (!locals.user) {
-		throw error(401, 'Unauthorized');
-	}
-
-	const organizationId = locals.session?.activeOrganizationId;
-	if (!organizationId) {
-		throw error(400, 'No active profile selected');
-	}
+	const { organizationId } = requireAuth(locals);
 
 	const { position, duration, episodeId } = await request.json();
 
@@ -54,13 +55,7 @@ export const PUT: RequestHandler = async ({ params, locals, request }) => {
 		throw error(404, 'Media not found');
 	}
 
-	if (episodeId) {
-		episodesDb.updatePlayPosition(episodeId, position, duration);
-	} else {
-		mediaDb.updatePlayPosition(params.id, position, duration);
-	}
-
-	mediaDb.updateLastPlayed(params.id);
+	savePosition(params.id, position, duration, episodeId);
 
 	return new Response(null, { status: 204 });
 };
@@ -95,13 +90,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		return new Response(null, { status: 404 });
 	}
 
-	if (episodeId) {
-		episodesDb.updatePlayPosition(episodeId, position, duration);
-	} else {
-		mediaDb.updatePlayPosition(params.id, position, duration);
-	}
-
-	mediaDb.updateLastPlayed(params.id);
+	savePosition(params.id, position, duration, episodeId);
 
 	return new Response(null, { status: 204 });
 };

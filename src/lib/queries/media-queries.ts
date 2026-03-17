@@ -1,16 +1,9 @@
 import { createQuery } from '@tanstack/svelte-query';
 import { queryKeys } from '$lib/query-keys';
-import type { Media } from '$lib/types';
+import type { Media, OpenSubtitleResult } from '$lib/types';
+import { createFetchError } from './fetch-error';
 
-export interface FetchError extends Error {
-	status?: number;
-}
-
-function createFetchError(message: string, status?: number): FetchError {
-	const error = new Error(message) as FetchError;
-	error.status = status;
-	return error;
-}
+export type { FetchError } from './fetch-error';
 
 /**
  * Fetch media list by type
@@ -100,7 +93,7 @@ export async function fetchMediaProgress(id: string): Promise<ProgressInfo> {
 
 export function createMediaProgressQuery(id: string, options?: { enabled?: boolean; refetchInterval?: number }) {
 	return createQuery(() => ({
-		queryKey: ['media', 'progress', id],
+		queryKey: queryKeys.media.progress(id),
 		queryFn: () => fetchMediaProgress(id),
 		enabled: options?.enabled,
 		refetchInterval: options?.refetchInterval ?? 1000,
@@ -166,29 +159,6 @@ export function createSubtitleTracksQuery(id: string, episodeId?: string) {
 	}));
 }
 
-export interface OpenSubtitleSearchResult {
-	id: string;
-	fileId: number;
-	fileName: string;
-	language: string;
-	languageName: string;
-	release: string;
-	downloadCount: number;
-	hearingImpaired: boolean;
-	aiTranslated: boolean;
-	machineTranslated: boolean;
-	fromTrusted: boolean;
-	fps: number;
-	votes: number;
-	ratings: number;
-	uploadDate: string;
-	isExactMatch: boolean;
-	featureTitle: string;
-	featureYear: number;
-	seasonNumber?: number;
-	episodeNumber?: number;
-}
-
 export async function searchOpenSubtitles(
 	mediaId: string,
 	options?: {
@@ -196,7 +166,7 @@ export async function searchOpenSubtitles(
 		seasonNumber?: number;
 		episodeNumber?: number;
 	}
-): Promise<OpenSubtitleSearchResult[]> {
+): Promise<OpenSubtitleResult[]> {
 	const params = new URLSearchParams();
 	if (options?.languages) {
 		params.set('languages', options.languages);

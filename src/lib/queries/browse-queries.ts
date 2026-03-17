@@ -1,23 +1,9 @@
 import { createQuery } from '@tanstack/svelte-query';
 import { queryKeys } from '$lib/query-keys';
-import type { FetchError } from './media-queries';
+import type { BrowseItem, SeasonSummary } from '$lib/server/tmdb';
+import { createFetchError } from './fetch-error';
 
-// BrowseItem type - matches the server-side type from tmdb.ts
-export interface BrowseItem {
-	tmdbId: number;
-	imdbId: string | null;
-	title: string;
-	year: number | null;
-	posterUrl: string | null;
-	backdropUrl: string | null;
-	overview: string | null;
-	voteAverage: number | null;
-	genres: string[];
-	mediaType: 'movie' | 'tv';
-	certification: string | null;
-	magnetLink?: string;
-	needsResolve: boolean;
-}
+export type { BrowseItem, SeasonSummary } from '$lib/server/tmdb';
 
 export interface BrowseResponse {
 	items: BrowseItem[];
@@ -50,12 +36,6 @@ export interface ResolveResponse {
 		size?: number;
 		seeders?: number;
 	};
-}
-
-function createFetchError(message: string, status?: number): FetchError {
-	const error = new Error(message) as FetchError;
-	error.status = status;
-	return error;
 }
 
 // =============================================================================
@@ -207,14 +187,6 @@ export async function searchTMDB(query: string): Promise<BrowseResponse> {
 // =============================================================================
 // TV Seasons
 // =============================================================================
-
-export interface SeasonSummary {
-	seasonNumber: number;
-	name: string;
-	episodeCount: number;
-	year?: number;
-	posterPath?: string;
-}
 
 export interface SeasonsResponse {
 	seasons: SeasonSummary[];

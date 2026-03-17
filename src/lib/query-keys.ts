@@ -11,6 +11,7 @@ export const queryKeys = {
 			[...queryKeys.media.all, 'position', id, episodeId ?? 'movie'] as const,
 		subtitles: (id: string, episodeId?: string) =>
 			[...queryKeys.media.all, 'subtitles', id, episodeId ?? 'movie'] as const,
+		progress: (id: string) => [...queryKeys.media.all, 'progress', id] as const,
 	},
 
 	// Browse queries

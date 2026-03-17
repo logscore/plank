@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { config } from '$lib/config';
+import type { OpenSubtitleResult } from '$lib/types';
 import { getSettings } from './settings';
 
 const BASE_URL = 'https://api.opensubtitles.com/api/v1';
@@ -92,29 +93,6 @@ interface OSLoginResponse {
 	};
 	base_url: string;
 	token: string;
-}
-
-export interface OpenSubtitleResult {
-	id: string;
-	fileId: number;
-	fileName: string;
-	language: string;
-	languageName: string;
-	release: string;
-	downloadCount: number;
-	hearingImpaired: boolean;
-	aiTranslated: boolean;
-	machineTranslated: boolean;
-	fromTrusted: boolean;
-	fps: number;
-	votes: number;
-	ratings: number;
-	uploadDate: string;
-	isExactMatch: boolean;
-	featureTitle: string;
-	featureYear: number;
-	seasonNumber?: number;
-	episodeNumber?: number;
 }
 
 // ISO 639-1 to language name mapping for display

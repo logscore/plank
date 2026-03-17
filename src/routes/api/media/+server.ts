@@ -1,5 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import { config } from '$lib/config';
+import { requireAuth } from '$lib/server/api-guard';
 import { downloadsDb, mediaDb } from '$lib/server/db';
 import { parseMagnet } from '$lib/server/magnet';
 import {
@@ -149,15 +150,7 @@ function saveImagesAsync(metadata: MediaMetadata, mediaId: string): void {
 }
 
 export const GET: RequestHandler = async ({ locals, url }) => {
-	if (!locals.user) {
-		throw error(401, 'Unauthorized');
-	}
-
-	const organizationId = locals.session?.activeOrganizationId;
-	if (!organizationId) {
-		throw error(400, 'No active profile selected');
-	}
-
+	const { organizationId } = requireAuth(locals);
 	const type = url.searchParams.get('type') as MediaType | null;
 	const list = mediaDb.list(organizationId, type ?? undefined);
 	return json(list);
@@ -239,14 +232,7 @@ async function resolveMetadata(
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user) {
-		throw error(401, 'Unauthorized');
-	}
-
-	const organizationId = locals.session?.activeOrganizationId;
-	if (!organizationId) {
-		throw error(400, 'No active profile selected');
-	}
+	const { userId, organizationId } = requireAuth(locals);
 
 	const body = await request.json();
 	const { magnetLink, type: providedType } = body;
@@ -294,7 +280,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Create new media record
 	const mediaItem = mediaDb.create({
-		userId: locals.user.id,
+		userId,
 		organizationId,
 		type: mediaType,
 		title: metadata.title,

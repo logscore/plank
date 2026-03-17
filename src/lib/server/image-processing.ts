@@ -1,4 +1,4 @@
-import { Jimp } from 'jimp';
+import sharp from 'sharp';
 import { imageStorage } from './storage';
 
 export const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
@@ -31,12 +31,18 @@ export function detectMimeType(buffer: Buffer): string | null {
 
 export function validateImage(buffer: Buffer, declaredType: string | null): { valid: boolean; error?: string } {
 	if (buffer.length > MAX_FILE_SIZE) {
-		return { valid: false, error: `File size exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit` };
+		return {
+			valid: false,
+			error: `File size exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit`,
+		};
 	}
 
 	const detectedType = detectMimeType(buffer);
 	if (!detectedType) {
-		return { valid: false, error: 'Invalid image format. Allowed: JPEG, PNG, WebP, GIF' };
+		return {
+			valid: false,
+			error: 'Invalid image format. Allowed: JPEG, PNG, WebP, GIF',
+		};
 	}
 
 	if (declaredType && !ALLOWED_TYPES.includes(declaredType as (typeof ALLOWED_TYPES)[number])) {
@@ -47,10 +53,38 @@ export function validateImage(buffer: Buffer, declaredType: string | null): { va
 }
 
 export async function processAndSave(buffer: Buffer, category: 'avatars' | 'logos', id: string): Promise<string> {
-	const image = await Jimp.read(buffer);
-	image.cover({ w: OUTPUT_SIZE, h: OUTPUT_SIZE });
+	const processed = await sharp(buffer)
+		.resize(OUTPUT_SIZE, OUTPUT_SIZE, { fit: 'cover' })
+		.jpeg({ quality: OUTPUT_QUALITY })
+		.toBuffer();
 
-	const processed = await image.getBuffer('image/jpeg', { quality: OUTPUT_QUALITY });
+	return imageStorage.save(category, id, 'image.jpg', processed);
+}
 
-	return imageStorage.save(category, id, 'image.jpg', Buffer.from(processed));
+const IMAGES_PREFIX = /^\/images\//;
+
+export async function replaceStoredImage(
+	oldImagePath: string | null | undefined,
+	buffer: Buffer,
+	mimeType: string,
+	category: 'avatars' | 'logos',
+	id: string
+): Promise<{ imagePath: string } | { error: string }> {
+	const validation = validateImage(buffer, mimeType);
+	if (!validation.valid) {
+		return { error: validation.error ?? 'Invalid image' };
+	}
+
+	// Save new image first, then delete old one
+	const relativePath = await processAndSave(buffer, category, id);
+
+	if (oldImagePath) {
+		try {
+			await imageStorage.delete(oldImagePath.replace(IMAGES_PREFIX, ''));
+		} catch {
+			// File may not exist, ignore
+		}
+	}
+
+	return { imagePath: `/images/${relativePath}` };
 }
