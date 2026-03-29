@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { mediaDb } from '$lib/server/db';
+import { getMediaProgressSnapshot } from '$lib/server/media-progress';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -17,5 +18,5 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		throw error(404, 'Media not found');
 	}
 
-	return { media };
+	return { media, progress: getMediaProgressSnapshot(params.id, organizationId) };
 };

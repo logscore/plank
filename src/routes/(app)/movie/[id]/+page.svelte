@@ -14,6 +14,7 @@
     } from '@lucide/svelte';
     import { onDestroy, onMount } from 'svelte';
     import { goto } from '$app/navigation';
+    import { connectMediaProgressStream } from '$lib/client/media-progress-stream';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
     import OpenSubtitlesDialog from '$lib/components/OpenSubtitlesDialog.svelte';
     import SubtitleMenu from '$lib/components/SubtitleMenu.svelte';
@@ -25,6 +26,7 @@
         createDeleteMediaMutation,
         createRetryDownloadMutation,
     } from '$lib/mutations/media-mutations';
+    import { isTerminalProgressStatus } from '$lib/progress-status';
     import { confirmDelete, uiState } from '$lib/ui-state.svelte';
     import type { PageData } from './$types';
 
@@ -55,8 +57,11 @@
 
     // Sync initial values from data when component mounts or data changes
     $effect(() => {
-        liveStatus = data.media.status;
-        liveProgress = data.media.progress;
+        liveStatus = data.progress?.status ?? data.media.status;
+        liveProgress = data.progress?.progress ?? data.media.progress;
+        downloadSpeed = data.progress?.downloadSpeed ?? 0;
+        peers = data.progress?.peers ?? 0;
+        liveFileSize = data.progress?.fileSize ?? data.media.fileSize;
     });
 
     function formatFileSize(bytes: number | null): string {
@@ -113,18 +118,15 @@
         }
     }
 
-    let eventSource: EventSource | null = null;
+    let stopProgressStream: (() => void) | null = null;
 
     function startStream() {
-        if (eventSource) {
+        if (stopProgressStream) {
             return;
         }
-
-        eventSource = new EventSource(`/api/media/${data.media.id}/progress/stream`);
-
-        eventSource.onmessage = (event) => {
-            try {
-                const info = JSON.parse(event.data);
+        stopProgressStream = connectMediaProgressStream(
+            data.media.id,
+            (info) => {
                 liveStatus = info.status;
                 liveProgress = info.progress;
                 downloadSpeed = info.downloadSpeed || 0;
@@ -132,20 +134,11 @@
                 if (info.fileSize) {
                     liveFileSize = info.fileSize;
                 }
-
-                // SSE will auto-close when complete, but we stop listening too
-                if (info.status === 'complete') {
-                    stopStream();
-                }
-            } catch (e) {
-                console.error('Failed to parse SSE data:', e);
+            },
+            () => {
+                stopProgressStream = null;
             }
-        };
-
-        eventSource.onerror = () => {
-            // Connection closed or error - stop listening
-            stopStream();
-        };
+        );
     }
 
     function getColorForCertification(cert: string | null): string {
@@ -169,15 +162,15 @@
     }
 
     function stopStream() {
-        if (eventSource) {
-            eventSource.close();
-            eventSource = null;
+        if (stopProgressStream) {
+            stopProgressStream();
+            stopProgressStream = null;
         }
     }
 
     onMount(() => {
         // Only stream if not complete
-        if (data.media.status !== 'complete') {
+        if (!isTerminalProgressStatus(data.progress?.status ?? data.media.status)) {
             startStream();
         }
     });

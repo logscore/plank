@@ -1,6 +1,6 @@
-import { error } from '@sveltejs/kit';
-import { mediaDb } from '$lib/server/db';
-import { getDownloadStatus, isDownloadActive } from '$lib/server/torrent';
+import { isTerminalProgressStatus } from '$lib/progress-status';
+import { requireMediaAccess } from '$lib/server/api-guard';
+import { getMediaProgressSnapshot } from '$lib/server/media-progress';
 import type { RequestHandler } from './$types';
 
 /** Check if an error is an invalid state error (expected during cleanup) */
@@ -14,38 +14,8 @@ function isControllerClosedError(e: unknown): boolean {
 	);
 }
 
-/** Build progress data object from current state */
-function buildProgressData(mediaId: string, organizationId?: string) {
-	const downloadStatus = getDownloadStatus(mediaId);
-	const currentMedia = organizationId ? mediaDb.get(mediaId, organizationId) : mediaDb.getById(mediaId);
-
-	return {
-		status: downloadStatus?.status ?? currentMedia?.status ?? 'pending',
-		progress: downloadStatus?.progress ?? currentMedia?.progress ?? 0,
-		downloadSpeed: downloadStatus?.downloadSpeed ?? 0,
-		uploadSpeed: downloadStatus?.uploadSpeed ?? 0,
-		peers: downloadStatus?.peers ?? 0,
-		isActive: isDownloadActive(mediaId),
-		filePath: currentMedia?.filePath,
-		error: downloadStatus?.error,
-		fileSize: downloadStatus?.totalSize ?? currentMedia?.fileSize,
-	};
-}
-
 export const GET: RequestHandler = async ({ params, locals }) => {
-	if (!locals.user) {
-		throw error(401, 'Unauthorized');
-	}
-
-	const organizationId = locals.session?.activeOrganizationId;
-	if (!organizationId) {
-		throw error(400, 'No active profile selected');
-	}
-
-	const mediaItem = mediaDb.get(params.id, organizationId);
-	if (!mediaItem) {
-		throw error(404, 'Media not found');
-	}
+	const { organizationId, mediaItem } = requireMediaAccess(locals, params.id);
 
 	const encoder = new TextEncoder();
 	let isClosed = false;
@@ -61,7 +31,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 	const stream = new ReadableStream({
 		start(controller) {
-			let isComplete = mediaItem.status === 'complete';
+			let isTerminal = isTerminalProgressStatus(mediaItem.status);
 
 			const closeStream = () => {
 				if (isClosed) {
@@ -81,7 +51,11 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 				}
 
 				try {
-					const data = buildProgressData(params.id, organizationId);
+					const data = getMediaProgressSnapshot(params.id, organizationId);
+					if (!data) {
+						closeStream();
+						return;
+					}
 
 					if (isClosed) {
 						return;
@@ -89,8 +63,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 					controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
 
-					if (data.status === 'complete' && !isComplete) {
-						isComplete = true;
+					if (isTerminalProgressStatus(data.status) && !isTerminal) {
+						isTerminal = true;
 						setTimeout(closeStream, 500);
 					}
 				} catch (e) {
@@ -103,7 +77,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 			sendData();
 
-			if (isComplete) {
+			if (isTerminal) {
 				setTimeout(closeStream, 100);
 				return;
 			}
