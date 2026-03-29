@@ -76,6 +76,7 @@ const QUALITY_PATTERN = /\b(2160p|4K|UHD|1080p|720p|480p)\b/i;
  * Pattern to extract release group from title
  */
 const RELEASE_GROUP_PATTERN = /-([A-Za-z0-9]+)(?:\[.*\])?$/;
+const TV_SEARCH_CATEGORY = '5000';
 
 /**
  * Parse Prowlarr API response into typed results
@@ -336,9 +337,7 @@ export async function searchProwlarr(query: string, category?: string): Promise<
 	});
 
 	if (category) {
-		// Prowlarr categories: 2000=Movies, 5000=TV, etc.
-		// Not strictly mapping here yet, but useful for future
-		// params.append('categories', category);
+		params.append('categories', category);
 	}
 
 	try {
@@ -364,6 +363,9 @@ export interface FindBestTorrentOptions {
 	mediaType?: 'movie' | 'episode';
 	seasonNumber?: number;
 	episodeNumber?: number;
+	showTitle?: string;
+	episodeTitle?: string | null;
+	year?: number | null;
 }
 
 function getEpisodeSearchLabel(options?: FindBestTorrentOptions): string | null {
@@ -371,6 +373,144 @@ function getEpisodeSearchLabel(options?: FindBestTorrentOptions): string | null 
 		return null;
 	}
 	return `S${String(options.seasonNumber).padStart(2, '0')}E${String(options.episodeNumber).padStart(2, '0')}`;
+}
+
+function normalizeSearchText(value: string): string {
+	return value
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+function matchesShowTitle(title: string, showTitle?: string): boolean {
+	if (!showTitle) {
+		return true;
+	}
+	const normalizedShowTitle = normalizeSearchText(showTitle);
+	if (!normalizedShowTitle) {
+		return true;
+	}
+	return normalizeSearchText(title).includes(normalizedShowTitle);
+}
+
+function matchesEpisodeTitle(title: string, episodeTitle?: string | null): boolean {
+	if (!episodeTitle) {
+		return false;
+	}
+	const normalizedEpisodeTitle = normalizeSearchText(episodeTitle);
+	if (!normalizedEpisodeTitle) {
+		return false;
+	}
+	return normalizeSearchText(title).includes(normalizedEpisodeTitle);
+}
+
+function dedupeResults(results: IndexerResult[]): IndexerResult[] {
+	const seenInfohashes = new Set<string>();
+	const deduped: IndexerResult[] = [];
+	for (const result of results) {
+		if (seenInfohashes.has(result.infohash)) {
+			continue;
+		}
+		seenInfohashes.add(result.infohash);
+		deduped.push(result);
+	}
+	return deduped;
+}
+
+function buildEpisodeSearchQueries(imdbId: string, options: FindBestTorrentOptions): string[] {
+	if (!(options.showTitle && options.seasonNumber && options.episodeNumber)) {
+		return [imdbId, `imdb:${imdbId}`];
+	}
+	const paddedSeason = String(options.seasonNumber).padStart(2, '0');
+	const paddedEpisode = String(options.episodeNumber).padStart(2, '0');
+	const seasonEpisode = `S${paddedSeason}E${paddedEpisode}`;
+	const fallbackQueries = [
+		imdbId,
+		`imdb:${imdbId}`,
+		`${options.showTitle} ${seasonEpisode}`,
+		`${options.showTitle} S${paddedSeason} E${paddedEpisode}`,
+		`${options.showTitle} ${options.seasonNumber}x${paddedEpisode}`,
+		`${options.showTitle} Season ${options.seasonNumber} Episode ${options.episodeNumber}`,
+	];
+	if (options.episodeTitle) {
+		fallbackQueries.push(`${options.showTitle} ${seasonEpisode} ${options.episodeTitle}`);
+		fallbackQueries.push(`${options.showTitle} ${options.episodeTitle}`);
+	}
+	if (options.year) {
+		fallbackQueries.push(`${options.showTitle} ${options.year} ${seasonEpisode}`);
+		fallbackQueries.push(`${options.showTitle} ${options.year} ${options.seasonNumber}x${paddedEpisode}`);
+	}
+	return Array.from(new Set(fallbackQueries));
+}
+
+function isExactEpisodeMatch(result: IndexerResult, options: FindBestTorrentOptions): boolean {
+	if (!(options.seasonNumber && options.episodeNumber)) {
+		return false;
+	}
+	if (!matchesEpisodeNumber(result.title, options.seasonNumber, options.episodeNumber)) {
+		return false;
+	}
+	if (isSeasonPack(result.title)) {
+		return false;
+	}
+	return matchesShowTitle(result.title, options.showTitle);
+}
+
+async function searchEpisodeTorrent(imdbId: string, options: FindBestTorrentOptions): Promise<IndexerResult[]> {
+	const episodeLabel = getEpisodeSearchLabel(options) ?? imdbId;
+	const queries = buildEpisodeSearchQueries(imdbId, options);
+	const collectedResults: IndexerResult[] = [];
+	for (const query of queries) {
+		const queryResults = await searchProwlarr(query, TV_SEARCH_CATEGORY);
+		console.log(`[Prowlarr] Query ${episodeLabel}: "${query}" -> ${queryResults.length} results`);
+		collectedResults.push(...queryResults);
+		if (queryResults.some((result) => isExactEpisodeMatch(result, options))) {
+			break;
+		}
+	}
+	return dedupeResults(collectedResults);
+}
+
+function logEpisodeSelectionSummary(
+	episodeLabel: string,
+	results: IndexerResult[],
+	qualityFiltered: IndexerResult[],
+	episodeFiltered: IndexerResult[],
+	best: IndexerResult | null
+): void {
+	console.log(
+		`[Prowlarr] ${episodeLabel} results raw=${results.length} quality=${qualityFiltered.length} filtered=${episodeFiltered.length}`
+	);
+	if (best) {
+		console.log(`[Prowlarr] Selected ${episodeLabel}: ${best.title}`);
+		return;
+	}
+	if (results.length === 0) {
+		console.log(`[Prowlarr] No results returned for ${episodeLabel}`);
+		return;
+	}
+	if (qualityFiltered.length === 0) {
+		console.log(`[Prowlarr] All results rejected by quality filters for ${episodeLabel}`);
+		return;
+	}
+	if (episodeFiltered.length === 0) {
+		console.log(`[Prowlarr] All results rejected by episode filters for ${episodeLabel}`);
+		console.log(
+			`[Prowlarr] Candidate titles for ${episodeLabel}: ${results
+				.slice(0, 5)
+				.map((result) => result.title)
+				.join(' | ')}`
+		);
+		return;
+	}
+	console.log(`[Prowlarr] No acceptable result selected for ${episodeLabel}`);
+	console.log(
+		`[Prowlarr] Candidate titles for ${episodeLabel}: ${episodeFiltered
+			.slice(0, 5)
+			.map((result) => result.title)
+			.join(' | ')}`
+	);
 }
 
 function filterCandidates(results: IndexerResult[], trustedGroups: string[], minSeeders: number): IndexerResult[] {
@@ -390,32 +530,27 @@ export async function findBestTorrent(imdbId: string, options?: FindBestTorrentO
 	if (episodeLabel) {
 		console.log(`[Prowlarr] Searching ${episodeLabel} with IMDb ${imdbId}`);
 	}
-	const results = await searchProwlarr(imdbId);
-
-	if (results.length === 0) {
-		if (episodeLabel) {
-			console.log(`[Prowlarr] No results returned for ${episodeLabel} with IMDb ${imdbId}`);
-		}
-		return null;
-	}
+	const results =
+		options?.mediaType === 'episode' && options.seasonNumber && options.episodeNumber
+			? await searchEpisodeTorrent(imdbId, options)
+			: await searchProwlarr(imdbId);
 
 	const qualityFiltered = filterByQuality(results);
 	const episodeFiltered =
 		options?.mediaType === 'episode' && options.seasonNumber && options.episodeNumber
-			? filterForEpisodeResults(qualityFiltered, options.seasonNumber, options.episodeNumber)
+			? filterForEpisodeResults(
+					qualityFiltered,
+					options.seasonNumber,
+					options.episodeNumber,
+					options.showTitle,
+					options.episodeTitle
+				)
 			: qualityFiltered;
 	const best = selectBestTorrent(
 		filterCandidates(episodeFiltered, settings.prowlarr.trustedGroups, settings.prowlarr.minSeeders)
 	);
 	if (episodeLabel) {
-		console.log(
-			`[Prowlarr] ${episodeLabel} results raw=${results.length} quality=${qualityFiltered.length} filtered=${episodeFiltered.length}`
-		);
-		if (best) {
-			console.log(`[Prowlarr] Selected ${episodeLabel}: ${best.title}`);
-		} else {
-			console.log(`[Prowlarr] No acceptable result selected for ${episodeLabel}`);
-		}
+		logEpisodeSelectionSummary(episodeLabel, results, qualityFiltered, episodeFiltered, best);
 	}
 
 	// Resolve HTTP download URLs to magnet links
@@ -514,14 +649,27 @@ function isSeasonPack(title: string): boolean {
 function filterForEpisodeResults(
 	results: IndexerResult[],
 	seasonNumber: number,
-	episodeNumber: number
+	episodeNumber: number,
+	showTitle?: string,
+	episodeTitle?: string | null
 ): IndexerResult[] {
-	const exactMatches = results.filter((result) => matchesEpisodeNumber(result.title, seasonNumber, episodeNumber));
+	const showFiltered = results.filter((result) => matchesShowTitle(result.title, showTitle));
+	const candidates = showFiltered.length > 0 ? showFiltered : results;
+	const exactMatches = candidates.filter((result) => matchesEpisodeNumber(result.title, seasonNumber, episodeNumber));
 	if (exactMatches.length > 0) {
-		return exactMatches.filter((result) => !isSeasonPack(result.title));
+		const singleEpisodeMatches = exactMatches.filter((result) => !isSeasonPack(result.title));
+		if (episodeTitle) {
+			const titledMatches = singleEpisodeMatches.filter((result) =>
+				matchesEpisodeTitle(result.title, episodeTitle)
+			);
+			if (titledMatches.length > 0) {
+				return titledMatches;
+			}
+		}
+		return singleEpisodeMatches;
 	}
-	const nonPackMatches = results.filter((result) => !isSeasonPack(result.title));
-	return nonPackMatches.length > 0 ? nonPackMatches : results;
+	const nonPackMatches = candidates.filter((result) => !isSeasonPack(result.title));
+	return nonPackMatches;
 }
 
 /**

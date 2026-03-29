@@ -33,12 +33,16 @@ function getMediaLogLabel(mediaId: string): string {
 
 function getSearchOptions(mediaId: string, options?: AcquireMediaOptions): FindBestTorrentOptions | undefined {
 	const mediaItem = mediaDb.getById(mediaId);
+	const show = mediaItem?.parentId ? mediaDb.getById(mediaItem.parentId) : null;
 	if (!mediaItem || mediaItem.type !== 'episode') {
 		if (options?.mediaType === 'episode' && options.seasonNumber && options.episodeNumber) {
 			return {
 				mediaType: 'episode',
 				seasonNumber: options.seasonNumber,
 				episodeNumber: options.episodeNumber,
+				showTitle: show?.title,
+				episodeTitle: mediaItem?.title,
+				year: show?.year,
 			};
 		}
 		return undefined;
@@ -50,6 +54,9 @@ function getSearchOptions(mediaId: string, options?: AcquireMediaOptions): FindB
 		mediaType: 'episode',
 		seasonNumber: options?.seasonNumber ?? mediaItem.seasonNumber,
 		episodeNumber: options?.episodeNumber ?? mediaItem.episodeNumber,
+		showTitle: show?.title,
+		episodeTitle: mediaItem.title,
+		year: show?.year,
 	};
 }
 

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	filterByQuality,
 	filterByReleaseGroup,
+	findBestTorrent,
 	type IndexerResult,
 	parseProwlarrResults,
 	searchProwlarr,
@@ -305,6 +306,81 @@ describe('Prowlarr Client', () => {
 				const result = await findBestSeasonTorrent('Show', 1);
 				expect(result).toBeNull();
 			});
+		});
+	});
+
+	describe('Episode Fallback Search', () => {
+		const createEpisodeResult = (title: string, seeders = 50): IndexerResult => ({
+			title,
+			magnetUri: `magnet:?xt=urn:btih:${seeders}`,
+			infohash: `${title}-${seeders}`.toLowerCase(),
+			size: 2_000_000_000,
+			seeders,
+			peers: Math.floor(seeders / 2),
+			publishDate: new Date().toISOString(),
+			indexer: 'Test',
+		});
+
+		it('falls back from imdb to show season episode queries', async () => {
+			mockFetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+			mockFetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				json: async () => [
+					{
+						title: 'Show Title S01E02 1080p WEB-DL-TEST',
+						magnetUrl: 'magnet:?xt=urn:btih:abc123',
+						infoHash: 'abc123',
+						size: 2_147_483_648,
+						seeders: 25,
+						leechers: 10,
+						publishDate: '2024-01-15T12:00:00Z',
+						guid: '1',
+					},
+				],
+			});
+
+			const result = await findBestTorrent('tt1234567', {
+				mediaType: 'episode',
+				showTitle: 'Show Title',
+				seasonNumber: 1,
+				episodeNumber: 2,
+				episodeTitle: 'Episode Name',
+			});
+
+			expect(result?.title).toBe('Show Title S01E02 1080p WEB-DL-TEST');
+			expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('query=tt1234567'), expect.any(Object));
+			expect(mockFetch).toHaveBeenCalledWith(
+				expect.stringContaining('query=Show+Title+S01E02'),
+				expect.any(Object)
+			);
+		});
+
+		it('filters season packs out of fallback episode matches', async () => {
+			mockFetch.mockResolvedValue({
+				ok: true,
+				json: async () => [
+					{
+						title: 'Show Title Season 1 Complete 1080p',
+						magnetUrl: 'magnet:?xt=urn:btih:seasonpack',
+						infoHash: 'seasonpack',
+						size: 9_000_000_000,
+						seeders: 100,
+						leechers: 15,
+						publishDate: '2024-01-15T12:00:00Z',
+						guid: 'pack',
+					},
+				],
+			});
+
+			const result = await findBestTorrent('tt1234567', {
+				mediaType: 'episode',
+				showTitle: 'Show Title',
+				seasonNumber: 1,
+				episodeNumber: 2,
+			});
+
+			expect(result).toBeNull();
 		});
 	});
 });
