@@ -9,7 +9,6 @@
     import type { MediaPlayerElement } from 'vidstack/elements';
     import { browser } from '$app/environment';
     import { connectMediaProgressStream } from '$lib/client/media-progress-stream';
-    import Button from '$lib/components/ui/Button.svelte';
     import { createSavePositionMutation } from '$lib/mutations/media-mutations';
     import { isTerminalProgressStatus } from '$lib/progress-status';
     import {
@@ -21,10 +20,11 @@
     import type { PageData } from './$types';
 
     let { data } = $props<{ data: PageData }>();
-    const media = $derived(data.media);
     let currentMediaId = $state('');
     let progressInfo: ProgressInfo | null = $state(null);
     let stopProgressStream: (() => void) | null = $state(null);
+    let playerReady = $state(false);
+    let playerErrorMessage = $state<string | null>(null);
 
     $effect(() => {
         if (currentMediaId === data.media.id) {
@@ -32,6 +32,8 @@
         }
         currentMediaId = data.media.id;
         progressInfo = data.progress ?? null;
+        playerReady = false;
+        playerErrorMessage = null;
         stopLiveProgressStream();
     });
 
@@ -111,6 +113,29 @@
 
     function applyProgressUpdate(progress: ProgressInfo) {
         progressInfo = progress;
+        if (!isTerminalProgressStatus(progress.status)) {
+            playerErrorMessage = null;
+        }
+    }
+
+    function getLoadingTitle(): string {
+        if (playerErrorMessage) {
+            return 'Playback failed';
+        }
+        return `Loading ${data.media.title}...`;
+    }
+
+    function getLoadingMessage(): string {
+        if (playerErrorMessage) {
+            return playerErrorMessage;
+        }
+        if (progressInfo?.status === 'downloading') {
+            return 'Movie goblins are preparing your stream';
+        }
+        if (progressInfo?.status === 'searching' || progressInfo?.status === 'initializing') {
+            return 'Preparing your movie stream';
+        }
+        return 'Waiting for video to stream in from space';
     }
 
     function startProgressStream() {
@@ -142,6 +167,23 @@
             playerEl.currentTime = initialPosition;
             positionRestored = true;
         }
+        playerReady = true;
+        playerErrorMessage = null;
+    }
+
+    function onPlaying() {
+        playerReady = true;
+        playerErrorMessage = null;
+    }
+
+    function onPlayerError(event: Event) {
+        console.error('Player failed to load media:', event);
+        playerReady = false;
+        if (isTerminalProgressStatus(progressInfo?.status ?? data.media.status)) {
+            playerErrorMessage = 'Playback failed to start. Please retry the download.';
+            return;
+        }
+        playerErrorMessage = 'Playback is still preparing. It should start soon.';
     }
 
     function onTimeUpdate() {
@@ -173,12 +215,16 @@
 
         const el = playerEl;
         el.addEventListener('can-play', onCanPlay);
+        el.addEventListener('playing', onPlaying);
+        el.addEventListener('error', onPlayerError);
         el.addEventListener('time-update', onTimeUpdate);
         el.addEventListener('ended', onEnded);
         el.addEventListener('controls-change', onControlsChange);
 
         return () => {
             el.removeEventListener('can-play', onCanPlay);
+            el.removeEventListener('playing', onPlaying);
+            el.removeEventListener('error', onPlayerError);
             el.removeEventListener('time-update', onTimeUpdate);
             el.removeEventListener('ended', onEnded);
             el.removeEventListener('controls-change', onControlsChange);
@@ -304,40 +350,46 @@
                         >
                     {/each}
                 </media-provider>
-                <media-video-layout></media-video-layout>
-            </media-player>
-        {:else}
-            <div class="relative w-full h-full">
-                <!-- Background Poster blurred -->
-                {#if data.media.backdropUrl || data.media.posterUrl}
-                    <img
-                        src={data.media.backdropUrl || data.media.posterUrl}
-                        alt="Background"
-                        class="absolute inset-0 w-full h-full object-cover blur-2xl opacity-30"
-                    >
+                {#if playerReady}
+                    <media-video-layout></media-video-layout>
                 {/if}
-                <div class="absolute inset-0 flex flex-col items-center justify-center gap-6">
-                    <div class="relative">
-                        <div class="absolute inset-0 animate-ping rounded-full bg-primary/20"></div>
-                        <div
-                            class="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent relative z-10"
-                        ></div>
-                    </div>
-                    <div class="text-center space-y-2">
-                        <h2 class="text-2xl font-bold text-white">Loading {data.media.title}...</h2>
-                        <p class="text-zinc-400">Waiting for video to stream in from space</p>
-                    </div>
-                </div>
-            </div>
+            </media-player>
         {/if}
     </div>
+
+    {#if !playerReady}
+        <div class="absolute inset-0 z-30">
+            {#if data.media.backdropUrl || data.media.posterUrl}
+                <img
+                    src={data.media.backdropUrl || data.media.posterUrl}
+                    alt="Background"
+                    class="absolute inset-0 w-full h-full object-cover blur-2xl opacity-30"
+                >
+            {/if}
+            <div class="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-black/45 backdrop-blur-sm">
+                <div class="relative">
+                    <div class="absolute inset-0 animate-ping rounded-full bg-primary/20"></div>
+                    <div
+                        class="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent relative z-10"
+                    ></div>
+                </div>
+                <div class="text-center space-y-2 max-w-md px-6">
+                    <h2 class="text-2xl font-bold text-white">{getLoadingTitle()}</h2>
+                    <p class="text-zinc-300">{getLoadingMessage()}</p>
+                    {#if progressInfo && progressInfo.status !== "complete"}
+                        <p class="text-sm text-zinc-500">{(progressInfo.progress * 100).toFixed(1)}% downloaded</p>
+                    {/if}
+                </div>
+            </div>
+        </div>
+    {/if}
 
     <!-- Stats Overlay -->
     {#if showStats && progressInfo && progressInfo.status !== "complete"}
         <div
             class="absolute bottom-20 left-6 z-40 p-4 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 text-xs font-mono space-y-2 transition-opacity duration-300 {showOverlay
-                    ? 'opacity-100'
-                    : 'opacity-0'}"
+                ? 'opacity-100'
+                : 'opacity-0'}"
         >
             <div class="flex items-center gap-3 text-zinc-300">
                 <Download class="w-4 h-4 text-blue-400" />

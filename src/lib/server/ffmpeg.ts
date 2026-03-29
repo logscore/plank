@@ -28,19 +28,36 @@ export function isSupportedFormat(fileName: string): boolean {
 interface TransmuxOptions {
 	inputStream: Readable;
 	start?: number;
+	fileName?: string;
 	onError?: (err: Error) => void;
 }
 
-export function createTransmuxStream(options: TransmuxOptions): Readable {
-	const { inputStream, start, onError } = options;
-	const outputStream = new PassThrough();
+const INPUT_FORMAT_BY_EXTENSION: Record<string, string> = {
+	'.avi': 'avi',
+	'.m4v': 'mp4',
+	'.mkv': 'matroska',
+	'.mov': 'mov',
+	'.mp4': 'mp4',
+	'.webm': 'webm',
+};
 
+function getInputFormat(fileName?: string): string | null {
+	if (!fileName) {
+		return null;
+	}
+	const extension = fileName.toLowerCase().slice(fileName.lastIndexOf('.'));
+	return INPUT_FORMAT_BY_EXTENSION[extension] ?? null;
+}
+
+export function createTransmuxStream(options: TransmuxOptions): Readable {
+	const { inputStream, start, fileName, onError } = options;
+	const outputStream = new PassThrough();
 	const command = ffmpeg(inputStream)
-		.inputFormat('matroska') // Force MKV input format
 		.outputFormat('mp4')
+		.inputOptions(['-fflags', '+genpts', '-analyzeduration', '100M', '-probesize', '100M'])
 		.outputOptions([
 			'-movflags',
-			'frag_keyframe+empty_moov+faststart', // Enable streaming
+			'frag_keyframe+empty_moov+default_base_moof+faststart',
 			'-c:v',
 			'copy', // Copy video stream (no re-encoding)
 			'-c:a',
@@ -48,6 +65,11 @@ export function createTransmuxStream(options: TransmuxOptions): Readable {
 			'-b:a',
 			'192k',
 		]);
+
+	const inputFormat = getInputFormat(fileName);
+	if (inputFormat) {
+		command.inputFormat(inputFormat);
+	}
 
 	if (start && start > 0) {
 		command.setStartTime(start);

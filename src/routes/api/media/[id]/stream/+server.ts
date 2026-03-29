@@ -94,6 +94,7 @@ async function ensureVideoReady(
 function createTransmuxResponse(inputStream: import('node:stream').Readable, fileName: string): Response {
 	const transmuxedStream = createTransmuxStream({
 		inputStream,
+		fileName,
 		onError: (errorValue: Error) => console.error('[Stream] Transmux error:', errorValue),
 	});
 	return new Response(silenceAbortErrors(transmuxedStream), {
@@ -104,6 +105,16 @@ function createTransmuxResponse(inputStream: import('node:stream').Readable, fil
 			'Cache-Control': 'no-cache',
 		},
 	});
+}
+
+function shouldUseTransmuxForStream(fileName: string, isComplete: boolean): boolean {
+	if (needsTransmux(fileName)) {
+		return true;
+	}
+	if (isComplete) {
+		return false;
+	}
+	return path.extname(fileName).toLowerCase() !== '.webm';
 }
 
 async function handleRangeRequest(
@@ -180,16 +191,19 @@ export const HEAD: RequestHandler = async ({ params, locals }) => {
 	if (libraryPath) {
 		const stats = statSync(libraryPath);
 		const fileName = path.basename(libraryPath);
-		const isTransmux = needsTransmux(fileName);
+		const isTransmux = shouldUseTransmuxForStream(fileName, true);
+		const headers: Record<string, string> = {
+			'Accept-Ranges': isTransmux ? 'none' : 'bytes',
+			'Content-Type': isTransmux ? 'video/mp4' : getMimeType(fileName),
+			'Content-Disposition': `inline; filename="${isTransmux ? fileName.replace(FILE_EXTENSION_REGEX, '.mp4') : fileName}"`,
+			'Cache-Control': 'private, max-age=3600',
+		};
+		if (!isTransmux) {
+			headers['Content-Length'] = stats.size.toString();
+		}
 		return new Response(null, {
 			status: 200,
-			headers: {
-				'Accept-Ranges': isTransmux ? 'none' : 'bytes',
-				'Content-Length': stats.size.toString(),
-				'Content-Type': isTransmux ? 'video/mp4' : getMimeType(fileName),
-				'Content-Disposition': `inline; filename="${fileName}"`,
-				'Cache-Control': 'private, max-age=3600',
-			},
+			headers,
 		});
 	}
 	const readyResponse = await ensureVideoReady(mediaItem.id, mediaItem.magnetLink, mediaItem.status, fileIndex);
@@ -201,16 +215,19 @@ export const HEAD: RequestHandler = async ({ params, locals }) => {
 		throw error(404, 'Video not available');
 	}
 	streamInfo.stream.destroy();
-	const contentType = needsTransmux(streamInfo.fileName) ? 'video/mp4' : streamInfo.mimeType;
+	const isTransmux = shouldUseTransmuxForStream(streamInfo.fileName, streamInfo.isComplete);
+	const headers: Record<string, string> = {
+		'Accept-Ranges': isTransmux ? 'none' : 'bytes',
+		'Content-Type': isTransmux ? 'video/mp4' : streamInfo.mimeType,
+		'Content-Disposition': `inline; filename="${isTransmux ? streamInfo.fileName.replace(FILE_EXTENSION_REGEX, '.mp4') : streamInfo.fileName}"`,
+		'Cache-Control': streamInfo.isComplete ? 'private, max-age=3600' : 'no-cache',
+	};
+	if (!isTransmux) {
+		headers['Content-Length'] = streamInfo.fileSize.toString();
+	}
 	return new Response(null, {
 		status: 200,
-		headers: {
-			'Accept-Ranges': needsTransmux(streamInfo.fileName) ? 'none' : 'bytes',
-			'Content-Length': streamInfo.fileSize.toString(),
-			'Content-Type': contentType,
-			'Content-Disposition': `inline; filename="${streamInfo.fileName}"`,
-			'Cache-Control': streamInfo.isComplete ? 'private, max-age=3600' : 'no-cache',
-		},
+		headers,
 	});
 };
 
@@ -219,7 +236,7 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 	const libraryPath = resolveLibraryFile(mediaItem);
 	if (libraryPath) {
 		const fileName = path.basename(libraryPath);
-		if (needsTransmux(fileName)) {
+		if (shouldUseTransmuxForStream(fileName, true)) {
 			return createTransmuxResponse(createReadStream(libraryPath), fileName);
 		}
 		const stats = statSync(libraryPath);
@@ -247,7 +264,7 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 	if (!streamInfo) {
 		throw error(404, 'Video not available');
 	}
-	if (needsTransmux(streamInfo.fileName)) {
+	if (shouldUseTransmuxForStream(streamInfo.fileName, streamInfo.isComplete)) {
 		return createTransmuxResponse(streamInfo.stream, streamInfo.fileName);
 	}
 	const range = request.headers.get('range');
