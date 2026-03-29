@@ -34,8 +34,7 @@ services:
       - ..:/app
       # Preserve container's node_modules (hide local node_modules)
       - /app/node_modules
-      - plank-data:/app/data
-      - ${MEDIA_PATH:-./media}:/app/data/library
+      # Use the repo-local /data directory via the source mount above
       # Share Prowlarr config for API key extraction
       - prowlarr-config:/prowlarr-config:ro
     command: npm run dev -- --host
@@ -72,6 +71,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  plank-db:
-  plank-data:
   prowlarr-config:
