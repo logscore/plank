@@ -2,7 +2,7 @@ import { createReadStream, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { error } from '@sveltejs/kit';
 import { requireMediaAccess } from '$lib/server/api-guard';
-import { createTransmuxStream, needsTransmux } from '$lib/server/ffmpeg';
+import { createTransmuxStream, needsTransmux, requiresBrowserSafePlayback } from '$lib/server/ffmpeg';
 import {
 	getDownloadStatus,
 	getVideoStream,
@@ -107,9 +107,21 @@ function createTransmuxResponse(inputStream: import('node:stream').Readable, fil
 	});
 }
 
-function shouldUseTransmuxForStream(fileName: string, isComplete: boolean): boolean {
+async function shouldUseTransmuxForStream(
+	fileName: string,
+	isComplete: boolean,
+	filePath?: string | null
+): Promise<boolean> {
 	if (needsTransmux(fileName)) {
 		return true;
+	}
+	if (filePath && isComplete) {
+		try {
+			return await requiresBrowserSafePlayback(filePath);
+		} catch (errorValue) {
+			console.error('[Stream] Failed to probe playback compatibility:', errorValue);
+			return true;
+		}
 	}
 	if (isComplete) {
 		return false;
@@ -191,7 +203,7 @@ export const HEAD: RequestHandler = async ({ params, locals }) => {
 	if (libraryPath) {
 		const stats = statSync(libraryPath);
 		const fileName = path.basename(libraryPath);
-		const isTransmux = shouldUseTransmuxForStream(fileName, true);
+		const isTransmux = await shouldUseTransmuxForStream(fileName, true, libraryPath);
 		const headers: Record<string, string> = {
 			'Accept-Ranges': isTransmux ? 'none' : 'bytes',
 			'Content-Type': isTransmux ? 'video/mp4' : getMimeType(fileName),
@@ -215,7 +227,7 @@ export const HEAD: RequestHandler = async ({ params, locals }) => {
 		throw error(404, 'Video not available');
 	}
 	streamInfo.stream.destroy();
-	const isTransmux = shouldUseTransmuxForStream(streamInfo.fileName, streamInfo.isComplete);
+	const isTransmux = await shouldUseTransmuxForStream(streamInfo.fileName, streamInfo.isComplete);
 	const headers: Record<string, string> = {
 		'Accept-Ranges': isTransmux ? 'none' : 'bytes',
 		'Content-Type': isTransmux ? 'video/mp4' : streamInfo.mimeType,
@@ -236,7 +248,7 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 	const libraryPath = resolveLibraryFile(mediaItem);
 	if (libraryPath) {
 		const fileName = path.basename(libraryPath);
-		if (shouldUseTransmuxForStream(fileName, true)) {
+		if (await shouldUseTransmuxForStream(fileName, true, libraryPath)) {
 			return createTransmuxResponse(createReadStream(libraryPath), fileName);
 		}
 		const stats = statSync(libraryPath);
@@ -264,7 +276,7 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 	if (!streamInfo) {
 		throw error(404, 'Video not available');
 	}
-	if (shouldUseTransmuxForStream(streamInfo.fileName, streamInfo.isComplete)) {
+	if (await shouldUseTransmuxForStream(streamInfo.fileName, streamInfo.isComplete)) {
 		return createTransmuxResponse(streamInfo.stream, streamInfo.fileName);
 	}
 	const range = request.headers.get('range');

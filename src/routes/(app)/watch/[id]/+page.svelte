@@ -130,10 +130,10 @@
             return playerErrorMessage;
         }
         if (progressInfo?.status === 'downloading') {
-            return 'Movie goblins are preparing your stream';
+            return 'Preparing your stream and checking browser compatibility';
         }
         if (progressInfo?.status === 'searching' || progressInfo?.status === 'initializing') {
-            return 'Preparing your movie stream';
+            return 'Preparing your stream';
         }
         return 'Waiting for video to stream in from space';
     }

@@ -32,6 +32,9 @@ interface TransmuxOptions {
 	onError?: (err: Error) => void;
 }
 
+const BROWSER_SAFE_VIDEO_CODECS = new Set(['h264', 'vp8', 'vp9', 'av1']);
+const BROWSER_SAFE_AUDIO_CODECS = new Set(['aac', 'mp3', 'opus', 'vorbis']);
+
 const INPUT_FORMAT_BY_EXTENSION: Record<string, string> = {
 	'.avi': 'avi',
 	'.m4v': 'mp4',
@@ -56,12 +59,20 @@ export function createTransmuxStream(options: TransmuxOptions): Readable {
 		.outputFormat('mp4')
 		.inputOptions(['-fflags', '+genpts', '-analyzeduration', '100M', '-probesize', '100M'])
 		.outputOptions([
+			'-map',
+			'0:v:0',
+			'-map',
+			'0:a:0?',
+			'-dn',
+			'-sn',
 			'-movflags',
 			'frag_keyframe+empty_moov+default_base_moof+faststart',
 			'-c:v',
 			'copy', // Copy video stream (no re-encoding)
 			'-c:a',
 			'aac', // Transcode audio to AAC for browser compatibility
+			'-ac',
+			'2',
 			'-b:a',
 			'192k',
 		]);
@@ -105,12 +116,20 @@ export async function transmuxFile(inputPath: string, outputPath: string): Promi
 		ffmpeg(inputPath)
 			.output(outputPath)
 			.outputOptions([
+				'-map',
+				'0:v:0',
+				'-map',
+				'0:a:0?',
+				'-dn',
+				'-sn',
 				'-movflags',
 				'+faststart', // Optimize for web streaming
 				'-c:v',
 				'copy', // Copy video stream (no re-encoding)
 				'-c:a',
 				'aac', // Transcode audio to AAC for browser compatibility
+				'-ac',
+				'2',
 				'-b:a',
 				'192k',
 			])
@@ -199,6 +218,8 @@ export async function probeFile(filePath: string): Promise<{
 	duration: number | null;
 	width: number | null;
 	height: number | null;
+	audioChannels: number | null;
+	hasDataStreams: boolean;
 }> {
 	return new Promise((resolve, reject) => {
 		ffmpeg.ffprobe(filePath, (err, metadata) => {
@@ -209,6 +230,7 @@ export async function probeFile(filePath: string): Promise<{
 
 			const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
 			const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
+			const hasDataStreams = metadata.streams.some((stream) => stream.codec_type === 'data');
 
 			resolve({
 				videoCodec: videoStream?.codec_name || null,
@@ -216,7 +238,23 @@ export async function probeFile(filePath: string): Promise<{
 				duration: metadata.format.duration || null,
 				width: videoStream?.width || null,
 				height: videoStream?.height || null,
+				audioChannels: audioStream?.channels || null,
+				hasDataStreams,
 			});
 		});
 	});
+}
+
+export async function requiresBrowserSafePlayback(filePath: string): Promise<boolean> {
+	const probe = await probeFile(filePath);
+	if (!(probe.videoCodec && BROWSER_SAFE_VIDEO_CODECS.has(probe.videoCodec))) {
+		return true;
+	}
+	if (probe.audioCodec && !BROWSER_SAFE_AUDIO_CODECS.has(probe.audioCodec)) {
+		return true;
+	}
+	if ((probe.audioChannels ?? 0) > 2) {
+		return true;
+	}
+	return probe.hasDataStreams;
 }

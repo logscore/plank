@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { mediaDb } from './db';
-import { probeFile, transmuxFile } from './ffmpeg';
+import { probeFile, requiresBrowserSafePlayback, transmuxFile } from './ffmpeg';
 
 async function verifyFileIntegrity(filePath: string): Promise<boolean> {
 	try {
@@ -27,15 +27,14 @@ async function scanMovies(): Promise<void> {
 	const movies = mediaDb
 		.getAll()
 		.filter((media) => media.type === 'movie' && media.filePath && existsSync(media.filePath));
-	const needsTranscoding = movies.filter((media) => {
-		if (!media.filePath) {
-			return false;
-		}
-		const extension = path.extname(media.filePath).toLowerCase();
-		return extension !== '.mp4' && extension !== '.webm';
-	});
+	const needsTranscoding = await Promise.all(
+		movies.map(async (media) => ({ media, needsTranscoding: await shouldNormalizeFile(media.filePath) }))
+	);
 	await Promise.all(
-		needsTranscoding.map(async (media) => {
+		needsTranscoding.map(async ({ media, needsTranscoding }) => {
+			if (!needsTranscoding) {
+				return;
+			}
 			if (!media.filePath) {
 				return;
 			}
@@ -52,15 +51,14 @@ async function scanShows(): Promise<void> {
 		.filter((media) => media.type === 'show')
 		.map((media) => media.id);
 	const episodes = showIds.flatMap((showId) => mediaDb.getEpisodesByParentId(showId));
-	const needsTranscoding = episodes.filter(
-		(episode) =>
-			episode.filePath &&
-			existsSync(episode.filePath) &&
-			episode.fileIndex !== null &&
-			!['.mp4', '.webm'].includes(path.extname(episode.filePath).toLowerCase())
+	const needsTranscoding = await Promise.all(
+		episodes.map(async (episode) => ({ episode, needsTranscoding: await shouldNormalizeFile(episode.filePath) }))
 	);
 	await Promise.all(
-		needsTranscoding.map(async (episode) => {
+		needsTranscoding.map(async ({ episode, needsTranscoding }) => {
+			if (!needsTranscoding) {
+				return;
+			}
 			if (!episode.filePath || episode.fileIndex === null) {
 				return;
 			}
@@ -80,8 +78,7 @@ export async function transcodeMovieFile(mediaId: string): Promise<void> {
 	if (!(media?.filePath && existsSync(media.filePath))) {
 		return;
 	}
-	const extension = path.extname(media.filePath).toLowerCase();
-	if (extension === '.mp4' || extension === '.webm') {
+	if (!(await shouldNormalizeFile(media.filePath))) {
 		return;
 	}
 	console.log(`[Transcoder] Transmuxing movie ${mediaId}: ${media.filePath}`);
@@ -92,19 +89,18 @@ export async function transcodeMovieFile(mediaId: string): Promise<void> {
 
 export async function transcodeTVEpisodes(showId: string): Promise<void> {
 	const episodes = mediaDb.getEpisodesByParentId(showId);
-	const needsTranscoding = episodes.filter(
-		(episode) =>
-			episode.filePath &&
-			existsSync(episode.filePath) &&
-			episode.fileIndex !== null &&
-			!['.mp4', '.webm'].includes(path.extname(episode.filePath).toLowerCase())
+	const needsTranscoding = await Promise.all(
+		episodes.map(async (episode) => ({ episode, needsTranscoding: await shouldNormalizeFile(episode.filePath) }))
 	);
-	if (needsTranscoding.length === 0) {
+	const episodesToTranscode = needsTranscoding
+		.filter(({ needsTranscoding }) => needsTranscoding)
+		.map(({ episode }) => episode);
+	if (episodesToTranscode.length === 0) {
 		return;
 	}
-	console.log(`[Transcoder] Transmuxing ${needsTranscoding.length} episodes for media ${showId}`);
+	console.log(`[Transcoder] Transmuxing ${episodesToTranscode.length} episodes for media ${showId}`);
 	await Promise.all(
-		needsTranscoding.map(async (episode) => {
+		episodesToTranscode.map(async (episode) => {
 			if (!episode.filePath || episode.fileIndex === null) {
 				return;
 			}
@@ -117,6 +113,25 @@ export async function transcodeTVEpisodes(showId: string): Promise<void> {
 			});
 		})
 	);
+}
+
+async function shouldNormalizeFile(filePath: string | null): Promise<boolean> {
+	if (!(filePath && existsSync(filePath))) {
+		return false;
+	}
+	const extension = path.extname(filePath).toLowerCase();
+	if (extension !== '.mp4' && extension !== '.webm') {
+		return true;
+	}
+	if (extension === '.webm') {
+		return false;
+	}
+	try {
+		return await requiresBrowserSafePlayback(filePath);
+	} catch (error) {
+		console.error(`[Transcoder] Failed to probe playback compatibility for ${filePath}:`, error);
+		return false;
+	}
 }
 
 async function safeTransmux(sourcePath: string, updateDb: (path: string, size: number) => void): Promise<void> {
