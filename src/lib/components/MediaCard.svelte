@@ -163,10 +163,7 @@
                     <span>• {formatRuntime(media.runtime)}</span>
                 {/if}
                 {#if media.type === "show" && media.totalSeasons}
-                    <span
-                        >• {media.totalSeasons} season
-                        {media.totalSeasons === 1 ? "" : "s"}</span
-                    >
+                    <span>• {media.totalSeasons} season(s)</span>
                 {/if}
             </div>
             {#if media.overview}

@@ -8,8 +8,9 @@ import { config } from '$lib/config';
 import type { MediaType } from '$lib/types';
 import { downloadsDb, mediaDb, seasonsDb } from './db';
 import { isSupportedFormat, SUPPORTED_VIDEO_FORMATS } from './ffmpeg';
+import { getEpisodeLibraryPath, getSeasonLibraryDirectory, getShowLibraryRoot } from './library-paths';
 import { parseMagnet } from './magnet';
-import { buildEpisodeFileName, buildMovieFileName } from './media-naming';
+import { buildMovieFileName } from './media-naming';
 import { discoverSubtitles } from './subtitles';
 import { searchMovie, searchTVShow } from './tmdb';
 import { transcodeMovieFile, transcodeTVEpisodes } from './transcoder';
@@ -1044,10 +1045,11 @@ async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): 
 	}
 	const sourcePath = path.join(download.torrent.path, download.videoFile.path);
 	const show = episode.parentId ? mediaDb.getById(episode.parentId) : null;
-	const libraryRoot = path.join(config.paths.library, episode.parentId ?? mediaId);
-	const seasonDir = path.join(libraryRoot, `Season ${String(episode.seasonNumber ?? 0).padStart(2, '0')}`);
-	const fileName = buildEpisodeFileName(show?.title ?? 'Unknown Show', episode, download.videoFile.name);
-	const destPath = path.join(seasonDir, fileName);
+	if (!(show && show.type === 'show')) {
+		return;
+	}
+	const seasonDir = getSeasonLibraryDirectory(show, episode.seasonNumber);
+	const destPath = getEpisodeLibraryPath(show, episode, download.videoFile.name);
 
 	try {
 		await fs.mkdir(seasonDir, { recursive: true });
@@ -1081,9 +1083,11 @@ async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): 
 /** Move TV show files to library organized by season */
 async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): Promise<void> {
 	const logPrefix = `[${mediaId}:${download.infohash.slice(0, 8)}]`;
-	const baseDir = path.join(config.paths.library, mediaId);
 	const show = mediaDb.getById(mediaId);
-	const showTitle = show?.title ?? 'Unknown Show';
+	if (!(show && show.type === 'show')) {
+		return;
+	}
+	const baseDir = getShowLibraryRoot(show);
 	await fs.mkdir(baseDir, { recursive: true });
 
 	// Ensure episodes exist in database (fallback if initial creation failed)
@@ -1126,8 +1130,9 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 			const fileIndex = download.videoFiles.indexOf(videoFile);
 			const episode = getEpisodeForFileIndex(mediaId, download, fileIndex);
 			const sourcePath = path.join(download.torrent.path, videoFile.path);
-			const fileName = episode ? buildEpisodeFileName(showTitle, episode, videoFile.name) : videoFile.name;
-			const destPath = path.join(seasonDir, fileName);
+			const destPath = episode
+				? getEpisodeLibraryPath(show, episode, videoFile.name)
+				: path.join(seasonDir, videoFile.name);
 
 			try {
 				await fs.copyFile(sourcePath, destPath);
@@ -1568,7 +1573,10 @@ export async function deleteMediaFiles(mediaId: string): Promise<void> {
 		await fs.rm(path.join(config.paths.temp, mediaId), { recursive: true, force: true }).catch(() => undefined);
 		return;
 	}
-	const libraryPath = path.join(config.paths.library, mediaId);
+	const libraryPaths =
+		mediaItem?.type === 'show'
+			? Array.from(new Set([getShowLibraryRoot(mediaItem), path.join(config.paths.library, mediaId)]))
+			: [path.join(config.paths.library, mediaId)];
 	const tempPaths =
 		mediaItem?.type === 'show'
 			? [
@@ -1579,14 +1587,13 @@ export async function deleteMediaFiles(mediaId: string): Promise<void> {
 				]
 			: [path.join(config.paths.temp, mediaId)];
 
-	// Delete library directory
-	try {
-		await fs.rm(libraryPath, { recursive: true, force: true });
-		// console.log(`[${mediaId}] Deleted library directory: ${libraryPath}`);
-	} catch (e) {
-		// Directory may not exist, that's fine
-		if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
-			console.error(`[${mediaId}] Error deleting library directory:`, e);
+	for (const libraryPath of libraryPaths) {
+		try {
+			await fs.rm(libraryPath, { recursive: true, force: true });
+		} catch (e) {
+			if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
+				console.error(`[${mediaId}] Error deleting library directory:`, e);
+			}
 		}
 	}
 
@@ -1616,12 +1623,11 @@ async function finalizeFromTemp(mediaId: string, videoPath: string, fileName: st
 		destPath = path.join(destDir, buildMovieFileName(mediaItem, fileName));
 	} else if (mediaItem.type === 'episode') {
 		const show = mediaItem.parentId ? mediaDb.getById(mediaItem.parentId) : null;
-		destDir = path.join(
-			config.paths.library,
-			mediaItem.parentId ?? mediaId,
-			`Season ${String(mediaItem.seasonNumber ?? 0).padStart(2, '0')}`
-		);
-		destPath = path.join(destDir, buildEpisodeFileName(show?.title ?? 'Unknown Show', mediaItem, fileName));
+		if (!(show && show.type === 'show')) {
+			return false;
+		}
+		destDir = getSeasonLibraryDirectory(show, mediaItem.seasonNumber);
+		destPath = getEpisodeLibraryPath(show, mediaItem, fileName);
 	}
 
 	try {

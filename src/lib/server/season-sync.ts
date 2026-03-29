@@ -2,6 +2,7 @@
 // FEATURE: Metadata-first episodic torrent acquisition for queued season ingestion flows
 
 import { mediaDb, seasonsDb } from './db';
+import { getShowLibraryDirectoryId } from './library-paths';
 import { acquireMediaByImdb, waitForTerminalMediaState } from './media-acquisition';
 import { getSeasonDetailsWithExternalIds, getTVDetails, saveTmdbImages } from './tmdb';
 
@@ -102,6 +103,7 @@ async function saveShowImages(showId: string, metadata: ShowMetadata): Promise<v
 		return;
 	}
 	try {
+		const showDirectoryId = getShowLibraryDirectoryId({ id: showId, title: metadata.title, year: metadata.year });
 		const savedImages = await saveTmdbImages(
 			{
 				tmdbId: null,
@@ -117,7 +119,7 @@ async function saveShowImages(showId: string, metadata: ShowMetadata): Promise<v
 				totalSeasons: metadata.totalSeasons,
 			},
 			'library',
-			showId
+			showDirectoryId
 		);
 		mediaDb.updateMetadata(showId, {
 			posterUrl: savedImages.posterUrl,
