@@ -4,7 +4,14 @@
 import path from 'node:path';
 import { config } from '$lib/config';
 import { mediaDb } from './db';
-import { buildEpisodeFileName, buildShowLibraryDirectoryName } from './media-naming';
+import { buildEpisodeFileName, buildMovieLibraryDirectoryName, buildShowLibraryDirectoryName } from './media-naming';
+
+interface MovieDirectoryMedia {
+	id: string;
+	title: string;
+	year: number | null;
+	filePath?: string | null;
+}
 
 interface ShowDirectoryMedia {
 	id: string;
@@ -24,6 +31,17 @@ function getExistingShowLibraryRoot(showId: string): string | null {
 		return null;
 	}
 	return path.dirname(path.dirname(existingEpisode.filePath));
+}
+
+export function getMovieLibraryRoot(movie: MovieDirectoryMedia): string {
+	if (movie.filePath) {
+		return path.dirname(movie.filePath);
+	}
+	return path.join(config.paths.library, buildMovieLibraryDirectoryName(movie));
+}
+
+export function getMovieLibraryDirectoryId(movie: MovieDirectoryMedia): string {
+	return path.basename(getMovieLibraryRoot(movie));
 }
 
 export function getShowLibraryRoot(show: ShowDirectoryMedia): string {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildEpisodeFileName, buildMovieFileName } from '$lib/server/media-naming';
+import { buildEpisodeFileName, buildMovieFileName, buildMovieLibraryDirectoryName } from '$lib/server/media-naming';
 
 describe('media naming', () => {
 	it('builds deterministic movie filenames', () => {
@@ -15,5 +15,10 @@ describe('media naming', () => {
 				'breaking.bad.s01e01.mkv'
 			)
 		).toBe('Breaking Bad - S01E01 - Pilot.mkv');
+	});
+
+	it('builds deterministic movie directory names', () => {
+		expect(buildMovieLibraryDirectoryName({ title: 'Alien', year: 1979 })).toBe('Alien (1979)');
+		expect(buildMovieLibraryDirectoryName({ title: 'Alien', year: null })).toBe('Alien');
 	});
 });

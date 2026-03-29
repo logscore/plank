@@ -8,7 +8,12 @@ import { config } from '$lib/config';
 import type { MediaType } from '$lib/types';
 import { downloadsDb, mediaDb, seasonsDb } from './db';
 import { isSupportedFormat, SUPPORTED_VIDEO_FORMATS } from './ffmpeg';
-import { getEpisodeLibraryPath, getSeasonLibraryDirectory, getShowLibraryRoot } from './library-paths';
+import {
+	getEpisodeLibraryPath,
+	getMovieLibraryRoot,
+	getSeasonLibraryDirectory,
+	getShowLibraryRoot,
+} from './library-paths';
 import { parseMagnet } from './magnet';
 import { buildMovieFileName } from './media-naming';
 import { discoverSubtitles } from './subtitles';
@@ -932,8 +937,8 @@ async function moveMovieToLibrary(mediaId: string, download: ActiveDownload): Pr
 	}
 
 	const sourcePath = path.join(download.torrent.path, download.videoFile.path);
-	const destDir = path.join(config.paths.library, mediaId);
 	const mediaItem = mediaDb.getById(mediaId);
+	const destDir = mediaItem ? getMovieLibraryRoot(mediaItem) : path.join(config.paths.library, mediaId);
 	const fileName = mediaItem ? buildMovieFileName(mediaItem, download.videoFile.name) : download.videoFile.name;
 	const destPath = path.join(destDir, fileName);
 
@@ -1573,10 +1578,12 @@ export async function deleteMediaFiles(mediaId: string): Promise<void> {
 		await fs.rm(path.join(config.paths.temp, mediaId), { recursive: true, force: true }).catch(() => undefined);
 		return;
 	}
-	const libraryPaths =
-		mediaItem?.type === 'show'
-			? Array.from(new Set([getShowLibraryRoot(mediaItem), path.join(config.paths.library, mediaId)]))
-			: [path.join(config.paths.library, mediaId)];
+	let libraryPaths = [path.join(config.paths.library, mediaId)];
+	if (mediaItem?.type === 'show') {
+		libraryPaths = Array.from(new Set([getShowLibraryRoot(mediaItem), path.join(config.paths.library, mediaId)]));
+	} else if (mediaItem?.type === 'movie') {
+		libraryPaths = [getMovieLibraryRoot(mediaItem)];
+	}
 	const tempPaths =
 		mediaItem?.type === 'show'
 			? [
@@ -1620,6 +1627,7 @@ async function finalizeFromTemp(mediaId: string, videoPath: string, fileName: st
 	let destDir = path.join(config.paths.library, mediaId);
 	let destPath = path.join(destDir, fileName);
 	if (mediaItem.type === 'movie') {
+		destDir = getMovieLibraryRoot(mediaItem);
 		destPath = path.join(destDir, buildMovieFileName(mediaItem, fileName));
 	} else if (mediaItem.type === 'episode') {
 		const show = mediaItem.parentId ? mediaDb.getById(mediaItem.parentId) : null;

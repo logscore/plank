@@ -2,6 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import { config } from '$lib/config';
 import { requireAuth } from '$lib/server/api-guard';
 import { downloadsDb, mediaDb } from '$lib/server/db';
+import { getMovieLibraryDirectoryId, getShowLibraryDirectoryId } from '$lib/server/library-paths';
 import { parseMagnet } from '$lib/server/magnet';
 import { addSeasonFromBrowse } from '$lib/server/season-sync';
 import {
@@ -149,14 +150,18 @@ async function enrichBrowseMetadata(
 	return metadata;
 }
 
-function saveImagesAsync(metadata: MediaMetadata, mediaId: string): void {
+function saveImagesAsync(metadata: MediaMetadata, mediaId: string, mediaType: MediaType): void {
 	if (!(metadata.posterUrl || metadata.backdropUrl)) {
 		return;
 	}
 
 	(async () => {
 		try {
-			const updatedImages = await saveTmdbImages(metadata, 'library', mediaId);
+			const directoryId =
+				mediaType === 'show'
+					? getShowLibraryDirectoryId({ id: mediaId, title: metadata.title, year: metadata.year })
+					: getMovieLibraryDirectoryId({ id: mediaId, title: metadata.title, year: metadata.year });
+			const updatedImages = await saveTmdbImages(metadata, 'library', directoryId);
 			mediaDb.updateMetadata(mediaId, {
 				posterUrl: updatedImages.posterUrl,
 				backdropUrl: updatedImages.backdropUrl,
@@ -347,7 +352,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	});
 
 	// Save images in background
-	saveImagesAsync(metadata, mediaItem.id);
+	saveImagesAsync(metadata, mediaItem.id, mediaType);
 
 	// Start download
 	startDownload(mediaItem.id, magnetLink).catch((e) => {

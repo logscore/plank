@@ -36,6 +36,14 @@ export function buildMovieFileName(media: { title: string; year: number | null }
 	return `${title}${extension}`;
 }
 
+export function buildMovieLibraryDirectoryName(movie: { title: string; year: number | null; id?: string }): string {
+	const title = sanitizeFileSegment(movie.title, movie.id ?? 'Unknown Movie');
+	if (movie.year) {
+		return `${title} (${movie.year})`;
+	}
+	return title;
+}
+
 export function buildShowLibraryDirectoryName(show: { title: string; year: number | null; id?: string }): string {
 	const title = sanitizeFileSegment(show.title, show.id ?? 'Unknown Show');
 	if (show.year) {
