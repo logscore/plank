@@ -18,7 +18,6 @@
         fetchBrowseDetails,
         fetchProwlarrStatus,
         fetchSeasons,
-        resolveSeasonTorrent,
         resolveTorrent,
         type SeasonSummary,
     } from '$lib/queries/browse-queries';
@@ -27,7 +26,7 @@
     interface Props {
         data: {
             type: 'trending' | 'popular';
-            filter: 'all' | 'movie' | 'tv';
+            filter: 'all' | 'movie' | 'show';
         };
     }
 
@@ -343,7 +342,7 @@
 
     // Prefetch seasons for a TV show on hover - fire and forget
     function handlePrefetchSeasons(item: BrowseItem) {
-        if (item.mediaType !== 'tv') {
+        if (item.mediaType !== 'show') {
             return;
         }
         // Fire and forget
@@ -355,44 +354,7 @@
         return seasonsCache.get(tmdbId) ?? [];
     }
 
-    // ==========================================================================
-    // Season Torrent Prefetching (like movie torrent prefetch)
-    // ==========================================================================
-
-    // Get season torrent magnet link - handles caching and deduplication
-    async function getSeasonMagnetLink(item: BrowseItem, seasonNumber: number): Promise<string | null> {
-        try {
-            const result = await queryClient.fetchQuery({
-                queryKey: queryKeys.browse.resolveSeason(item.tmdbId, seasonNumber),
-                queryFn: () =>
-                    resolveSeasonTorrent({
-                        tmdbId: item.tmdbId,
-                        seasonNumber,
-                        showTitle: item.title,
-                        imdbId: item.imdbId ?? undefined,
-                    }),
-                staleTime: 1000 * 60 * 60 * 24, // 24 hours
-            });
-
-            if (result.success && result.torrent) {
-                return result.torrent.magnetLink;
-            }
-
-            console.error('Failed to resolve season torrent:', result.message || result.error);
-            return null;
-        } catch (err) {
-            console.error('Failed to prefetch season torrent:', err);
-            return null;
-        }
-    }
-
-    // Prefetch season torrent on hover in context menu - fire and forget
-    function handlePrefetchSeasonTorrent(item: BrowseItem, seasonNumber: number) {
-        // Fire and forget
-        getSeasonMagnetLink(item, seasonNumber);
-    }
-
-    // Handle season selection - resolve and add season torrent to library
+    // Handle season selection - queue metadata-first episode downloads
     async function handleSelectSeason(item: BrowseItem, seasonNumber: number) {
         if (addingItems.has(item.tmdbId)) {
             return;
@@ -401,23 +363,19 @@
         addingItems = new Set(addingItems).add(item.tmdbId);
 
         try {
-            // Get magnet link (uses cache if prefetched, otherwise fetches)
-            const magnetLink = await getSeasonMagnetLink(item, seasonNumber);
-
-            if (!magnetLink) {
-                console.error('Failed to resolve season torrent');
-                toast.error('No magnet link found for this season');
-                return;
-            }
-
-            // Add to library
             await addToLibraryMutation.mutateAsync({
-                magnetLink,
-                title: `${item.title} - Season ${seasonNumber}`,
+                mode: 'browse-season',
+                title: item.title,
                 year: item.year,
                 tmdbId: item.tmdbId,
+                seasonNumber,
+                posterUrl: item.posterUrl,
+                backdropUrl: item.backdropUrl,
+                overview: item.overview,
+                genres: item.genres,
+                certification: item.certification,
             });
-            toast.success('Season added to library');
+            toast.success(`Season ${seasonNumber} queued`);
         } catch (err) {
             console.error('Failed to add season to library:', err);
             toast.error('Failed to add season');
@@ -529,7 +487,6 @@
                         onPrefetch={handlePrefetch}
                         onSelectSeason={handleSelectSeason}
                         onPrefetchSeasons={handlePrefetchSeasons}
-                        onPrefetchSeasonTorrent={handlePrefetchSeasonTorrent}
                         isAdding={addingItems.has(item.tmdbId)}
                         isResolving={resolvingItems.has(item.tmdbId)}
                         seasons={getSeasonsForItem(item.tmdbId)}

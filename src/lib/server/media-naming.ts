@@ -1,0 +1,50 @@
+// Builds deterministic library filenames for movie and episode media
+// FEATURE: Metadata-first episodic torrent acquisition naming and library destinations
+
+import path from 'node:path';
+
+const INVALID_FILENAME_CHARACTERS = /[<>:"/\\|?*]/g;
+const WHITESPACE_PATTERN = /\s+/g;
+const TRAILING_DOTS_AND_SPACES = /[.\s]+$/g;
+
+function stripControlCharacters(value: string): string {
+	return Array.from(value)
+		.filter((character) => character.charCodeAt(0) >= 32)
+		.join('');
+}
+
+function sanitizeFileSegment(value: string, fallback: string): string {
+	const sanitized = value.replace(INVALID_FILENAME_CHARACTERS, ' ').trim();
+	const cleaned = stripControlCharacters(sanitized)
+		.replace(WHITESPACE_PATTERN, ' ')
+		.replace(TRAILING_DOTS_AND_SPACES, '')
+		.trim();
+	return cleaned || fallback;
+}
+
+function getSafeExtension(sourceFileName: string): string {
+	const extension = path.extname(sourceFileName).trim();
+	return extension || '.mp4';
+}
+
+export function buildMovieFileName(media: { title: string; year: number | null }, sourceFileName: string): string {
+	const title = sanitizeFileSegment(media.title, 'Unknown Movie');
+	const extension = getSafeExtension(sourceFileName);
+	if (media.year) {
+		return `${title} (${media.year})${extension}`;
+	}
+	return `${title}${extension}`;
+}
+
+export function buildEpisodeFileName(
+	showTitle: string,
+	episode: { seasonNumber: number | null; episodeNumber: number | null; title: string },
+	sourceFileName: string
+): string {
+	const show = sanitizeFileSegment(showTitle, 'Unknown Show');
+	const seasonNumber = String(episode.seasonNumber ?? 0).padStart(2, '0');
+	const episodeNumber = String(episode.episodeNumber ?? 0).padStart(2, '0');
+	const title = sanitizeFileSegment(episode.title, `Episode ${episodeNumber}`);
+	const extension = getSafeExtension(sourceFileName);
+	return `${show} - S${seasonNumber}E${episodeNumber} - ${title}${extension}`;
+}

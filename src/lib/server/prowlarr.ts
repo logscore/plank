@@ -360,30 +360,63 @@ export async function searchProwlarr(query: string, category?: string): Promise<
 	}
 }
 
+export interface FindBestTorrentOptions {
+	mediaType?: 'movie' | 'episode';
+	seasonNumber?: number;
+	episodeNumber?: number;
+}
+
+function getEpisodeSearchLabel(options?: FindBestTorrentOptions): string | null {
+	if (!(options?.mediaType === 'episode' && options.seasonNumber && options.episodeNumber)) {
+		return null;
+	}
+	return `S${String(options.seasonNumber).padStart(2, '0')}E${String(options.episodeNumber).padStart(2, '0')}`;
+}
+
+function filterCandidates(results: IndexerResult[], trustedGroups: string[], minSeeders: number): IndexerResult[] {
+	const groupFiltered = filterByReleaseGroup(results, trustedGroups);
+	const candidates = groupFiltered.length > 0 ? groupFiltered : results;
+	const seederFiltered = candidates.filter((result) => result.seeders >= minSeeders);
+	return seederFiltered.length > 0 ? seederFiltered : candidates;
+}
+
 /**
  * Search and filter Prowlarr results for high-quality torrents.
  * Returns the best matching torrent or null.
  */
-export async function findBestTorrent(imdbId: string): Promise<IndexerResult | null> {
+export async function findBestTorrent(imdbId: string, options?: FindBestTorrentOptions): Promise<IndexerResult | null> {
 	const settings = await getSettings();
+	const episodeLabel = getEpisodeSearchLabel(options);
+	if (episodeLabel) {
+		console.log(`[Prowlarr] Searching ${episodeLabel} with IMDb ${imdbId}`);
+	}
 	const results = await searchProwlarr(imdbId);
 
 	if (results.length === 0) {
+		if (episodeLabel) {
+			console.log(`[Prowlarr] No results returned for ${episodeLabel} with IMDb ${imdbId}`);
+		}
 		return null;
 	}
 
-	// Filter by quality (remove CAM, TS, etc.)
 	const qualityFiltered = filterByQuality(results);
-
-	// Filter by trusted release groups (fall back to all quality results if none match)
-	const groupFiltered = filterByReleaseGroup(qualityFiltered, settings.prowlarr.trustedGroups);
-	const candidates = groupFiltered.length > 0 ? groupFiltered : qualityFiltered;
-
-	// Filter by minimum seeders
-	const seederFiltered = candidates.filter((r) => r.seeders >= settings.prowlarr.minSeeders);
-
-	// Select the best torrent
-	const best = selectBestTorrent(seederFiltered.length > 0 ? seederFiltered : candidates);
+	const episodeFiltered =
+		options?.mediaType === 'episode' && options.seasonNumber && options.episodeNumber
+			? filterForEpisodeResults(qualityFiltered, options.seasonNumber, options.episodeNumber)
+			: qualityFiltered;
+	const best = selectBestTorrent(
+		filterCandidates(episodeFiltered, settings.prowlarr.trustedGroups, settings.prowlarr.minSeeders)
+	);
+	if (episodeLabel) {
+		console.log(
+			`[Prowlarr] ${episodeLabel} results raw=${results.length} quality=${qualityFiltered.length} filtered=${episodeFiltered.length}`
+		);
+		if (best) {
+			console.log(`[Prowlarr] Selected ${episodeLabel}: ${best.title}`);
+		} else {
+			console.log(`[Prowlarr] No acceptable result selected for ${episodeLabel}`);
+		}
+	}
 
 	// Resolve HTTP download URLs to magnet links
 	if (best?.magnetUri.startsWith('http')) {
@@ -459,11 +492,36 @@ function isSingleEpisode(title: string): boolean {
 	return SINGLE_EPISODE_PATTERNS.some((pattern) => pattern.test(title));
 }
 
+function matchesEpisodeNumber(title: string, seasonNumber: number, episodeNumber: number): boolean {
+	const paddedSeason = seasonNumber.toString().padStart(2, '0');
+	const paddedEpisode = episodeNumber.toString().padStart(2, '0');
+	const patterns = [
+		new RegExp(`\\bS${paddedSeason}E${paddedEpisode}\\b`, 'i'),
+		new RegExp(`\\bS${seasonNumber}E${episodeNumber}\\b`, 'i'),
+		new RegExp(`\\b${seasonNumber}x${episodeNumber}\\b`, 'i'),
+		new RegExp(`\\b${seasonNumber}x${paddedEpisode}\\b`, 'i'),
+	];
+	return patterns.some((pattern) => pattern.test(title));
+}
+
 /**
  * Check if a title looks like a season pack
  */
 function isSeasonPack(title: string): boolean {
 	return SEASON_PACK_PATTERNS.some((pattern) => pattern.test(title));
+}
+
+function filterForEpisodeResults(
+	results: IndexerResult[],
+	seasonNumber: number,
+	episodeNumber: number
+): IndexerResult[] {
+	const exactMatches = results.filter((result) => matchesEpisodeNumber(result.title, seasonNumber, episodeNumber));
+	if (exactMatches.length > 0) {
+		return exactMatches.filter((result) => !isSeasonPack(result.title));
+	}
+	const nonPackMatches = results.filter((result) => !isSeasonPack(result.title));
+	return nonPackMatches.length > 0 ? nonPackMatches : results;
 }
 
 /**

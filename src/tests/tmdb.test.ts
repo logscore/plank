@@ -76,20 +76,17 @@ describe('TMDB Service', () => {
 				runtime: 120,
 				genres: [{ id: 1, name: 'Action' }],
 				original_language: 'en',
+				release_dates: {
+					results: [
+						{
+							iso_3166_1: 'US',
+							release_dates: [{ certification: 'PG-13', type: 3 }],
+						},
+					],
+				},
 			};
 
-			const mockReleaseDates = {
-				results: [
-					{
-						iso_3166_1: 'US',
-						release_dates: [{ certification: 'PG-13', type: 3 }],
-					},
-				],
-			};
-
-			(global.fetch as any)
-				.mockResolvedValueOnce({ ok: true, json: async () => mockMovie }) // Movie details
-				.mockResolvedValueOnce({ ok: true, json: async () => mockReleaseDates }); // Release dates
+			(global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockMovie });
 
 			const details = await tmdb.getMovieDetails(100);
 
@@ -188,20 +185,17 @@ describe('TMDB Service', () => {
 				number_of_seasons: 5,
 				episode_run_time: [30],
 				genres: [{ id: 1, name: 'Comedy' }],
+				content_ratings: {
+					results: [
+						{
+							iso_3166_1: 'US',
+							rating: 'TV-14',
+						},
+					],
+				},
 			};
 
-			const mockRatings = {
-				results: [
-					{
-						iso_3166_1: 'US',
-						rating: 'TV-14',
-					},
-				],
-			};
-
-			(global.fetch as any)
-				.mockResolvedValueOnce({ ok: true, json: async () => mockShow }) // Show details
-				.mockResolvedValueOnce({ ok: true, json: async () => mockRatings }); // Content ratings
+			(global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockShow });
 
 			const details = await tmdb.getTVDetails(200);
 
@@ -252,6 +246,29 @@ describe('TMDB Service', () => {
 			expect(details.episodes).toHaveLength(2);
 			expect(details.episodes[0].title).toBe('Pilot');
 		});
+
+		it('getSeasonDetailsWithExternalIds should include episode imdb ids', async () => {
+			const mockSeason = {
+				season_number: 1,
+				name: 'Season 1',
+				episodes: [
+					{ id: 1001, episode_number: 1, name: 'Pilot', overview: 'Intro' },
+					{ id: 1002, episode_number: 2, name: 'Ep 2', overview: 'Next' },
+				],
+			};
+
+			(global.fetch as any)
+				.mockResolvedValueOnce({ ok: true, json: async () => mockSeason })
+				.mockResolvedValueOnce({ ok: true, json: async () => ({ imdb_id: 'tt1001' }) })
+				.mockResolvedValueOnce({ ok: true, json: async () => ({ imdb_id: 'tt1002' }) });
+
+			const details = await tmdb.getSeasonDetailsWithExternalIds(200, 1);
+
+			expect(details.episodes).toHaveLength(2);
+			expect(details.episodes[0].tmdbId).toBe(1001);
+			expect(details.episodes[0].imdbId).toBe('tt1001');
+			expect(details.episodes[1].imdbId).toBe('tt1002');
+		});
 	});
 
 	describe('Trending & Popular', () => {
@@ -268,7 +285,7 @@ describe('TMDB Service', () => {
 					{
 						id: 2,
 						name: 'Show',
-						media_type: 'tv',
+						media_type: 'show',
 						genre_ids: [35],
 						poster_path: '/p.jpg',
 					},
@@ -286,7 +303,7 @@ describe('TMDB Service', () => {
 
 			expect(result.items).toHaveLength(2);
 			expect(result.items[0].mediaType).toBe('movie');
-			expect(result.items[1].mediaType).toBe('tv');
+			expect(result.items[1].mediaType).toBe('show');
 			expect(result.totalPages).toBe(10);
 		});
 
@@ -408,7 +425,7 @@ describe('TMDB Service', () => {
 				json: async () => mockData,
 			});
 
-			const result = await tmdb.getBrowseItemDetails(1, 'tv');
+			const result = await tmdb.getBrowseItemDetails(1, 'show');
 			expect(result.imdbId).toBe('tt456');
 			expect(result.certification).toBe('TV-MA');
 		});

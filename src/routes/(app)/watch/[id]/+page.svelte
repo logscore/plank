@@ -40,10 +40,6 @@
 
     const progressInfo = $derived(progressQuery.data);
 
-    // Get episodeId from URL for TV episodes
-    const episodeId = $derived(page.url.searchParams.get('episodeId'));
-    const isTVEpisode = $derived(episodeId !== null);
-
     // Player state
     let playerEl: MediaPlayerElement | undefined = $state(undefined);
     let showOverlay = $state(true);
@@ -76,8 +72,7 @@
         if (!media) {
             return '';
         }
-        const base = `/api/media/${media.id}/stream`;
-        return isTVEpisode ? `${base}?episodeId=${episodeId}` : base;
+        return `/api/media/${media.id}/stream`;
     }
 
     function getIsReady(): boolean {
@@ -117,7 +112,6 @@
             id,
             position: currentTime,
             duration,
-            episodeId: episodeId ?? undefined,
         });
     }
 
@@ -180,8 +174,8 @@
 
         // Fetch initial position and subtitle tracks in parallel
         const [posResult, subsResult] = await Promise.allSettled([
-            fetchPlayPosition(mediaId, episodeId ?? undefined),
-            fetchSubtitleTracks(mediaId, episodeId ?? undefined),
+            fetchPlayPosition(mediaId),
+            fetchSubtitleTracks(mediaId),
         ]);
 
         if (posResult.status === 'fulfilled' && posResult.value.position > 0) {
@@ -206,7 +200,6 @@
                     const payload = JSON.stringify({
                         position: currentTime,
                         duration,
-                        episodeId: episodeId ?? undefined,
                     });
                     navigator.sendBeacon(`/api/media/${id}/position`, payload);
                 }
@@ -214,6 +207,10 @@
         }
     });
 </script>
+
+<svelte:head>
+    <title>{media?.title ?? 'Watch'} | Plank</title>
+</svelte:head>
 
 <div class="relative w-screen h-screen bg-black overflow-hidden group" role="presentation">
     {#if loading}

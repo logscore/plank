@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	}
 
 	const type = url.searchParams.get('type') || 'trending';
-	const filter = (url.searchParams.get('filter') as 'all' | 'movie' | 'tv') || 'all';
+	const filter = (url.searchParams.get('filter') as 'all' | 'movie' | 'show') || 'all';
 	const page = Number.parseInt(url.searchParams.get('page') || '1', 10);
 
 	switch (type) {

@@ -10,14 +10,12 @@
         open = $bindable(false),
         mediaId,
         mediaTitle = '',
-        episodeId,
         seasonNumber,
         episodeNumber,
     }: {
         open?: boolean;
         mediaId: string;
         mediaTitle?: string;
-        episodeId?: string;
         seasonNumber?: number;
         episodeNumber?: number;
     } = $props();
@@ -94,7 +92,6 @@
                 mediaId,
                 fileId: result.fileId,
                 language: result.language,
-                episodeId,
             });
             downloadedIds = new Set([...downloadedIds, result.id]);
         } catch {

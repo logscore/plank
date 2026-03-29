@@ -5,10 +5,10 @@ import { GET } from '../routes/api/search/+server';
 import { db, testDb } from './setup';
 
 // Helper to simulate request
-function createRequest(url: string, user: any) {
+function createRequest(url: string, user: any, organizationId?: string) {
 	return {
 		url: new URL(url, 'http://localhost'),
-		locals: { user },
+		locals: { user, session: organizationId ? { activeOrganizationId: organizationId } : undefined },
 	};
 }
 
@@ -22,14 +22,32 @@ const testUser = {
 	updatedAt: new Date(),
 };
 
+const testOrg = {
+	id: 'search-org-1',
+	name: 'Search Org',
+	slug: 'search-org-1',
+	createdAt: new Date(),
+	updatedAt: new Date(),
+};
+
+const otherOrg = {
+	id: 'search-org-2',
+	name: 'Other Org',
+	slug: 'search-org-2',
+	createdAt: new Date(),
+	updatedAt: new Date(),
+};
+
 describe('Search API', () => {
 	beforeEach(() => {
-		testDb.exec('DELETE FROM episodes');
 		testDb.exec('DELETE FROM seasons');
 		testDb.exec('DELETE FROM media');
 		testDb.exec('DELETE FROM media_fts'); // Ensure FTS is clean
+		testDb.exec('DELETE FROM organization');
 		testDb.exec('DELETE FROM user');
 		db.insert(schema.user).values(testUser).run();
+		db.insert(schema.organization).values(testOrg).run();
+		db.insert(schema.organization).values(otherOrg).run();
 	});
 
 	it('should return 401 if not authorized', async () => {
@@ -39,7 +57,7 @@ describe('Search API', () => {
 	});
 
 	it('should return empty array for short queries', async () => {
-		const req = createRequest('/api/search?q=a', testUser);
+		const req = createRequest('/api/search?q=a', testUser, testOrg.id);
 		const res = await GET(req as any);
 		const data = await res.json();
 		expect(data).toEqual([]);
@@ -48,6 +66,7 @@ describe('Search API', () => {
 	it('should search by title using FTS', async () => {
 		mediaDb.create({
 			userId: testUser.id,
+			organizationId: testOrg.id,
 			title: 'Matrix Reloaded',
 			magnetLink: 'magnet:?xt=urn:btih:1',
 			infohash: '1',
@@ -57,6 +76,7 @@ describe('Search API', () => {
 
 		mediaDb.create({
 			userId: testUser.id,
+			organizationId: testOrg.id,
 			title: 'Star Wars',
 			magnetLink: 'magnet:?xt=urn:btih:2',
 			infohash: '2',
@@ -65,7 +85,7 @@ describe('Search API', () => {
 		});
 
 		// Search match
-		const req = createRequest('/api/search?q=Matrix', testUser);
+		const req = createRequest('/api/search?q=Matrix', testUser, testOrg.id);
 		const res = await GET(req as any);
 		const data = await res.json();
 
@@ -77,6 +97,7 @@ describe('Search API', () => {
 	it('should search by overview using FTS', async () => {
 		mediaDb.create({
 			userId: testUser.id,
+			organizationId: testOrg.id,
 			title: 'Test Movie',
 			magnetLink: 'magnet:?xt=urn:btih:1',
 			infohash: '1',
@@ -84,7 +105,7 @@ describe('Search API', () => {
 			type: 'movie',
 		});
 
-		const req = createRequest('/api/search?q=hidden', testUser);
+		const req = createRequest('/api/search?q=hidden', testUser, testOrg.id);
 		const res = await GET(req as any);
 		const data = await res.json();
 
@@ -92,7 +113,7 @@ describe('Search API', () => {
 		expect(data[0].title).toBe('Test Movie');
 	});
 
-	it('should respect user isolation', async () => {
+	it('should respect organization isolation', async () => {
 		db.insert(schema.user)
 			.values({
 				...testUser,
@@ -103,13 +124,14 @@ describe('Search API', () => {
 
 		mediaDb.create({
 			userId: 'other-user', // Different user
+			organizationId: otherOrg.id,
 			title: 'Secret User Movie',
 			magnetLink: 'magnet:?xt=urn:btih:1',
 			infohash: '1',
 			type: 'movie',
 		});
 
-		const req = createRequest('/api/search?q=Secret', testUser);
+		const req = createRequest('/api/search?q=Secret', testUser, testOrg.id);
 		const res = await GET(req as any);
 		const data = await res.json();
 

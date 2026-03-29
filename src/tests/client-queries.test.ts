@@ -100,9 +100,9 @@ describe('Client Queries', () => {
 				json: async () => ({ items: [], page: 1, totalPages: 1 }),
 			});
 
-			await import('$lib/queries/browse-queries').then((m) => m.fetchBrowse('popular', 'tv', 1));
+			await import('$lib/queries/browse-queries').then((m) => m.fetchBrowse('popular', 'show', 1));
 			expect(fetchMock).toHaveBeenCalledWith(
-				expect.stringContaining('/api/browse?type=popular&filter=tv&page=1')
+				expect.stringContaining('/api/browse?type=popular&filter=show&page=1')
 			);
 		});
 

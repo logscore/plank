@@ -8,7 +8,7 @@ export type { FetchError } from './fetch-error';
 /**
  * Fetch media list by type
  */
-export async function fetchMediaList(type: 'movie' | 'tv' | 'all'): Promise<Media[]> {
+export async function fetchMediaList(type: 'movie' | 'show' | 'all'): Promise<Media[]> {
 	const params = type !== 'all' ? `?type=${type}` : '';
 	const response = await fetch(`/api/media${params}`);
 
@@ -19,7 +19,7 @@ export async function fetchMediaList(type: 'movie' | 'tv' | 'all'): Promise<Medi
 	return response.json();
 }
 
-export function createMediaListQuery(type: 'movie' | 'tv' | 'all' = 'all') {
+export function createMediaListQuery(type: 'movie' | 'show' | 'all' = 'all') {
 	return createQuery(() => ({
 		queryKey: queryKeys.media.list(type),
 		queryFn: () => fetchMediaList(type),
@@ -121,9 +121,8 @@ export interface PlayPosition {
 	duration: number | null;
 }
 
-export async function fetchPlayPosition(id: string, episodeId?: string): Promise<PlayPosition> {
-	const params = episodeId ? `?episodeId=${episodeId}` : '';
-	const response = await fetch(`/api/media/${id}/position${params}`);
+export async function fetchPlayPosition(id: string): Promise<PlayPosition> {
+	const response = await fetch(`/api/media/${id}/position`);
 	if (!response.ok) {
 		throw createFetchError('Failed to fetch position', response.status);
 	}
@@ -133,7 +132,6 @@ export async function fetchPlayPosition(id: string, episodeId?: string): Promise
 export interface SubtitleTrackResponse {
 	id: string;
 	mediaId: string;
-	episodeId: string | null;
 	language: string;
 	label: string;
 	source: string;
@@ -142,19 +140,18 @@ export interface SubtitleTrackResponse {
 	src: string;
 }
 
-export async function fetchSubtitleTracks(id: string, episodeId?: string): Promise<SubtitleTrackResponse[]> {
-	const params = episodeId ? `?episodeId=${episodeId}` : '';
-	const response = await fetch(`/api/media/${id}/subtitles${params}`);
+export async function fetchSubtitleTracks(id: string): Promise<SubtitleTrackResponse[]> {
+	const response = await fetch(`/api/media/${id}/subtitles`);
 	if (!response.ok) {
 		throw createFetchError('Failed to fetch subtitles', response.status);
 	}
 	return response.json();
 }
 
-export function createSubtitleTracksQuery(id: string, episodeId?: string) {
+export function createSubtitleTracksQuery(id: string) {
 	return createQuery(() => ({
-		queryKey: queryKeys.media.subtitles(id, episodeId),
-		queryFn: () => fetchSubtitleTracks(id, episodeId),
+		queryKey: queryKeys.media.subtitles(id),
+		queryFn: () => fetchSubtitleTracks(id),
 		enabled: !!id,
 	}));
 }

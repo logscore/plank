@@ -3,6 +3,7 @@ import { config } from '$lib/config';
 import { requireAuth } from '$lib/server/api-guard';
 import { downloadsDb, mediaDb } from '$lib/server/db';
 import { parseMagnet } from '$lib/server/magnet';
+import { addSeasonFromBrowse } from '$lib/server/season-sync';
 import {
 	getMovieDetails,
 	getTVDetails,
@@ -27,6 +28,23 @@ interface MediaMetadata {
 	originalLanguage: string | null;
 	certification: string | null;
 	totalSeasons: number | null;
+}
+
+interface BrowseSeasonRequest {
+	mode: 'browse-season';
+	tmdbId: number;
+	seasonNumber: number;
+	title: string;
+	year?: number | null;
+	posterUrl?: string | null;
+	backdropUrl?: string | null;
+	overview?: string | null;
+	genres?: string[] | null;
+	certification?: string | null;
+}
+
+function isBrowseSeasonRequest(body: unknown): body is BrowseSeasonRequest {
+	return Boolean(body && typeof body === 'object' && 'mode' in body && body.mode === 'browse-season');
 }
 
 function createDefaultMetadata(title: string, year: number | undefined, tmdbId?: number): MediaMetadata {
@@ -58,7 +76,7 @@ async function fetchTmdbMetadata(
 	}
 
 	try {
-		const results = mediaType === 'tv' ? await searchTVShow(title, year) : await searchMovie(title, year);
+		const results = mediaType === 'show' ? await searchTVShow(title, year) : await searchMovie(title, year);
 
 		if (results.length === 0) {
 			return metadata;
@@ -71,7 +89,7 @@ async function fetchTmdbMetadata(
 		}
 
 		const details =
-			mediaType === 'tv' ? await getTVDetails(basicResult.tmdbId) : await getMovieDetails(basicResult.tmdbId);
+			mediaType === 'show' ? await getTVDetails(basicResult.tmdbId) : await getMovieDetails(basicResult.tmdbId);
 
 		return { ...metadata, ...details };
 	} catch (e) {
@@ -112,7 +130,7 @@ async function enrichBrowseMetadata(
 	// Fetch full details for fields the browse view doesn't provide
 	if (config.tmdb.apiKey) {
 		try {
-			const details = mediaType === 'tv' ? await getTVDetails(tmdbId) : await getMovieDetails(tmdbId);
+			const details = mediaType === 'show' ? await getTVDetails(tmdbId) : await getMovieDetails(tmdbId);
 			metadata.runtime = details.runtime ?? null;
 			metadata.originalLanguage = details.originalLanguage ?? null;
 			metadata.totalSeasons = details.totalSeasons ?? null;
@@ -163,11 +181,11 @@ function determineMediaType(providedType: MediaType | undefined, name: string, t
 	}
 	// Use raw name first as it contains more signals (e.g. S01)
 	if (name && isTVShowFilename(name)) {
-		return 'tv';
+		return 'show';
 	}
 	// Fallback to parsed title
 	if (title && isTVShowFilename(title)) {
-		return 'tv';
+		return 'show';
 	}
 	return 'movie';
 }
@@ -185,7 +203,7 @@ function findExistingMedia(infohash: string, organizationId: string, magnetLink:
 	// Check by infohash on media table
 	const existing = mediaDb.getByInfohash(infohash, organizationId);
 	if (existing) {
-		if (existing.status === 'added' || existing.status === 'downloading') {
+		if (existing.status === 'pending' || existing.status === 'searching' || existing.status === 'downloading') {
 			resumeIfNeeded(existing.id, magnetLink);
 		}
 		return json(existing, { status: 200 }) as unknown as Response;
@@ -234,8 +252,29 @@ async function resolveMetadata(
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const { userId, organizationId } = requireAuth(locals);
 
-	const body = await request.json();
-	const { magnetLink, type: providedType } = body;
+	const body = (await request.json()) as Record<string, unknown>;
+	if (isBrowseSeasonRequest(body)) {
+		if (!(body.tmdbId && body.seasonNumber !== undefined && body.title)) {
+			throw error(400, 'tmdbId, seasonNumber, and title are required');
+		}
+		const result = await addSeasonFromBrowse(
+			{ userId, organizationId },
+			{
+				tmdbId: body.tmdbId,
+				seasonNumber: body.seasonNumber,
+				title: body.title,
+				year: body.year,
+				posterUrl: body.posterUrl,
+				backdropUrl: body.backdropUrl,
+				overview: body.overview,
+				genres: body.genres,
+				certification: body.certification,
+			}
+		);
+		return json(result, { status: 202 });
+	}
+	const magnetLink = typeof body.magnetLink === 'string' ? body.magnetLink : null;
+	const providedType = body.type as MediaType | undefined;
 
 	if (!magnetLink?.startsWith('magnet:')) {
 		throw error(400, 'Invalid magnet link');
@@ -258,8 +297,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const metadata = await resolveMetadata(body, title, year, mediaType);
 
 	// For TV shows, check if we should merge into an existing show within this profile
-	if (mediaType === 'tv' && metadata.tmdbId) {
-		const existingShow = mediaDb.getByTmdbId(metadata.tmdbId, organizationId, 'tv');
+	if (mediaType === 'show' && metadata.tmdbId) {
+		const existingShow = mediaDb.getByTmdbId(metadata.tmdbId, organizationId, 'show');
 		if (existingShow) {
 			const download = downloadsDb.create({
 				mediaId: existingShow.id,

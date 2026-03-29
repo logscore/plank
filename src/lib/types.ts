@@ -1,37 +1,47 @@
-// Client-safe types (these match the Drizzle schema but don't import server modules)
+export type MediaType = 'movie' | 'show' | 'episode';
 
-export type MediaType = 'movie' | 'tv';
-export type MediaStatus = 'added' | 'downloading' | 'complete' | 'error';
-export type EpisodeStatus = 'pending' | 'downloading' | 'complete' | 'error';
+export type MediaStatus = 'pending' | 'searching' | 'downloading' | 'complete' | 'error' | 'not_found';
 
 export interface Media {
 	id: string;
 	userId: string;
+	organizationId: string | null;
 	type: MediaType;
 	title: string;
+	overview: string | null;
 	year: number | null;
+	tmdbId: number | null;
+	imdbId: string | null;
+	runtime: number | null;
+	originalLanguage: string | null;
+	addedAt: Date;
+	createdAt: Date;
 	posterUrl: string | null;
 	backdropUrl: string | null;
-	overview: string | null;
-	magnetLink: string;
-	infohash: string;
-	filePath: string | null;
-	fileSize: number | null;
+	genres: string | null;
+	certification: string | null;
+	totalSeasons: number | null;
+	parentId: string | null;
+	seasonId: string | null;
+	episodeNumber: number | null;
+	seasonNumber: number | null;
+	displayOrder: number | null;
+	stillPath: string | null;
+	airDate: string | null;
+	magnetLink: string | null;
+	infohash: string | null;
 	status: MediaStatus | null;
 	progress: number | null;
-	tmdbId: number | null;
-	runtime: number | null;
-	genres: string | null;
-	originalLanguage: string | null;
-	certification: string | null;
-	totalSeasons: number | null; // TV shows only
-	addedAt: Date;
-	lastPlayedAt: Date | null;
+	filePath: string | null;
+	fileSize: number | null;
+	fileIndex: number | null;
+	downloadedBytes: number | null;
 	playPosition: number | null;
 	playDuration: number | null;
+	lastPlayedAt: Date | null;
 }
 
-interface Season {
+export interface Season {
 	id: string;
 	mediaId: string;
 	seasonNumber: number;
@@ -41,51 +51,23 @@ interface Season {
 	airDate: string | null;
 	episodeCount: number | null;
 	createdAt: Date;
-	episodes?: Episode[];
 }
 
-export interface Episode {
-	id: string;
-	seasonId: string;
-	episodeNumber: number;
-	title: string | null;
-	overview: string | null;
-	stillPath: string | null;
-	runtime: number | null;
-	airDate: string | null;
-	fileIndex: number | null;
-	filePath: string | null;
-	fileSize: number | null;
-	downloadedBytes: number | null;
-	displayOrder: number;
-	status: EpisodeStatus | null;
-	playPosition: number | null;
-	playDuration: number | null;
-	createdAt: Date;
-}
-
-// API response types
-
-export interface SeasonWithEpisodes extends Season {
-	episodes: Episode[];
-}
-
-// Subtitle types
+export type SeasonWithEpisodes = Season & {
+	episodes: Media[];
+};
 
 export type SubtitleSource = 'sidecar' | 'embedded' | 'opensubtitles' | 'manual';
 
 export interface SubtitleTrack {
 	id: string;
 	mediaId: string;
-	episodeId: string | null;
 	language: string;
 	label: string;
 	source: SubtitleSource;
 	isDefault: boolean;
 	src: string;
 }
-
-// OpenSubtitles search result type
 
 export interface OpenSubtitleResult {
 	id: string;
@@ -110,6 +92,14 @@ export interface OpenSubtitleResult {
 	episodeNumber?: number;
 }
 
-// TMDB search result types
+export function isMovie(media: Media): media is Media & { type: 'movie' } {
+	return media.type === 'movie';
+}
 
-// Episode reorder request type
+export function isShow(media: Media): media is Media & { type: 'show' } {
+	return media.type === 'show';
+}
+
+export function isEpisode(media: Media): media is Media & { type: 'episode'; parentId: string; seasonId: string } {
+	return media.type === 'episode';
+}

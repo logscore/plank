@@ -1,7 +1,7 @@
-import sharp from 'sharp';
+import { Jimp, JimpMime } from 'jimp';
 import { imageStorage } from './storage';
 
-export const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
+export const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif'] as const;
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const OUTPUT_SIZE = 512;
@@ -10,19 +10,12 @@ const OUTPUT_QUALITY = 85;
 const MAGIC_BYTES: Record<string, number[]> = {
 	'image/jpeg': [0xff, 0xd8, 0xff],
 	'image/png': [0x89, 0x50, 0x4e, 0x47],
-	'image/webp': [0x52, 0x49, 0x46, 0x46],
 	'image/gif': [0x47, 0x49, 0x46, 0x38],
 };
 
 export function detectMimeType(buffer: Buffer): string | null {
 	for (const [mimeType, bytes] of Object.entries(MAGIC_BYTES)) {
 		if (bytes.every((byte, i) => buffer[i] === byte)) {
-			if (mimeType === 'image/webp') {
-				if (buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) {
-					return mimeType;
-				}
-				continue;
-			}
 			return mimeType;
 		}
 	}
@@ -41,7 +34,7 @@ export function validateImage(buffer: Buffer, declaredType: string | null): { va
 	if (!detectedType) {
 		return {
 			valid: false,
-			error: 'Invalid image format. Allowed: JPEG, PNG, WebP, GIF',
+			error: 'Invalid image format. Allowed: JPEG, PNG, GIF',
 		};
 	}
 
@@ -53,10 +46,9 @@ export function validateImage(buffer: Buffer, declaredType: string | null): { va
 }
 
 export async function processAndSave(buffer: Buffer, category: 'avatars' | 'logos', id: string): Promise<string> {
-	const processed = await sharp(buffer)
-		.resize(OUTPUT_SIZE, OUTPUT_SIZE, { fit: 'cover' })
-		.jpeg({ quality: OUTPUT_QUALITY })
-		.toBuffer();
+	const image = await Jimp.read(buffer);
+	image.cover({ w: OUTPUT_SIZE, h: OUTPUT_SIZE });
+	const processed = await image.getBuffer(JimpMime.jpeg, { quality: OUTPUT_QUALITY });
 
 	return imageStorage.save(category, id, 'image.jpg', processed);
 }
@@ -75,8 +67,12 @@ export async function replaceStoredImage(
 		return { error: validation.error ?? 'Invalid image' };
 	}
 
-	// Save new image first, then delete old one
-	const relativePath = await processAndSave(buffer, category, id);
+	let relativePath: string;
+	try {
+		relativePath = await processAndSave(buffer, category, id);
+	} catch {
+		return { error: 'Failed to process image. Allowed: JPEG, PNG, GIF' };
+	}
 
 	if (oldImagePath) {
 		try {

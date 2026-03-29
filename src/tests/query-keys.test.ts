@@ -10,7 +10,7 @@ describe('Query Keys', () => {
 		it('should generate list keys', () => {
 			expect(queryKeys.media.lists()).toEqual(['media', 'list']);
 			expect(queryKeys.media.list('movie')).toEqual(['media', 'list', 'movie']);
-			expect(queryKeys.media.list('tv')).toEqual(['media', 'list', 'tv']);
+			expect(queryKeys.media.list('show')).toEqual(['media', 'list', 'show']);
 			expect(queryKeys.media.list('all')).toEqual(['media', 'list', 'all']);
 		});
 
@@ -34,7 +34,7 @@ describe('Query Keys', () => {
 		});
 
 		it('should generate popular keys', () => {
-			expect(queryKeys.browse.popular('tv', 3)).toEqual(['browse', 'popular', 'tv', 3]);
+			expect(queryKeys.browse.popular('show', 3)).toEqual(['browse', 'popular', 'show', 3]);
 		});
 
 		it('should generate infinite keys', () => {

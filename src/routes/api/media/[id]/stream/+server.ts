@@ -2,7 +2,6 @@ import { createReadStream, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { error } from '@sveltejs/kit';
 import { requireMediaAccess } from '$lib/server/api-guard';
-import { episodesDb } from '$lib/server/db';
 import { createTransmuxStream, needsTransmux } from '$lib/server/ffmpeg';
 import {
 	getDownloadStatus,
@@ -13,7 +12,6 @@ import {
 } from '$lib/server/torrent';
 import type { RequestHandler } from './$types';
 
-// Regex patterns for stream handling
 const FILE_EXTENSION_REGEX = /\.[^.]+$/;
 const RANGE_BYTES_REGEX = /bytes=/;
 
@@ -30,32 +28,27 @@ function getMimeType(fileName: string): string {
 	return MIME_TYPES[path.extname(fileName).toLowerCase()] || 'application/octet-stream';
 }
 
-/** Silence expected abort errors when the client disconnects mid-stream */
 function silenceAbortErrors(stream: import('node:stream').Readable): ReadableStream {
-	stream.on('error', (err: NodeJS.ErrnoException) => {
-		if (err.code === 'ERR_STREAM_PREMATURE_CLOSE' || err.code === 'ABORT_ERR' || err.name === 'AbortError') {
+	stream.on('error', (errorValue: NodeJS.ErrnoException) => {
+		if (
+			errorValue.code === 'ERR_STREAM_PREMATURE_CLOSE' ||
+			errorValue.code === 'ABORT_ERR' ||
+			errorValue.name === 'AbortError'
+		) {
 			return;
 		}
-		console.error('[Stream] Unexpected stream error:', err);
+		console.error('[Stream] Unexpected stream error:', errorValue);
 	});
 	return stream as unknown as ReadableStream;
 }
 
-/** Resolve the on-disk library file path for a completed media item */
-function resolveLibraryFile(mediaItem: { type: string; filePath: string | null }, episodeId?: string): string | null {
-	if (mediaItem.type === 'movie' && mediaItem.filePath && existsSync(mediaItem.filePath)) {
-		return mediaItem.filePath;
+function resolveLibraryFile(mediaItem: { filePath: string | null }): string | null {
+	if (!(mediaItem.filePath && existsSync(mediaItem.filePath))) {
+		return null;
 	}
-	if (mediaItem.type === 'tv' && episodeId) {
-		const episode = episodesDb.getById(episodeId);
-		if (episode?.filePath && existsSync(episode.filePath)) {
-			return episode.filePath;
-		}
-	}
-	return null;
+	return mediaItem.filePath;
 }
 
-/** Check download status and throw appropriate error if failed */
 function checkDownloadError(mediaId: string): void {
 	const status = getDownloadStatus(mediaId);
 	if (status?.status === 'error') {
@@ -63,28 +56,22 @@ function checkDownloadError(mediaId: string): void {
 	}
 }
 
-/** Ensure media download is started and video is ready */
 async function ensureVideoReady(
 	mediaId: string,
-	magnetLink: string,
-	mediaStatus: string,
+	magnetLink: string | null,
+	mediaStatus: string | null,
 	fileIndex?: number
 ): Promise<Response | undefined> {
 	checkDownloadError(mediaId);
-
-	// Start download if needed
-	if (mediaStatus === 'added' && !isDownloadActive(mediaId)) {
+	if (mediaStatus === 'pending' && magnetLink && !isDownloadActive(mediaId)) {
 		try {
 			await startDownload(mediaId, magnetLink);
-		} catch (e) {
-			console.error('Failed to start download:', e);
+		} catch (errorValue) {
+			console.error('Failed to start download:', errorValue);
 			throw error(500, 'Failed to start download');
 		}
 	}
-
 	checkDownloadError(mediaId);
-
-	// Wait for video to be ready
 	const isReady = await waitForVideoReady(mediaId, fileIndex, 30_000);
 	if (!isReady) {
 		const status = getDownloadStatus(mediaId);
@@ -104,13 +91,11 @@ async function ensureVideoReady(
 	}
 }
 
-/** Handle transmuxed stream response (MKV, AVI -> MP4) */
 function createTransmuxResponse(inputStream: import('node:stream').Readable, fileName: string): Response {
 	const transmuxedStream = createTransmuxStream({
 		inputStream,
-		onError: (err: Error) => console.error('[Stream] Transmux error:', err),
+		onError: (errorValue: Error) => console.error('[Stream] Transmux error:', errorValue),
 	});
-
 	return new Response(silenceAbortErrors(transmuxedStream), {
 		status: 200,
 		headers: {
@@ -121,32 +106,26 @@ function createTransmuxResponse(inputStream: import('node:stream').Readable, fil
 	});
 }
 
-/** Handle range request for video streaming (torrent/download path) */
 async function handleRangeRequest(
 	mediaId: string,
 	range: string,
 	fileSize: number,
 	fileName: string,
-	mimeType: string,
-	episodeId?: string
+	mimeType: string
 ): Promise<Response> {
 	const parts = range.replace(RANGE_BYTES_REGEX, '').split('-');
 	const start = Number.parseInt(parts[0], 10);
 	const end = parts[1] ? Number.parseInt(parts[1], 10) : fileSize - 1;
-
 	if (Number.isNaN(start) || start < 0 || start >= fileSize) {
 		throw error(416, 'Requested range not satisfiable');
 	}
-
 	const clampedEnd = Math.min(end, fileSize - 1);
-	const rangedStreamInfo = await getVideoStream(mediaId, episodeId, start, clampedEnd);
-	if (!rangedStreamInfo) {
+	const streamInfo = await getVideoStream(mediaId, start, clampedEnd);
+	if (!streamInfo) {
 		throw error(500, 'Failed to create ranged stream');
 	}
-
 	const contentLength = clampedEnd - start + 1;
-
-	return new Response(silenceAbortErrors(rangedStreamInfo.stream), {
+	return new Response(silenceAbortErrors(streamInfo.stream), {
 		status: 206,
 		headers: {
 			'Content-Range': `bytes ${start}-${clampedEnd}/${fileSize}`,
@@ -154,33 +133,19 @@ async function handleRangeRequest(
 			'Content-Length': contentLength.toString(),
 			'Content-Type': mimeType,
 			'Content-Disposition': `inline; filename="${fileName}"`,
-			'Cache-Control': rangedStreamInfo.isComplete ? 'private, max-age=3600' : 'no-cache',
+			'Cache-Control': streamInfo.isComplete ? 'private, max-age=3600' : 'no-cache',
 		},
 	});
 }
 
-/** Resolve media item, episode, and file index from request params */
-function resolveMedia(params: { id: string }, locals: App.Locals, url: URL) {
+function resolveMedia(params: { id: string }, locals: App.Locals) {
 	const { mediaItem } = requireMediaAccess(locals, params.id);
-
-	const episodeId = url.searchParams.get('episodeId') ?? undefined;
-	let fileIndex: number | undefined;
-
-	if (mediaItem.type === 'tv') {
-		if (!episodeId) {
-			throw error(400, 'Episode ID required for TV shows');
-		}
-		const episode = episodesDb.getById(episodeId);
-		if (!episode) {
-			throw error(404, 'Episode not found');
-		}
-		fileIndex = episode.fileIndex ?? undefined;
+	if (mediaItem.type === 'show') {
+		throw error(400, 'Shows are not directly streamable');
 	}
-
-	return { mediaItem, episodeId, fileIndex };
+	return { mediaItem, fileIndex: mediaItem.fileIndex ?? undefined };
 }
 
-/** Serve a library file range request directly from disk */
 function serveLibraryRange(
 	filePath: string,
 	range: string,
@@ -191,14 +156,11 @@ function serveLibraryRange(
 	const parts = range.replace(RANGE_BYTES_REGEX, '').split('-');
 	const start = Number.parseInt(parts[0], 10);
 	const end = parts[1] ? Number.parseInt(parts[1], 10) : fileSize - 1;
-
 	if (Number.isNaN(start) || start < 0 || start >= fileSize) {
 		throw error(416, 'Requested range not satisfiable');
 	}
-
 	const clampedEnd = Math.min(end, fileSize - 1);
 	const contentLength = clampedEnd - start + 1;
-
 	return new Response(silenceAbortErrors(createReadStream(filePath, { start, end: clampedEnd })), {
 		status: 206,
 		headers: {
@@ -212,16 +174,13 @@ function serveLibraryRange(
 	});
 }
 
-export const HEAD: RequestHandler = async ({ params, locals, url }) => {
-	const { mediaItem, episodeId, fileIndex } = resolveMedia(params, locals, url);
-
-	// Fast path: file already in library — use stat, no stream needed
-	const libraryPath = resolveLibraryFile(mediaItem, episodeId);
+export const HEAD: RequestHandler = async ({ params, locals }) => {
+	const { mediaItem, fileIndex } = resolveMedia(params, locals);
+	const libraryPath = resolveLibraryFile(mediaItem);
 	if (libraryPath) {
 		const stats = statSync(libraryPath);
 		const fileName = path.basename(libraryPath);
 		const isTransmux = needsTransmux(fileName);
-
 		return new Response(null, {
 			status: 200,
 			headers: {
@@ -233,64 +192,42 @@ export const HEAD: RequestHandler = async ({ params, locals, url }) => {
 			},
 		});
 	}
-
-	// Slow path: file is still downloading
-	const readyResponse = await ensureVideoReady(
-		mediaItem.id,
-		mediaItem.magnetLink,
-		mediaItem.status ?? 'added',
-		fileIndex
-	);
-
+	const readyResponse = await ensureVideoReady(mediaItem.id, mediaItem.magnetLink, mediaItem.status, fileIndex);
 	if (readyResponse) {
 		return new Response(null, { status: readyResponse.status, headers: readyResponse.headers });
 	}
-
-	const streamInfo = await getVideoStream(params.id, episodeId);
+	const streamInfo = await getVideoStream(params.id);
 	if (!streamInfo) {
 		throw error(404, 'Video not available');
 	}
-
-	// Immediately destroy the stream — HEAD only needs metadata
 	streamInfo.stream.destroy();
-
-	const { fileSize, fileName, mimeType, isComplete } = streamInfo;
-	const contentType = needsTransmux(fileName) ? 'video/mp4' : mimeType;
-
+	const contentType = needsTransmux(streamInfo.fileName) ? 'video/mp4' : streamInfo.mimeType;
 	return new Response(null, {
 		status: 200,
 		headers: {
-			'Accept-Ranges': needsTransmux(fileName) ? 'none' : 'bytes',
-			'Content-Length': fileSize.toString(),
+			'Accept-Ranges': needsTransmux(streamInfo.fileName) ? 'none' : 'bytes',
+			'Content-Length': streamInfo.fileSize.toString(),
 			'Content-Type': contentType,
-			'Content-Disposition': `inline; filename="${fileName}"`,
-			'Cache-Control': isComplete ? 'private, max-age=3600' : 'no-cache',
+			'Content-Disposition': `inline; filename="${streamInfo.fileName}"`,
+			'Cache-Control': streamInfo.isComplete ? 'private, max-age=3600' : 'no-cache',
 		},
 	});
 };
 
-export const GET: RequestHandler = async ({ params, locals, request, url }) => {
-	const { mediaItem, episodeId, fileIndex } = resolveMedia(params, locals, url);
-
-	// Fast path: file already in library — serve directly from disk
-	const libraryPath = resolveLibraryFile(mediaItem, episodeId);
+export const GET: RequestHandler = async ({ params, locals, request }) => {
+	const { mediaItem, fileIndex } = resolveMedia(params, locals);
+	const libraryPath = resolveLibraryFile(mediaItem);
 	if (libraryPath) {
 		const fileName = path.basename(libraryPath);
-
-		// Transmux non-native formats (MKV, AVI, etc.)
 		if (needsTransmux(fileName)) {
 			return createTransmuxResponse(createReadStream(libraryPath), fileName);
 		}
-
-		// Native format (MP4, WebM) — serve with range support, single stream
 		const stats = statSync(libraryPath);
 		const mimeType = getMimeType(fileName);
 		const range = request.headers.get('range');
-
 		if (range) {
 			return serveLibraryRange(libraryPath, range, stats.size, fileName, mimeType);
 		}
-
 		return new Response(silenceAbortErrors(createReadStream(libraryPath)), {
 			status: 200,
 			headers: {
@@ -302,47 +239,30 @@ export const GET: RequestHandler = async ({ params, locals, request, url }) => {
 			},
 		});
 	}
-
-	// Slow path: file is still downloading — use torrent streaming
-	const readyResponse = await ensureVideoReady(
-		mediaItem.id,
-		mediaItem.magnetLink,
-		mediaItem.status ?? 'added',
-		fileIndex
-	);
-
+	const readyResponse = await ensureVideoReady(mediaItem.id, mediaItem.magnetLink, mediaItem.status, fileIndex);
 	if (readyResponse) {
 		return readyResponse;
 	}
-
-	const streamInfo = await getVideoStream(params.id, episodeId);
+	const streamInfo = await getVideoStream(params.id);
 	if (!streamInfo) {
 		throw error(404, 'Video not available');
 	}
-
-	const { fileSize, fileName, mimeType, stream, isComplete } = streamInfo;
-
-	// Handle transmuxing for non-native formats
-	if (needsTransmux(fileName)) {
-		return createTransmuxResponse(stream, fileName);
+	if (needsTransmux(streamInfo.fileName)) {
+		return createTransmuxResponse(streamInfo.stream, streamInfo.fileName);
 	}
-
-	// Handle range requests for native formats
 	const range = request.headers.get('range');
 	if (range) {
-		stream.destroy();
-		return handleRangeRequest(params.id, range, fileSize, fileName, mimeType, episodeId);
+		streamInfo.stream.destroy();
+		return handleRangeRequest(params.id, range, streamInfo.fileSize, streamInfo.fileName, streamInfo.mimeType);
 	}
-
-	// Full file response
-	return new Response(silenceAbortErrors(stream), {
+	return new Response(silenceAbortErrors(streamInfo.stream), {
 		status: 200,
 		headers: {
 			'Accept-Ranges': 'bytes',
-			'Content-Length': fileSize.toString(),
-			'Content-Type': mimeType,
-			'Content-Disposition': `inline; filename="${fileName}"`,
-			'Cache-Control': isComplete ? 'private, max-age=3600' : 'no-cache',
+			'Content-Length': streamInfo.fileSize.toString(),
+			'Content-Type': streamInfo.mimeType,
+			'Content-Disposition': `inline; filename="${streamInfo.fileName}"`,
+			'Cache-Control': streamInfo.isComplete ? 'private, max-age=3600' : 'no-cache',
 		},
 	});
 };

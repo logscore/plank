@@ -19,8 +19,8 @@
     }));
 
     const showsQuery = createQuery(() => ({
-        queryKey: queryKeys.media.list('tv'),
-        queryFn: () => fetchMediaList('tv'),
+        queryKey: queryKeys.media.list('show'),
+        queryFn: () => fetchMediaList('show'),
         staleTime: 2 * 60 * 1000, // 2 minutes
     }));
 
@@ -39,7 +39,7 @@
     const queryError = $derived(moviesQuery.error || showsQuery.error);
 
     // UI State
-    const activeTab = $derived((page.url.searchParams.get('type') as 'movies' | 'tv') || 'movies');
+    const activeTab = $derived((page.url.searchParams.get('type') as 'movies' | 'show') || 'movies');
 
     function deleteMedia(id: string, event: Event) {
         event.preventDefault();

@@ -3,25 +3,23 @@ export const queryKeys = {
 	media: {
 		all: ['media'] as const,
 		lists: () => [...queryKeys.media.all, 'list'] as const,
-		list: (type: 'movie' | 'tv' | 'all') => [...queryKeys.media.lists(), type] as const,
+		list: (type: 'movie' | 'show' | 'all') => [...queryKeys.media.lists(), type] as const,
 		detail: (id: string) => [...queryKeys.media.all, 'detail', id] as const,
 		search: (query: string) => [...queryKeys.media.all, 'search', query] as const,
 		continueWatching: () => [...queryKeys.media.all, 'continue-watching'] as const,
-		position: (id: string, episodeId?: string) =>
-			[...queryKeys.media.all, 'position', id, episodeId ?? 'movie'] as const,
-		subtitles: (id: string, episodeId?: string) =>
-			[...queryKeys.media.all, 'subtitles', id, episodeId ?? 'movie'] as const,
+		position: (id: string) => [...queryKeys.media.all, 'position', id] as const,
+		subtitles: (id: string) => [...queryKeys.media.all, 'subtitles', id] as const,
 		progress: (id: string) => [...queryKeys.media.all, 'progress', id] as const,
 	},
 
 	// Browse queries
 	browse: {
 		all: ['browse'] as const,
-		trending: (filter: 'all' | 'movie' | 'tv', page: number) =>
+		trending: (filter: 'all' | 'movie' | 'show', page: number) =>
 			[...queryKeys.browse.all, 'trending', filter, page] as const,
-		popular: (filter: 'all' | 'movie' | 'tv', page: number) =>
+		popular: (filter: 'all' | 'movie' | 'show', page: number) =>
 			[...queryKeys.browse.all, 'popular', filter, page] as const,
-		infinite: (type: 'trending' | 'popular', filter: 'all' | 'movie' | 'tv') =>
+		infinite: (type: 'trending' | 'popular', filter: 'all' | 'movie' | 'show') =>
 			[...queryKeys.browse.all, 'infinite', type, filter] as const,
 		details: (tmdbIds: number[]) => [...queryKeys.browse.all, 'details', ...tmdbIds.toSorted()] as const,
 		resolve: (tmdbId: number) => [...queryKeys.browse.all, 'resolve', tmdbId] as const,

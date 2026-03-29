@@ -23,9 +23,7 @@ vi.mock('$env/dynamic/private', () => ({
 
 // Mock the database module to use our test instance
 vi.mock('$lib/server/db/index', async () => {
-	const actual = await vi.importActual('$lib/server/db/index');
 	return {
-		...actual,
 		db: drizzle(testDb, { schema }),
 	};
 });
@@ -40,6 +38,7 @@ beforeAll(() => {
       email TEXT NOT NULL UNIQUE,
       email_verified INTEGER DEFAULT 0 NOT NULL,
       image TEXT,
+      role TEXT DEFAULT 'user' NOT NULL,
       created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
       updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
     );
@@ -52,6 +51,7 @@ beforeAll(() => {
       name TEXT NOT NULL,
       slug TEXT NOT NULL UNIQUE,
       logo TEXT,
+      color TEXT DEFAULT '#6366F1' NOT NULL,
       metadata TEXT,
       created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
       updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
@@ -132,7 +132,7 @@ beforeAll(() => {
     );
   `);
 
-	// Create media table (renamed from movies to support TV shows)
+	// Create unified media table
 	testDb.exec(`
     CREATE TABLE IF NOT EXISTS media (
       id TEXT PRIMARY KEY,
@@ -140,34 +140,48 @@ beforeAll(() => {
       organization_id TEXT REFERENCES organization(id) ON DELETE SET NULL,
       type TEXT DEFAULT 'movie' NOT NULL,
       title TEXT NOT NULL,
+      overview TEXT,
       year INTEGER,
+      tmdb_id INTEGER,
+      imdb_id TEXT,
+      runtime INTEGER,
+      original_language TEXT,
+      added_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
       poster_url TEXT,
       backdrop_url TEXT,
-      overview TEXT,
-      magnet_link TEXT NOT NULL,
-      infohash TEXT NOT NULL,
-      file_path TEXT,
-      file_size INTEGER,
-      status TEXT DEFAULT 'added',
-      progress REAL DEFAULT 0,
-      tmdb_id INTEGER,
-      runtime INTEGER,
       genres TEXT,
-      original_language TEXT,
       certification TEXT,
       total_seasons INTEGER,
-      added_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+      parent_id TEXT REFERENCES media(id) ON DELETE CASCADE,
+      season_id TEXT REFERENCES seasons(id) ON DELETE CASCADE,
+      episode_number INTEGER,
+      season_number INTEGER,
+      display_order INTEGER,
+      still_path TEXT,
+      air_date TEXT,
+      magnet_link TEXT,
+      infohash TEXT,
+      status TEXT DEFAULT 'pending',
+      progress REAL DEFAULT 0,
+      file_path TEXT,
+      file_size INTEGER,
+      file_index INTEGER,
+      downloaded_bytes INTEGER DEFAULT 0,
       last_played_at INTEGER,
-      UNIQUE(user_id, infohash)
+      play_position REAL DEFAULT 0,
+      play_duration REAL,
+      UNIQUE(organization_id, infohash)
     );
   `);
 
 	// Create indexes for media table
 	testDb.exec(`
     CREATE INDEX IF NOT EXISTS idx_media_user ON media(user_id);
-    CREATE INDEX IF NOT EXISTS idx_media_status ON media(status);
-    CREATE INDEX IF NOT EXISTS idx_media_type ON media(user_id, type);
+    CREATE INDEX IF NOT EXISTS idx_media_status ON media(status) WHERE status IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_media_type ON media(organization_id, type);
     CREATE INDEX IF NOT EXISTS idx_media_organization ON media(organization_id);
+    CREATE INDEX IF NOT EXISTS idx_media_episodes ON media(parent_id, season_id, display_order) WHERE type = 'episode';
   `);
 
 	// Create seasons table for TV shows
@@ -187,33 +201,6 @@ beforeAll(() => {
     CREATE INDEX IF NOT EXISTS idx_seasons_media ON seasons(media_id);
   `);
 
-	// Create episodes table for TV shows
-	testDb.exec(`
-    CREATE TABLE IF NOT EXISTS episodes (
-      id TEXT PRIMARY KEY,
-      season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
-      download_id TEXT,
-      episode_number INTEGER NOT NULL,
-      title TEXT,
-      overview TEXT,
-      still_path TEXT,
-      runtime INTEGER,
-      air_date TEXT,
-      file_index INTEGER,
-      file_path TEXT,
-      file_size INTEGER,
-      downloaded_bytes INTEGER DEFAULT 0,
-      display_order INTEGER NOT NULL,
-      status TEXT DEFAULT 'pending',
-      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-      UNIQUE(season_id, episode_number)
-    );
-    CREATE INDEX IF NOT EXISTS idx_episodes_season ON episodes(season_id);
-    CREATE INDEX IF NOT EXISTS idx_episodes_download ON episodes(download_id);
-    CREATE INDEX IF NOT EXISTS idx_episodes_status ON episodes(status);
-    CREATE INDEX IF NOT EXISTS idx_episodes_display_order ON episodes(season_id, display_order);
-  `);
-
 	// Create downloads table for tracking multiple torrents per media
 	testDb.exec(`
     CREATE TABLE IF NOT EXISTS downloads (
@@ -228,6 +215,41 @@ beforeAll(() => {
     );
     CREATE INDEX IF NOT EXISTS idx_downloads_media ON downloads(media_id);
     CREATE INDEX IF NOT EXISTS idx_downloads_status ON downloads(status);
+  `);
+
+	// Create configuration table
+	testDb.exec(`
+    CREATE TABLE IF NOT EXISTS configuration (
+      id TEXT PRIMARY KEY,
+      tmdb_api_key TEXT,
+      tmdb_language TEXT DEFAULT 'en-US',
+      prowlarr_url TEXT,
+      prowlarr_api_key TEXT,
+      prowlarr_trusted_groups TEXT,
+      prowlarr_min_seeders INTEGER DEFAULT 5,
+      opensubtitles_api_key TEXT,
+      opensubtitles_username TEXT,
+      opensubtitles_password TEXT,
+      updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
+    );
+  `);
+
+	// Create subtitles table
+	testDb.exec(`
+    CREATE TABLE IF NOT EXISTS subtitles (
+      id TEXT PRIMARY KEY,
+      media_id TEXT NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+      language TEXT NOT NULL,
+      label TEXT NOT NULL,
+      source TEXT NOT NULL,
+      format TEXT DEFAULT 'vtt',
+      file_path TEXT,
+      stream_index INTEGER,
+      is_default INTEGER DEFAULT 0,
+      is_forced INTEGER DEFAULT 0,
+      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_subtitles_media ON subtitles(media_id);
   `);
 
 	// Create standalone FTS table for tests (simpler than content table)
@@ -254,9 +276,10 @@ beforeAll(() => {
 
 // Clean tables before each test
 beforeEach(() => {
-	testDb.exec('DELETE FROM episodes');
+	testDb.exec('DELETE FROM subtitles');
 	testDb.exec('DELETE FROM seasons');
 	testDb.exec('DELETE FROM downloads');
+	testDb.exec('DELETE FROM configuration');
 	testDb.exec('DELETE FROM media');
 	testDb.exec('DELETE FROM media_fts');
 	testDb.exec('DELETE FROM invitation');
@@ -266,6 +289,7 @@ beforeEach(() => {
 	testDb.exec('DELETE FROM verification');
 	testDb.exec('DELETE FROM organization');
 	testDb.exec('DELETE FROM user');
+	testDb.exec("INSERT INTO configuration (id, tmdb_language, prowlarr_min_seeders) VALUES ('default', 'en-US', 5)");
 });
 
 afterAll(() => {

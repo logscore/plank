@@ -20,7 +20,7 @@ function buildProgressData(mediaId: string, organizationId?: string) {
 	const currentMedia = organizationId ? mediaDb.get(mediaId, organizationId) : mediaDb.getById(mediaId);
 
 	return {
-		status: downloadStatus?.status ?? currentMedia?.status ?? 'added',
+		status: downloadStatus?.status ?? currentMedia?.status ?? 'pending',
 		progress: downloadStatus?.progress ?? currentMedia?.progress ?? 0,
 		downloadSpeed: downloadStatus?.downloadSpeed ?? 0,
 		uploadSpeed: downloadStatus?.uploadSpeed ?? 0,

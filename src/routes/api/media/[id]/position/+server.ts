@@ -1,40 +1,15 @@
 import { error, json } from '@sveltejs/kit';
-import { requireAuth } from '$lib/server/api-guard';
-import { episodesDb, mediaDb } from '$lib/server/db';
+import { requireMediaAccess } from '$lib/server/api-guard';
+import { mediaDb } from '$lib/server/db';
 import type { RequestHandler } from './$types';
 
-function savePosition(
-	mediaId: string,
-	position: number,
-	duration: number | undefined,
-	episodeId: string | undefined
-): void {
-	if (episodeId) {
-		episodesDb.updatePlayPosition(episodeId, position, duration);
-	} else {
-		mediaDb.updatePlayPosition(mediaId, position, duration);
-	}
+function savePosition(mediaId: string, position: number, duration?: number): void {
+	mediaDb.updatePlayPosition(mediaId, position, duration);
 	mediaDb.updateLastPlayed(mediaId);
 }
 
-export const GET: RequestHandler = async ({ params, locals, url }) => {
-	const { organizationId } = requireAuth(locals);
-
-	const episodeId = url.searchParams.get('episodeId');
-
-	if (episodeId) {
-		const episode = episodesDb.getById(episodeId);
-		return json({
-			position: episode?.playPosition ?? 0,
-			duration: episode?.playDuration ?? null,
-		});
-	}
-
-	const mediaItem = mediaDb.get(params.id, organizationId);
-	if (!mediaItem) {
-		throw error(404, 'Media not found');
-	}
-
+export const GET: RequestHandler = async ({ params, locals }) => {
+	const { mediaItem } = requireMediaAccess(locals, params.id);
 	return json({
 		position: mediaItem.playPosition ?? 0,
 		duration: mediaItem.playDuration ?? null,
@@ -42,55 +17,33 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 };
 
 export const PUT: RequestHandler = async ({ params, locals, request }) => {
-	const { organizationId } = requireAuth(locals);
-
-	const { position, duration, episodeId } = await request.json();
-
+	requireMediaAccess(locals, params.id);
+	const { position, duration } = (await request.json()) as { position: number; duration?: number };
 	if (typeof position !== 'number' || position < 0) {
 		throw error(400, 'Invalid position');
 	}
-
-	const mediaItem = mediaDb.get(params.id, organizationId);
-	if (!mediaItem) {
-		throw error(404, 'Media not found');
-	}
-
-	savePosition(params.id, position, duration, episodeId);
-
+	savePosition(params.id, position, duration);
 	return new Response(null, { status: 204 });
 };
 
-/** POST handler for navigator.sendBeacon (sends text/plain) */
 export const POST: RequestHandler = async ({ params, locals, request }) => {
 	if (!locals.user) {
 		return new Response(null, { status: 401 });
 	}
-
-	const organizationId = locals.session?.activeOrganizationId;
-	if (!organizationId) {
+	if (!locals.session?.activeOrganizationId) {
 		return new Response(null, { status: 400 });
 	}
-
 	const contentType = request.headers.get('content-type') ?? '';
-	let body: { position: number; duration?: number; episodeId?: string };
-
-	if (contentType.includes('text/plain')) {
-		body = JSON.parse(await request.text());
-	} else {
-		body = await request.json();
-	}
-
-	const { position, duration, episodeId } = body;
-	if (typeof position !== 'number' || position < 0) {
+	const body = contentType.includes('text/plain')
+		? (JSON.parse(await request.text()) as { position: number; duration?: number })
+		: ((await request.json()) as { position: number; duration?: number });
+	if (typeof body.position !== 'number' || body.position < 0) {
 		return new Response(null, { status: 400 });
 	}
-
-	const mediaItem = mediaDb.get(params.id, organizationId);
+	const mediaItem = mediaDb.get(params.id, locals.session.activeOrganizationId);
 	if (!mediaItem) {
 		return new Response(null, { status: 404 });
 	}
-
-	savePosition(params.id, position, duration, episodeId);
-
+	savePosition(params.id, body.position, body.duration);
 	return new Response(null, { status: 204 });
 };

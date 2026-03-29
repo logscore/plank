@@ -6,24 +6,14 @@ import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ params, locals, request }) => {
 	requireMediaAccess(locals, params.id);
-
-	const body = await request.json();
-	const { fileId, language, episodeId } = body as {
-		fileId: number;
-		language: string;
-		episodeId?: string;
-	};
-
+	const { fileId, language } = (await request.json()) as { fileId: number; language: string };
 	if (!(fileId && language)) {
 		throw error(400, 'fileId and language are required');
 	}
-
 	try {
 		const { filePath, fileName } = await downloadSubtitle(fileId, params.id);
-
 		const subtitle = subtitlesDb.create({
 			mediaId: params.id,
-			episodeId: episodeId ?? null,
 			language: getIso2Code(language),
 			label: getLanguageName(language),
 			source: 'opensubtitles',
@@ -33,11 +23,9 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 			isDefault: false,
 			isForced: false,
 		});
-
 		return json({
 			id: subtitle.id,
 			mediaId: subtitle.mediaId,
-			episodeId: subtitle.episodeId,
 			language: subtitle.language,
 			label: subtitle.label,
 			source: subtitle.source,
@@ -46,8 +34,8 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 			src: `/api/media/${params.id}/subtitles/${subtitle.id}`,
 			fileName,
 		});
-	} catch (err) {
-		const message = err instanceof Error ? err.message : 'Download failed';
+	} catch (errorValue) {
+		const message = errorValue instanceof Error ? errorValue.message : 'Download failed';
 		throw error(500, message);
 	}
 };

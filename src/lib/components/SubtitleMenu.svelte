@@ -7,13 +7,11 @@
 
     let {
         mediaId,
-        episodeId,
         onAddSubtitles,
         buttonClass = '',
         compact = false,
     }: {
         mediaId: string;
-        episodeId?: string;
         onAddSubtitles: () => void;
         buttonClass?: string;
         compact?: boolean;
@@ -22,7 +20,7 @@
     let isOpen = $state(false);
     let menuRef = $state<HTMLDivElement | null>(null);
 
-    let subtitlesQuery = $derived(createSubtitleTracksQuery(mediaId, episodeId));
+    let subtitlesQuery = $derived(createSubtitleTracksQuery(mediaId));
     let tracks = $derived(subtitlesQuery.data ?? []);
 
     const setDefaultMutation = createSetDefaultSubtitleMutation();
@@ -43,7 +41,6 @@
             mediaId,
             subtitleId: track.id,
             isDefault: !track.isDefault,
-            episodeId,
         });
     }
 
@@ -51,7 +48,6 @@
         deleteMutation.mutate({
             mediaId,
             subtitleId: track.id,
-            episodeId,
         });
     }
 

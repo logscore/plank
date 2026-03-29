@@ -26,7 +26,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			where: and(
 				eq(media.organizationId, organizationId),
 				like(media.title, `%${query}%`),
-				type ? eq(media.type, type as 'movie' | 'tv') : undefined
+				type ? eq(media.type, type as 'movie' | 'show') : undefined
 			),
 			orderBy: (media, { desc }) => [desc(media.addedAt)],
 		});

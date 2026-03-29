@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ArrowLeft, Calendar, Check, Copy, Database, Film, Folder, Play, Trash2 } from '@lucide/svelte';
+    import { ArrowLeft, Calendar, Database, Film, Play, RotateCcw, Trash2 } from '@lucide/svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
@@ -7,7 +7,7 @@
     import OpenSubtitlesDialog from '$lib/components/OpenSubtitlesDialog.svelte';
     import SubtitleMenu from '$lib/components/SubtitleMenu.svelte';
     import Button from '$lib/components/ui/Button.svelte';
-    import type { Episode, Media, SeasonWithEpisodes } from '$lib/types';
+    import type { Media, SeasonWithEpisodes } from '$lib/types';
     import { confirmDelete, uiState } from '$lib/ui-state.svelte';
 
     let media: Media | null = $state(null);
@@ -15,33 +15,26 @@
     let loading = $state(true);
     let selectedSeason = $state<number | null>(null);
     let deleting = $state(false);
-    let copied = $state(false);
-
+    let retryingEpisodeIds = $state<Set<string>>(new Set());
     // OpenSubtitles dialog state
     let openSubtitlesDialogOpen = $state(false);
-    let subtitleDialogEpisodeId = $state<string | undefined>(undefined);
+    let subtitleDialogMediaId = $state<string | undefined>(undefined);
     let subtitleDialogSeasonNumber = $state<number | undefined>(undefined);
     let subtitleDialogEpisodeNumber = $state<number | undefined>(undefined);
     let subtitleDialogTitle = $state('');
 
-    function openSubtitlesForEpisode(episode: Episode) {
-        subtitleDialogEpisodeId = episode.id;
+    function openSubtitlesForEpisode(episode: Media) {
+        subtitleDialogMediaId = episode.id;
         subtitleDialogSeasonNumber = currentSeason?.seasonNumber;
         subtitleDialogEpisodeNumber = episode.episodeNumber;
         subtitleDialogTitle = `${media?.title} - S${String(currentSeason?.seasonNumber ?? 0).padStart(2, '0')}E${String(episode.episodeNumber).padStart(2, '0')}`;
         openSubtitlesDialogOpen = true;
     }
 
-    function openSubtitlesForShow() {
-        subtitleDialogEpisodeId = undefined;
-        subtitleDialogSeasonNumber = undefined;
-        subtitleDialogEpisodeNumber = undefined;
-        subtitleDialogTitle = media?.title ?? '';
-        openSubtitlesDialogOpen = true;
-    }
-
-    async function loadShow() {
-        loading = true;
+    async function loadShow(showSpinner = true) {
+        if (showSpinner) {
+            loading = true;
+        }
         try {
             const [mediaRes, seasonsRes] = await Promise.all([
                 fetch(`/api/media/${page.params.id}`),
@@ -60,13 +53,81 @@
         } catch (e) {
             console.error('Failed to load show:', e);
         } finally {
-            loading = false;
+            if (showSpinner) {
+                loading = false;
+            }
         }
     }
 
-    function handlePlayEpisode(episodeId: string, episode: Episode) {
-        if (episode.fileIndex !== null) {
-            goto(`/watch/${page.params.id}?episodeId=${episodeId}`);
+    function handlePlayEpisode(episode: Media) {
+        if (canPlayEpisode(episode)) {
+            goto(`/watch/${episode.id}`);
+        }
+    }
+
+    function canPlayEpisode(episode: Media): boolean {
+        return Boolean(
+            episode.filePath ||
+                episode.fileIndex !== null ||
+                episode.status === 'complete' ||
+                episode.status === 'downloading'
+        );
+    }
+
+    function getEpisodeStatusLabel(episode: Media): string {
+        if (episode.status === 'complete' || episode.filePath) {
+            return 'Downloaded';
+        }
+        if (episode.status === 'searching') {
+            return 'Searching';
+        }
+        if (episode.status === 'downloading') {
+            return 'Downloading';
+        }
+        if (episode.status === 'not_found') {
+            return 'Not Found';
+        }
+        if (episode.status === 'error') {
+            return 'Error';
+        }
+        return 'Pending';
+    }
+
+    function getEpisodeStatusClass(episode: Media): string {
+        if (episode.status === 'complete' || episode.filePath) {
+            return 'bg-emerald-500/20 text-emerald-300';
+        }
+        if (episode.status === 'downloading') {
+            return 'bg-blue-500/20 text-blue-300';
+        }
+        if (episode.status === 'searching') {
+            return 'bg-amber-500/20 text-amber-300';
+        }
+        if (episode.status === 'not_found' || episode.status === 'error') {
+            return 'bg-red-500/20 text-red-300';
+        }
+        return 'bg-muted text-muted-foreground';
+    }
+
+    async function handleRetryEpisode(episode: Media) {
+        if (retryingEpisodeIds.has(episode.id)) {
+            return;
+        }
+        retryingEpisodeIds = new Set(retryingEpisodeIds).add(episode.id);
+        try {
+            const response = await fetch(`/api/media/${episode.id}/retry`, {
+                method: 'POST',
+            });
+            if (!response.ok) {
+                throw new Error('Retry failed');
+            }
+            await loadShow(false);
+        } catch (e) {
+            console.error('Failed to retry episode:', e);
+        } finally {
+            const updated = new Set(retryingEpisodeIds);
+            updated.delete(episode.id);
+            retryingEpisodeIds = updated;
         }
     }
 
@@ -105,21 +166,6 @@
             return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
         }
         return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
-    }
-
-    async function copyFilePath() {
-        if (!media?.filePath) {
-            return;
-        }
-        try {
-            await navigator.clipboard.writeText(media.filePath);
-            copied = true;
-            setTimeout(() => {
-                copied = false;
-            }, 2000);
-        } catch (err) {
-            console.error('Failed to copy text: ', err);
-        }
     }
 
     async function handleDelete() {
@@ -184,11 +230,50 @@
     }
 
     const currentSeason = $derived(seasons.find((s) => s.seasonNumber === selectedSeason));
+    const allEpisodes = $derived(seasons.flatMap((season) => season.episodes));
+    const downloadedEpisodeCount = $derived(
+        allEpisodes.filter((episode) => episode.status === 'complete' || episode.filePath).length
+    );
+    const totalEpisodeSize = $derived(allEpisodes.reduce((sum, episode) => sum + (episode.fileSize ?? 0), 0));
+    const showStatus = $derived.by(() => {
+        if (allEpisodes.length === 0) {
+            return 'pending';
+        }
+        if (allEpisodes.every((episode) => episode.status === 'complete' || episode.filePath)) {
+            return 'complete';
+        }
+        if (allEpisodes.some((episode) => episode.status === 'downloading' || episode.status === 'searching')) {
+            return 'downloading';
+        }
+        if (allEpisodes.some((episode) => episode.status === 'error' || episode.status === 'not_found')) {
+            return 'error';
+        }
+        return 'pending';
+    });
 
     $effect(() => {
         loadShow();
     });
+
+    $effect(() => {
+        const hasActiveEpisodes = allEpisodes.some(
+            (episode) => episode.status === 'searching' || episode.status === 'downloading'
+        );
+        if (!hasActiveEpisodes) {
+            return;
+        }
+        const interval = window.setInterval(() => {
+            loadShow(false);
+        }, 5000);
+        return () => {
+            window.clearInterval(interval);
+        };
+    });
 </script>
+
+<svelte:head>
+    <title>{media?.title ?? 'Show'} | Plank</title>
+</svelte:head>
 
 {#if loading}
     <div class="flex items-center justify-center min-h-screen">
@@ -294,7 +379,6 @@
                     <!-- Action Buttons -->
                     <div class="flex items-center gap-3 pt-4">
                         <EpisodeSelector {seasons} onPlayEpisode={handlePlayEpisode} />
-                        <SubtitleMenu mediaId={media.id} onAddSubtitles={openSubtitlesForShow} />
                         <Button
                             variant="ghost"
                             size="lg"
@@ -366,13 +450,11 @@
                                                 <Play class="w-8 h-8" />
                                             </div>
                                         {/if}
-                                        {#if episode.status === "complete" || episode.fileIndex !== null}
-                                            <div
-                                                class="absolute bottom-1 right-1 bg-black/70 px-1.5 rounded text-[10px] text-white"
-                                            >
-                                                Downloaded
-                                            </div>
-                                        {/if}
+                                        <div
+                                            class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] {getEpisodeStatusClass(episode)}"
+                                        >
+                                            {getEpisodeStatusLabel(episode)}
+                                        </div>
                                     </div>
 
                                     <!-- Episode Info -->
@@ -414,23 +496,31 @@
                                             {/if}
 
                                             <div class="flex items-center gap-1 shrink-0 ml-auto">
+                                                {#if episode.status === 'error' || episode.status === 'not_found'}
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        disabled={retryingEpisodeIds.has(episode.id)}
+                                                        onclick={() => handleRetryEpisode(episode)}
+                                                    >
+                                                        <RotateCcw class="w-4 h-4 mr-1" />
+                                                        {retryingEpisodeIds.has(episode.id)
+                                                            ? 'Retrying'
+                                                            : 'Retry'}
+                                                    </Button>
+                                                {/if}
                                                 {#if media}
                                                     <SubtitleMenu
-                                                        mediaId={media.id}
-                                                        episodeId={episode.id}
+                                                        mediaId={episode.id}
                                                         onAddSubtitles={() => openSubtitlesForEpisode(episode)}
                                                         compact
                                                     />
                                                 {/if}
                                                 <Button
                                                     size="sm"
-                                                    disabled={episode.fileIndex ===
-                                                        null}
+                                                    disabled={!canPlayEpisode(episode)}
                                                     onclick={() =>
-                                                        handlePlayEpisode(
-                                                            episode.id,
-                                                            episode,
-                                                        )}
+                                                        handlePlayEpisode(episode)}
                                                 >
                                                     <Play class="w-4 h-4 mr-1 fill-current" />
                                                     Play
@@ -466,49 +556,28 @@
                 <div class="space-y-3 text-sm">
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">Status</span>
-                        <span class="capitalize font-medium text-muted-foreground">{media.status || "Unknown"}</span>
+                        <span class="capitalize font-medium text-muted-foreground">{showStatus}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-muted-foreground">Total Size</span>
-                        <span class="font-medium">{formatFileSize(media.fileSize)}</span>
+                        <span class="text-muted-foreground">Episodes Downloaded</span>
+                        <span class="font-medium">{downloadedEpisodeCount} / {allEpisodes.length}</span>
                     </div>
                 </div>
             </div>
 
             <div class="bg-card border border-border rounded-lg p-6 space-y-4">
                 <h3 class="text-lg font-semibold flex items-center gap-2">
-                    <Folder class="w-5 h-5 text-primary" />
-                    Storage
+                    <Database class="w-5 h-5 text-primary" />
+                    Library Footprint
                 </h3>
                 <div class="space-y-3 text-sm">
-                    <div>
-                        <span class="text-muted-foreground block mb-1">File Path</span>
-                        <div class="flex items-center gap-2 relative overflow-hidden group">
-                            <div class="relative flex-1 overflow-hidden">
-                                <code
-                                    class="text-xs bg-accent px-2 py-1 rounded whitespace-nowrap overflow-x-auto block w-full no-scrollbar pr-6"
-                                >
-                                    {media.filePath || "Not yet downloaded"}
-                                </code>
-                                <div
-                                    class="absolute top-0 right-0 bottom-0 w-8 bg-linear-to-l from-accent to-transparent pointer-events-none"
-                                ></div>
-                            </div>
-                            {#if media.filePath}
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    class="h-6 w-6 shrink-0 bg-background/50 backdrop-blur-sm"
-                                    onclick={copyFilePath}
-                                >
-                                    {#if copied}
-                                        <Check class="h-3 w-3 text-green-500" />
-                                    {:else}
-                                        <Copy class="h-3 w-3" />
-                                    {/if}
-                                </Button>
-                            {/if}
-                        </div>
+                    <div class="flex justify-between">
+                        <span class="text-muted-foreground">Downloaded Size</span>
+                        <span class="font-medium">{formatFileSize(totalEpisodeSize)}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-muted-foreground">Current Season</span>
+                        <span class="font-medium">{currentSeason?.name || `Season ${selectedSeason ?? 1}`}</span>
                     </div>
                 </div>
             </div>
@@ -563,9 +632,8 @@
 
     <OpenSubtitlesDialog
         bind:open={openSubtitlesDialogOpen}
-        mediaId={media.id}
+        mediaId={subtitleDialogMediaId ?? media.id}
         mediaTitle={subtitleDialogTitle}
-        episodeId={subtitleDialogEpisodeId}
         seasonNumber={subtitleDialogSeasonNumber}
         episodeNumber={subtitleDialogEpisodeNumber}
     />

@@ -55,7 +55,7 @@
             indexers: ['Nyaa.si', 'AnimeTosho', 'AniDex'],
         },
         {
-            id: 'tv',
+            id: 'show',
             name: 'TV Show Specialists',
             description: 'TV Series (EZTV, TorrentGalaxy, TorLock)',
             icon: '📺',
@@ -305,12 +305,7 @@
                         >
                             <option value="">Select an indexer to add...</option>
                             {#each sortedSchemas as schema}
-                                <option value={schema.name}>
-                                    {schema.name} (
-                                    {schema.protocol ||
-                                        "torrent"}
-                                    )
-                                </option>
+                                <option value={schema.name}>{schema.name} ({schema.protocol || "torrent"})</option>
                             {/each}
                         </select>
                         <Button

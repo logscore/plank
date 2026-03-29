@@ -1,7 +1,7 @@
 <script lang="ts">
     import { ChevronDown, ChevronRight, Play } from '@lucide/svelte';
     import Button from '$lib/components/ui/Button.svelte';
-    import type { Episode, SeasonWithEpisodes } from '$lib/types';
+    import type { Media, SeasonWithEpisodes } from '$lib/types';
 
     let {
         seasons,
@@ -12,7 +12,7 @@
         class: className = '',
     }: {
         seasons: SeasonWithEpisodes[];
-        onPlayEpisode: (episodeId: string, episode: Episode) => void;
+        onPlayEpisode: (episode: Media) => void;
         onOpen?: () => Promise<void>;
         buttonSize?: 'default' | 'sm' | 'lg' | 'icon';
         buttonClass?: string;
@@ -46,10 +46,38 @@
         selectedSeasonIndex = selectedSeasonIndex === index ? null : index;
     }
 
-    function playEpisode(episode: Episode) {
+    function playEpisode(episode: Media) {
         isOpen = false;
         selectedSeasonIndex = null;
-        onPlayEpisode(episode.id, episode);
+        onPlayEpisode(episode);
+    }
+
+    function canPlayEpisode(episode: Media): boolean {
+        return Boolean(
+            episode.filePath ||
+                episode.fileIndex !== null ||
+                episode.status === 'complete' ||
+                episode.status === 'downloading'
+        );
+    }
+
+    function getEpisodeStatusLabel(episode: Media): string | null {
+        if (episode.status === 'searching') {
+            return 'Searching';
+        }
+        if (episode.status === 'downloading') {
+            return 'Downloading';
+        }
+        if (episode.status === 'not_found') {
+            return 'Not found';
+        }
+        if (episode.status === 'error') {
+            return 'Retry needed';
+        }
+        if (!canPlayEpisode(episode)) {
+            return 'Not available';
+        }
+        return null;
     }
 
     function handleClickOutside(event: MouseEvent) {
@@ -132,7 +160,7 @@
                                     <button
                                         class="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition-colors text-left group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                                         onclick={() => playEpisode(episode)}
-                                        disabled={episode.fileIndex === null}
+                                        disabled={!canPlayEpisode(episode)}
                                     >
                                         <!-- Episode Number -->
                                         <div
@@ -156,8 +184,10 @@
                                                     </span>
                                                 {/if}
                                             </div>
-                                            {#if episode.fileIndex === null}
-                                                <span class="text-xs text-yellow-500">Not available</span>
+                                            {#if getEpisodeStatusLabel(episode)}
+                                                <span class="text-xs text-yellow-500"
+                                                    >{getEpisodeStatusLabel(episode)}</span
+                                                >
                                             {/if}
                                         </div>
 

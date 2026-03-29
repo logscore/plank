@@ -32,9 +32,9 @@
             // Check if this was a season addition to an existing show
             // Note: result type might not imply _seasonAdded directly if strictly typed, but we use it in +page.svelte
             if (result._seasonAdded) {
-                goto('?type=tv', { replaceState: true, noScroll: true });
-            } else if (result.type === 'tv') {
-                goto('?type=tv', { replaceState: true, noScroll: true });
+                goto('?type=shows', { replaceState: true, noScroll: true });
+            } else if (result.type === 'show') {
+                goto('?type=shows', { replaceState: true, noScroll: true });
             } else {
                 goto('?type=movies', { replaceState: true, noScroll: true });
             }
@@ -80,9 +80,9 @@
                 Movie
             </Button>
             <Button
-                variant={selectedType === "tv" ? "default" : "ghost"}
+                variant={selectedType === "show" ? "default" : "ghost"}
                 size="sm"
-                onclick={() => (selectedType = "tv")}
+                onclick={() => (selectedType = "show")}
             >
                 <Tv class="w-3 h-3 mr-1" />
                 TV Show

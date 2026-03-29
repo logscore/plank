@@ -12,7 +12,7 @@ import type { RequestHandler } from './$types';
 
 interface DetailRequest {
 	tmdbId: number;
-	mediaType: 'movie' | 'tv';
+	mediaType: 'movie' | 'show';
 }
 
 interface DetailResult {

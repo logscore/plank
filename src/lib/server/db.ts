@@ -1,24 +1,10 @@
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
-
-// Takes an object, removes any key whose value is undefined and returns the object
-//
-// Input:
-//    { title: 'Breaking Bad', year: undefined, overview: 'A chemistry teacher...' }
-// Output:
-//    { title: 'Breaking Bad', overview: 'A chemistry teacher...' }
-function removeUndefinedFromObject<T extends Record<string, unknown>>(obj: T): Partial<T> {
-	return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>;
-}
-
 import {
 	type Download,
 	downloads as downloadsTable,
-	type Episode,
-	episodes as episodesTable,
 	type Media,
 	media as mediaTable,
 	type NewDownload,
-	type NewEpisode,
 	type NewMedia,
 	type NewSeason,
 	type NewSubtitle,
@@ -30,48 +16,36 @@ import {
 import type { MediaType } from '$lib/types';
 import { db } from './db/index';
 
-// =============================================================================
-// Media operations (unified movies/tv shows)
-// =============================================================================
+function removeUndefinedFromObject<T extends Record<string, unknown>>(obj: T): Partial<T> {
+	return Object.fromEntries(Object.entries(obj).filter(([, value]) => value !== undefined)) as Partial<T>;
+}
 
 export const mediaDb = {
-	/**
-	 * List media by type for a user or organization
-	 */
-	list(userIdOrOrgId: string, type?: MediaType): Media[] {
+	list(organizationId: string, type?: MediaType): Media[] {
+		const conditions = [eq(mediaTable.organizationId, organizationId)];
 		if (type) {
-			return db
-				.select()
-				.from(mediaTable)
-				.where(and(eq(mediaTable.organizationId, userIdOrOrgId), eq(mediaTable.type, type)))
-				.orderBy(desc(mediaTable.addedAt))
-				.all();
+			conditions.push(eq(mediaTable.type, type));
 		}
 		return db
 			.select()
 			.from(mediaTable)
-			.where(eq(mediaTable.organizationId, userIdOrOrgId))
+			.where(and(...conditions))
 			.orderBy(desc(mediaTable.addedAt))
 			.all();
 	},
 
-	/**
-	 * Get all media items (system wide) for maintenance tasks
-	 */
 	getAll(): Media[] {
 		return db.select().from(mediaTable).all();
 	},
 
-	/**
-	 * Get all media with incomplete download status (for recovery on startup)
-	 */
 	getIncompleteDownloads(): Media[] {
-		return db.select().from(mediaTable).where(sql`${mediaTable.status} IN ('downloading', 'added')`).all();
+		return db
+			.select()
+			.from(mediaTable)
+			.where(sql`${mediaTable.status} IN ('pending', 'searching', 'downloading')`)
+			.all();
 	},
 
-	/**
-	 * Get single media item by id, scoped to an organization (profile)
-	 */
 	get(id: string, organizationId: string): Media | undefined {
 		return db
 			.select()
@@ -80,9 +54,6 @@ export const mediaDb = {
 			.get();
 	},
 
-	/**
-	 * Get media by infohash, scoped to an organization (profile)
-	 */
 	getByInfohash(infohash: string, organizationId: string): Media | undefined {
 		return db
 			.select()
@@ -91,17 +62,11 @@ export const mediaDb = {
 			.get();
 	},
 
-	/**
-	 * Get media by ID only (for internal server use, e.g., during download)
-	 */
 	getById(id: string): Media | undefined {
 		return db.select().from(mediaTable).where(eq(mediaTable.id, id)).get();
 	},
 
-	/**
-	 * Get TV show by TMDB ID, scoped to an organization (profile)
-	 */
-	getByTmdbId(tmdbId: number, organizationId: string, type: MediaType = 'tv'): Media | undefined {
+	getByTmdbId(tmdbId: number, organizationId: string, type: MediaType): Media | undefined {
 		return db
 			.select()
 			.from(mediaTable)
@@ -115,108 +80,141 @@ export const mediaDb = {
 			.get();
 	},
 
-	/**
-	 * Create new media entry
-	 */
-	create(mediaItem: Omit<NewMedia, 'id' | 'addedAt' | 'status' | 'progress'> & { type?: MediaType }): Media {
+	create(mediaItem: Omit<NewMedia, 'id' | 'addedAt' | 'createdAt'> & { type?: MediaType }): Media {
 		const id = crypto.randomUUID();
 		const now = new Date();
-
+		const type = mediaItem.type ?? 'movie';
 		const newMedia: NewMedia = {
 			id,
 			userId: mediaItem.userId,
-			organizationId: mediaItem.organizationId,
-			type: mediaItem.type || 'movie',
+			organizationId: mediaItem.organizationId ?? null,
+			type,
 			title: mediaItem.title,
+			overview: mediaItem.overview,
 			year: mediaItem.year,
+			tmdbId: mediaItem.tmdbId,
+			imdbId: mediaItem.imdbId,
+			runtime: mediaItem.runtime,
+			originalLanguage: mediaItem.originalLanguage,
+			addedAt: now,
+			createdAt: now,
 			posterUrl: mediaItem.posterUrl,
 			backdropUrl: mediaItem.backdropUrl,
-			overview: mediaItem.overview,
-			magnetLink: mediaItem.magnetLink,
-			infohash: mediaItem.infohash,
-			tmdbId: mediaItem.tmdbId,
-			runtime: mediaItem.runtime,
 			genres: mediaItem.genres,
-			originalLanguage: mediaItem.originalLanguage,
 			certification: mediaItem.certification,
 			totalSeasons: mediaItem.totalSeasons,
-			status: 'added',
-			progress: 0,
-			addedAt: now,
+			parentId: mediaItem.parentId,
+			seasonId: mediaItem.seasonId,
+			episodeNumber: mediaItem.episodeNumber,
+			seasonNumber: mediaItem.seasonNumber,
+			displayOrder: mediaItem.displayOrder,
+			stillPath: mediaItem.stillPath,
+			airDate: mediaItem.airDate,
+			magnetLink: mediaItem.magnetLink,
+			infohash: mediaItem.infohash,
+			status: mediaItem.status ?? (type === 'show' ? null : 'pending'),
+			progress: mediaItem.progress ?? (type === 'show' ? null : 0),
+			filePath: mediaItem.filePath,
+			fileSize: mediaItem.fileSize,
+			fileIndex: mediaItem.fileIndex,
+			downloadedBytes: mediaItem.downloadedBytes ?? 0,
+			lastPlayedAt: mediaItem.lastPlayedAt,
+			playPosition: mediaItem.playPosition ?? 0,
+			playDuration: mediaItem.playDuration,
 		};
-
 		db.insert(mediaTable).values(newMedia).run();
-
-		return {
-			...newMedia,
-			filePath: null,
-			fileSize: null,
-			lastPlayedAt: null,
-		} as Media;
+		return newMedia as Media;
 	},
 
-	/**
-	 * Update download progress
-	 */
-	updateProgress(id: string, progress: number, status: 'added' | 'downloading' | 'complete' | 'error') {
+	update(id: string, data: Partial<Omit<NewMedia, 'id' | 'addedAt' | 'createdAt'>>) {
+		const updates = removeUndefinedFromObject(data as Record<string, unknown>);
+		if (Object.keys(updates).length === 0) {
+			return;
+		}
+		db.update(mediaTable).set(updates).where(eq(mediaTable.id, id)).run();
+	},
+
+	updateProgress(
+		id: string,
+		progress: number,
+		status: 'pending' | 'searching' | 'downloading' | 'complete' | 'error' | 'not_found'
+	) {
 		db.update(mediaTable).set({ progress, status }).where(eq(mediaTable.id, id)).run();
 	},
-	/**
-	 * Reset download status and clear file info
-	 */
+
 	resetDownload(id: string) {
 		db.update(mediaTable)
 			.set({
 				progress: 0,
-				status: 'added',
+				status: 'pending',
 				filePath: null,
 				fileSize: null,
+				fileIndex: null,
+				downloadedBytes: 0,
 			})
 			.where(eq(mediaTable.id, id))
 			.run();
 	},
 
-	/**
-	 * Update file path after download
-	 */
 	updateFilePath(id: string, filePath: string, fileSize?: number) {
 		db.update(mediaTable)
-			.set({ filePath, fileSize: fileSize ?? null, status: 'complete' })
+			.set({ filePath, fileSize: fileSize ?? null, status: 'complete', progress: 1 })
 			.where(eq(mediaTable.id, id))
 			.run();
 	},
 
-	/**
-	 * Delete media item, scoped to an organization (profile)
-	 */
+	updateFileInfo(
+		id: string,
+		data: { fileIndex?: number | null; filePath?: string | null; fileSize?: number | null }
+	) {
+		const updates = removeUndefinedFromObject(data);
+		if (Object.keys(updates).length === 0) {
+			return;
+		}
+		db.update(mediaTable).set(updates).where(eq(mediaTable.id, id)).run();
+	},
+
+	updateEpisodeProgress(
+		id: string,
+		downloadedBytes: number,
+		status: 'pending' | 'searching' | 'downloading' | 'complete' | 'error' | 'not_found'
+	) {
+		db.update(mediaTable).set({ downloadedBytes, status }).where(eq(mediaTable.id, id)).run();
+	},
+
+	updateDisplayOrder(id: string, displayOrder: number) {
+		db.update(mediaTable).set({ displayOrder }).where(eq(mediaTable.id, id)).run();
+	},
+
+	bulkUpdateDisplayOrder(orders: Array<{ id: string; displayOrder: number }>) {
+		for (const order of orders) {
+			this.updateDisplayOrder(order.id, order.displayOrder);
+		}
+	},
+
 	delete(id: string, organizationId: string) {
 		db.delete(mediaTable)
 			.where(and(eq(mediaTable.id, id), eq(mediaTable.organizationId, organizationId)))
 			.run();
 	},
 
-	/**
-	 * Update last played timestamp
-	 */
 	updateLastPlayed(id: string) {
 		db.update(mediaTable).set({ lastPlayedAt: new Date() }).where(eq(mediaTable.id, id)).run();
 	},
 
 	updatePlayPosition(id: string, position: number, duration?: number) {
-		const updates: Record<string, unknown> = { playPosition: position };
-		if (duration !== undefined) {
-			updates.playDuration = duration;
-		}
+		const updates = removeUndefinedFromObject({ playPosition: position, playDuration: duration });
 		db.update(mediaTable).set(updates).where(eq(mediaTable.id, id)).run();
 	},
 
-	getRecentlyWatched(orgId: string, limit = 20): Media[] {
+	getRecentlyWatched(organizationId: string, limit = 20): Media[] {
 		return db
 			.select()
 			.from(mediaTable)
 			.where(
 				and(
-					eq(mediaTable.organizationId, orgId),
+					eq(mediaTable.organizationId, organizationId),
+					sql`${mediaTable.type} IN ('movie', 'episode')`,
 					sql`${mediaTable.lastPlayedAt} IS NOT NULL`,
 					sql`${mediaTable.playPosition} > 0`,
 					sql`(${mediaTable.playDuration} IS NULL OR ${mediaTable.playPosition} < ${mediaTable.playDuration} * 0.95)`
@@ -227,9 +225,6 @@ export const mediaDb = {
 			.all();
 	},
 
-	/**
-	 * Update media metadata
-	 */
 	updateMetadata(
 		id: string,
 		metadata: {
@@ -239,6 +234,7 @@ export const mediaDb = {
 			backdropUrl?: string | null;
 			overview?: string | null;
 			tmdbId?: number | null;
+			imdbId?: string | null;
 			runtime?: number | null;
 			genres?: string | null;
 			originalLanguage?: string | null;
@@ -248,23 +244,63 @@ export const mediaDb = {
 		}
 	) {
 		const updates = removeUndefinedFromObject(metadata as Record<string, unknown>);
-		if (Object.keys(updates).length > 0) {
-			db.update(mediaTable).set(updates).where(eq(mediaTable.id, id)).run();
+		if (Object.keys(updates).length === 0) {
+			return;
 		}
+		db.update(mediaTable).set(updates).where(eq(mediaTable.id, id)).run();
+	},
+
+	getEpisodesBySeasonId(seasonId: string): Media[] {
+		return db
+			.select()
+			.from(mediaTable)
+			.where(and(eq(mediaTable.type, 'episode'), eq(mediaTable.seasonId, seasonId)))
+			.orderBy(asc(mediaTable.displayOrder), asc(mediaTable.episodeNumber))
+			.all();
+	},
+
+	getEpisodesByParentId(parentId: string): Media[] {
+		return db
+			.select()
+			.from(mediaTable)
+			.where(and(eq(mediaTable.type, 'episode'), eq(mediaTable.parentId, parentId)))
+			.orderBy(asc(mediaTable.seasonNumber), asc(mediaTable.displayOrder), asc(mediaTable.episodeNumber))
+			.all();
+	},
+
+	getEpisodeBySeasonAndNumber(seasonId: string, episodeNumber: number): Media | undefined {
+		return db
+			.select()
+			.from(mediaTable)
+			.where(
+				and(
+					eq(mediaTable.type, 'episode'),
+					eq(mediaTable.seasonId, seasonId),
+					eq(mediaTable.episodeNumber, episodeNumber)
+				)
+			)
+			.get();
+	},
+
+	getEpisodeByParentAndNumber(parentId: string, seasonNumber: number, episodeNumber: number): Media | undefined {
+		return db
+			.select()
+			.from(mediaTable)
+			.where(
+				and(
+					eq(mediaTable.type, 'episode'),
+					eq(mediaTable.parentId, parentId),
+					eq(mediaTable.seasonNumber, seasonNumber),
+					eq(mediaTable.episodeNumber, episodeNumber)
+				)
+			)
+			.get();
 	},
 };
 
-// =============================================================================
-// Season operations
-// =============================================================================
-
 export const seasonsDb = {
-	/**
-	 * Create a new season
-	 */
 	create(season: Omit<NewSeason, 'id' | 'createdAt'>): Season {
 		const id = crypto.randomUUID();
-
 		const newSeason: NewSeason = {
 			id,
 			mediaId: season.mediaId,
@@ -275,18 +311,10 @@ export const seasonsDb = {
 			airDate: season.airDate,
 			episodeCount: season.episodeCount,
 		};
-
 		db.insert(seasonsTable).values(newSeason).run();
-
-		return {
-			...newSeason,
-			createdAt: new Date(),
-		} as Season;
+		return { ...newSeason, createdAt: new Date() } as Season;
 	},
 
-	/**
-	 * Get all seasons for a media item
-	 */
 	getByMediaId(mediaId: string): Season[] {
 		return db
 			.select()
@@ -296,16 +324,10 @@ export const seasonsDb = {
 			.all();
 	},
 
-	/**
-	 * Get single season by ID
-	 */
 	getById(id: string): Season | undefined {
 		return db.select().from(seasonsTable).where(eq(seasonsTable.id, id)).get();
 	},
 
-	/**
-	 * Get season by media and season number
-	 */
 	getByMediaAndNumber(mediaId: string, seasonNumber: number): Season | undefined {
 		return db
 			.select()
@@ -314,202 +336,27 @@ export const seasonsDb = {
 			.get();
 	},
 
-	/**
-	 * Update episode count for a season
-	 */
+	update(id: string, data: Partial<Omit<NewSeason, 'id' | 'createdAt'>>) {
+		const updates = removeUndefinedFromObject(data as Record<string, unknown>);
+		if (Object.keys(updates).length === 0) {
+			return;
+		}
+		db.update(seasonsTable).set(updates).where(eq(seasonsTable.id, id)).run();
+	},
+
 	updateEpisodeCount(id: string, count: number) {
 		db.update(seasonsTable).set({ episodeCount: count }).where(eq(seasonsTable.id, id)).run();
 	},
 
-	/**
-	 * Delete all seasons for a media item
-	 */
 	deleteByMediaId(mediaId: string) {
 		db.delete(seasonsTable).where(eq(seasonsTable.mediaId, mediaId)).run();
 	},
 };
 
-// =============================================================================
-// Episode operations
-// =============================================================================
-
-export const episodesDb = {
-	/**
-	 * Create a new episode
-	 */
-	create(episode: Omit<NewEpisode, 'id' | 'createdAt'>): Episode {
-		const id = crypto.randomUUID();
-
-		const newEpisode: NewEpisode = {
-			id,
-			seasonId: episode.seasonId,
-			downloadId: episode.downloadId,
-			episodeNumber: episode.episodeNumber,
-			title: episode.title,
-			overview: episode.overview,
-			stillPath: episode.stillPath,
-			runtime: episode.runtime,
-			airDate: episode.airDate,
-			fileIndex: episode.fileIndex,
-			filePath: episode.filePath,
-			fileSize: episode.fileSize,
-			downloadedBytes: episode.downloadedBytes,
-			displayOrder: episode.displayOrder,
-			status: episode.status || 'pending',
-		};
-
-		db.insert(episodesTable).values(newEpisode).run();
-
-		return {
-			...newEpisode,
-			createdAt: new Date(),
-		} as Episode;
-	},
-
-	/**
-	 * Create multiple episodes at once
-	 */
-	createMany(episodeList: Omit<NewEpisode, 'id' | 'createdAt'>[]): Episode[] {
-		const results: Episode[] = [];
-
-		for (const episode of episodeList) {
-			results.push(episodesDb.create(episode));
-		}
-
-		return results;
-	},
-
-	/**
-	 * Get all episodes for a season
-	 */
-	getBySeasonId(seasonId: string): Episode[] {
-		return db
-			.select()
-			.from(episodesTable)
-			.where(eq(episodesTable.seasonId, seasonId))
-			.orderBy(asc(episodesTable.displayOrder))
-			.all();
-	},
-
-	/**
-	 * Get single episode by ID
-	 */
-	getById(id: string): Episode | undefined {
-		return db.select().from(episodesTable).where(eq(episodesTable.id, id)).get();
-	},
-
-	/**
-	 * Get single episode by ID with season info
-	 */
-	getByIdWithSeason(id: string): { episode: Episode; season: Season } | undefined {
-		return db
-			.select({
-				episode: episodesTable,
-				season: seasonsTable,
-			})
-			.from(episodesTable)
-			.innerJoin(seasonsTable, eq(episodesTable.seasonId, seasonsTable.id))
-			.where(eq(episodesTable.id, id))
-			.get();
-	},
-
-	/**
-	 * Get episode by season and episode number
-	 */
-	getBySeasonAndNumber(seasonId: string, episodeNumber: number): Episode | undefined {
-		return db
-			.select()
-			.from(episodesTable)
-			.where(and(eq(episodesTable.seasonId, seasonId), eq(episodesTable.episodeNumber, episodeNumber)))
-			.get();
-	},
-
-	/**
-	 * Update episode file info
-	 */
-	updateFileInfo(id: string, fileIndex: number, filePath: string, fileSize: number) {
-		db.update(episodesTable).set({ fileIndex, filePath, fileSize }).where(eq(episodesTable.id, id)).run();
-	},
-
-	/**
-	 * Update episode download progress
-	 */
-	updateProgress(id: string, downloadedBytes: number, status: 'pending' | 'downloading' | 'complete' | 'error') {
-		db.update(episodesTable).set({ downloadedBytes, status }).where(eq(episodesTable.id, id)).run();
-	},
-
-	/**
-	 * Update episode display order (for manual reordering)
-	 */
-	updateDisplayOrder(id: string, displayOrder: number) {
-		db.update(episodesTable).set({ displayOrder }).where(eq(episodesTable.id, id)).run();
-	},
-
-	/**
-	 * Bulk update display orders
-	 */
-	bulkUpdateDisplayOrder(updates: { id: string; displayOrder: number }[]) {
-		for (const { id, displayOrder } of updates) {
-			db.update(episodesTable).set({ displayOrder }).where(eq(episodesTable.id, id)).run();
-		}
-	},
-
-	/**
-	 * Get all episodes for a media item (across all seasons)
-	 */
-	getByMediaId(mediaId: string): Array<{ episode: Episode; season: Season }> {
-		return db
-			.select({
-				episode: episodesTable,
-				season: seasonsTable,
-			})
-			.from(episodesTable)
-			.innerJoin(seasonsTable, eq(episodesTable.seasonId, seasonsTable.id))
-			.where(eq(seasonsTable.mediaId, mediaId))
-			.orderBy(asc(seasonsTable.seasonNumber), asc(episodesTable.displayOrder))
-			.all();
-	},
-
-	/**
-	 * Get all episodes for a specific download (torrent)
-	 */
-	getByDownloadId(downloadId: string): Episode[] {
-		return db
-			.select()
-			.from(episodesTable)
-			.where(eq(episodesTable.downloadId, downloadId))
-			.orderBy(asc(episodesTable.displayOrder))
-			.all();
-	},
-
-	/**
-	 * Delete all episodes for a season
-	 */
-	updatePlayPosition(id: string, position: number, duration?: number) {
-		const updates: Record<string, unknown> = { playPosition: position };
-		if (duration !== undefined) {
-			updates.playDuration = duration;
-		}
-		db.update(episodesTable).set(updates).where(eq(episodesTable.id, id)).run();
-	},
-
-	deleteBySeasonId(seasonId: string) {
-		db.delete(episodesTable).where(eq(episodesTable.seasonId, seasonId)).run();
-	},
-};
-
-// =============================================================================
-// Download operations (for tracking multiple torrents per media)
-// =============================================================================
-
 export const downloadsDb = {
-	/**
-	 * Create a new download record
-	 */
 	create(download: Omit<NewDownload, 'id' | 'addedAt'>): Download {
 		const id = crypto.randomUUID();
 		const now = new Date();
-
 		const newDownload: NewDownload = {
 			id,
 			mediaId: download.mediaId,
@@ -519,18 +366,10 @@ export const downloadsDb = {
 			progress: download.progress || 0,
 			addedAt: now,
 		};
-
 		db.insert(downloadsTable).values(newDownload).run();
-
-		return {
-			...newDownload,
-			addedAt: now,
-		} as Download;
+		return { ...newDownload, addedAt: now } as Download;
 	},
 
-	/**
-	 * Get all downloads for a media item
-	 */
 	getByMediaId(mediaId: string): Download[] {
 		return db
 			.select()
@@ -540,9 +379,6 @@ export const downloadsDb = {
 			.all();
 	},
 
-	/**
-	 * Get download by infohash for a media item
-	 */
 	getByInfohash(mediaId: string, infohash: string): Download | undefined {
 		return db
 			.select()
@@ -551,11 +387,8 @@ export const downloadsDb = {
 			.get();
 	},
 
-	/**
-	 * Check if infohash exists for any media in an organization (profile)
-	 */
 	infohashExistsForOrg(infohash: string, organizationId: string): { download: Download; media: Media } | undefined {
-		const result = db
+		return db
 			.select({
 				download: downloadsTable,
 				media: mediaTable,
@@ -564,91 +397,48 @@ export const downloadsDb = {
 			.innerJoin(mediaTable, eq(downloadsTable.mediaId, mediaTable.id))
 			.where(and(eq(downloadsTable.infohash, infohash), eq(mediaTable.organizationId, organizationId)))
 			.get();
-		return result;
 	},
 
-	/**
-	 * Update download progress
-	 */
 	updateProgress(id: string, progress: number, status: 'added' | 'downloading' | 'complete' | 'error') {
 		db.update(downloadsTable).set({ progress, status }).where(eq(downloadsTable.id, id)).run();
 	},
 
-	/**
-	 * Get download by ID
-	 */
 	getById(id: string): Download | undefined {
 		return db.select().from(downloadsTable).where(eq(downloadsTable.id, id)).get();
 	},
 
-	/**
-	 * Delete download
-	 */
 	delete(id: string) {
 		db.delete(downloadsTable).where(eq(downloadsTable.id, id)).run();
 	},
 
-	/**
-	 * Delete all downloads for a media item
-	 */
 	deleteByMediaId(mediaId: string) {
 		db.delete(downloadsTable).where(eq(downloadsTable.mediaId, mediaId)).run();
 	},
 };
 
-// =============================================================================
-// Subtitle operations
-// =============================================================================
-
 export const subtitlesDb = {
 	create(subtitle: Omit<NewSubtitle, 'id' | 'createdAt'>): Subtitle {
 		const id = crypto.randomUUID();
-		const newSub: NewSubtitle = { id, ...subtitle };
-		db.insert(subtitlesTable).values(newSub).run();
-		return { ...newSub, createdAt: new Date() } as Subtitle;
+		const newSubtitle: NewSubtitle = { id, ...subtitle };
+		db.insert(subtitlesTable).values(newSubtitle).run();
+		return { ...newSubtitle, createdAt: new Date() } as Subtitle;
 	},
 
 	getByMediaId(mediaId: string): Subtitle[] {
-		return db
-			.select()
-			.from(subtitlesTable)
-			.where(and(eq(subtitlesTable.mediaId, mediaId), sql`${subtitlesTable.episodeId} IS NULL`))
-			.all();
-	},
-
-	getByEpisodeId(episodeId: string): Subtitle[] {
-		return db.select().from(subtitlesTable).where(eq(subtitlesTable.episodeId, episodeId)).all();
+		return db.select().from(subtitlesTable).where(eq(subtitlesTable.mediaId, mediaId)).all();
 	},
 
 	getById(id: string): Subtitle | undefined {
 		return db.select().from(subtitlesTable).where(eq(subtitlesTable.id, id)).get();
 	},
 
-	/**
-	 * Set a subtitle as the default (unsets all others for the same media/episode first)
-	 */
-	setDefault(id: string, mediaId: string, episodeId: string | null, isDefault: boolean) {
+	setDefault(id: string, mediaId: string, isDefault: boolean) {
 		if (isDefault) {
-			// Unset all other defaults for this media/episode
-			if (episodeId) {
-				db.update(subtitlesTable)
-					.set({ isDefault: false })
-					.where(eq(subtitlesTable.episodeId, episodeId))
-					.run();
-			} else {
-				db.update(subtitlesTable)
-					.set({ isDefault: false })
-					.where(and(eq(subtitlesTable.mediaId, mediaId), sql`${subtitlesTable.episodeId} IS NULL`))
-					.run();
-			}
+			db.update(subtitlesTable).set({ isDefault: false }).where(eq(subtitlesTable.mediaId, mediaId)).run();
 		}
-		// Set the target subtitle
 		db.update(subtitlesTable).set({ isDefault }).where(eq(subtitlesTable.id, id)).run();
 	},
 
-	/**
-	 * Delete a single subtitle by ID
-	 */
 	deleteById(id: string) {
 		db.delete(subtitlesTable).where(eq(subtitlesTable.id, id)).run();
 	},

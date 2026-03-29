@@ -36,7 +36,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	}
 
 	const { isDefault } = (await request.json()) as { isDefault: boolean };
-	subtitlesDb.setDefault(params.subtitleId, subtitle.mediaId, subtitle.episodeId, isDefault);
+	subtitlesDb.setDefault(params.subtitleId, subtitle.mediaId, isDefault);
 
 	return json({ success: true });
 };

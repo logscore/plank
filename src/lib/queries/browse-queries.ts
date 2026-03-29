@@ -58,7 +58,7 @@ export interface BrowseDetailsResponse {
  * Called lazily after browse/search items render.
  */
 export async function fetchBrowseDetails(
-	items: { tmdbId: number; mediaType: 'movie' | 'tv' }[]
+	items: { tmdbId: number; mediaType: 'movie' | 'show' }[]
 ): Promise<BrowseDetailsResponse> {
 	if (items.length === 0) {
 		return { details: [] };
@@ -84,7 +84,7 @@ export async function fetchBrowseDetails(
 /**
  * Fetch trending content
  */
-export async function fetchTrending(filter: 'all' | 'movie' | 'tv' = 'all', page = 1): Promise<BrowseResponse> {
+export async function fetchTrending(filter: 'all' | 'movie' | 'show' = 'all', page = 1): Promise<BrowseResponse> {
 	const params = new URLSearchParams({
 		type: 'trending',
 		filter,
@@ -105,7 +105,7 @@ export async function fetchTrending(filter: 'all' | 'movie' | 'tv' = 'all', page
  */
 export async function fetchBrowse(
 	type: 'trending' | 'popular',
-	filter: 'all' | 'movie' | 'tv' = 'all',
+	filter: 'all' | 'movie' | 'show' = 'all',
 	page = 1
 ): Promise<BrowseResponse> {
 	const params = new URLSearchParams({

@@ -54,7 +54,7 @@
             indexers: ['Nyaa.si', 'AnimeTosho', 'AniDex'],
         },
         {
-            id: 'tv',
+            id: 'show',
             name: 'TV Shows',
             description: 'EZTV, Galaxy',
             icon: '📺',

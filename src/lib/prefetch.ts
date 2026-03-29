@@ -34,7 +34,7 @@ function preloadImages(items: { posterUrl: string | null }[]) {
 /**
  * Prefetch browse data (trending/popular) and preload poster images.
  */
-export function prefetchBrowse(type: 'trending' | 'popular', filter: 'all' | 'movie' | 'tv' = 'all') {
+export function prefetchBrowse(type: 'trending' | 'popular', filter: 'all' | 'movie' | 'show' = 'all') {
 	queryClient
 		.prefetchInfiniteQuery({
 			queryKey: queryKeys.browse.infinite(type, filter),
@@ -56,7 +56,7 @@ export function prefetchBrowse(type: 'trending' | 'popular', filter: 'all' | 'mo
  * Prefetch both browse tabs (trending and popular) for a given filter
  * Call this on page load to warm the cache for tab switching
  */
-export function prefetchBothBrowseTabs(filter: 'all' | 'movie' | 'tv' = 'all') {
+export function prefetchBothBrowseTabs(filter: 'all' | 'movie' | 'show' = 'all') {
 	prefetchBrowse('trending', filter);
 	prefetchBrowse('popular', filter);
 }

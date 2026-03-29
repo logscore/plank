@@ -82,7 +82,7 @@ export function createDeleteMediaMutation() {
 
 			// Snapshot the previous values
 			const previousMovies = queryClient.getQueryData<Media[]>(queryKeys.media.list('movie'));
-			const previousShows = queryClient.getQueryData<Media[]>(queryKeys.media.list('tv'));
+			const previousShows = queryClient.getQueryData<Media[]>(queryKeys.media.list('show'));
 
 			// Optimistically update to the new value
 			if (previousMovies) {
@@ -94,7 +94,7 @@ export function createDeleteMediaMutation() {
 
 			if (previousShows) {
 				queryClient.setQueryData<Media[]>(
-					queryKeys.media.list('tv'),
+					queryKeys.media.list('show'),
 					previousShows.filter((media) => media.id !== id)
 				);
 			}
@@ -108,7 +108,7 @@ export function createDeleteMediaMutation() {
 				queryClient.setQueryData(queryKeys.media.list('movie'), context.previousMovies);
 			}
 			if (context?.previousShows) {
-				queryClient.setQueryData(queryKeys.media.list('tv'), context.previousShows);
+				queryClient.setQueryData(queryKeys.media.list('show'), context.previousShows);
 			}
 		},
 		onSettled: (deletedId: string | undefined) => {
@@ -123,9 +123,6 @@ export function createDeleteMediaMutation() {
 				});
 				queryClient.removeQueries({
 					queryKey: queryKeys.media.position(deletedId),
-				});
-				queryClient.removeQueries({
-					queryKey: queryKeys.media.position(deletedId, 'episode'),
 				});
 			}
 		},
@@ -172,7 +169,6 @@ export interface DownloadSubtitleParams {
 	mediaId: string;
 	fileId: number;
 	language: string;
-	episodeId?: string;
 }
 
 export function createDownloadSubtitleMutation() {
@@ -186,7 +182,6 @@ export function createDownloadSubtitleMutation() {
 				body: JSON.stringify({
 					fileId: params.fileId,
 					language: params.language,
-					episodeId: params.episodeId,
 				}),
 			});
 			if (!response.ok) {
@@ -197,7 +192,7 @@ export function createDownloadSubtitleMutation() {
 		},
 		onSuccess: (_data, params) => {
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.media.subtitles(params.mediaId, params.episodeId),
+				queryKey: queryKeys.media.subtitles(params.mediaId),
 			});
 		},
 	}));
@@ -207,7 +202,6 @@ export interface SetDefaultSubtitleParams {
 	mediaId: string;
 	subtitleId: string;
 	isDefault: boolean;
-	episodeId?: string;
 }
 
 export function createSetDefaultSubtitleMutation() {
@@ -227,7 +221,7 @@ export function createSetDefaultSubtitleMutation() {
 		},
 		onSuccess: (_data, params) => {
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.media.subtitles(params.mediaId, params.episodeId),
+				queryKey: queryKeys.media.subtitles(params.mediaId),
 			});
 		},
 	}));
@@ -236,7 +230,6 @@ export function createSetDefaultSubtitleMutation() {
 export interface DeleteSubtitleParams {
 	mediaId: string;
 	subtitleId: string;
-	episodeId?: string;
 }
 
 export function createDeleteSubtitleMutation() {
@@ -254,7 +247,7 @@ export function createDeleteSubtitleMutation() {
 		},
 		onSuccess: (_data, params) => {
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.media.subtitles(params.mediaId, params.episodeId),
+				queryKey: queryKeys.media.subtitles(params.mediaId),
 			});
 		},
 	}));
@@ -268,7 +261,6 @@ export interface SavePositionParams {
 	id: string;
 	position: number;
 	duration?: number;
-	episodeId?: string;
 }
 
 export function createSavePositionMutation() {
@@ -282,7 +274,6 @@ export function createSavePositionMutation() {
 				body: JSON.stringify({
 					position: params.position,
 					duration: params.duration,
-					episodeId: params.episodeId,
 				}),
 			});
 			if (!response.ok) {

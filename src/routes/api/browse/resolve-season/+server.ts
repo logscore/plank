@@ -49,7 +49,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	let resolvedImdbId = imdbId;
 	if (!resolvedImdbId) {
 		try {
-			const details = await getBrowseItemDetails(tmdbId, 'tv');
+			const details = await getBrowseItemDetails(tmdbId, 'show');
 			resolvedImdbId = details.imdbId ?? undefined;
 		} catch (e) {
 			console.error(`[API] Failed to get IMDB ID for TMDB ${tmdbId}:`, e);

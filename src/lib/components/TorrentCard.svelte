@@ -38,7 +38,7 @@
         class?: string;
     } = $props();
 
-    const isTvShow = $derived(item.mediaType === 'tv');
+    const isTvShow = $derived(item.mediaType === 'show');
     // Check if seasons are already loaded (from parent's cache)
     const hasSeasonsLoaded = $derived(seasons.length > 0);
 
@@ -198,7 +198,7 @@
         {/if}
 
         <!-- Type Badge for TV Shows -->
-        {#if item.mediaType === "tv"}
+        {#if item.mediaType === "show"}
             <div
                 class="absolute top-2 left-2 z-10 bg-primary/90 text-primary-foreground px-2 py-0.5 rounded text-xs flex items-center gap-1 group-hover:hidden {isMobileActive
                     ? 'hidden'

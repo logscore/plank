@@ -24,7 +24,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	}
 
 	const query = url.searchParams.get('q')?.trim() || '';
-	const type = (url.searchParams.get('type') as 'all' | 'movie' | 'tv') || 'all';
+	const type = (url.searchParams.get('type') as 'all' | 'movie' | 'show') || 'all';
 	const page = Number.parseInt(url.searchParams.get('page') || '1', 10);
 
 	if (query.length < 2) {
@@ -62,7 +62,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			);
 		}
 
-		if (type === 'all' || type === 'tv') {
+		if (type === 'all' || type === 'show') {
 			searchPromises.push(
 				searchTVShow(query).then((shows) =>
 					shows
@@ -81,7 +81,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 								overview: show.overview,
 								voteAverage: null,
 								genres: [],
-								mediaType: 'tv' as const,
+								mediaType: 'show' as const,
 								certification: null,
 								needsResolve: true,
 							};

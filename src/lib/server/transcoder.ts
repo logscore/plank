@@ -1,51 +1,44 @@
 import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { episodesDb, mediaDb } from './db';
+import { mediaDb } from './db';
 import { probeFile, transmuxFile } from './ffmpeg';
 
-// Helper to check file integrity
 async function verifyFileIntegrity(filePath: string): Promise<boolean> {
 	try {
 		const stats = await fs.stat(filePath);
 		if (stats.size === 0) {
 			return false;
 		}
-
 		const probe = await probeFile(filePath);
-		// Check if we have valid video/audio streams
-		return !!(probe.videoCodec || probe.audioCodec) && (probe.duration ?? 0) > 0;
-	} catch (e) {
-		console.error(`[Transcoder] Integrity check failed for ${filePath}:`, e);
+		return Boolean((probe.videoCodec || probe.audioCodec) && (probe.duration ?? 0) > 0);
+	} catch (error) {
+		console.error(`[Transcoder] Integrity check failed for ${filePath}:`, error);
 		return false;
 	}
 }
 
 export async function transcodeLibrary(): Promise<void> {
 	await scanMovies();
-	await scanTVShows();
+	await scanShows();
 }
 
 async function scanMovies(): Promise<void> {
-	const allMedia = mediaDb.getAll();
-	const movieFiles = allMedia.filter(
-		(media) => media.type === 'movie' && media.filePath && existsSync(media.filePath)
-	);
-
-	const needsTranscoding = movieFiles.filter((media) => {
+	const movies = mediaDb
+		.getAll()
+		.filter((media) => media.type === 'movie' && media.filePath && existsSync(media.filePath));
+	const needsTranscoding = movies.filter((media) => {
 		if (!media.filePath) {
 			return false;
 		}
-		const ext = path.extname(media.filePath).toLowerCase();
-		return ext !== '.mp4' && ext !== '.webm';
+		const extension = path.extname(media.filePath).toLowerCase();
+		return extension !== '.mp4' && extension !== '.webm';
 	});
-
 	await Promise.all(
 		needsTranscoding.map(async (media) => {
 			if (!media.filePath) {
 				return;
 			}
-
 			await safeTransmux(media.filePath, (newPath, newSize) => {
 				mediaDb.updateFilePath(media.id, newPath, newSize);
 			});
@@ -53,128 +46,104 @@ async function scanMovies(): Promise<void> {
 	);
 }
 
-async function scanTVShows(): Promise<void> {
-	const allMedia = mediaDb.getAll();
-	const tvMediaIds = allMedia.filter((media) => media.type === 'tv').map((media) => media.id);
-
-	if (tvMediaIds.length === 0) {
-		return;
-	}
-
-	// Get all episodes for TV shows in a single structured query
-	const allEpisodesWithSeasons = tvMediaIds.flatMap((mediaId) => episodesDb.getByMediaId(mediaId));
-
-	const episodesToTranscode = allEpisodesWithSeasons.filter(
-		({ episode }) =>
+async function scanShows(): Promise<void> {
+	const showIds = mediaDb
+		.getAll()
+		.filter((media) => media.type === 'show')
+		.map((media) => media.id);
+	const episodes = showIds.flatMap((showId) => mediaDb.getEpisodesByParentId(showId));
+	const needsTranscoding = episodes.filter(
+		(episode) =>
 			episode.filePath &&
 			existsSync(episode.filePath) &&
 			episode.fileIndex !== null &&
 			!['.mp4', '.webm'].includes(path.extname(episode.filePath).toLowerCase())
 	);
-
 	await Promise.all(
-		episodesToTranscode.map(async ({ episode }) => {
+		needsTranscoding.map(async (episode) => {
 			if (!episode.filePath || episode.fileIndex === null) {
 				return;
 			}
-
 			await safeTransmux(episode.filePath, (newPath, newSize) => {
-				if (episode.fileIndex !== null) {
-					episodesDb.updateFileInfo(episode.id, episode.fileIndex, newPath, newSize);
-				}
+				mediaDb.updateFileInfo(episode.id, {
+					fileIndex: episode.fileIndex,
+					filePath: newPath,
+					fileSize: newSize,
+				});
 			});
 		})
 	);
 }
 
-/** Transcode a single movie file immediately after download */
 export async function transcodeMovieFile(mediaId: string): Promise<void> {
 	const media = mediaDb.getById(mediaId);
 	if (!(media?.filePath && existsSync(media.filePath))) {
 		return;
 	}
-
-	const ext = path.extname(media.filePath).toLowerCase();
-	if (ext === '.mp4' || ext === '.webm') {
+	const extension = path.extname(media.filePath).toLowerCase();
+	if (extension === '.mp4' || extension === '.webm') {
 		return;
 	}
-
 	console.log(`[Transcoder] Transmuxing movie ${mediaId}: ${media.filePath}`);
 	await safeTransmux(media.filePath, (newPath, newSize) => {
 		mediaDb.updateFilePath(mediaId, newPath, newSize);
 	});
 }
 
-/** Transcode all episodes for a single TV media item immediately after download */
-export async function transcodeTVEpisodes(mediaId: string): Promise<void> {
-	const allEpisodes = episodesDb.getByMediaId(mediaId);
-
-	const episodesToTranscode = allEpisodes.filter(
-		({ episode }) =>
+export async function transcodeTVEpisodes(showId: string): Promise<void> {
+	const episodes = mediaDb.getEpisodesByParentId(showId);
+	const needsTranscoding = episodes.filter(
+		(episode) =>
 			episode.filePath &&
 			existsSync(episode.filePath) &&
 			episode.fileIndex !== null &&
 			!['.mp4', '.webm'].includes(path.extname(episode.filePath).toLowerCase())
 	);
-
-	if (episodesToTranscode.length === 0) {
+	if (needsTranscoding.length === 0) {
 		return;
 	}
-
-	console.log(`[Transcoder] Transmuxing ${episodesToTranscode.length} episodes for media ${mediaId}`);
+	console.log(`[Transcoder] Transmuxing ${needsTranscoding.length} episodes for media ${showId}`);
 	await Promise.all(
-		episodesToTranscode.map(async ({ episode }) => {
+		needsTranscoding.map(async (episode) => {
 			if (!episode.filePath || episode.fileIndex === null) {
 				return;
 			}
-
 			await safeTransmux(episode.filePath, (newPath, newSize) => {
-				if (episode.fileIndex !== null) {
-					episodesDb.updateFileInfo(episode.id, episode.fileIndex, newPath, newSize);
-				}
+				mediaDb.updateFileInfo(episode.id, {
+					fileIndex: episode.fileIndex,
+					filePath: newPath,
+					fileSize: newSize,
+				});
 			});
 		})
 	);
 }
 
 async function safeTransmux(sourcePath: string, updateDb: (path: string, size: number) => void): Promise<void> {
-	const dir = path.dirname(sourcePath);
+	const directory = path.dirname(sourcePath);
 	const name = path.basename(sourcePath, path.extname(sourcePath));
-	const tempPath = path.join(dir, `${name}.transcoding.mp4`);
-	const finalPath = path.join(dir, `${name}.mp4`);
-
+	const tempPath = path.join(directory, `${name}.transcoding.mp4`);
+	const finalPath = path.join(directory, `${name}.mp4`);
 	try {
-		// Transmux to temp file first
 		await transmuxFile(sourcePath, tempPath);
-
-		// Verify integrity
 		const isValid = await verifyFileIntegrity(tempPath);
 		if (!isValid) {
 			console.error(`[Transcoder] Transmuxed file corrupt: ${tempPath}`);
-			await fs.unlink(tempPath).catch(() => {
-				// Ignore cleanup error
-			});
+			await fs.unlink(tempPath).catch(() => undefined);
 			return;
 		}
-
-		// Rename temp to final (atomic replacement if dest existed, but here we are creating new)
 		await fs.rename(tempPath, finalPath);
-
-		// Update DB
 		const stats = await fs.stat(finalPath);
 		updateDb(finalPath, stats.size);
-
-		// Delete original if different
 		if (sourcePath !== finalPath) {
-			await fs.unlink(sourcePath).catch((err) => console.warn(`Failed to delete original: ${sourcePath}`, err));
+			await fs
+				.unlink(sourcePath)
+				.catch((error) => console.warn(`Failed to delete original: ${sourcePath}`, error));
 		}
-	} catch (e) {
-		console.error(`[Transcoder] Failed to transmux ${sourcePath}:`, e);
-		// Cleanup temp
+	} catch (error) {
+		console.error(`[Transcoder] Failed to transmux ${sourcePath}:`, error);
 		if (existsSync(tempPath)) {
-			await fs.unlink(tempPath).catch(() => {
-				// Ignore cleanup error
-			});
+			await fs.unlink(tempPath).catch(() => undefined);
 		}
 	}
 }

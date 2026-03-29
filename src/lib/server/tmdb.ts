@@ -54,6 +54,7 @@ interface TMDBTVSearchResult {
 }
 
 interface TMDBEpisode {
+	id?: number;
 	episode_number: number;
 	name: string;
 	overview: string;
@@ -95,7 +96,13 @@ export interface SeasonMetadata {
 	episodes: EpisodeMetadata[];
 }
 
-interface EpisodeMetadata {
+interface TMDBEpisodeExternalIds {
+	imdb_id: string | null;
+}
+
+export interface EpisodeMetadata {
+	tmdbId: number | null;
+	imdbId: string | null;
 	episodeNumber: number;
 	title: string | null;
 	overview: string | null;
@@ -127,7 +134,7 @@ export interface BrowseItem {
 	overview: string | null;
 	voteAverage: number | null;
 	genres: string[];
-	mediaType: 'movie' | 'tv';
+	mediaType: 'movie' | 'show';
 	certification: string | null;
 	// Set by the cache lookup
 	magnetLink?: string;
@@ -149,7 +156,7 @@ interface TMDBTrendingItem {
 	overview: string;
 	vote_average: number;
 	genre_ids: number[];
-	media_type?: 'movie' | 'tv';
+	media_type?: 'movie' | 'show';
 }
 
 interface TMDBTrendingResponse {
@@ -200,7 +207,7 @@ const TV_GENRES: Record<number, string> = {
 	37: 'Western',
 };
 
-function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: 'movie' | 'tv', settings: AppSettings): BrowseItem {
+function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: 'movie' | 'show', settings: AppSettings): BrowseItem {
 	const type = item.media_type || defaultType;
 	const title = item.title || item.name || 'Unknown Title';
 	const date = item.release_date || item.first_air_date;
@@ -217,7 +224,7 @@ function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: 'movie' | 'tv'
 		overview: item.overview ?? null,
 		voteAverage: item.vote_average ?? null,
 		genres,
-		mediaType: type,
+		mediaType: type === 'movie' ? type : 'show',
 		certification: null, // Will be fetched separately
 		needsResolve: true,
 	};
@@ -229,7 +236,7 @@ function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: 'movie' | 'tv'
 export async function getTrending(
 	timeWindow: 'day' | 'week' = 'day',
 	page = 1,
-	type: 'all' | 'movie' | 'tv' = 'all'
+	type: 'all' | 'movie' | 'show' = 'all'
 ): Promise<{ items: BrowseItem[]; totalPages: number }> {
 	const settings = await getSettings();
 	const res = await fetch(
@@ -256,7 +263,7 @@ export async function getTrending(
  */
 export async function getPopular(
 	page = 1,
-	type: 'movie' | 'tv' = 'movie'
+	type: 'movie' | 'show' = 'movie'
 ): Promise<{ items: BrowseItem[]; totalPages: number }> {
 	const settings = await getSettings();
 	const res = await fetch(
@@ -292,7 +299,7 @@ const BROWSE_DETAILS_MAX_SIZE = 500; // Evict oldest when cache exceeds this
  */
 export async function getBrowseItemDetails(
 	tmdbId: number,
-	type: 'movie' | 'tv'
+	type: 'movie' | 'show'
 ): Promise<{ imdbId: string | null; certification: string | null }> {
 	const cacheKey = `${type}:${tmdbId}`;
 	const now = Date.now();
@@ -329,7 +336,7 @@ export async function getBrowseItemDetails(
 			const anyCert = usRelease.release_dates.find((r: { certification: string }) => r.certification);
 			certification = theatrical?.certification || anyCert?.certification || null;
 		}
-	} else if (type === 'tv' && data.content_ratings?.results) {
+	} else if (type === 'show' && data.content_ratings?.results) {
 		const usRating = data.content_ratings.results.find((r: { iso_3166_1: string }) => r.iso_3166_1 === 'US');
 		certification = usRating?.rating || null;
 	}
@@ -551,6 +558,8 @@ export async function getSeasonDetails(tmdbId: number, seasonNumber: number): Pr
 		episodeCount: season.episodes?.length ?? 0,
 		episodes:
 			season.episodes?.map((ep) => ({
+				tmdbId: ep.id ?? null,
+				imdbId: null,
 				episodeNumber: ep.episode_number,
 				title: ep.name ?? null,
 				overview: ep.overview ?? null,
@@ -558,6 +567,38 @@ export async function getSeasonDetails(tmdbId: number, seasonNumber: number): Pr
 				runtime: ep.runtime ?? null,
 				airDate: ep.air_date ?? null,
 			})) ?? [],
+	};
+}
+
+async function getEpisodeImdbId(tmdbId: number, seasonNumber: number, episodeNumber: number): Promise<string | null> {
+	const settings = await getSettings();
+	const res = await fetch(
+		`${settings.tmdb.baseUrl}/tv/${tmdbId}/season/${seasonNumber}/episode/${episodeNumber}/external_ids?api_key=${settings.tmdb.apiKey}`
+	);
+
+	if (!res.ok) {
+		console.error(
+			`[TMDB] Failed to fetch external ids for TV ${tmdbId} season ${seasonNumber} episode ${episodeNumber}: ${res.status}`
+		);
+		return null;
+	}
+
+	const data: TMDBEpisodeExternalIds = await res.json();
+	return data.imdb_id ?? null;
+}
+
+export async function getSeasonDetailsWithExternalIds(tmdbId: number, seasonNumber: number): Promise<SeasonMetadata> {
+	const season = await getSeasonDetails(tmdbId, seasonNumber);
+	const episodes = await Promise.all(
+		season.episodes.map(async (episode) => ({
+			...episode,
+			imdbId: await getEpisodeImdbId(tmdbId, seasonNumber, episode.episodeNumber),
+		}))
+	);
+
+	return {
+		...season,
+		episodes,
 	};
 }
 

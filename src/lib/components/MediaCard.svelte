@@ -31,22 +31,9 @@
         }
     }
 
-    // Define a minimal Episode type compatible with both source and target requirements
-    interface CompatibleEpisode {
-        id: string;
-        episodeNumber: number;
-        title: string | null;
-        overview: string | null;
-        stillPath: string | null;
-        runtime: number | null;
-        airDate: string | null;
-        fileIndex: number | null;
-        filePath: string | null;
-    }
-
-    function handlePlayEpisode(episodeId: string, episode: CompatibleEpisode) {
+    function handlePlayEpisode(episode: Media) {
         if (episode.fileIndex !== null) {
-            goto(`/watch/${media.id}?episodeId=${episodeId}&fileIndex=${episode.fileIndex}`);
+            goto(`/watch/${episode.id}`);
         }
     }
 
@@ -116,8 +103,8 @@
     }
 
     // Determine the link based on media type
-    const detailsLink = $derived(media.type === 'tv' ? `/show/${media.id}` : `/movie/${media.id}`);
-    const playLink = $derived(media.type === 'tv' ? `/show/${media.id}` : `/watch/${media.id}`);
+    const detailsLink = $derived(media.type === 'show' ? `/show/${media.id}` : `/movie/${media.id}`);
+    const playLink = $derived(media.type === 'show' ? `/show/${media.id}` : `/watch/${media.id}`);
 </script>
 
 <svelte:document onclick={handleClickOutside} />
@@ -133,7 +120,7 @@
     <!-- Image Container (Clipped) -->
     <div class="absolute inset-0 rounded-lg overflow-hidden">
         <!-- Type Badge for TV Shows -->
-        {#if media.type === "tv"}
+        {#if media.type === "show"}
             <div
                 class="absolute top-2 left-2 z-10 bg-primary/90 text-primary-foreground px-2 py-0.5 rounded text-xs flex items-center gap-1 group-hover:hidden group-active:hidden {isMobileActive
                     ? 'hidden'
@@ -175,7 +162,7 @@
                 {#if media.runtime}
                     <span>• {formatRuntime(media.runtime)}</span>
                 {/if}
-                {#if media.type === "tv" && media.totalSeasons}
+                {#if media.type === "show" && media.totalSeasons}
                     <span
                         >• {media.totalSeasons} season
                         {media.totalSeasons === 1 ? "" : "s"}</span
@@ -197,7 +184,7 @@
                     <RotateCcw class="w-4 h-4" />
                     {retrying ? "Retrying..." : "Download"}
                 </button>
-            {:else if media.type === "tv"}
+            {:else if media.type === "show"}
                 <EpisodeSelector
                     {seasons}
                     onPlayEpisode={handlePlayEpisode}

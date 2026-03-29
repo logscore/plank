@@ -190,7 +190,7 @@
         retrying = true;
         try {
             await retryDownloadMutation.mutateAsync(data.media.id);
-            liveStatus = 'added';
+            liveStatus = 'pending';
             liveProgress = 0;
             startStream();
         } catch (e) {
@@ -241,6 +241,10 @@
         );
     }
 </script>
+
+<svelte:head>
+    <title>{data.media.title} | Plank</title>
+</svelte:head>
 
 <div class="min-h-screen bg-background">
     <!-- Hero Section with Backdrop -->

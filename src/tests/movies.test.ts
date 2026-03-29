@@ -51,7 +51,6 @@ const testOrg2 = {
 
 describe('Media API / DB Logic', () => {
 	beforeEach(() => {
-		testDb.exec('DELETE FROM episodes');
 		testDb.exec('DELETE FROM seasons');
 		testDb.exec('DELETE FROM media');
 		testDb.exec('DELETE FROM organization');
@@ -75,7 +74,7 @@ describe('Media API / DB Logic', () => {
 
 			expect(created.id).toBeDefined();
 			expect(created.title).toBe('Test Movie');
-			expect(created.status).toBe('added');
+			expect(created.status).toBe('pending');
 			expect(created.type).toBe('movie');
 
 			const fetched = mediaDb.get(created.id, testOrg.id);
@@ -254,14 +253,14 @@ describe('Media API / DB Logic', () => {
 				title: 'TV Show 1',
 				magnetLink: 'm2',
 				infohash: 'h2',
-				type: 'tv',
+				type: 'show',
 			});
 
 			const movies = mediaDb.list(testOrg.id, 'movie');
 			expect(movies).toHaveLength(1);
 			expect(movies[0].title).toBe('Movie 1');
 
-			const shows = mediaDb.list(testOrg.id, 'tv');
+			const shows = mediaDb.list(testOrg.id, 'show');
 			expect(shows).toHaveLength(1);
 			expect(shows[0].title).toBe('TV Show 1');
 

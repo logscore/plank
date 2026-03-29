@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	}
 
 	const type = (url.searchParams.get('type') as 'trending' | 'popular') || 'trending';
-	const filter = (url.searchParams.get('filter') as 'all' | 'movie' | 'tv') || 'all';
+	const filter = (url.searchParams.get('filter') as 'all' | 'movie' | 'show') || 'all';
 
 	return { type, filter };
 };

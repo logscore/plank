@@ -10,7 +10,7 @@
             : 0
     );
 
-    const link = $derived(media.type === 'tv' ? `/show/${media.id}` : `/watch/${media.id}`);
+    const link = $derived(media.type === 'show' ? `/show/${media.id}` : `/watch/${media.id}`);
 </script>
 
 <a
