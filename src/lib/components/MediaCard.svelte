@@ -32,7 +32,12 @@
     }
 
     function handlePlayEpisode(episode: Media) {
-        if (episode.fileIndex !== null) {
+        if (
+            episode.filePath ||
+            episode.fileIndex !== null ||
+            episode.status === 'complete' ||
+            episode.status === 'downloading'
+        ) {
             goto(`/watch/${episode.id}`);
         }
     }
