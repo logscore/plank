@@ -11,6 +11,7 @@
     );
 
     const link = $derived(media.type === 'show' ? `/show/${media.id}` : `/watch/${media.id}`);
+    const imageUrl = $derived(media.backdropUrl ?? media.stillPath ?? media.posterUrl);
 </script>
 
 <a
@@ -18,16 +19,14 @@
     class="relative shrink-0 w-92 aspect-video rounded-lg overflow-hidden group shadow-lg border border-border/50 hover:border-primary/50 transition-all duration-300 hover:scale-[1.03]"
 >
     <!-- Backdrop Image -->
-    {#if media.backdropUrl}
-        <img src={media.backdropUrl} alt={media.title} class="absolute inset-0 w-full h-full object-cover">
-    {:else if media.posterUrl}
-        <img src={media.posterUrl} alt={media.title} class="absolute inset-0 w-full h-full object-cover blur-sm">
+    {#if imageUrl}
+        <img src={imageUrl} alt={media.title} class="absolute inset-0 w-full h-full object-cover">
     {:else}
         <div class="absolute inset-0 bg-accent"></div>
     {/if}
 
-    <!-- Gradient Overlay -->
-    <div class="absolute inset-0 bg-linear-to- from-black/90 via-black/30 to-transparent"></div>
+    <!-- Bottom Gradient Overlay -->
+    <div class="absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-black via-black/75 to-transparent"></div>
 
     <!-- Play Icon -->
     <div

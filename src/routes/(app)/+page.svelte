@@ -39,7 +39,7 @@
     const queryError = $derived(moviesQuery.error || showsQuery.error);
 
     // UI State
-    const activeTab = $derived((page.url.searchParams.get('type') as 'movies' | 'show') || 'movies');
+    const activeTab = $derived((page.url.searchParams.get('type') as 'movies' | 'shows') || 'movies');
 
     function deleteMedia(id: string, event: Event) {
         event.preventDefault();
@@ -89,9 +89,9 @@
                     {/if}
                 </Button>
                 <Button
-                    variant={activeTab === "tv" ? "default" : "ghost"}
+                    variant={activeTab === "shows" ? "default" : "ghost"}
                     onclick={() =>
-                        goto("?type=tv", {
+                        goto("?type=shows", {
                             replaceState: true,
                             noScroll: true,
                         })}
@@ -112,7 +112,7 @@
     {#if continueWatching.length > 0}
         <div class="container max-w-7xl mx-auto px-4 pt-6">
             <h2 class="text-lg font-semibold mb-3">Continue Watching</h2>
-            <div class="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+            <div class="flex gap-4 overflow-x-auto px-2 pt-2 pb-4 -mx-2 -mt-2 no-scrollbar">
                 {#each continueWatching as item (item.id)}
                     <ContinueWatchingCard media={item} />
                 {/each}
