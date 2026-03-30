@@ -2,7 +2,9 @@ import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { mediaDb } from './db';
-import { probeFile, requiresBrowserSafePlayback, transmuxFile } from './ffmpeg';
+import { normalizeFileForPlayback, probeFile, requiresBrowserSafePlayback } from './ffmpeg';
+
+const activeNormalizationJobs = new Map<string, Promise<string | null>>();
 
 async function verifyFileIntegrity(filePath: string): Promise<boolean> {
 	try {
@@ -27,22 +29,7 @@ async function scanMovies(): Promise<void> {
 	const movies = mediaDb
 		.getAll()
 		.filter((media) => media.type === 'movie' && media.filePath && existsSync(media.filePath));
-	const needsTranscoding = await Promise.all(
-		movies.map(async (media) => ({ media, needsTranscoding: await shouldNormalizeFile(media.filePath) }))
-	);
-	await Promise.all(
-		needsTranscoding.map(async ({ media, needsTranscoding }) => {
-			if (!needsTranscoding) {
-				return;
-			}
-			if (!media.filePath) {
-				return;
-			}
-			await safeTransmux(media.filePath, (newPath, newSize) => {
-				mediaDb.updateFilePath(media.id, newPath, newSize);
-			});
-		})
-	);
+	await Promise.all(movies.map(async (media) => normalizeMediaForPlayback(media.id)));
 }
 
 async function scanShows(): Promise<void> {
@@ -51,68 +38,82 @@ async function scanShows(): Promise<void> {
 		.filter((media) => media.type === 'show')
 		.map((media) => media.id);
 	const episodes = showIds.flatMap((showId) => mediaDb.getEpisodesByParentId(showId));
-	const needsTranscoding = await Promise.all(
-		episodes.map(async (episode) => ({ episode, needsTranscoding: await shouldNormalizeFile(episode.filePath) }))
-	);
-	await Promise.all(
-		needsTranscoding.map(async ({ episode, needsTranscoding }) => {
-			if (!needsTranscoding) {
-				return;
-			}
-			if (!episode.filePath || episode.fileIndex === null) {
-				return;
-			}
-			await safeTransmux(episode.filePath, (newPath, newSize) => {
-				mediaDb.updateFileInfo(episode.id, {
-					fileIndex: episode.fileIndex,
-					filePath: newPath,
-					fileSize: newSize,
-				});
-			});
-		})
-	);
+	await Promise.all(episodes.map(async (episode) => normalizeMediaForPlayback(episode.id)));
 }
 
 export async function transcodeMovieFile(mediaId: string): Promise<void> {
-	const media = mediaDb.getById(mediaId);
-	if (!(media?.filePath && existsSync(media.filePath))) {
-		return;
-	}
-	if (!(await shouldNormalizeFile(media.filePath))) {
-		return;
-	}
-	console.log(`[Transcoder] Transmuxing movie ${mediaId}: ${media.filePath}`);
-	await safeTransmux(media.filePath, (newPath, newSize) => {
-		mediaDb.updateFilePath(mediaId, newPath, newSize);
-	});
+	await normalizeMediaForPlayback(mediaId);
 }
 
 export async function transcodeTVEpisodes(showId: string): Promise<void> {
 	const episodes = mediaDb.getEpisodesByParentId(showId);
-	const needsTranscoding = await Promise.all(
-		episodes.map(async (episode) => ({ episode, needsTranscoding: await shouldNormalizeFile(episode.filePath) }))
+	await Promise.all(episodes.map(async (episode) => normalizeMediaForPlayback(episode.id)));
+}
+
+export async function finalizeMediaToLibrary(
+	sourcePath: string,
+	targetPath: string
+): Promise<{ filePath: string; fileSize: number }> {
+	await fs.mkdir(path.dirname(targetPath), { recursive: true });
+	const needsNormalization = await shouldNormalizeFile(sourcePath);
+	const finalPath = needsNormalization
+		? `${path.join(path.dirname(targetPath), path.basename(targetPath, path.extname(targetPath)))}.mp4`
+		: targetPath;
+	const tempPath = path.join(
+		path.dirname(finalPath),
+		`${path.basename(finalPath, path.extname(finalPath))}.finalizing${path.extname(finalPath)}`
 	);
-	const episodesToTranscode = needsTranscoding
-		.filter(({ needsTranscoding }) => needsTranscoding)
-		.map(({ episode }) => episode);
-	if (episodesToTranscode.length === 0) {
-		return;
+	if (existsSync(tempPath)) {
+		await fs.unlink(tempPath).catch(() => undefined);
 	}
-	console.log(`[Transcoder] Transmuxing ${episodesToTranscode.length} episodes for media ${showId}`);
-	await Promise.all(
-		episodesToTranscode.map(async (episode) => {
-			if (!episode.filePath || episode.fileIndex === null) {
-				return;
-			}
-			await safeTransmux(episode.filePath, (newPath, newSize) => {
-				mediaDb.updateFileInfo(episode.id, {
-					fileIndex: episode.fileIndex,
+	if (needsNormalization) {
+		await normalizeFileForPlayback(sourcePath, tempPath);
+	} else {
+		await fs.copyFile(sourcePath, tempPath);
+	}
+	const isValid = await verifyFileIntegrity(tempPath);
+	if (!isValid) {
+		await fs.unlink(tempPath).catch(() => undefined);
+		throw new Error(`Finalized file is invalid: ${tempPath}`);
+	}
+	await fs.rename(tempPath, finalPath);
+	const stats = await fs.stat(finalPath);
+	return { filePath: finalPath, fileSize: stats.size };
+}
+
+export async function normalizeMediaForPlayback(mediaId: string): Promise<string | null> {
+	const existingJob = activeNormalizationJobs.get(mediaId);
+	if (existingJob) {
+		return existingJob;
+	}
+	const job = (async () => {
+		const media = mediaDb.getById(mediaId);
+		if (!(media?.filePath && existsSync(media.filePath))) {
+			return media?.filePath ?? null;
+		}
+		if (!(await shouldNormalizeFile(media.filePath))) {
+			return media.filePath;
+		}
+		console.log(`[Transcoder] Normalizing ${media.type} ${mediaId}: ${media.filePath}`);
+		await safeNormalize(media.filePath, (newPath, newSize) => {
+			if (media.type === 'episode') {
+				mediaDb.updateFileInfo(media.id, {
+					fileIndex: media.fileIndex,
 					filePath: newPath,
 					fileSize: newSize,
 				});
-			});
-		})
-	);
+				return;
+			}
+			mediaDb.updateFilePath(media.id, newPath, newSize);
+		});
+		return mediaDb.getById(mediaId)?.filePath ?? media.filePath;
+	})();
+	activeNormalizationJobs.set(mediaId, job);
+	try {
+		return await job;
+	} finally {
+		activeNormalizationJobs.delete(mediaId);
+	}
 }
 
 async function shouldNormalizeFile(filePath: string | null): Promise<boolean> {
@@ -134,13 +135,13 @@ async function shouldNormalizeFile(filePath: string | null): Promise<boolean> {
 	}
 }
 
-async function safeTransmux(sourcePath: string, updateDb: (path: string, size: number) => void): Promise<void> {
+async function safeNormalize(sourcePath: string, updateDb: (path: string, size: number) => void): Promise<void> {
 	const directory = path.dirname(sourcePath);
 	const name = path.basename(sourcePath, path.extname(sourcePath));
 	const tempPath = path.join(directory, `${name}.transcoding.mp4`);
 	const finalPath = path.join(directory, `${name}.mp4`);
 	try {
-		await transmuxFile(sourcePath, tempPath);
+		await normalizeFileForPlayback(sourcePath, tempPath);
 		const isValid = await verifyFileIntegrity(tempPath);
 		if (!isValid) {
 			console.error(`[Transcoder] Transmuxed file corrupt: ${tempPath}`);

@@ -245,16 +245,76 @@ export async function probeFile(filePath: string): Promise<{
 	});
 }
 
-export async function requiresBrowserSafePlayback(filePath: string): Promise<boolean> {
+export interface PlaybackCompatibility {
+	videoCodec: string | null;
+	audioCodec: string | null;
+	audioChannels: number | null;
+	hasDataStreams: boolean;
+	needsVideoTranscode: boolean;
+	needsAudioNormalization: boolean;
+	needsDataCleanup: boolean;
+	requiresNormalization: boolean;
+}
+
+export async function getPlaybackCompatibility(filePath: string): Promise<PlaybackCompatibility> {
 	const probe = await probeFile(filePath);
-	if (!(probe.videoCodec && BROWSER_SAFE_VIDEO_CODECS.has(probe.videoCodec))) {
-		return true;
-	}
-	if (probe.audioCodec && !BROWSER_SAFE_AUDIO_CODECS.has(probe.audioCodec)) {
-		return true;
-	}
-	if ((probe.audioChannels ?? 0) > 2) {
-		return true;
-	}
-	return probe.hasDataStreams;
+	const needsVideoTranscode = !(probe.videoCodec && BROWSER_SAFE_VIDEO_CODECS.has(probe.videoCodec));
+	const needsAudioNormalization =
+		(probe.audioCodec !== null && !BROWSER_SAFE_AUDIO_CODECS.has(probe.audioCodec)) ||
+		(probe.audioChannels ?? 0) > 2;
+	const needsDataCleanup = probe.hasDataStreams;
+	return {
+		videoCodec: probe.videoCodec,
+		audioCodec: probe.audioCodec,
+		audioChannels: probe.audioChannels,
+		hasDataStreams: probe.hasDataStreams,
+		needsVideoTranscode,
+		needsAudioNormalization,
+		needsDataCleanup,
+		requiresNormalization: needsVideoTranscode || needsAudioNormalization || needsDataCleanup,
+	};
+}
+
+export async function requiresBrowserSafePlayback(filePath: string): Promise<boolean> {
+	return (await getPlaybackCompatibility(filePath)).requiresNormalization;
+}
+
+export async function normalizeFileForPlayback(inputPath: string, outputPath: string): Promise<void> {
+	const compatibility = await getPlaybackCompatibility(inputPath);
+	return new Promise((resolve, reject) => {
+		const command = ffmpeg(inputPath)
+			.output(outputPath)
+			.outputOptions([
+				'-map',
+				'0:v:0',
+				'-map',
+				'0:a:0?',
+				'-dn',
+				'-sn',
+				'-movflags',
+				'+faststart',
+				'-c:a',
+				'aac',
+				'-ac',
+				'2',
+				'-b:a',
+				'192k',
+			]);
+
+		if (compatibility.needsVideoTranscode) {
+			command.outputOptions(['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p']);
+		} else {
+			command.outputOptions(['-c:v', 'copy']);
+		}
+
+		command
+			.on('error', (err: Error) => {
+				console.error('[Transcoder] Normalize error:', err.message);
+				reject(err);
+			})
+			.on('end', () => {
+				resolve();
+			})
+			.run();
+	});
 }

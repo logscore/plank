@@ -18,7 +18,7 @@ import { parseMagnet } from './magnet';
 import { buildMovieFileName } from './media-naming';
 import { discoverSubtitles } from './subtitles';
 import { searchMovie, searchTVShow } from './tmdb';
-import { transcodeMovieFile, transcodeTVEpisodes } from './transcoder';
+import { finalizeMediaToLibrary } from './transcoder';
 
 const SUBTITLE_EXTENSIONS = ['.srt', '.ass', '.ssa', '.vtt', '.sub'];
 
@@ -86,7 +86,7 @@ interface ActiveDownload {
 	selectedFileIndex: number | null; // Currently selected file for streaming
 	episodeMapping: Map<number, number>; // episodeKey (S*100+E) -> fileIndex
 	progress: number;
-	status: 'initializing' | 'downloading' | 'complete' | 'error';
+	status: 'initializing' | 'downloading' | 'finalizing' | 'complete' | 'error';
 	activeStreams: number;
 	totalSize: number;
 	error?: string;
@@ -543,13 +543,13 @@ async function handleDownloadComplete(infohash: string, download: ActiveDownload
 	// const logPrefix = `[${download.mediaId}:${infohash.slice(0, 8)}]`;
 
 	// Prevent double-completion
-	if (download.status === 'complete') {
+	if (download.status === 'complete' || download.status === 'finalizing') {
 		// console.log(`${logPrefix} Already marked complete, skipping`);
 		return;
 	}
 
 	// console.log(`${logPrefix} Handling download completion...`);
-	download.status = 'complete';
+	download.status = 'finalizing';
 	download.progress = 1;
 
 	// Stop seeding - deselect all files to prevent uploading
@@ -558,20 +558,20 @@ async function handleDownloadComplete(infohash: string, download: ActiveDownload
 	}
 	// console.log(`${logPrefix} Stopped seeding`);
 
-	await moveToLibrary(download.mediaId, download);
-	// console.log(`${logPrefix} moveToLibrary completed`);
-
-	// Transmux non-mp4/webm files to mp4 before marking complete
 	try {
-		const mediaItem = mediaDb.getById(download.mediaId);
-		if (mediaItem?.type === 'show') {
-			await transcodeTVEpisodes(download.mediaId);
-		} else {
-			await transcodeMovieFile(download.mediaId);
-		}
+		await moveToLibrary(download.mediaId, download);
 	} catch (err) {
-		console.error('[Transcoder] Post-download transcoding failed:', err);
+		console.error('[Finalizer] Post-download finalization failed:', err);
+		download.status = 'error';
+		download.error = err instanceof Error ? err.message : 'Failed to finalize download';
+		const failedRecord = downloadsDb.getByInfohash(download.mediaId, infohash);
+		if (failedRecord) {
+			downloadsDb.updateProgress(failedRecord.id, download.progress, 'error');
+		}
+		updateMediaStatusFromDownloads(download.mediaId);
+		return;
 	}
+	download.status = 'complete';
 
 	// Update download record in database
 	const downloadRecord = downloadsDb.getByInfohash(download.mediaId, infohash);
@@ -582,6 +582,7 @@ async function handleDownloadComplete(infohash: string, download: ActiveDownload
 
 	// Update media status if all downloads for this media are complete
 	updateMediaStatusFromDownloads(download.mediaId);
+	cleanupDownload(download.infohash, true);
 }
 
 /** Update media status based on all active downloads for that media */
@@ -594,7 +595,9 @@ function updateMediaStatusFromDownloads(mediaId: string): void {
 		mediaDb.updateProgress(mediaId, 1, 'complete');
 	} else if (anyError) {
 		// If any download has error but others are still going, keep downloading status
-		const hasActiveDownloads = downloads.some((d) => d.status === 'downloading' || d.status === 'initializing');
+		const hasActiveDownloads = downloads.some(
+			(d) => d.status === 'downloading' || d.status === 'initializing' || d.status === 'finalizing'
+		);
 		if (!hasActiveDownloads) {
 			mediaDb.updateProgress(mediaId, 0, 'error');
 		}
@@ -607,7 +610,7 @@ function startCompletionChecker(infohash: string, download: ActiveDownload, torr
 
 	const checkInterval = setInterval(() => {
 		// Stop checking if download is no longer active or already complete
-		if (!activeDownloads.has(infohash) || download.status === 'complete') {
+		if (!activeDownloads.has(infohash) || download.status === 'complete' || download.status === 'finalizing') {
 			clearInterval(checkInterval);
 			return;
 		}
@@ -942,40 +945,26 @@ async function moveMovieToLibrary(mediaId: string, download: ActiveDownload): Pr
 	const fileName = mediaItem ? buildMovieFileName(mediaItem, download.videoFile.name) : download.videoFile.name;
 	const destPath = path.join(destDir, fileName);
 
-	try {
-		await fs.mkdir(destDir, { recursive: true });
-		await fs.copyFile(sourcePath, destPath);
+	await fs.mkdir(destDir, { recursive: true });
+	const finalized = await finalizeMediaToLibrary(sourcePath, destPath);
 
-		// Copy subtitle files alongside the video
-		for (const subFile of download.subtitleFiles) {
-			try {
-				const subSource = path.join(download.torrent.path, subFile.path);
-				const subDest = path.join(destDir, subFile.name);
-				await fs.copyFile(subSource, subDest);
-			} catch (subErr) {
-				console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
-			}
-		}
-
-		const stats = await fs.stat(destPath);
-		mediaDb.updateFilePath(mediaId, destPath, stats.size);
-
-		// Trigger subtitle discovery (sidecar + embedded) in background
-		discoverSubtitles(mediaId, destPath, destDir).catch((err) => {
-			console.error(`${logPrefix} Subtitle discovery failed:`, err);
-		});
-
-		cleanupDownload(download.infohash, true);
-	} catch (e) {
-		console.error(`${logPrefix} Failed to copy file to library:`, e);
+	// Copy subtitle files alongside the video
+	for (const subFile of download.subtitleFiles) {
 		try {
-			const stats = await fs.stat(sourcePath);
-			mediaDb.updateFilePath(mediaId, sourcePath, stats.size);
-		} catch {
-			mediaDb.updateFilePath(mediaId, sourcePath);
+			const subSource = path.join(download.torrent.path, subFile.path);
+			const subDest = path.join(destDir, subFile.name);
+			await fs.copyFile(subSource, subDest);
+		} catch (subErr) {
+			console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
 		}
-		scheduleCleanup(download.infohash);
 	}
+
+	mediaDb.updateFilePath(mediaId, finalized.filePath, finalized.fileSize);
+
+	// Trigger subtitle discovery (sidecar + embedded) in background
+	discoverSubtitles(mediaId, finalized.filePath, destDir).catch((err) => {
+		console.error(`${logPrefix} Subtitle discovery failed:`, err);
+	});
 }
 
 /** Get season number for a video file based on episode mapping */
@@ -994,10 +983,10 @@ async function updateEpisodeFileInfo(
 	mediaId: string,
 	download: ActiveDownload,
 	videoFile: TorrentFile,
-	destPath: string
+	filePath: string,
+	fileSize: number
 ): Promise<void> {
 	const fileIndex = download.videoFiles.indexOf(videoFile);
-	const stats = await fs.stat(destPath);
 
 	for (const [episodeKey, mappedIndex] of download.episodeMapping.entries()) {
 		if (mappedIndex !== fileIndex) {
@@ -1017,11 +1006,11 @@ async function updateEpisodeFileInfo(
 		if (episode) {
 			mediaDb.updateFileInfo(episode.id, {
 				fileIndex,
-				filePath: destPath,
-				fileSize: stats.size,
+				filePath,
+				fileSize,
 			});
-			mediaDb.updateEpisodeProgress(episode.id, stats.size, 'complete');
-			discoverSubtitles(episode.id, destPath, path.dirname(destPath)).catch((error) => {
+			mediaDb.updateEpisodeProgress(episode.id, fileSize, 'complete');
+			discoverSubtitles(episode.id, filePath, path.dirname(filePath)).catch((error) => {
 				console.error(`[${mediaId}] Subtitle discovery failed for ${videoFile.name}:`, error);
 			});
 		} else {
@@ -1056,33 +1045,26 @@ async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): 
 	const seasonDir = getSeasonLibraryDirectory(show, episode.seasonNumber);
 	const destPath = getEpisodeLibraryPath(show, episode, download.videoFile.name);
 
-	try {
-		await fs.mkdir(seasonDir, { recursive: true });
-		await fs.copyFile(sourcePath, destPath);
-		for (const subFile of download.subtitleFiles) {
-			try {
-				const subSource = path.join(download.torrent.path, subFile.path);
-				const subDest = path.join(seasonDir, subFile.name);
-				await fs.copyFile(subSource, subDest);
-			} catch (subErr) {
-				console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
-			}
+	await fs.mkdir(seasonDir, { recursive: true });
+	const finalized = await finalizeMediaToLibrary(sourcePath, destPath);
+	for (const subFile of download.subtitleFiles) {
+		try {
+			const subSource = path.join(download.torrent.path, subFile.path);
+			const subDest = path.join(seasonDir, subFile.name);
+			await fs.copyFile(subSource, subDest);
+		} catch (subErr) {
+			console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
 		}
-		const stats = await fs.stat(destPath);
-		mediaDb.updateFileInfo(mediaId, {
-			fileIndex: episode.fileIndex,
-			filePath: destPath,
-			fileSize: stats.size,
-		});
-		mediaDb.updateEpisodeProgress(mediaId, stats.size, 'complete');
-		discoverSubtitles(mediaId, destPath, seasonDir).catch((errorValue) => {
-			console.error(`${logPrefix} Subtitle discovery failed:`, errorValue);
-		});
-		cleanupDownload(download.infohash, true);
-	} catch (errorValue) {
-		console.error(`${logPrefix} Failed to copy file to library:`, errorValue);
-		scheduleCleanup(download.infohash);
 	}
+	mediaDb.updateFileInfo(mediaId, {
+		fileIndex: episode.fileIndex,
+		filePath: finalized.filePath,
+		fileSize: finalized.fileSize,
+	});
+	mediaDb.updateEpisodeProgress(mediaId, finalized.fileSize, 'complete');
+	discoverSubtitles(mediaId, finalized.filePath, seasonDir).catch((errorValue) => {
+		console.error(`${logPrefix} Subtitle discovery failed:`, errorValue);
+	});
 }
 
 /** Move TV show files to library organized by season */
@@ -1139,16 +1121,10 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 				? getEpisodeLibraryPath(show, episode, videoFile.name)
 				: path.join(seasonDir, videoFile.name);
 
-			try {
-				await fs.copyFile(sourcePath, destPath);
-				await updateEpisodeFileInfo(mediaId, download, videoFile, destPath);
-			} catch (e) {
-				console.error(`${logPrefix} Failed to copy ${videoFile.name}:`, e);
-			}
+			const finalized = await finalizeMediaToLibrary(sourcePath, destPath);
+			await updateEpisodeFileInfo(mediaId, download, videoFile, finalized.filePath, finalized.fileSize);
 		}
 	}
-
-	cleanupDownload(download.infohash, true);
 }
 
 async function moveToLibrary(mediaId: string, download: ActiveDownload): Promise<void> {
@@ -1162,30 +1138,6 @@ async function moveToLibrary(mediaId: string, download: ActiveDownload): Promise
 	} else {
 		await moveTVShowToLibrary(mediaId, download);
 	}
-}
-
-function scheduleCleanup(infohash: string): void {
-	const download = activeDownloads.get(infohash);
-	if (!download) {
-		return;
-	}
-
-	const checkAndCleanup = () => {
-		const current = activeDownloads.get(infohash);
-		if (!current) {
-			return;
-		}
-
-		if (current.activeStreams === 0 && current.status === 'complete') {
-			// console.log(`[${current.mediaId}:${infohash.slice(0, 8)}] Cleaning up torrent`);
-			cleanupDownload(infohash, false);
-		} else {
-			setTimeout(checkAndCleanup, 10_000);
-		}
-	};
-
-	// Initial delay before first cleanup check
-	setTimeout(checkAndCleanup, 30_000);
 }
 
 function cleanupDownload(infohash: string, removeFiles: boolean): void {
@@ -1414,7 +1366,8 @@ function aggregateDownloadStats(downloads: ActiveDownload[]): AggregatedStats {
 		result.totalProgress += download.progress * download.totalSize;
 
 		result.hasInitializing = result.hasInitializing || download.status === 'initializing';
-		result.hasDownloading = result.hasDownloading || download.status === 'downloading';
+		result.hasDownloading =
+			result.hasDownloading || download.status === 'downloading' || download.status === 'finalizing';
 		result.hasError = result.hasError || download.status === 'error';
 		result.allComplete = result.allComplete && download.status === 'complete';
 
@@ -1639,32 +1592,16 @@ async function finalizeFromTemp(mediaId: string, videoPath: string, fileName: st
 	}
 
 	try {
-		await fs.mkdir(destDir, { recursive: true });
-		await fs.copyFile(videoPath, destPath);
-
-		const stats = await fs.stat(destPath);
-		const fileSize = stats.size;
+		const finalized = await finalizeMediaToLibrary(videoPath, destPath);
 
 		if (mediaItem.type === 'episode') {
 			mediaDb.updateFileInfo(mediaId, {
 				fileIndex: mediaItem.fileIndex,
-				filePath: destPath,
-				fileSize,
+				filePath: finalized.filePath,
+				fileSize: finalized.fileSize,
 			});
 		} else {
-			mediaDb.updateFilePath(mediaId, destPath, fileSize);
-		}
-		// console.log(`[Recovery] [${mediaId}] Finalized from temp: ${destPath} (${fileSize} bytes)`);
-
-		// Transmux to mp4 if needed before marking complete
-		try {
-			if (mediaItem?.type === 'show') {
-				await transcodeTVEpisodes(mediaId);
-			} else {
-				await transcodeMovieFile(mediaId);
-			}
-		} catch (err) {
-			console.error(`[Recovery] [${mediaId}] Transcoding failed:`, err);
+			mediaDb.updateFilePath(mediaId, finalized.filePath, finalized.fileSize);
 		}
 
 		mediaDb.updateProgress(mediaId, 1, 'complete');

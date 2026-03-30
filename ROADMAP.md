@@ -1,6 +1,5 @@
 # ROADMAP
 
-- [ ] Video player bug: when scrubbing around the video, it will get stuck and go back to 0:00 and be stuck in a loading state until refreshed. Also sometimes just goes back to 0:00 on MKVs
 - [ ] Find some way to let the user pick which torrent source they want to download from. Redownloads have the same feature
   - Maybe a dropdown in the browse/search?
 - [ ] Be able to edit the details of a movie/show and episodes
@@ -12,7 +11,7 @@
 - [ ] I think i might remove the tabs between movies and tv shows and instead add a simple filter system. Mainly this is because i dont want a different continue watching banner on both tabs
   - [ ] Secondarily, there may be a need for a categories filter (definitely on the search, but also as netflix-like scrollable rows)
 - [ ] Move the total space and number of media cards in `/account` to the profile and make it per-profile instead of per-user-per-profile
-- [ ] BUG: When a movie exists in one profile, it cant be added by another. Solution. If it exists in another profile, just point to that data and serve that while adding the movie entry to the db.
+- [x] BUG: When a movie exists in one profile, it cant be added by another. Solution. If it exists in another profile, just point to that data and serve that while adding the movie entry to the db.
 - [ ] Fix the onboarding flow so that the indexers update optimistically
 - [ ] A better copyable error log in the error page
 - [ ] Im noticing some mental friction with search. I think we can try having search for the browser be on the browser page and default to its browser selection on the selection page. or something like that
@@ -40,11 +39,10 @@
   - Smart quality selection based on preferences
   - Release group preferences
   - Auto-download when new episodes air, notify when available via text
-- [ ] Public website mode
-  - [ ] Stream torrents on the client only. TMDB service is still provided (secures our API key), but that's it. Everything else is handled by the client. We shouldnt even use Jackett for this mode.
-  - [ ] When a magnet link is added, stream it right away and store the metadata and magnet link on the browser for restreaming if they want to watch it again.
 
+## Completed
 
+- [x] Video player bug: when scrubbing around the video, it will get stuck and go back to 0:00 and be stuck in a loading state until refreshed. Also sometimes just goes back to 0:00 on MKVs (Got solved with video normalization)
 - [x] Migrate user manaement to organizations so admin users can add new people to access their stuff
 - [x] Torrent search added to search page functionality. Specify search you library vs search the index
 - [x] Try migrating to prowlerr for our torrent index search
@@ -56,3 +54,9 @@
 - [x] Implement a caching system for torrents. Maybe use index db or a local store (tanstack db?) so we dont hit the TMDB api so much.
   - [x] Maybe migrate to tanstack query/tanstack db
     - We used tanstack query, but tanstack db might be a fun experiment
+
+## Not Planned/Cant feasibly do
+
+- [ ] Public website mode
+  - [ ] Stream torrents on the client only. TMDB service is still provided (secures our API key), but that's it. Everything else is handled by the client. We shouldnt even use Jackett for this mode.
+  - [ ] When a magnet link is added, stream it right away and store the metadata and magnet link on the browser for restreaming if they want to watch it again.

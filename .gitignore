@@ -19,3 +19,5 @@ biome-cache/
 coverage/
 opencode.json
 .mcp_data
+.claude
+AGENTS.md
