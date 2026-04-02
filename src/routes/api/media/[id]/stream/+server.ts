@@ -107,24 +107,21 @@ function createTransmuxResponse(inputStream: import('node:stream').Readable, fil
 	});
 }
 
-async function shouldUseTransmuxForStream(
-	fileName: string,
-	isComplete: boolean,
-	filePath?: string | null
-): Promise<boolean> {
+async function isLibraryFileDirectPlaybackReady(filePath: string): Promise<boolean> {
+	if (path.extname(filePath).toLowerCase() !== '.mp4') {
+		return false;
+	}
+	try {
+		return !(await requiresBrowserSafePlayback(filePath));
+	} catch (errorValue) {
+		console.error('[Stream] Failed to probe playback compatibility:', errorValue);
+		return false;
+	}
+}
+
+function shouldUseTransmuxForActiveStream(fileName: string): boolean {
 	if (needsTransmux(fileName)) {
 		return true;
-	}
-	if (filePath && isComplete) {
-		try {
-			return await requiresBrowserSafePlayback(filePath);
-		} catch (errorValue) {
-			console.error('[Stream] Failed to probe playback compatibility:', errorValue);
-			return true;
-		}
-	}
-	if (isComplete) {
-		return false;
 	}
 	return path.extname(fileName).toLowerCase() !== '.webm';
 }
@@ -201,18 +198,18 @@ export const HEAD: RequestHandler = async ({ params, locals }) => {
 	const { mediaItem, fileIndex } = resolveMedia(params, locals);
 	const libraryPath = resolveLibraryFile(mediaItem);
 	if (libraryPath) {
+		if (!(await isLibraryFileDirectPlaybackReady(libraryPath))) {
+			throw error(503, 'Downloaded media is not ready for direct playback');
+		}
 		const stats = statSync(libraryPath);
 		const fileName = path.basename(libraryPath);
-		const isTransmux = await shouldUseTransmuxForStream(fileName, true, libraryPath);
 		const headers: Record<string, string> = {
-			'Accept-Ranges': isTransmux ? 'none' : 'bytes',
-			'Content-Type': isTransmux ? 'video/mp4' : getMimeType(fileName),
-			'Content-Disposition': `inline; filename="${isTransmux ? fileName.replace(FILE_EXTENSION_REGEX, '.mp4') : fileName}"`,
+			'Accept-Ranges': 'bytes',
+			'Content-Type': getMimeType(fileName),
+			'Content-Disposition': `inline; filename="${fileName}"`,
 			'Cache-Control': 'private, max-age=3600',
 		};
-		if (!isTransmux) {
-			headers['Content-Length'] = stats.size.toString();
-		}
+		headers['Content-Length'] = stats.size.toString();
 		return new Response(null, {
 			status: 200,
 			headers,
@@ -227,7 +224,10 @@ export const HEAD: RequestHandler = async ({ params, locals }) => {
 		throw error(404, 'Video not available');
 	}
 	streamInfo.stream.destroy();
-	const isTransmux = await shouldUseTransmuxForStream(streamInfo.fileName, streamInfo.isComplete);
+	if (streamInfo.isComplete) {
+		throw error(503, 'Downloaded media is not ready for direct playback');
+	}
+	const isTransmux = shouldUseTransmuxForActiveStream(streamInfo.fileName);
 	const headers: Record<string, string> = {
 		'Accept-Ranges': isTransmux ? 'none' : 'bytes',
 		'Content-Type': isTransmux ? 'video/mp4' : streamInfo.mimeType,
@@ -247,10 +247,10 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 	const { mediaItem, fileIndex } = resolveMedia(params, locals);
 	const libraryPath = resolveLibraryFile(mediaItem);
 	if (libraryPath) {
-		const fileName = path.basename(libraryPath);
-		if (await shouldUseTransmuxForStream(fileName, true, libraryPath)) {
-			return createTransmuxResponse(createReadStream(libraryPath), fileName);
+		if (!(await isLibraryFileDirectPlaybackReady(libraryPath))) {
+			throw error(503, 'Downloaded media is not ready for direct playback');
 		}
+		const fileName = path.basename(libraryPath);
 		const stats = statSync(libraryPath);
 		const mimeType = getMimeType(fileName);
 		const range = request.headers.get('range');
@@ -276,7 +276,11 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 	if (!streamInfo) {
 		throw error(404, 'Video not available');
 	}
-	if (await shouldUseTransmuxForStream(streamInfo.fileName, streamInfo.isComplete)) {
+	if (streamInfo.isComplete) {
+		streamInfo.stream.destroy();
+		throw error(503, 'Downloaded media is not ready for direct playback');
+	}
+	if (shouldUseTransmuxForActiveStream(streamInfo.fileName)) {
 		return createTransmuxResponse(streamInfo.stream, streamInfo.fileName);
 	}
 	const range = request.headers.get('range');

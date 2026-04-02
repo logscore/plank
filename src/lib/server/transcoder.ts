@@ -20,6 +20,18 @@ async function verifyFileIntegrity(filePath: string): Promise<boolean> {
 	}
 }
 
+async function isDirectPlaybackReady(filePath: string): Promise<boolean> {
+	if (path.extname(filePath).toLowerCase() !== '.mp4') {
+		return false;
+	}
+	try {
+		return !(await requiresBrowserSafePlayback(filePath));
+	} catch (error) {
+		console.error(`[Transcoder] Failed to verify direct playback for ${filePath}:`, error);
+		return false;
+	}
+}
+
 export async function transcodeLibrary(): Promise<void> {
 	await scanMovies();
 	await scanShows();
@@ -55,6 +67,7 @@ export async function finalizeMediaToLibrary(
 	targetPath: string
 ): Promise<{ filePath: string; fileSize: number }> {
 	await fs.mkdir(path.dirname(targetPath), { recursive: true });
+
 	const needsNormalization = await shouldNormalizeFile(sourcePath);
 	const finalPath = needsNormalization
 		? `${path.join(path.dirname(targetPath), path.basename(targetPath, path.extname(targetPath)))}.mp4`
@@ -63,29 +76,41 @@ export async function finalizeMediaToLibrary(
 		path.dirname(finalPath),
 		`${path.basename(finalPath, path.extname(finalPath))}.finalizing${path.extname(finalPath)}`
 	);
+
 	if (existsSync(tempPath)) {
 		await fs.unlink(tempPath).catch(() => undefined);
 	}
+
 	if (needsNormalization) {
 		await normalizeFileForPlayback(sourcePath, tempPath);
 	} else {
 		await fs.copyFile(sourcePath, tempPath);
 	}
+
 	const isValid = await verifyFileIntegrity(tempPath);
 	if (!isValid) {
 		await fs.unlink(tempPath).catch(() => undefined);
 		throw new Error(`Finalized file is invalid: ${tempPath}`);
 	}
+
+	if (!(await isDirectPlaybackReady(tempPath))) {
+		await fs.unlink(tempPath).catch(() => undefined);
+		throw new Error(`Finalized file is not browser-safe: ${tempPath}`);
+	}
+
 	await fs.rename(tempPath, finalPath);
 	const stats = await fs.stat(finalPath);
+
 	return { filePath: finalPath, fileSize: stats.size };
 }
 
 export async function normalizeMediaForPlayback(mediaId: string): Promise<string | null> {
 	const existingJob = activeNormalizationJobs.get(mediaId);
+
 	if (existingJob) {
 		return existingJob;
 	}
+
 	const job = (async () => {
 		const media = mediaDb.getById(mediaId);
 		if (!(media?.filePath && existsSync(media.filePath))) {
@@ -108,6 +133,7 @@ export async function normalizeMediaForPlayback(mediaId: string): Promise<string
 		});
 		return mediaDb.getById(mediaId)?.filePath ?? media.filePath;
 	})();
+
 	activeNormalizationJobs.set(mediaId, job);
 	try {
 		return await job;
@@ -121,11 +147,8 @@ async function shouldNormalizeFile(filePath: string | null): Promise<boolean> {
 		return false;
 	}
 	const extension = path.extname(filePath).toLowerCase();
-	if (extension !== '.mp4' && extension !== '.webm') {
+	if (extension !== '.mp4') {
 		return true;
-	}
-	if (extension === '.webm') {
-		return false;
 	}
 	try {
 		return await requiresBrowserSafePlayback(filePath);
@@ -145,6 +168,11 @@ async function safeNormalize(sourcePath: string, updateDb: (path: string, size: 
 		const isValid = await verifyFileIntegrity(tempPath);
 		if (!isValid) {
 			console.error(`[Transcoder] Transmuxed file corrupt: ${tempPath}`);
+			await fs.unlink(tempPath).catch(() => undefined);
+			return;
+		}
+		if (!(await isDirectPlaybackReady(tempPath))) {
+			console.error(`[Transcoder] Finalized file is not browser-safe: ${tempPath}`);
 			await fs.unlink(tempPath).catch(() => undefined);
 			return;
 		}

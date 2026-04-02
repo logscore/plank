@@ -52,6 +52,20 @@ function getInputFormat(fileName?: string): string | null {
 	return INPUT_FORMAT_BY_EXTENSION[extension] ?? null;
 }
 
+function isIgnorableTextDataStream(stream: {
+	codec_type?: string;
+	codec_name?: string;
+	codec_tag_string?: string;
+	tags?: { handler_name?: string };
+}): boolean {
+	return (
+		stream.codec_type === 'data' &&
+		stream.codec_name === 'bin_data' &&
+		stream.codec_tag_string === 'text' &&
+		stream.tags?.handler_name === 'SubtitleHandler'
+	);
+}
+
 export function createTransmuxStream(options: TransmuxOptions): Readable {
 	const { inputStream, start, fileName, onError } = options;
 	const outputStream = new PassThrough();
@@ -59,6 +73,10 @@ export function createTransmuxStream(options: TransmuxOptions): Readable {
 		.outputFormat('mp4')
 		.inputOptions(['-fflags', '+genpts', '-analyzeduration', '100M', '-probesize', '100M'])
 		.outputOptions([
+			'-map_metadata',
+			'-1',
+			'-map_chapters',
+			'-1',
 			'-map',
 			'0:v:0',
 			'-map',
@@ -116,6 +134,10 @@ export async function transmuxFile(inputPath: string, outputPath: string): Promi
 		ffmpeg(inputPath)
 			.output(outputPath)
 			.outputOptions([
+				'-map_metadata',
+				'-1',
+				'-map_chapters',
+				'-1',
 				'-map',
 				'0:v:0',
 				'-map',
@@ -230,7 +252,9 @@ export async function probeFile(filePath: string): Promise<{
 
 			const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
 			const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
-			const hasDataStreams = metadata.streams.some((stream) => stream.codec_type === 'data');
+			const hasDataStreams = metadata.streams.some(
+				(stream) => stream.codec_type === 'data' && !isIgnorableTextDataStream(stream)
+			);
 
 			resolve({
 				videoCodec: videoStream?.codec_name || null,
@@ -285,6 +309,10 @@ export async function normalizeFileForPlayback(inputPath: string, outputPath: st
 		const command = ffmpeg(inputPath)
 			.output(outputPath)
 			.outputOptions([
+				'-map_metadata',
+				'-1',
+				'-map_chapters',
+				'-1',
 				'-map',
 				'0:v:0',
 				'-map',

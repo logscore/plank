@@ -18,6 +18,7 @@ import {
 	fetchMediaList,
 	fetchMediaProgress,
 	searchMedia,
+	searchOpenSubtitles,
 } from '$lib/queries/media-queries';
 
 // Mock global fetch
@@ -78,6 +79,24 @@ describe('Client Queries', () => {
 
 			await fetchMediaProgress('123');
 			expect(fetchMock).toHaveBeenCalledWith('/api/media/123/progress');
+		});
+
+		it('searchOpenSubtitles should omit null episode number', async () => {
+			fetchMock.mockResolvedValue({
+				ok: true,
+				json: async () => [],
+			});
+
+			await searchOpenSubtitles('123', {
+				languages: 'en',
+				seasonNumber: 1,
+				episodeNumber: null,
+			});
+
+			const url = new URL(vi.mocked(fetchMock).mock.calls[0][0] as string, 'http://localhost');
+			expect(url.pathname).toBe('/api/media/123/subtitles/search');
+			expect(url.searchParams.get('seasonNumber')).toBe('1');
+			expect(url.searchParams.get('episodeNumber')).toBeNull();
 		});
 	});
 

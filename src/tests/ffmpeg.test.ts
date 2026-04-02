@@ -1,6 +1,13 @@
 import { PassThrough } from 'node:stream';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTransmuxStream, isSupportedFormat, needsTransmux, probeFile, transmuxFile } from '$lib/server/ffmpeg';
+import {
+	createTransmuxStream,
+	getPlaybackCompatibility,
+	isSupportedFormat,
+	needsTransmux,
+	probeFile,
+	transmuxFile,
+} from '$lib/server/ffmpeg';
 
 // Mock ffmpeg-installer
 vi.mock('@ffmpeg-installer/ffmpeg', () => ({
@@ -11,6 +18,7 @@ vi.mock('@ffmpeg-installer/ffmpeg', () => ({
 const { mockFfmpegConstructor, mockFfmpegCommand } = vi.hoisted(() => {
 	const mockCommand = {
 		inputFormat: vi.fn().mockReturnThis(),
+		inputOptions: vi.fn().mockReturnThis(),
 		outputFormat: vi.fn().mockReturnThis(),
 		outputOptions: vi.fn().mockReturnThis(),
 		setStartTime: vi.fn().mockReturnThis(),
@@ -63,7 +71,7 @@ describe('FFmpeg Service', () => {
 	describe('createTransmuxStream', () => {
 		it('should create a transmux stream', () => {
 			const input = new PassThrough();
-			const stream = createTransmuxStream({ inputStream: input });
+			const stream = createTransmuxStream({ inputStream: input, fileName: 'video.mkv' });
 
 			expect(mockFfmpegConstructor).toHaveBeenCalledWith(input);
 			expect(mockFfmpegCommand.inputFormat).toHaveBeenCalledWith('matroska');
@@ -134,7 +142,7 @@ describe('FFmpeg Service', () => {
 				format: { duration: 100 },
 				streams: [
 					{ codec_type: 'video', codec_name: 'h264', width: 1920, height: 1080 },
-					{ codec_type: 'audio', codec_name: 'aac' },
+					{ codec_type: 'audio', codec_name: 'aac', channels: 2 },
 				],
 			};
 
@@ -152,6 +160,8 @@ describe('FFmpeg Service', () => {
 				duration: 100,
 				width: 1920,
 				height: 1080,
+				audioChannels: 2,
+				hasDataStreams: false,
 			});
 		});
 
@@ -163,6 +173,33 @@ describe('FFmpeg Service', () => {
 			);
 
 			await expect(probeFile('movie.mp4')).rejects.toThrow('Probe failed');
+		});
+	});
+
+	describe('getPlaybackCompatibility', () => {
+		it('ignores embedded mp4 text subtitle data tracks', async () => {
+			(mockFfmpegConstructor as any).ffprobe.mockImplementation(
+				(_path: string, callback: (err: Error | null, data?: any) => void) => {
+					callback(null, {
+						format: { duration: 100 },
+						streams: [
+							{ codec_type: 'video', codec_name: 'h264', width: 1920, height: 1080 },
+							{ codec_type: 'audio', codec_name: 'aac', channels: 2 },
+							{
+								codec_type: 'data',
+								codec_name: 'bin_data',
+								codec_tag_string: 'text',
+								tags: { handler_name: 'SubtitleHandler' },
+							},
+						],
+					});
+				}
+			);
+
+			const result = await getPlaybackCompatibility('movie.mp4');
+
+			expect(result.hasDataStreams).toBe(false);
+			expect(result.requiresNormalization).toBe(false);
 		});
 	});
 });

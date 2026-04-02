@@ -270,10 +270,10 @@ export async function searchSubtitles(params: OpenSubtitlesSearchParams): Promis
 	if (params.year) {
 		searchParams.set('year', String(params.year));
 	}
-	if (params.seasonNumber !== undefined) {
+	if (typeof params.seasonNumber === 'number' && Number.isFinite(params.seasonNumber)) {
 		searchParams.set('season_number', String(params.seasonNumber));
 	}
-	if (params.episodeNumber !== undefined) {
+	if (typeof params.episodeNumber === 'number' && Number.isFinite(params.episodeNumber)) {
 		searchParams.set('episode_number', String(params.episodeNumber));
 	}
 	if (params.languages) {

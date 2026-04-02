@@ -20,8 +20,10 @@ vi.mock('$lib/server/torrent', () => ({
 vi.mock('$lib/server/ffmpeg', () => ({
 	createTransmuxStream: vi.fn((value) => value.inputStream),
 	needsTransmux: vi.fn(() => false),
+	requiresBrowserSafePlayback: vi.fn(() => Promise.resolve(false)),
 }));
 
+import * as ffmpeg from '$lib/server/ffmpeg';
 import * as torrent from '$lib/server/torrent';
 import { GET } from '../routes/api/media/[id]/stream/+server';
 
@@ -82,5 +84,35 @@ describe('streaming route behavior', () => {
 		expect(response.status).toBe(200);
 		expect(response.headers.get('content-type')).toBe('video/mp4');
 		expect(vi.mocked(torrent.getVideoStream)).toHaveBeenCalledWith('episode-1');
+	});
+
+	it('rejects completed torrent streams without a finalized library file', async () => {
+		requireMediaAccess.mockReturnValue({
+			mediaItem: {
+				id: 'episode-1',
+				type: 'episode',
+				filePath: null,
+				fileIndex: 0,
+				magnetLink: 'magnet:?xt=urn:btih:episode123',
+				status: 'downloading',
+			},
+		});
+		vi.mocked(torrent.waitForVideoReady).mockResolvedValue(true);
+		vi.mocked(torrent.getVideoStream).mockResolvedValue({
+			stream: Readable.from(['video']),
+			fileSize: 5,
+			fileName: 'pilot.mp4',
+			mimeType: 'video/mp4',
+			isComplete: true,
+		});
+
+		await expect(
+			GET({
+				params: { id: 'episode-1' },
+				locals: {} as App.Locals,
+				request: new Request('http://localhost'),
+			} as never)
+		).rejects.toMatchObject({ status: 503 });
+		expect(vi.mocked(ffmpeg.createTransmuxStream)).not.toHaveBeenCalled();
 	});
 });

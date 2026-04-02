@@ -150,13 +150,20 @@ export async function acquireMediaByImdb(mediaId: string, options?: AcquireMedia
 	return startAttachedDownload(mediaId, result.magnetUri, result.infohash);
 }
 
-export async function waitForTerminalMediaState(mediaId: string): Promise<'complete' | 'error' | 'not_found'> {
+export async function waitForTerminalMediaState(
+	mediaId: string
+): Promise<'complete' | 'error' | 'not_found' | 'removed'> {
 	while (true) {
 		const mediaItem = mediaDb.getById(mediaId);
 		if (!mediaItem) {
 			return 'error';
 		}
-		if (mediaItem.status === 'complete' || mediaItem.status === 'error' || mediaItem.status === 'not_found') {
+		if (
+			mediaItem.status === 'complete' ||
+			mediaItem.status === 'error' ||
+			mediaItem.status === 'not_found' ||
+			mediaItem.status === 'removed'
+		) {
 			return mediaItem.status;
 		}
 		const downloadStatus = getDownloadStatus(mediaId);

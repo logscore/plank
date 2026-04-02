@@ -161,7 +161,7 @@ export async function searchOpenSubtitles(
 	options?: {
 		languages?: string;
 		seasonNumber?: number;
-		episodeNumber: number | null;
+		episodeNumber?: number | null;
 	}
 ): Promise<OpenSubtitleResult[]> {
 	const params = new URLSearchParams();
@@ -171,7 +171,7 @@ export async function searchOpenSubtitles(
 	if (options?.seasonNumber !== undefined) {
 		params.set('seasonNumber', String(options.seasonNumber));
 	}
-	if (options?.episodeNumber !== undefined) {
+	if (options?.episodeNumber != null) {
 		params.set('episodeNumber', String(options.episodeNumber));
 	}
 	const response = await fetch(`/api/media/${mediaId}/subtitles/search?${params.toString()}`);

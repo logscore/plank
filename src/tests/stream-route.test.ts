@@ -22,8 +22,10 @@ vi.mock('$lib/server/torrent', () => ({
 vi.mock('$lib/server/ffmpeg', () => ({
 	createTransmuxStream: vi.fn((value) => value.inputStream),
 	needsTransmux: vi.fn(() => false),
+	requiresBrowserSafePlayback: vi.fn(() => Promise.resolve(false)),
 }));
 
+import * as ffmpeg from '$lib/server/ffmpeg';
 import * as torrent from '$lib/server/torrent';
 import { GET, HEAD } from '../routes/api/media/[id]/stream/+server';
 
@@ -32,6 +34,7 @@ describe('stream route', () => {
 		vi.clearAllMocks();
 		vi.mocked(torrent.isDownloadActive).mockReturnValue(false);
 		vi.mocked(torrent.waitForVideoReady).mockResolvedValue(false);
+		vi.mocked(ffmpeg.requiresBrowserSafePlayback).mockResolvedValue(false);
 	});
 
 	it('rejects show containers', async () => {
@@ -72,6 +75,36 @@ describe('stream route', () => {
 
 		expect(response.status).toBe(200);
 		expect(response.headers.get('content-type')).toBe('video/mp4');
+		expect(vi.mocked(ffmpeg.createTransmuxStream)).not.toHaveBeenCalled();
+
+		await rm(directory, { recursive: true, force: true });
+	});
+
+	it('rejects completed library files that are not direct-playback safe', async () => {
+		const directory = await mkdtemp(path.join(tmpdir(), 'plank-stream-'));
+		const filePath = path.join(directory, 'pilot.mp4');
+		await writeFile(filePath, 'video');
+
+		requireMediaAccess.mockReturnValue({
+			mediaItem: {
+				id: 'episode-1',
+				type: 'episode',
+				filePath,
+				fileIndex: 0,
+				magnetLink: null,
+				status: 'complete',
+			},
+		});
+		vi.mocked(ffmpeg.requiresBrowserSafePlayback).mockResolvedValue(true);
+
+		await expect(
+			GET({
+				params: { id: 'episode-1' },
+				locals: {} as App.Locals,
+				request: new Request('http://localhost'),
+			} as never)
+		).rejects.toMatchObject({ status: 503 });
+		expect(vi.mocked(ffmpeg.createTransmuxStream)).not.toHaveBeenCalled();
 
 		await rm(directory, { recursive: true, force: true });
 	});

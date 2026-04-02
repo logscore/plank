@@ -202,6 +202,15 @@
             if (!response.ok) {
                 throw new Error(result?.message || 'Failed to retry download');
             }
+            if (body?.mode === 'replace' && body.magnetLink) {
+                data = {
+                    ...data,
+                    media: {
+                        ...data.media,
+                        magnetLink: body.magnetLink,
+                    },
+                };
+            }
             liveStatus = 'pending';
             liveProgress = 0;
             downloadSpeed = 0;
