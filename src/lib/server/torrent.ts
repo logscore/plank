@@ -916,10 +916,16 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 
 		setTimeout(() => {
 			if (download.status === 'initializing') {
+				const timeoutError = 'No seeders found - the torrent may be dead or unavailable';
 				download.status = 'error';
-				download.error = 'No seeders found - the torrent may be dead or unavailable';
+				download.error = timeoutError;
+				const downloadRecord = downloadsDb.getByInfohash(mediaId, infohash);
+				if (downloadRecord) {
+					downloadsDb.updateProgress(downloadRecord.id, 0, 'error');
+				}
+				mediaDb.updateProgress(mediaId, 0, 'error');
 				cleanupDownload(infohash, true);
-				resolve();
+				reject(new Error(timeoutError));
 			}
 		}, 120_000);
 

@@ -1,6 +1,6 @@
 export type MediaType = 'movie' | 'show' | 'episode';
 
-export type MediaStatus = 'pending' | 'searching' | 'downloading' | 'complete' | 'error' | 'not_found';
+export type MediaStatus = 'pending' | 'searching' | 'downloading' | 'complete' | 'error' | 'not_found' | 'removed';
 
 export interface Media {
 	id: string;

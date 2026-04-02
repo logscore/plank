@@ -1,5 +1,8 @@
 # ROADMAP
 
+- [ ] The tv show episodes should all start downloading when they are available
+  - [ ] If a user clicks play on a video that isnt downloading actively, it starts the torrent stream for that and we go to the watch and start streaming.
+- [ ] There is some bug where trying to redownload some media gets hung on the redownload page and othing actually resolves and begins downloading
 - [ ] Find some way to let the user pick which torrent source they want to download from. Redownloads have the same feature
   - Maybe a dropdown in the browse/search?
 - [ ] Be able to edit the details of a movie/show and episodes

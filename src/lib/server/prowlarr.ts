@@ -520,21 +520,46 @@ function filterCandidates(results: IndexerResult[], trustedGroups: string[], min
 	return seederFiltered.length > 0 ? seederFiltered : candidates;
 }
 
+export async function findTorrentCandidates(
+	imdbId: string,
+	options?: FindBestTorrentOptions,
+	limit = 8
+): Promise<IndexerResult[]> {
+	const settings = await getSettings();
+	const results =
+		options?.mediaType === 'episode' && options.seasonNumber && options.episodeNumber
+			? await searchEpisodeTorrent(imdbId, options)
+			: await searchProwlarr(imdbId);
+	const qualityFiltered = filterByQuality(results);
+	const episodeFiltered =
+		options?.mediaType === 'episode' && options.seasonNumber && options.episodeNumber
+			? filterForEpisodeResults(
+					qualityFiltered,
+					options.seasonNumber,
+					options.episodeNumber,
+					options.showTitle,
+					options.episodeTitle
+				)
+			: qualityFiltered;
+	return filterCandidates(episodeFiltered, settings.prowlarr.trustedGroups, settings.prowlarr.minSeeders)
+		.sort((a, b) => calculateScore(b) - calculateScore(a))
+		.slice(0, limit);
+}
+
 /**
  * Search and filter Prowlarr results for high-quality torrents.
  * Returns the best matching torrent or null.
  */
 export async function findBestTorrent(imdbId: string, options?: FindBestTorrentOptions): Promise<IndexerResult | null> {
-	const settings = await getSettings();
 	const episodeLabel = getEpisodeSearchLabel(options);
 	if (episodeLabel) {
 		console.log(`[Prowlarr] Searching ${episodeLabel} with IMDb ${imdbId}`);
 	}
+	const settings = await getSettings();
 	const results =
 		options?.mediaType === 'episode' && options.seasonNumber && options.episodeNumber
 			? await searchEpisodeTorrent(imdbId, options)
 			: await searchProwlarr(imdbId);
-
 	const qualityFiltered = filterByQuality(results);
 	const episodeFiltered =
 		options?.mediaType === 'episode' && options.seasonNumber && options.episodeNumber

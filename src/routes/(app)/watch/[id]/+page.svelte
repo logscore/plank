@@ -130,7 +130,7 @@
             return playerErrorMessage;
         }
         if (progressInfo?.status === 'downloading') {
-            return 'Preparing your stream and checking browser compatibility';
+            return 'Media pixies are preparing your stream';
         }
         if (progressInfo?.status === 'searching' || progressInfo?.status === 'initializing') {
             return 'Preparing your stream';

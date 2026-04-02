@@ -137,7 +137,7 @@ export const mediaDb = {
 	updateProgress(
 		id: string,
 		progress: number,
-		status: 'pending' | 'searching' | 'downloading' | 'complete' | 'error' | 'not_found'
+		status: 'pending' | 'searching' | 'downloading' | 'complete' | 'error' | 'not_found' | 'removed'
 	) {
 		db.update(mediaTable).set({ progress, status }).where(eq(mediaTable.id, id)).run();
 	},
@@ -177,9 +177,23 @@ export const mediaDb = {
 	updateEpisodeProgress(
 		id: string,
 		downloadedBytes: number,
-		status: 'pending' | 'searching' | 'downloading' | 'complete' | 'error' | 'not_found'
+		status: 'pending' | 'searching' | 'downloading' | 'complete' | 'error' | 'not_found' | 'removed'
 	) {
 		db.update(mediaTable).set({ downloadedBytes, status }).where(eq(mediaTable.id, id)).run();
+	},
+
+	markDownloadRemoved(id: string) {
+		db.update(mediaTable)
+			.set({
+				progress: 0,
+				status: 'removed',
+				filePath: null,
+				fileSize: null,
+				fileIndex: null,
+				downloadedBytes: 0,
+			})
+			.where(eq(mediaTable.id, id))
+			.run();
 	},
 
 	updateDisplayOrder(id: string, displayOrder: number) {

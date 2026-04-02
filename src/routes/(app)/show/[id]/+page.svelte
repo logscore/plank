@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ArrowLeft, Calendar, Database, Film, Play, RotateCcw, Trash2 } from '@lucide/svelte';
+    import { ArrowLeft, Calendar, Database, EllipsisVertical, Film, Play, RotateCcw, Trash2 } from '@lucide/svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
@@ -7,6 +7,8 @@
     import OpenSubtitlesDialog from '$lib/components/OpenSubtitlesDialog.svelte';
     import SubtitleMenu from '$lib/components/SubtitleMenu.svelte';
     import Button from '$lib/components/ui/Button.svelte';
+    import Dialog from '$lib/components/ui/Dialog.svelte';
+    import Input from '$lib/components/ui/Input.svelte';
     import type { Media, SeasonWithEpisodes } from '$lib/types';
     import { confirmDelete, uiState } from '$lib/ui-state.svelte';
 
@@ -16,11 +18,16 @@
     let selectedSeason = $state<number | null>(null);
     let deleting = $state(false);
     let retryingEpisodeIds = $state<Set<string>>(new Set());
+    let activeEpisodeMenuId = $state<string | null>(null);
+    let redownloadDialogOpen = $state(false);
+    let selectedEpisode = $state<Media | null>(null);
+    let retryDialogError = $state('');
+    let manualSourceInput = $state('');
     // OpenSubtitles dialog state
     let openSubtitlesDialogOpen = $state(false);
     let subtitleDialogMediaId = $state<string | undefined>(undefined);
     let subtitleDialogSeasonNumber = $state<number | undefined>(undefined);
-    let subtitleDialogEpisodeNumber = $state<number | undefined>(undefined);
+    let subtitleDialogEpisodeNumber = $state<number | null>(null);
     let subtitleDialogTitle = $state('');
 
     function openSubtitlesForEpisode(episode: Media) {
@@ -74,9 +81,16 @@
         );
     }
 
+    function isEpisodeRemoved(episode: Media): boolean {
+        return episode.status === 'removed';
+    }
+
     function getEpisodeStatusLabel(episode: Media): string {
         if (episode.status === 'complete' || episode.filePath) {
             return 'Downloaded';
+        }
+        if (episode.status === 'removed') {
+            return 'Removed';
         }
         if (episode.status === 'searching') {
             return 'Searching';
@@ -95,40 +109,123 @@
 
     function getEpisodeStatusClass(episode: Media): string {
         if (episode.status === 'complete' || episode.filePath) {
-            return 'bg-emerald-500/20 text-emerald-300';
+            return 'bg-emerald-500 text-emerald-100';
+        }
+        if (episode.status === 'removed') {
+            return 'bg-rose-500 text-rose-100';
         }
         if (episode.status === 'downloading') {
-            return 'bg-blue-500/20 text-blue-300';
+            return 'bg-blue-500 text-blue-100';
         }
         if (episode.status === 'searching') {
-            return 'bg-amber-500/20 text-amber-300';
+            return 'bg-amber-500 text-amber-100';
         }
         if (episode.status === 'not_found' || episode.status === 'error') {
-            return 'bg-red-500/20 text-red-300';
+            return 'bg-red-500 text-red-100';
         }
         return 'bg-muted text-muted-foreground';
     }
 
-    async function handleRetryEpisode(episode: Media) {
-        if (retryingEpisodeIds.has(episode.id)) {
-            return;
+    function getEpisodeCardClass(episode: Media): string {
+        return isEpisodeRemoved(episode) ? 'border-rose-500/40 bg-rose-500/5' : 'border-border hover:border-primary/50';
+    }
+
+    function openRedownloadDialog(episode: Media) {
+        activeEpisodeMenuId = null;
+        selectedEpisode = episode;
+        redownloadDialogOpen = true;
+        retryDialogError = '';
+        manualSourceInput = '';
+    }
+
+    function closeRedownloadDialog() {
+        redownloadDialogOpen = false;
+        selectedEpisode = null;
+        retryDialogError = '';
+        manualSourceInput = '';
+    }
+
+    function toggleEpisodeMenu(episodeId: string, event: Event) {
+        event.stopPropagation();
+        activeEpisodeMenuId = activeEpisodeMenuId === episodeId ? null : episodeId;
+    }
+
+    function closeEpisodeMenu(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.episode-actions-menu')) {
+            activeEpisodeMenuId = null;
         }
+    }
+
+    async function runEpisodeRetry(
+        episode: Media,
+        body?: { mode?: 'same' | 'replace' | 'remove'; magnetLink?: string }
+    ) {
+        if (retryingEpisodeIds.has(episode.id)) {
+            return false;
+        }
+
         retryingEpisodeIds = new Set(retryingEpisodeIds).add(episode.id);
+        retryDialogError = '';
         try {
             const response = await fetch(`/api/media/${episode.id}/retry`, {
                 method: 'POST',
+                headers: body ? { 'Content-Type': 'application/json' } : undefined,
+                body: body ? JSON.stringify(body) : undefined,
             });
+            const result = (await response.json().catch(() => null)) as {
+                message?: string;
+            } | null;
             if (!response.ok) {
-                throw new Error('Retry failed');
+                throw new Error(result?.message || 'Episode action failed');
             }
             await loadShow(false);
-        } catch (e) {
-            console.error('Failed to retry episode:', e);
+            return true;
+        } catch (error) {
+            console.error('Failed to run episode retry action:', error);
+            retryDialogError = error instanceof Error ? error.message : 'Episode action failed';
+            return false;
         } finally {
             const updated = new Set(retryingEpisodeIds);
             updated.delete(episode.id);
             retryingEpisodeIds = updated;
         }
+    }
+
+    async function handleRetryCurrentSource() {
+        if (!selectedEpisode) {
+            return;
+        }
+        const success = await runEpisodeRetry(selectedEpisode, {
+            mode: 'same',
+        });
+        if (success) {
+            closeRedownloadDialog();
+        }
+    }
+
+    async function handleManualSourceSubmit() {
+        if (!(selectedEpisode && manualSourceInput.trim())) {
+            return;
+        }
+        const success = await runEpisodeRetry(selectedEpisode, {
+            mode: 'replace',
+            magnetLink: manualSourceInput.trim(),
+        });
+        if (success) {
+            closeRedownloadDialog();
+        }
+    }
+
+    function handleRemoveEpisodeDownload(episode: Media) {
+        activeEpisodeMenuId = null;
+        confirmDelete(
+            'Remove Episode Download',
+            'This removes the downloaded file but keeps the episode metadata so you can redownload it later.',
+            async () => {
+                await runEpisodeRetry(episode, { mode: 'remove' });
+            }
+        );
     }
 
     function formatRuntime(minutes: number | null): string {
@@ -271,8 +368,10 @@
     });
 </script>
 
+<svelte:document onclick={closeEpisodeMenu} />
+
 <svelte:head>
-    <title>{media?.title ?? 'Show'} | Plank</title>
+    <title>{media?.title ?? "Show"} | Plank</title>
 </svelte:head>
 
 {#if loading}
@@ -430,7 +529,9 @@
                         <div class="space-y-4">
                             {#each currentSeason.episodes as episode}
                                 <div
-                                    class="flex gap-4 p-4 bg-card rounded-lg border border-border hover:border-primary/50 transition-colors group"
+                                    class="flex gap-4 p-4 bg-card rounded-lg border transition-colors group {getEpisodeCardClass(
+                                        episode,
+                                    )}"
                                 >
                                     <!-- Episode Thumbnail -->
                                     <div
@@ -451,7 +552,9 @@
                                             </div>
                                         {/if}
                                         <div
-                                            class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] {getEpisodeStatusClass(episode)}"
+                                            class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] {getEpisodeStatusClass(
+                                                episode,
+                                            )}"
                                         >
                                             {getEpisodeStatusLabel(episode)}
                                         </div>
@@ -496,35 +599,88 @@
                                             {/if}
 
                                             <div class="flex items-center gap-1 shrink-0 ml-auto">
-                                                {#if episode.status === 'error' || episode.status === 'not_found'}
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        disabled={retryingEpisodeIds.has(episode.id)}
-                                                        onclick={() => handleRetryEpisode(episode)}
-                                                    >
-                                                        <RotateCcw class="w-4 h-4 mr-1" />
-                                                        {retryingEpisodeIds.has(episode.id)
-                                                            ? 'Retrying'
-                                                            : 'Retry'}
-                                                    </Button>
-                                                {/if}
                                                 {#if media}
                                                     <SubtitleMenu
                                                         mediaId={episode.id}
-                                                        onAddSubtitles={() => openSubtitlesForEpisode(episode)}
+                                                        onAddSubtitles={() =>
+                                                            openSubtitlesForEpisode(
+                                                                episode,
+                                                            )}
                                                         compact
                                                     />
                                                 {/if}
                                                 <Button
                                                     size="sm"
-                                                    disabled={!canPlayEpisode(episode)}
+                                                    disabled={!canPlayEpisode(
+                                                        episode,
+                                                    )}
                                                     onclick={() =>
-                                                        handlePlayEpisode(episode)}
+                                                        handlePlayEpisode(
+                                                            episode,
+                                                        )}
                                                 >
                                                     <Play class="w-4 h-4 mr-1 fill-current" />
                                                     Play
                                                 </Button>
+                                                <div class="relative episode-actions-menu">
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        class="text-white hover:bg-neutral-800"
+                                                        onclick={(event) =>
+                                                            toggleEpisodeMenu(
+                                                                episode.id,
+                                                                event,
+                                                            )}
+                                                        title="Episode actions"
+                                                    >
+                                                        <EllipsisVertical class="w-4 h-4" />
+                                                    </Button>
+
+                                                    {#if activeEpisodeMenuId === episode.id}
+                                                        <div
+                                                            class="absolute right-0 top-full mt-2 w-44 rounded-md shadow-lg bg-black/95 border border-white/10 ring-1 ring-black/40 backdrop-blur-md overflow-hidden z-50"
+                                                        >
+                                                            <div class="py-1" role="menu">
+                                                                <button
+                                                                    class="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-2"
+                                                                    role="menuitem"
+                                                                    disabled={retryingEpisodeIds.has(
+                                                                        episode.id,
+                                                                    )}
+                                                                    onclick={() =>
+                                                                        openRedownloadDialog(
+                                                                            episode,
+                                                                        )}
+                                                                >
+                                                                    <RotateCcw class="w-4 h-4" />
+                                                                    {retryingEpisodeIds.has(
+                                                                        episode.id,
+                                                                    )
+                                                                        ? "Working..."
+                                                                        : "Redownload"}
+                                                                </button>
+                                                                <button
+                                                                    class="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-white/10 flex items-center gap-2 disabled:opacity-50"
+                                                                    role="menuitem"
+                                                                    disabled={retryingEpisodeIds.has(
+                                                                        episode.id,
+                                                                    ) ||
+                                                                        isEpisodeRemoved(
+                                                                            episode,
+                                                                        )}
+                                                                    onclick={() =>
+                                                                        handleRemoveEpisodeDownload(
+                                                                            episode,
+                                                                        )}
+                                                                >
+                                                                    <Trash2 class="w-4 h-4" />
+                                                                    Delete
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    {/if}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -577,7 +733,10 @@
                     </div>
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">Current Season</span>
-                        <span class="font-medium">{currentSeason?.name || `Season ${selectedSeason ?? 1}`}</span>
+                        <span class="font-medium"
+                            >{currentSeason?.name ||
+                                `Season ${selectedSeason ?? 1}`}</span
+                        >
                     </div>
                 </div>
             </div>
@@ -629,6 +788,65 @@
         onConfirm={uiState.deleteConfirmation.confirmAction}
         loading={deleting}
     />
+
+    <Dialog
+        bind:open={redownloadDialogOpen}
+        title={selectedEpisode
+            ? `Redownload ${selectedEpisode.title || `Episode ${selectedEpisode.episodeNumber}`}`
+            : "Redownload Episode"}
+        description="Reuse the saved source or paste a magnet link or torrent URL manually."
+        class="max-w-xl"
+    >
+        <div class="space-y-5">
+            <div class="space-y-3">
+                <div class="space-y-1">
+                    <p class="text-sm font-medium">Saved source</p>
+                    <p class="text-sm text-muted-foreground">Retry the source already stored on this episode.</p>
+                </div>
+                <Button
+                    onclick={handleRetryCurrentSource}
+                    disabled={!selectedEpisode ||
+                        !selectedEpisode.magnetLink ||
+                        retryingEpisodeIds.has(selectedEpisode.id)}
+                >
+                    <RotateCcw class="w-4 h-4 mr-2" />
+                    Retry saved source
+                </Button>
+                {#if selectedEpisode && !selectedEpisode.magnetLink}
+                    <p class="text-sm text-muted-foreground">
+                        This episode does not have a saved source yet. Paste a new one below.
+                    </p>
+                {/if}
+            </div>
+
+            <div class="space-y-3 border-t border-border pt-4">
+                <div class="space-y-1">
+                    <p class="text-sm font-medium">Manual source</p>
+                    <p class="text-sm text-muted-foreground">Paste a magnet link or a direct torrent URL.</p>
+                </div>
+                <Input
+                    bind:value={manualSourceInput}
+                    placeholder="magnet:?xt=urn:btih:... or https://..."
+                    onkeydown={(event) =>
+                        event.key === "Enter" && handleManualSourceSubmit()}
+                />
+                <div class="flex justify-end">
+                    <Button
+                        onclick={handleManualSourceSubmit}
+                        disabled={!selectedEpisode ||
+                            retryingEpisodeIds.has(selectedEpisode.id) ||
+                            !manualSourceInput.trim()}
+                    >
+                        Use manual source
+                    </Button>
+                </div>
+            </div>
+
+            {#if retryDialogError}
+                <p class="text-sm text-destructive">{retryDialogError}</p>
+            {/if}
+        </div>
+    </Dialog>
 
     <OpenSubtitlesDialog
         bind:open={openSubtitlesDialogOpen}

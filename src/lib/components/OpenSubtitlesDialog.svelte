@@ -17,7 +17,7 @@
         mediaId: string;
         mediaTitle?: string;
         seasonNumber?: number;
-        episodeNumber?: number;
+        episodeNumber: number | null;
     } = $props();
 
     let results: OpenSubtitleResult[] = $state([]);

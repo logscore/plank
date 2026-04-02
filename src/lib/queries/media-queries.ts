@@ -161,7 +161,7 @@ export async function searchOpenSubtitles(
 	options?: {
 		languages?: string;
 		seasonNumber?: number;
-		episodeNumber?: number;
+		episodeNumber: number | null;
 	}
 ): Promise<OpenSubtitleResult[]> {
 	const params = new URLSearchParams();

@@ -196,7 +196,7 @@ export const media = sqliteTable(
 		magnetLink: text('magnet_link'),
 		infohash: text('infohash'),
 		status: text('status', {
-			enum: ['pending', 'searching', 'downloading', 'complete', 'error', 'not_found'],
+			enum: ['pending', 'searching', 'downloading', 'complete', 'error', 'not_found', 'removed'],
 		}).default('pending'),
 		progress: real('progress').default(0),
 		filePath: text('file_path'),
