@@ -8,6 +8,9 @@ export default defineConfig({
 		host: '0.0.0.0',
 		port: Number.parseInt(process.env.PORT || '3300', 10),
 		allowedHosts: ['localhost', '127.0.0.1', '.test'],
+		watch: {
+			ignored: ['**/db/**'],
+		},
 	},
 	build: {
 		rollupOptions: {

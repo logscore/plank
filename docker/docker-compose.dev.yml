@@ -11,7 +11,7 @@ services:
     environment:
       - NODE_ENV=development
       - ENABLE_FILE_STORAGE=true
-      - DATABASE_URL=/app/plank.db
+      - DATABASE_URL=/app/db/plank.db
       - TMDB_API_KEY=${TMDB_API_KEY}
       # Internal Docker network URLs (always use service names)
       - PROWLARR_URL=http://prowlarr:9696
@@ -30,13 +30,21 @@ services:
       # Path to Prowlarr config for auto-configuration
       - PROWLARR_CONFIG_PATH=/prowlarr-config/config.xml
     volumes:
-      # Mount source code for hot reloading
-      - ..:/app
-      # Preserve container's node_modules (hide local node_modules)
-      - /app/node_modules
-      # Use the repo-local /data directory via the source mount above
-      # Share Prowlarr config for API key extraction
+      - plank-dev-db:/app/db
       - prowlarr-config:/prowlarr-config:ro
+    develop:
+      watch:
+        - action: sync
+          path: ..
+          target: /app
+          initial_sync: true
+          ignore:
+            - node_modules/
+            - docker/
+        - action: rebuild
+          path: ../package.json
+        - action: rebuild
+          path: ../package-lock.json
     command: npm run dev -- --host
     depends_on:
       prowlarr:
@@ -71,4 +79,5 @@ services:
     restart: unless-stopped
 
 volumes:
+  plank-dev-db:
   prowlarr-config:
