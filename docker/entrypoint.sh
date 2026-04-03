@@ -33,5 +33,5 @@ echo "Starting application..."
 if [ "$#" -gt 0 ]; then
     exec "$@"
 else
-    exec "node build"
+    exec node build
 fi

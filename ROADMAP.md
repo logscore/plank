@@ -6,8 +6,8 @@
 - [ ] Find some way to let the user pick which torrent source they want to download from. Redownloads have the same feature
   - Maybe a dropdown in the browse/search?
 - [ ] Be able to edit the details of a movie/show and episodes
-- [ ] We need to rethink tv shows. We need metadata for episodes along with the thumbnails of episodes. 
-  - [ ] We need better show identification systems in plank. 
+- [x] We need to rethink tv shows. We need metadata for episodes along with the thumbnails of episodes. 
+  - [x] We need better show identification systems in plank. 
 - [ ] Handle no TMDB api key by having a poster placeholder
 - [x] Subtitles
   - [ ] Fix the code to grab other non vtt subtitles and use those or convert them to vtt immediately. For example, k-pop demon hunters has over a dozen subtitles built in. We dont use any because they're srt. Or maybe we can just support them?
@@ -30,18 +30,6 @@
 - [ ] Adjust progress endpoint to SSE. Stop streaming when video plays, and start again if user opens "stats for nerds"
 - [ ] The torrent index setup page isnt working since the migration to prowlerr. 
 - [ ] add a setting to seed the torrents. This will be a toggle on the settings page and on signup. It will default to false.
-- [ ] **Content Request & Voting System (Backburner)**
-  - Family/friends can request movies/shows
-  - In person movie party people can request and vote on movies/shows via QR code page
-  - Upvote/downvote system for content prioritization
-  - Auto-download when votes reach threshold
-  - Perfect for group watch parties and democratic content selection/content management for parents
-  - Could integrate with "Smart Season Pass" for automated TV show management (idk what this is)
-- [ ] Sonarr/Radarr-style automation
-  - Auto-monitor new episodes for TV shows in library
-  - Smart quality selection based on preferences
-  - Release group preferences
-  - Auto-download when new episodes air, notify when available via text
 
 ## Completed
 
@@ -63,3 +51,15 @@
 - [ ] Public website mode
   - [ ] Stream torrents on the client only. TMDB service is still provided (secures our API key), but that's it. Everything else is handled by the client. We shouldnt even use Jackett for this mode.
   - [ ] When a magnet link is added, stream it right away and store the metadata and magnet link on the browser for restreaming if they want to watch it again.
+- [ ] **Content Request & Voting System (Backburner)**
+  - Family/friends can request movies/shows
+  - In person movie party people can request and vote on movies/shows via QR code page
+  - Upvote/downvote system for content prioritization
+  - Auto-download when votes reach threshold
+  - Perfect for group watch parties and democratic content selection/content management for parents
+  - Could integrate with "Smart Season Pass" for automated TV show management (idk what this is)
+- [ ] Sonarr/Radarr-style automation
+  - Auto-monitor new episodes for TV shows in library
+  - Smart quality selection based on preferences
+  - Release group preferences
+  - Auto-download when new episodes air, notify when available via text
