@@ -2,52 +2,53 @@
 
 - [ ] The tv show episodes should all start downloading when they are available
   - [ ] If a user clicks play on a video that isnt downloading actively, it starts the torrent stream for that and we go to the watch and start streaming.
-- [ ] There is some bug where trying to redownload some media gets hung on the redownload page and othing actually resolves and begins downloading
 - [ ] Find some way to let the user pick which torrent source they want to download from. Redownloads have the same feature
   - Maybe a dropdown in the browse/search?
 - [ ] Be able to edit the details of a movie/show and episodes
-- [x] We need to rethink tv shows. We need metadata for episodes along with the thumbnails of episodes. 
-  - [x] We need better show identification systems in plank. 
-- [ ] Handle no TMDB api key by having a poster placeholder
+- [ ] Select an audio for the movie. Multi-lang support for dubs
 - [x] Subtitles
   - [ ] Fix the code to grab other non vtt subtitles and use those or convert them to vtt immediately. For example, k-pop demon hunters has over a dozen subtitles built in. We dont use any because they're srt. Or maybe we can just support them?
 - [ ] I think i might remove the tabs between movies and tv shows and instead add a simple filter system. Mainly this is because i dont want a different continue watching banner on both tabs
   - [ ] Secondarily, there may be a need for a categories filter (definitely on the search, but also as netflix-like scrollable rows)
 - [ ] Move the total space and number of media cards in `/account` to the profile and make it per-profile instead of per-user-per-profile
-- [x] BUG: When a movie exists in one profile, it cant be added by another. Solution. If it exists in another profile, just point to that data and serve that while adding the movie entry to the db.
 - [ ] Fix the onboarding flow so that the indexers update optimistically
 - [ ] A better copyable error log in the error page
 - [ ] Im noticing some mental friction with search. I think we can try having search for the browser be on the browser page and default to its browser selection on the selection page. or something like that
-- [ ] Ensure that when I add a movie or TV show to my library, the data from the torrent card gets added into the database. So that the media card in my library is the exact same as what is displayed on the browse page. 
 - [ ] Improve the details cards on tv shows. they currently dont have a redownload button, dont show the mb/sec # of peers or size of torrent, and they dont show the location of the episodes, which should be where the seasons are located as it holds multiple files. I want the same functionality as the movies version of the page
-- [ ] Improve the episode cards on the tv show details page. Maybe add the title, the description of the episode, runtime, and a poster image
   - [ ] Add a button to redownload just that episode
-- [ ] Remove the cache tables in the db and just use tanstack query / tanstack db
 - [ ] Have the download be background jobs instead of main thread processes. Use something light weight like a valkey scheduler
 - [ ] Find a way to make scrubbing on MKV/AVI formats work better
 - [ ] Pick where you want the movies saved. S3, Google Drive, file server, local drive, etc.
 - [ ] Auto updater. Just click a button and it checks for updates and updates the app. Privileges are a massive security issue here. We should hold off on this until we have a better plan for security
-- [ ] Adjust progress endpoint to SSE. Stop streaming when video plays, and start again if user opens "stats for nerds"
-- [ ] The torrent index setup page isnt working since the migration to prowlerr. 
 - [ ] add a setting to seed the torrents. This will be a toggle on the settings page and on signup. It will default to false.
 
 ## Completed
 
+- [x] Improve the episode cards on the tv show details page. Maybe add the title, the description of the episode, runtime, and a poster image
+- [x] Ensure that when I add a movie or TV show to my library, the data from the torrent card gets added into the database. So that the media card in my library is the exact same as what is displayed on the browse page. 
+- [x] There is some bug where trying to redownload some media gets hung on the redownload page and othing actually resolves and begins downloading (The torrent was just busted)
+- [x] The torrent index setup page isnt working since the migration to prowlerr. 
+- [x] Adjust progress endpoint to SSE. Stop streaming when video plays, and start again if user opens "stats for nerds"
 - [x] Video player bug: when scrubbing around the video, it will get stuck and go back to 0:00 and be stuck in a loading state until refreshed. Also sometimes just goes back to 0:00 on MKVs (Got solved with video normalization)
 - [x] Migrate user manaement to organizations so admin users can add new people to access their stuff
 - [x] Torrent search added to search page functionality. Specify search you library vs search the index
 - [x] Try migrating to prowlerr for our torrent index search
 - [x] Dont disable adding the media wen prefetching it, but do hen actively 
 - [x] Search other torrent aggregators and have an instant "add to library" and "watch now" button
+- [x] BUG: When a movie exists in one profile, it cant be added by another. Solution. If it exists in another profile, just point to that data and serve that while adding the movie entry to the db.
 - [x] Search your library
   - [x] Search by title
 - [x] Upload tv shows to the library
 - [x] Implement a caching system for torrents. Maybe use index db or a local store (tanstack db?) so we dont hit the TMDB api so much.
   - [x] Maybe migrate to tanstack query/tanstack db
     - We used tanstack query, but tanstack db might be a fun experiment
+- [x] We need to rethink tv shows. We need metadata for episodes along with the thumbnails of episodes. 
+  - [x] We need better show identification systems in plank. 
 
 ## Not Planned/Cant feasibly do
 
+- [ ] Remove the cache tables in the db and just use tanstack query / tanstack db (we kind of need it)
+- [ ] Handle no TMDB api key by having a poster placeholder
 - [ ] Public website mode
   - [ ] Stream torrents on the client only. TMDB service is still provided (secures our API key), but that's it. Everything else is handled by the client. We shouldnt even use Jackett for this mode.
   - [ ] When a magnet link is added, stream it right away and store the metadata and magnet link on the browser for restreaming if they want to watch it again.
