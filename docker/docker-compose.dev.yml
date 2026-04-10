@@ -40,11 +40,12 @@ services:
           initial_sync: true
           ignore:
             - node_modules/
-            - docker/
         - action: rebuild
           path: ../package.json
         - action: rebuild
           path: ../package-lock.json
+        - action: rebuild
+          path: ../docker
     command: npm run dev -- --host
     depends_on:
       prowlarr:
