@@ -1,8 +1,13 @@
-import { createReadStream, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { error } from '@sveltejs/kit';
 import { requireMediaAccess } from '$lib/server/api-guard';
 import { createTransmuxStream, needsTransmux, requiresBrowserSafePlayback } from '$lib/server/ffmpeg';
+import {
+	getStoredFileMetadata,
+	getStoredFileName,
+	readStoredFileStream,
+	resolveLocalStoragePath,
+} from '$lib/server/storage';
 import {
 	getDownloadStatus,
 	getVideoStream,
@@ -42,11 +47,23 @@ function silenceAbortErrors(stream: import('node:stream').Readable): ReadableStr
 	return stream as unknown as ReadableStream;
 }
 
-function resolveLibraryFile(mediaItem: { filePath: string | null }): string | null {
-	if (!(mediaItem.filePath && existsSync(mediaItem.filePath))) {
+async function resolveLibraryFile(mediaItem: {
+	filePath: string | null;
+	organizationId: string | null;
+}): Promise<{ filePath: string; fileName: string; fileSize: number; localPath: string | null } | null> {
+	if (!mediaItem.filePath) {
 		return null;
 	}
-	return mediaItem.filePath;
+	const metadata = await getStoredFileMetadata(mediaItem.filePath, mediaItem.organizationId);
+	if (!metadata) {
+		return null;
+	}
+	return {
+		filePath: mediaItem.filePath,
+		fileName: getStoredFileName(mediaItem.filePath),
+		fileSize: metadata.size,
+		localPath: await resolveLocalStoragePath(mediaItem.filePath, mediaItem.organizationId),
+	};
 }
 
 function checkDownloadError(mediaId: string): void {
@@ -107,12 +124,15 @@ function createTransmuxResponse(inputStream: import('node:stream').Readable, fil
 	});
 }
 
-async function isLibraryFileDirectPlaybackReady(filePath: string): Promise<boolean> {
-	if (path.extname(filePath).toLowerCase() !== '.mp4') {
+async function isLibraryFileDirectPlaybackReady(fileName: string, localPath: string | null): Promise<boolean> {
+	if (path.extname(fileName).toLowerCase() !== '.mp4') {
 		return false;
 	}
+	if (!localPath) {
+		return true;
+	}
 	try {
-		return !(await requiresBrowserSafePlayback(filePath));
+		return !(await requiresBrowserSafePlayback(localPath));
 	} catch (errorValue) {
 		console.error('[Stream] Failed to probe playback compatibility:', errorValue);
 		return false;
@@ -166,13 +186,13 @@ function resolveMedia(params: { id: string }, locals: App.Locals) {
 	return { mediaItem, fileIndex: mediaItem.fileIndex ?? undefined };
 }
 
-function serveLibraryRange(
-	filePath: string,
+async function serveLibraryRange(
+	mediaItem: { filePath: string; organizationId: string | null },
 	range: string,
 	fileSize: number,
 	fileName: string,
 	mimeType: string
-): Response {
+): Promise<Response> {
 	const parts = range.replace(RANGE_BYTES_REGEX, '').split('-');
 	const start = Number.parseInt(parts[0], 10);
 	const end = parts[1] ? Number.parseInt(parts[1], 10) : fileSize - 1;
@@ -181,7 +201,8 @@ function serveLibraryRange(
 	}
 	const clampedEnd = Math.min(end, fileSize - 1);
 	const contentLength = clampedEnd - start + 1;
-	return new Response(silenceAbortErrors(createReadStream(filePath, { start, end: clampedEnd })), {
+	const stream = await readStoredFileStream(mediaItem.filePath, mediaItem.organizationId, { start, end: clampedEnd });
+	return new Response(silenceAbortErrors(stream), {
 		status: 206,
 		headers: {
 			'Content-Range': `bytes ${start}-${clampedEnd}/${fileSize}`,
@@ -196,20 +217,18 @@ function serveLibraryRange(
 
 export const HEAD: RequestHandler = async ({ params, locals }) => {
 	const { mediaItem, fileIndex } = resolveMedia(params, locals);
-	const libraryPath = resolveLibraryFile(mediaItem);
-	if (libraryPath) {
-		if (!(await isLibraryFileDirectPlaybackReady(libraryPath))) {
+	const libraryFile = await resolveLibraryFile(mediaItem);
+	if (libraryFile) {
+		if (!(await isLibraryFileDirectPlaybackReady(libraryFile.fileName, libraryFile.localPath))) {
 			throw error(503, 'Downloaded media is not ready for direct playback');
 		}
-		const stats = statSync(libraryPath);
-		const fileName = path.basename(libraryPath);
 		const headers: Record<string, string> = {
 			'Accept-Ranges': 'bytes',
-			'Content-Type': getMimeType(fileName),
-			'Content-Disposition': `inline; filename="${fileName}"`,
+			'Content-Type': getMimeType(libraryFile.fileName),
+			'Content-Disposition': `inline; filename="${libraryFile.fileName}"`,
 			'Cache-Control': 'private, max-age=3600',
 		};
-		headers['Content-Length'] = stats.size.toString();
+		headers['Content-Length'] = libraryFile.fileSize.toString();
 		return new Response(null, {
 			status: 200,
 			headers,
@@ -245,25 +264,30 @@ export const HEAD: RequestHandler = async ({ params, locals }) => {
 
 export const GET: RequestHandler = async ({ params, locals, request }) => {
 	const { mediaItem, fileIndex } = resolveMedia(params, locals);
-	const libraryPath = resolveLibraryFile(mediaItem);
-	if (libraryPath) {
-		if (!(await isLibraryFileDirectPlaybackReady(libraryPath))) {
+	const libraryFile = await resolveLibraryFile(mediaItem);
+	if (libraryFile) {
+		if (!(await isLibraryFileDirectPlaybackReady(libraryFile.fileName, libraryFile.localPath))) {
 			throw error(503, 'Downloaded media is not ready for direct playback');
 		}
-		const fileName = path.basename(libraryPath);
-		const stats = statSync(libraryPath);
-		const mimeType = getMimeType(fileName);
+		const mimeType = getMimeType(libraryFile.fileName);
 		const range = request.headers.get('range');
 		if (range) {
-			return serveLibraryRange(libraryPath, range, stats.size, fileName, mimeType);
+			return serveLibraryRange(
+				{ filePath: libraryFile.filePath, organizationId: mediaItem.organizationId },
+				range,
+				libraryFile.fileSize,
+				libraryFile.fileName,
+				mimeType
+			);
 		}
-		return new Response(silenceAbortErrors(createReadStream(libraryPath)), {
+		const stream = await readStoredFileStream(libraryFile.filePath, mediaItem.organizationId);
+		return new Response(silenceAbortErrors(stream), {
 			status: 200,
 			headers: {
 				'Accept-Ranges': 'bytes',
-				'Content-Length': stats.size.toString(),
+				'Content-Length': libraryFile.fileSize.toString(),
 				'Content-Type': mimeType,
-				'Content-Disposition': `inline; filename="${fileName}"`,
+				'Content-Disposition': `inline; filename="${libraryFile.fileName}"`,
 				'Cache-Control': 'private, max-age=3600',
 			},
 		});

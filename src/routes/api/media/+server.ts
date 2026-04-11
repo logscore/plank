@@ -150,7 +150,12 @@ async function enrichBrowseMetadata(
 	return metadata;
 }
 
-function saveImagesAsync(metadata: MediaMetadata, mediaId: string, mediaType: MediaType): void {
+function saveImagesAsync(
+	metadata: MediaMetadata,
+	mediaId: string,
+	mediaType: MediaType,
+	organizationId: string | null
+): void {
 	if (!(metadata.posterUrl || metadata.backdropUrl)) {
 		return;
 	}
@@ -159,9 +164,19 @@ function saveImagesAsync(metadata: MediaMetadata, mediaId: string, mediaType: Me
 		try {
 			const directoryId =
 				mediaType === 'show'
-					? getShowLibraryDirectoryId({ id: mediaId, title: metadata.title, year: metadata.year })
-					: getMovieLibraryDirectoryId({ id: mediaId, title: metadata.title, year: metadata.year });
-			const updatedImages = await saveTmdbImages(metadata, 'library', directoryId);
+					? getShowLibraryDirectoryId({
+							id: mediaId,
+							title: metadata.title,
+							year: metadata.year,
+							organizationId,
+						})
+					: getMovieLibraryDirectoryId({
+							id: mediaId,
+							title: metadata.title,
+							year: metadata.year,
+							organizationId,
+						});
+			const updatedImages = await saveTmdbImages(metadata, 'library', directoryId, organizationId);
 			mediaDb.updateMetadata(mediaId, {
 				posterUrl: updatedImages.posterUrl,
 				backdropUrl: updatedImages.backdropUrl,
@@ -352,7 +367,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	});
 
 	// Save images in background
-	saveImagesAsync(metadata, mediaItem.id, mediaType);
+	saveImagesAsync(metadata, mediaItem.id, mediaType, organizationId);
 
 	// Start download
 	startDownload(mediaItem.id, magnetLink).catch((e) => {

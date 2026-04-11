@@ -5,13 +5,13 @@ import { downloadSubtitle, getIso2Code, getLanguageName } from '$lib/server/open
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ params, locals, request }) => {
-	requireMediaAccess(locals, params.id);
+	const { mediaItem } = requireMediaAccess(locals, params.id);
 	const { fileId, language } = (await request.json()) as { fileId: number; language: string };
 	if (!(fileId && language)) {
 		throw error(400, 'fileId and language are required');
 	}
 	try {
-		const { filePath, fileName } = await downloadSubtitle(fileId, params.id);
+		const { filePath, fileName } = await downloadSubtitle(fileId, params.id, mediaItem.organizationId);
 		const subtitle = subtitlesDb.create({
 			mediaId: params.id,
 			language: getIso2Code(language),

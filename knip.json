@@ -7,6 +7,6 @@
     "scripts/*.ts"
   ],
   "project": ["src/**/*.ts", "src/**/*.svelte", "scripts/*.ts"],
-  "ignoreDependencies": ["tailwindcss"],
+  "ignoreDependencies": ["tailwindcss", "@typescript/native-preview"],
   "ignoreBinaries": ["svelte-check-rs"]
 }

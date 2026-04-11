@@ -1,10 +1,14 @@
 import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { config } from '$lib/config';
 import { mediaDb } from './db';
 import { normalizeFileForPlayback, probeFile, requiresBrowserSafePlayback } from './ffmpeg';
+import { isAbsoluteStoragePath, normalizeStorageKey } from './storage';
+import { getStorageAdapter } from './storage/factory';
 
 const activeNormalizationJobs = new Map<string, Promise<string | null>>();
+const STORAGE_FINALIZE_ROOT = path.join(config.paths.temp, '__storage-finalize__');
 
 async function verifyFileIntegrity(filePath: string): Promise<boolean> {
 	try {
@@ -40,7 +44,13 @@ export async function transcodeLibrary(): Promise<void> {
 async function scanMovies(): Promise<void> {
 	const movies = mediaDb
 		.getAll()
-		.filter((media) => media.type === 'movie' && media.filePath && existsSync(media.filePath));
+		.filter(
+			(media) =>
+				media.type === 'movie' &&
+				media.filePath &&
+				isAbsoluteStoragePath(media.filePath) &&
+				existsSync(media.filePath)
+		);
 	await Promise.all(movies.map(async (media) => normalizeMediaForPlayback(media.id)));
 }
 
@@ -104,6 +114,28 @@ export async function finalizeMediaToLibrary(
 	return { filePath: finalPath, fileSize: stats.size };
 }
 
+export async function finalizeMediaToStorage(
+	sourcePath: string,
+	targetPath: string,
+	organizationId?: string | null
+): Promise<{ filePath: string; fileSize: number }> {
+	if (isAbsoluteStoragePath(targetPath)) {
+		return finalizeMediaToLibrary(sourcePath, targetPath);
+	}
+
+	const adapter = await getStorageAdapter(organizationId);
+	const tempRoot = path.join(STORAGE_FINALIZE_ROOT, crypto.randomUUID());
+	const localTargetPath = path.join(tempRoot, normalizeStorageKey(targetPath));
+	try {
+		const finalized = await finalizeMediaToLibrary(sourcePath, localTargetPath);
+		const storagePath = normalizeStorageKey(path.relative(tempRoot, finalized.filePath));
+		await adapter.writeFromLocalPath(storagePath, finalized.filePath);
+		return { filePath: storagePath, fileSize: finalized.fileSize };
+	} finally {
+		await fs.rm(tempRoot, { recursive: true, force: true }).catch(() => undefined);
+	}
+}
+
 export async function normalizeMediaForPlayback(mediaId: string): Promise<string | null> {
 	const existingJob = activeNormalizationJobs.get(mediaId);
 
@@ -113,7 +145,7 @@ export async function normalizeMediaForPlayback(mediaId: string): Promise<string
 
 	const job = (async () => {
 		const media = mediaDb.getById(mediaId);
-		if (!(media?.filePath && existsSync(media.filePath))) {
+		if (!(media?.filePath && isAbsoluteStoragePath(media.filePath) && existsSync(media.filePath))) {
 			return media?.filePath ?? null;
 		}
 		if (!(await shouldNormalizeFile(media.filePath))) {
@@ -143,7 +175,7 @@ export async function normalizeMediaForPlayback(mediaId: string): Promise<string
 }
 
 async function shouldNormalizeFile(filePath: string | null): Promise<boolean> {
-	if (!(filePath && existsSync(filePath))) {
+	if (!(filePath && isAbsoluteStoragePath(filePath) && existsSync(filePath))) {
 		return false;
 	}
 	const extension = path.extname(filePath).toLowerCase();

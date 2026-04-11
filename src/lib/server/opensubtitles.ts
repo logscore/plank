@@ -3,6 +3,8 @@ import path from 'node:path';
 import { config } from '$lib/config';
 import type { OpenSubtitleResult } from '$lib/types';
 import { getSettings } from './settings';
+import { buildOrganizationStorageKey } from './storage';
+import { getStorageAdapter } from './storage/factory';
 
 const BASE_URL = 'https://api.opensubtitles.com/api/v1';
 const USER_AGENT = 'plank-media v0.1.0';
@@ -338,7 +340,8 @@ export async function searchSubtitles(params: OpenSubtitlesSearchParams): Promis
 
 export async function downloadSubtitle(
 	fileId: number,
-	mediaId: string
+	mediaId: string,
+	organizationId?: string | null
 ): Promise<{ filePath: string; fileName: string }> {
 	const apiKey = await getApiKey();
 	if (!apiKey) {
@@ -369,32 +372,35 @@ export async function downloadSubtitle(
 
 	const content = await fileResponse.text();
 
-	// Step 3: Save to disk
-	const subtitleDir = path.join(config.paths.library, mediaId, 'subtitles');
-	await fs.mkdir(subtitleDir, { recursive: true });
+	const tempDir = path.join(config.paths.temp, 'subtitles', mediaId, crypto.randomUUID());
+	const adapter = await getStorageAdapter(organizationId);
+	await fs.mkdir(tempDir, { recursive: true });
 
 	// Use a unique filename based on the original plus a timestamp
 	const baseName = path.basename(downloadInfo.file_name, path.extname(downloadInfo.file_name));
 	const safeName = baseName.replace(SAFE_FILENAME_REGEX, '_');
 	const fileName = `${safeName}_${Date.now()}.srt`;
-	const filePath = path.join(subtitleDir, fileName);
+	const filePath = path.join(tempDir, fileName);
 
 	await fs.writeFile(filePath, content, 'utf-8');
 
 	// Step 4: Convert to VTT if needed (SRT is most common from OpenSubtitles)
 	const { convertSubtitleToVtt } = await import('./ffmpeg');
 	const vttFileName = `${safeName}_${Date.now()}.vtt`;
-	const vttPath = path.join(subtitleDir, vttFileName);
+	const vttPath = path.join(tempDir, vttFileName);
 
 	try {
 		await convertSubtitleToVtt(filePath, vttPath);
-		// Clean up the original SRT
-		await fs.unlink(filePath).catch(() => undefined);
-		return { filePath: vttPath, fileName: downloadInfo.file_name };
+		const storagePath = buildOrganizationStorageKey(organizationId, 'library', mediaId, 'subtitles', vttFileName);
+		await adapter.writeFromLocalPath(storagePath, vttPath);
+		await fs.rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+		return { filePath: storagePath, fileName: downloadInfo.file_name };
 	} catch {
-		// If conversion fails, try serving the SRT directly
 		console.error('[OpenSubtitles] VTT conversion failed, keeping SRT');
-		return { filePath, fileName: downloadInfo.file_name };
+		const storagePath = buildOrganizationStorageKey(organizationId, 'library', mediaId, 'subtitles', fileName);
+		await adapter.writeFromLocalPath(storagePath, filePath);
+		await fs.rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+		return { filePath: storagePath, fileName: downloadInfo.file_name };
 	}
 }
 

@@ -10,5 +10,5 @@ else
     echo "Warning: .env file not found. Ensure environment variables are set."
 fi
 
-echo "Starting Plank Development Environment..."
-docker compose -f docker/docker-compose.dev.yml up --build
+echo "Starting Plank Development Environment with watch mode..."
+docker compose -f docker/docker-compose.dev.yml up --build --watch

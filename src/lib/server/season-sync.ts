@@ -103,7 +103,13 @@ async function saveShowImages(showId: string, metadata: ShowMetadata): Promise<v
 		return;
 	}
 	try {
-		const showDirectoryId = getShowLibraryDirectoryId({ id: showId, title: metadata.title, year: metadata.year });
+		const existingShow = mediaDb.getById(showId);
+		const showDirectoryId = getShowLibraryDirectoryId({
+			id: showId,
+			title: metadata.title,
+			year: metadata.year,
+			organizationId: existingShow?.organizationId,
+		});
 		const savedImages = await saveTmdbImages(
 			{
 				tmdbId: null,
@@ -119,7 +125,8 @@ async function saveShowImages(showId: string, metadata: ShowMetadata): Promise<v
 				totalSeasons: metadata.totalSeasons,
 			},
 			'library',
-			showDirectoryId
+			showDirectoryId,
+			existingShow?.organizationId
 		);
 		mediaDb.updateMetadata(showId, {
 			posterUrl: savedImages.posterUrl,

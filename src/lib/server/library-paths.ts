@@ -2,14 +2,15 @@
 // FEATURE: Shared filesystem layout for media storage and cleanup behavior
 
 import path from 'node:path';
-import { config } from '$lib/config';
 import { mediaDb } from './db';
 import { buildEpisodeFileName, buildMovieLibraryDirectoryName, buildShowLibraryDirectoryName } from './media-naming';
+import { buildOrganizationStorageKey } from './storage';
 
 interface MovieDirectoryMedia {
 	id: string;
 	title: string;
 	year: number | null;
+	organizationId?: string | null;
 	filePath?: string | null;
 }
 
@@ -17,6 +18,7 @@ interface ShowDirectoryMedia {
 	id: string;
 	title: string;
 	year: number | null;
+	organizationId?: string | null;
 }
 
 interface EpisodeDirectoryMedia {
@@ -37,7 +39,7 @@ export function getMovieLibraryRoot(movie: MovieDirectoryMedia): string {
 	if (movie.filePath) {
 		return path.dirname(movie.filePath);
 	}
-	return path.join(config.paths.library, buildMovieLibraryDirectoryName(movie));
+	return buildOrganizationStorageKey(movie.organizationId, 'library', buildMovieLibraryDirectoryName(movie));
 }
 
 export function getMovieLibraryDirectoryId(movie: MovieDirectoryMedia): string {
@@ -45,7 +47,10 @@ export function getMovieLibraryDirectoryId(movie: MovieDirectoryMedia): string {
 }
 
 export function getShowLibraryRoot(show: ShowDirectoryMedia): string {
-	return getExistingShowLibraryRoot(show.id) ?? path.join(config.paths.library, buildShowLibraryDirectoryName(show));
+	return (
+		getExistingShowLibraryRoot(show.id) ??
+		buildOrganizationStorageKey(show.organizationId, 'library', buildShowLibraryDirectoryName(show))
+	);
 }
 
 export function getShowLibraryDirectoryId(show: ShowDirectoryMedia): string {

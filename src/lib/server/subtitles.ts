@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { config } from '$lib/config';
 import { subtitlesDb } from './db';
+import { getCanonicalStoragePath, getStoredFileName, isAbsoluteStoragePath, normalizeStorageKey } from './storage';
+import { getStorageAdapter } from './storage/factory';
 
 const SIDECAR_EXTENSIONS = ['.srt', '.ass', '.ssa', '.vtt', '.sub'];
 
@@ -55,43 +56,65 @@ function parseLanguageFromFilename(fileName: string): { language: string; label:
 	return { language: 'und', label: 'Unknown' };
 }
 
-function getSubtitleDir(mediaId: string): string {
-	return path.join(config.paths.library, mediaId, 'subtitles');
-}
-
 function isSubtitleFile(fileName: string): boolean {
 	return SIDECAR_EXTENSIONS.includes(path.extname(fileName).toLowerCase());
 }
 
-export async function discoverSidecarSubtitles(mediaId: string, libraryDir: string): Promise<void> {
-	let files: string[];
-	try {
-		files = await fs.readdir(libraryDir);
-	} catch {
-		return;
+async function listSubtitleCandidates(
+	libraryDir: string,
+	organizationId?: string | null
+): Promise<Array<{ key: string; fileName: string }>> {
+	if (isAbsoluteStoragePath(libraryDir)) {
+		const files = await fs.readdir(libraryDir).catch(() => []);
+		return files
+			.filter((fileName) => isSubtitleFile(fileName))
+			.map((fileName) => ({
+				key: path.join(libraryDir, fileName),
+				fileName,
+			}));
 	}
-	const subtitleFiles = files.filter((fileName) => isSubtitleFile(fileName));
+
+	const adapter = await getStorageAdapter(organizationId);
+	const prefix = normalizeStorageKey(libraryDir);
+	const files = await adapter.list(prefix);
+	return files
+		.filter((file) => isSubtitleFile(file.key) && path.posix.dirname(file.key) === prefix)
+		.map((file) => ({
+			key: file.key,
+			fileName: getStoredFileName(file.key),
+		}));
+}
+
+export async function discoverSidecarSubtitles(
+	mediaId: string,
+	organizationId: string | null | undefined,
+	libraryDir: string
+): Promise<void> {
+	const subtitleFiles = await listSubtitleCandidates(libraryDir, organizationId);
 	if (subtitleFiles.length === 0) {
 		return;
 	}
-	const existingPaths = new Set(subtitlesDb.getByMediaId(mediaId).map((subtitle) => subtitle.filePath));
-	await fs.mkdir(getSubtitleDir(mediaId), { recursive: true });
-	for (const fileName of subtitleFiles) {
-		const sourcePath = path.join(libraryDir, fileName);
-		if (existingPaths.has(sourcePath)) {
+	const existingPaths = new Set(
+		subtitlesDb
+			.getByMediaId(mediaId)
+			.map((subtitle) => (subtitle.filePath ? getCanonicalStoragePath(subtitle.filePath) : null))
+			.filter((value): value is string => Boolean(value))
+	);
+	for (const subtitleFile of subtitleFiles) {
+		if (existingPaths.has(getCanonicalStoragePath(subtitleFile.key))) {
 			continue;
 		}
-		if (path.extname(fileName).toLowerCase() !== '.vtt') {
+		if (path.extname(subtitleFile.fileName).toLowerCase() !== '.vtt') {
 			continue;
 		}
-		const { language, label } = parseLanguageFromFilename(fileName);
+		const { language, label } = parseLanguageFromFilename(subtitleFile.fileName);
 		subtitlesDb.create({
 			mediaId,
 			language,
 			label,
 			source: 'sidecar',
 			format: 'vtt',
-			filePath: sourcePath,
+			filePath: subtitleFile.key,
 			streamIndex: null,
 			isDefault: false,
 			isForced: false,
@@ -99,8 +122,13 @@ export async function discoverSidecarSubtitles(mediaId: string, libraryDir: stri
 	}
 }
 
-export async function discoverSubtitles(mediaId: string, _videoFilePath: string, libraryDir: string): Promise<void> {
-	await discoverSidecarSubtitles(mediaId, libraryDir);
+export async function discoverSubtitles(
+	mediaId: string,
+	organizationId: string | null | undefined,
+	_videoFilePath: string,
+	libraryDir: string
+): Promise<void> {
+	await discoverSidecarSubtitles(mediaId, organizationId, libraryDir);
 }
 
 export function getSubtitleTracks(mediaId: string) {

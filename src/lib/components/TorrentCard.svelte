@@ -3,9 +3,16 @@
     import type { BrowseItem } from '$lib/server/tmdb';
     import { cn } from '$lib/utils';
     import Button from './ui/Button.svelte';
-    import type { SeasonData } from './ui/ContextMenu.svelte';
     import ContextMenu from './ui/ContextMenu.svelte';
     import Tv from './ui/Tv.svelte';
+
+    interface SeasonData {
+        seasonNumber: number;
+        name: string;
+        episodeCount: number;
+        year?: number;
+        posterPath?: string;
+    }
 
     let {
         item,

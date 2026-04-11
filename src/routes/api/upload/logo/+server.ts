@@ -39,7 +39,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.get();
 
 	const buffer = Buffer.from(await file.arrayBuffer());
-	const result = await replaceStoredImage(currentOrg?.logo, buffer, file.type, 'logos', organizationId);
+	const result = await replaceStoredImage(
+		currentOrg?.logo,
+		buffer,
+		file.type,
+		'logos',
+		organizationId,
+		organizationId
+	);
 
 	if ('error' in result) {
 		throw error(400, result.error);

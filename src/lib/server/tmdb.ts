@@ -664,7 +664,8 @@ import { imageStorage } from '$lib/server/storage';
 export async function saveTmdbImages(
 	metadata: TMDBMetadata,
 	category: string,
-	id: string
+	id: string,
+	organizationId?: string | null
 ): Promise<{ posterUrl: string | null; backdropUrl: string | null }> {
 	const result = {
 		posterUrl: metadata.posterUrl,
@@ -673,12 +674,13 @@ export async function saveTmdbImages(
 
 	if (metadata.posterUrl) {
 		try {
-			// metadata.posterUrl already contains the full URL (e.g. from getMovieDetails mapping)
-			// so we can use it directly.
-			// Wait, the previous mapping code uses settings.tmdb.imageBaseUrl to construct metadata.posterUrl
-			// So metadata.posterUrl IS a full URL.
-			// imageStorage.saveFromUrl expects a URL.
-			const storedPath = await imageStorage.saveFromUrl(category, id, 'poster.jpg', metadata.posterUrl);
+			const storedPath = await imageStorage.saveFromUrl(
+				category,
+				id,
+				'poster.jpg',
+				metadata.posterUrl,
+				organizationId
+			);
 			result.posterUrl = `/images/${storedPath}`;
 		} catch (e) {
 			console.error(`Failed to save poster for ${id}:`, e);
@@ -687,7 +689,13 @@ export async function saveTmdbImages(
 
 	if (metadata.backdropUrl) {
 		try {
-			const storedPath = await imageStorage.saveFromUrl(category, id, 'backdrop.jpg', metadata.backdropUrl);
+			const storedPath = await imageStorage.saveFromUrl(
+				category,
+				id,
+				'backdrop.jpg',
+				metadata.backdropUrl,
+				organizationId
+			);
 			result.backdropUrl = `/images/${storedPath}`;
 		} catch (e) {
 			console.error(`Failed to save backdrop for ${id}:`, e);

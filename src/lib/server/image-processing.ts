@@ -60,7 +60,8 @@ export async function replaceStoredImage(
 	buffer: Buffer,
 	mimeType: string,
 	category: 'avatars' | 'logos',
-	id: string
+	id: string,
+	organizationId?: string | null
 ): Promise<{ imagePath: string } | { error: string }> {
 	const validation = validateImage(buffer, mimeType);
 	if (!validation.valid) {
@@ -69,17 +70,23 @@ export async function replaceStoredImage(
 
 	let relativePath: string;
 	try {
-		relativePath = await processAndSave(buffer, category, id);
+		relativePath = await imageStorage.save(
+			category,
+			id,
+			'image.jpg',
+			await (async () => {
+				const image = await Jimp.read(buffer);
+				image.cover({ w: OUTPUT_SIZE, h: OUTPUT_SIZE });
+				return image.getBuffer(JimpMime.jpeg, { quality: OUTPUT_QUALITY });
+			})(),
+			organizationId
+		);
 	} catch {
 		return { error: 'Failed to process image. Allowed: JPEG, PNG, GIF' };
 	}
 
 	if (oldImagePath) {
-		try {
-			await imageStorage.delete(oldImagePath.replace(IMAGES_PREFIX, ''));
-		} catch {
-			// File may not exist, ignore
-		}
+		await imageStorage.delete(oldImagePath.replace(IMAGES_PREFIX, ''), organizationId).catch(() => undefined);
 	}
 
 	return { imagePath: `/images/${relativePath}` };

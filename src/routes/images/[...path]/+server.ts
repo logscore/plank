@@ -1,7 +1,6 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import { error } from '@sveltejs/kit';
-import { config } from '$lib/config';
+import { getOrganizationIdFromStorageKey, getStoredFileMetadata, readStoredFile } from '$lib/server/storage';
 import type { RequestHandler } from './$types';
 
 // Regex to prevent directory traversal
@@ -12,18 +11,17 @@ export const GET: RequestHandler = async ({ params }) => {
 		throw error(404, 'Not Found');
 	}
 
-	// Prevent directory traversal
 	const safePath = path.normalize(params.path).replace(DIRECTORY_TRAVERSAL_REGEX, '');
-	const filePath = path.join(config.paths.data, safePath);
+	const organizationId = getOrganizationIdFromStorageKey(safePath);
 
 	try {
-		const stat = await fs.stat(filePath);
-		if (!stat.isFile()) {
+		const metadata = await getStoredFileMetadata(safePath, organizationId);
+		if (!metadata) {
 			throw error(404, 'Not Found');
 		}
 
-		const file = await fs.readFile(filePath);
-		const ext = path.extname(filePath).toLowerCase();
+		const file = await readStoredFile(safePath, organizationId);
+		const ext = path.extname(safePath).toLowerCase();
 
 		let contentType = 'application/octet-stream';
 		switch (ext) {
@@ -48,10 +46,10 @@ export const GET: RequestHandler = async ({ params }) => {
 				break;
 		}
 
-		return new Response(file, {
+		return new Response(new Uint8Array(file), {
 			headers: {
 				'Content-Type': contentType,
-				// Cache for a long time since images are content-addressed or immutable usually
+				'Content-Length': metadata.size.toString(),
 				'Cache-Control': 'public, max-age=31536000',
 			},
 		});

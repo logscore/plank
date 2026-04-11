@@ -310,6 +310,21 @@ export const configuration = sqliteTable('configuration', {
 		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
 });
 
+export const storageConfig = sqliteTable('storage_config', {
+	organizationId: text('organization_id')
+		.primaryKey()
+		.references(() => organization.id, { onDelete: 'cascade' }),
+	provider: text('provider', { enum: ['local', 's3'] }).notNull(),
+	config: text('config').notNull(),
+	createdAt: integer('created_at', { mode: 'timestamp_ms' })
+		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+		.notNull(),
+	updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+		.$onUpdate(() => new Date())
+		.notNull(),
+});
+
 export const subtitles = sqliteTable(
 	'subtitles',
 	{
@@ -367,6 +382,14 @@ export const organizationRelations = relations(organization, ({ many }) => ({
 	invitations: many(invitation),
 	media: many(media),
 	sessions: many(session),
+	storageConfig: many(storageConfig),
+}));
+
+export const storageConfigRelations = relations(storageConfig, ({ one }) => ({
+	organization: one(organization, {
+		fields: [storageConfig.organizationId],
+		references: [organization.id],
+	}),
 }));
 
 export const memberRelations = relations(member, ({ one }) => ({
@@ -464,6 +487,8 @@ export type Download = typeof downloads.$inferSelect;
 export type NewDownload = typeof downloads.$inferInsert;
 export type TorrentCache = typeof torrentCache.$inferSelect;
 export type NewTorrentCache = typeof torrentCache.$inferInsert;
+export type StorageConfig = typeof storageConfig.$inferSelect;
+export type NewStorageConfig = typeof storageConfig.$inferInsert;
 export type Subtitle = typeof subtitles.$inferSelect;
 export type NewSubtitle = typeof subtitles.$inferInsert;
 
@@ -484,5 +509,6 @@ export const schema = {
 	downloads,
 	torrentCache,
 	configuration,
+	storageConfig,
 	subtitles,
 } as const;

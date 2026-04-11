@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { Readable } from 'node:stream';
@@ -16,9 +16,20 @@ import {
 } from './library-paths';
 import { parseMagnet } from './magnet';
 import { buildMovieFileName } from './media-naming';
+import {
+	buildOrganizationStorageKey,
+	deleteStoredFile,
+	deleteStoredPrefix,
+	getStoragePathDirectory,
+	getStoredFileMetadata,
+	getStoredFileName,
+	readStoredFileStream,
+	storedFileExists,
+} from './storage';
+import { getStorageAdapter } from './storage/factory';
 import { discoverSubtitles } from './subtitles';
 import { searchMovie, searchTVShow } from './tmdb';
-import { finalizeMediaToLibrary } from './transcoder';
+import { finalizeMediaToStorage } from './transcoder';
 
 const SUBTITLE_EXTENSIONS = ['.srt', '.ass', '.ssa', '.vtt', '.sub'];
 
@@ -107,6 +118,20 @@ function getDownloadsForMedia(mediaId: string): ActiveDownload[] {
 		}
 	}
 	return downloads;
+}
+
+async function copyLocalFileToStorage(
+	sourcePath: string,
+	targetPath: string,
+	organizationId: string | null | undefined
+): Promise<void> {
+	if (path.isAbsolute(targetPath)) {
+		await fs.mkdir(path.dirname(targetPath), { recursive: true });
+		await fs.copyFile(sourcePath, targetPath);
+		return;
+	}
+	const adapter = await getStorageAdapter(organizationId);
+	await adapter.writeFromLocalPath(targetPath, sourcePath);
 }
 
 function getDownloadOwnerMediaId(mediaItem: {
@@ -947,19 +972,18 @@ async function moveMovieToLibrary(mediaId: string, download: ActiveDownload): Pr
 
 	const sourcePath = path.join(download.torrent.path, download.videoFile.path);
 	const mediaItem = mediaDb.getById(mediaId);
-	const destDir = mediaItem ? getMovieLibraryRoot(mediaItem) : path.join(config.paths.library, mediaId);
+	const organizationId = mediaItem?.organizationId ?? null;
+	const destDir = mediaItem ? getMovieLibraryRoot(mediaItem) : buildOrganizationStorageKey(null, 'library', mediaId);
 	const fileName = mediaItem ? buildMovieFileName(mediaItem, download.videoFile.name) : download.videoFile.name;
 	const destPath = path.join(destDir, fileName);
 
-	await fs.mkdir(destDir, { recursive: true });
-	const finalized = await finalizeMediaToLibrary(sourcePath, destPath);
+	const finalized = await finalizeMediaToStorage(sourcePath, destPath, organizationId);
 
-	// Copy subtitle files alongside the video
 	for (const subFile of download.subtitleFiles) {
 		try {
 			const subSource = path.join(download.torrent.path, subFile.path);
 			const subDest = path.join(destDir, subFile.name);
-			await fs.copyFile(subSource, subDest);
+			await copyLocalFileToStorage(subSource, subDest, organizationId);
 		} catch (subErr) {
 			console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
 		}
@@ -967,8 +991,7 @@ async function moveMovieToLibrary(mediaId: string, download: ActiveDownload): Pr
 
 	mediaDb.updateFilePath(mediaId, finalized.filePath, finalized.fileSize);
 
-	// Trigger subtitle discovery (sidecar + embedded) in background
-	discoverSubtitles(mediaId, finalized.filePath, destDir).catch((err) => {
+	discoverSubtitles(mediaId, organizationId, finalized.filePath, destDir).catch((err) => {
 		console.error(`${logPrefix} Subtitle discovery failed:`, err);
 	});
 }
@@ -1016,9 +1039,11 @@ async function updateEpisodeFileInfo(
 				fileSize,
 			});
 			mediaDb.updateEpisodeProgress(episode.id, fileSize, 'complete');
-			discoverSubtitles(episode.id, filePath, path.dirname(filePath)).catch((error) => {
-				console.error(`[${mediaId}] Subtitle discovery failed for ${videoFile.name}:`, error);
-			});
+			discoverSubtitles(episode.id, episode.organizationId, filePath, getStoragePathDirectory(filePath)).catch(
+				(error) => {
+					console.error(`[${mediaId}] Subtitle discovery failed for ${videoFile.name}:`, error);
+				}
+			);
 		} else {
 			console.warn(`[${mediaId}] Episode S${seasonNum}E${episodeNum} not found in DB`);
 		}
@@ -1048,16 +1073,16 @@ async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): 
 	if (!(show && show.type === 'show')) {
 		return;
 	}
+	const organizationId = episode.organizationId;
 	const seasonDir = getSeasonLibraryDirectory(show, episode.seasonNumber);
 	const destPath = getEpisodeLibraryPath(show, episode, download.videoFile.name);
 
-	await fs.mkdir(seasonDir, { recursive: true });
-	const finalized = await finalizeMediaToLibrary(sourcePath, destPath);
+	const finalized = await finalizeMediaToStorage(sourcePath, destPath, organizationId);
 	for (const subFile of download.subtitleFiles) {
 		try {
 			const subSource = path.join(download.torrent.path, subFile.path);
 			const subDest = path.join(seasonDir, subFile.name);
-			await fs.copyFile(subSource, subDest);
+			await copyLocalFileToStorage(subSource, subDest, organizationId);
 		} catch (subErr) {
 			console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
 		}
@@ -1068,7 +1093,7 @@ async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): 
 		fileSize: finalized.fileSize,
 	});
 	mediaDb.updateEpisodeProgress(mediaId, finalized.fileSize, 'complete');
-	discoverSubtitles(mediaId, finalized.filePath, seasonDir).catch((errorValue) => {
+	discoverSubtitles(mediaId, organizationId, finalized.filePath, seasonDir).catch((errorValue) => {
 		console.error(`${logPrefix} Subtitle discovery failed:`, errorValue);
 	});
 }
@@ -1080,8 +1105,8 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 	if (!(show && show.type === 'show')) {
 		return;
 	}
+	const organizationId = show.organizationId;
 	const baseDir = getShowLibraryRoot(show);
-	await fs.mkdir(baseDir, { recursive: true });
 
 	// Ensure episodes exist in database (fallback if initial creation failed)
 	const existingSeasons = seasonsDb.getByMediaId(mediaId);
@@ -1103,21 +1128,18 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 		filesBySeason.set(seasonNum, files);
 	}
 
-	// Copy subtitle files to the base library directory
 	for (const subFile of download.subtitleFiles) {
 		try {
 			const subSource = path.join(download.torrent.path, subFile.path);
 			const subDest = path.join(baseDir, subFile.name);
-			await fs.copyFile(subSource, subDest);
+			await copyLocalFileToStorage(subSource, subDest, organizationId);
 		} catch (subErr) {
 			console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
 		}
 	}
 
-	// Copy video files organized by season and trigger per-episode subtitle discovery
 	for (const [seasonNum, files] of filesBySeason.entries()) {
 		const seasonDir = path.join(baseDir, `Season ${seasonNum.toString().padStart(2, '0')}`);
-		await fs.mkdir(seasonDir, { recursive: true });
 
 		for (const videoFile of files) {
 			const fileIndex = download.videoFiles.indexOf(videoFile);
@@ -1127,7 +1149,7 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 				? getEpisodeLibraryPath(show, episode, videoFile.name)
 				: path.join(seasonDir, videoFile.name);
 
-			const finalized = await finalizeMediaToLibrary(sourcePath, destPath);
+			const finalized = await finalizeMediaToStorage(sourcePath, destPath, organizationId);
 			await updateEpisodeFileInfo(mediaId, download, videoFile, finalized.filePath, finalized.fileSize);
 		}
 	}
@@ -1167,23 +1189,22 @@ export interface StreamInfo {
 	isComplete: boolean;
 }
 
-/** Create stream from library file */
-function createLibraryStream(filePath: string, start?: number, end?: number): StreamInfo | null {
+async function createLibraryStream(
+	filePath: string,
+	organizationId: string | null | undefined,
+	start?: number,
+	end?: number
+): Promise<StreamInfo | null> {
 	try {
-		const stats = statSync(filePath);
-		const fileName = path.basename(filePath);
-
-		const streamOptions: { start?: number; end?: number } = {};
-		if (start !== undefined) {
-			streamOptions.start = start;
+		const metadata = await getStoredFileMetadata(filePath, organizationId);
+		if (!metadata) {
+			return null;
 		}
-		if (end !== undefined) {
-			streamOptions.end = end;
-		}
+		const fileName = getStoredFileName(filePath);
 
 		return {
-			stream: createReadStream(filePath, streamOptions),
-			fileSize: stats.size,
+			stream: await readStoredFileStream(filePath, organizationId, { start, end }),
+			fileSize: metadata.size,
 			fileName,
 			mimeType: getMimeType(fileName),
 			isComplete: true,
@@ -1194,15 +1215,15 @@ function createLibraryStream(filePath: string, start?: number, end?: number): St
 	}
 }
 
-function getLibraryVideoStream(
-	mediaItem: { filePath: string | null },
+async function getLibraryVideoStream(
+	mediaItem: { filePath: string | null; organizationId: string | null },
 	start?: number,
 	end?: number
-): StreamInfo | null {
-	if (!(mediaItem.filePath && existsSync(mediaItem.filePath))) {
+): Promise<StreamInfo | null> {
+	if (!(mediaItem.filePath && (await storedFileExists(mediaItem.filePath, mediaItem.organizationId)))) {
 		return null;
 	}
-	return createLibraryStream(mediaItem.filePath, start, end);
+	return createLibraryStream(mediaItem.filePath, mediaItem.organizationId, start, end);
 }
 
 /** Get stream from active torrent download */
@@ -1242,7 +1263,7 @@ export async function getVideoStream(mediaId: string, start?: number, end?: numb
 	if (!mediaItem || mediaItem.type === 'show') {
 		return null;
 	}
-	const libraryStream = getLibraryVideoStream(mediaItem, start, end);
+	const libraryStream = await getLibraryVideoStream(mediaItem, start, end);
 	if (libraryStream) {
 		return libraryStream;
 	}
@@ -1461,13 +1482,9 @@ function isDownloadReadyForStreaming(download: ActiveDownload | undefined, fileI
 	return false;
 }
 
-/** Check if library file is ready */
-function isLibraryFileReady(mediaId: string): boolean {
+async function isLibraryFileReady(mediaId: string): Promise<boolean> {
 	const mediaItem = mediaDb.getById(mediaId);
-	if (mediaItem?.filePath && existsSync(mediaItem.filePath)) {
-		return true;
-	}
-	return false;
+	return storedFileExists(mediaItem?.filePath, mediaItem?.organizationId);
 }
 
 export async function waitForVideoReady(mediaId: string, fileIndex?: number, timeoutMs = 30_000): Promise<boolean> {
@@ -1484,7 +1501,7 @@ export async function waitForVideoReady(mediaId: string, fileIndex?: number, tim
 			return true;
 		}
 
-		if (isLibraryFileReady(mediaId)) {
+		if (await isLibraryFileReady(mediaId)) {
 			return true;
 		}
 
@@ -1532,14 +1549,19 @@ export async function deleteMediaFiles(mediaId: string): Promise<void> {
 	const mediaItem = mediaDb.getById(mediaId);
 	if (mediaItem?.type === 'episode') {
 		if (mediaItem.filePath) {
-			await fs.rm(mediaItem.filePath, { force: true }).catch(() => undefined);
+			await deleteStoredFile(mediaItem.filePath, mediaItem.organizationId).catch(() => undefined);
 		}
 		await fs.rm(path.join(config.paths.temp, mediaId), { recursive: true, force: true }).catch(() => undefined);
 		return;
 	}
-	let libraryPaths = [path.join(config.paths.library, mediaId)];
+	let libraryPaths = [buildOrganizationStorageKey(mediaItem?.organizationId, 'library', mediaId)];
 	if (mediaItem?.type === 'show') {
-		libraryPaths = Array.from(new Set([getShowLibraryRoot(mediaItem), path.join(config.paths.library, mediaId)]));
+		libraryPaths = Array.from(
+			new Set([
+				getShowLibraryRoot(mediaItem),
+				buildOrganizationStorageKey(mediaItem.organizationId, 'library', mediaId),
+			])
+		);
 	} else if (mediaItem?.type === 'movie') {
 		libraryPaths = [getMovieLibraryRoot(mediaItem)];
 	}
@@ -1555,7 +1577,7 @@ export async function deleteMediaFiles(mediaId: string): Promise<void> {
 
 	for (const libraryPath of libraryPaths) {
 		try {
-			await fs.rm(libraryPath, { recursive: true, force: true });
+			await deleteStoredPrefix(libraryPath, mediaItem?.organizationId);
 		} catch (e) {
 			if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
 				console.error(`[${mediaId}] Error deleting library directory:`, e);
@@ -1583,7 +1605,7 @@ async function finalizeFromTemp(mediaId: string, videoPath: string, fileName: st
 	if (!mediaItem) {
 		return false;
 	}
-	let destDir = path.join(config.paths.library, mediaId);
+	let destDir = buildOrganizationStorageKey(mediaItem.organizationId, 'library', mediaId);
 	let destPath = path.join(destDir, fileName);
 	if (mediaItem.type === 'movie') {
 		destDir = getMovieLibraryRoot(mediaItem);
@@ -1598,7 +1620,7 @@ async function finalizeFromTemp(mediaId: string, videoPath: string, fileName: st
 	}
 
 	try {
-		const finalized = await finalizeMediaToLibrary(videoPath, destPath);
+		const finalized = await finalizeMediaToStorage(videoPath, destPath, mediaItem.organizationId);
 
 		if (mediaItem.type === 'episode') {
 			mediaDb.updateFileInfo(mediaId, {
@@ -1612,14 +1634,8 @@ async function finalizeFromTemp(mediaId: string, videoPath: string, fileName: st
 
 		mediaDb.updateProgress(mediaId, 1, 'complete');
 
-		// Clean up temp directory
 		const tempDir = path.join(config.paths.temp, mediaId);
-		try {
-			await fs.rm(tempDir, { recursive: true, force: true });
-			// console.log(`[Recovery] [${mediaId}] Cleaned up temp directory`);
-		} catch {
-			// Ignore cleanup errors
-		}
+		await fs.rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
 
 		return true;
 	} catch (e) {
@@ -1662,6 +1678,7 @@ async function findVideoInDirectory(dirPath: string): Promise<{ path: string; na
 async function recoverSingleMedia(mediaItem: {
 	id: string;
 	filePath: string | null;
+	organizationId: string | null;
 	magnetLink: string | null;
 	imdbId?: string | null;
 }): Promise<void> {
@@ -1674,9 +1691,7 @@ async function recoverSingleMedia(mediaItem: {
 		return;
 	}
 
-	// Check if file exists in library
-	if (mediaItem.filePath && existsSync(mediaItem.filePath)) {
-		// console.log(`[Recovery] [${mediaId}] File already in library, marking complete`);
+	if (await storedFileExists(mediaItem.filePath, mediaItem.organizationId)) {
 		mediaDb.updateProgress(mediaId, 1, 'complete');
 		return;
 	}

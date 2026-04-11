@@ -1,22 +1,22 @@
-import fs from 'node:fs/promises';
 import { error, json } from '@sveltejs/kit';
-import { requireAuth, requireMediaAccess } from '$lib/server/api-guard';
+import { requireMediaAccess } from '$lib/server/api-guard';
 import { subtitlesDb } from '$lib/server/db';
+import { deleteStoredFile, readStoredFile } from '$lib/server/storage';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-	requireAuth(locals);
+	const { mediaItem } = requireMediaAccess(locals, params.id);
 
 	const subtitle = subtitlesDb.getById(params.subtitleId);
-	if (!subtitle?.filePath) {
+	if (!(subtitle?.filePath && subtitle.mediaId === params.id)) {
 		throw error(404, 'Subtitle not found');
 	}
 
 	let content: string;
 	try {
-		content = await fs.readFile(subtitle.filePath, 'utf-8');
+		content = (await readStoredFile(subtitle.filePath, mediaItem.organizationId)).toString('utf-8');
 	} catch {
-		throw error(404, 'Subtitle file not found on disk');
+		throw error(404, 'Subtitle file not found');
 	}
 
 	return new Response(content, {
@@ -42,15 +42,15 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 };
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
-	requireMediaAccess(locals, params.id);
+	const { mediaItem } = requireMediaAccess(locals, params.id);
 
 	const subtitle = subtitlesDb.getById(params.subtitleId);
-	if (!subtitle) {
+	if (!(subtitle && subtitle.mediaId === params.id)) {
 		throw error(404, 'Subtitle not found');
 	}
 
 	if (subtitle.filePath && (subtitle.source === 'opensubtitles' || subtitle.source === 'manual')) {
-		await fs.unlink(subtitle.filePath).catch(() => undefined);
+		await deleteStoredFile(subtitle.filePath, mediaItem.organizationId).catch(() => undefined);
 	}
 
 	subtitlesDb.deleteById(params.subtitleId);
