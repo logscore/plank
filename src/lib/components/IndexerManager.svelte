@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ChevronDown, ChevronUp, CircleAlert, CircleCheck, Loader, Plus, RefreshCw, Trash2 } from '@lucide/svelte';
+    import { ChevronDown, ChevronUp, Plus, RefreshCw, Trash2 } from '@lucide/svelte';
     import { onMount } from 'svelte';
     import { toast } from 'svelte-sonner';
     import Button from '$lib/components/ui/Button.svelte';
@@ -25,7 +25,6 @@
     }
 
     // State
-    let testingConnection = $state(false);
     let connectionStatus = $state<'connected' | 'failed' | 'unchecked'>('unchecked');
 
     let indexers = $state<Indexer[]>([]);
@@ -65,7 +64,6 @@
 
     // Actions
     async function testConnection() {
-        testingConnection = true;
         connectionStatus = 'unchecked';
 
         try {
@@ -87,8 +85,6 @@
             }
         } catch (e) {
             connectionStatus = 'failed';
-        } finally {
-            testingConnection = false;
         }
     }
 
@@ -154,7 +150,7 @@
     async function applyPackage(pkg: (typeof PACKAGES)[0]) {
         const toastId = toast.loading(`Configuring ${pkg.name}...`);
         let addedCount = 0;
-        let failCount = 0;
+        let skippedCount = 0;
 
         for (const indexerName of pkg.indexers) {
             // Check if already exists
@@ -166,7 +162,7 @@
             const schema = schemas.find((s) => s.name === indexerName);
             if (!schema) {
                 console.warn(`Schema for ${indexerName} not found`);
-                failCount++;
+                skippedCount++;
                 continue;
             }
 
@@ -180,15 +176,16 @@
                 if (res.ok) {
                     addedCount++;
                 } else {
-                    failCount++;
+                    skippedCount++;
                 }
             } catch {
-                failCount++;
+                skippedCount++;
             }
         }
 
         loadIndexers();
-        toast.success(`Package applied: ${addedCount} added`, { id: toastId });
+        const summary = skippedCount > 0 ? `${addedCount} added, ${skippedCount} skipped` : `${addedCount} added`;
+        toast.success(`Package applied: ${summary}`, { id: toastId });
     }
 
     onMount(() => {
@@ -202,24 +199,6 @@
 </script>
 
 <div class="space-y-6">
-    <!-- Connection Status -->
-    <div class="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
-        <div class="flex items-center gap-3">
-            <div class="relative">
-                {#if testingConnection}
-                    <Loader class="w-5 h-5 animate-spin text-muted-foreground" />
-                {:else if connectionStatus === "connected"}
-                    <CircleCheck class="w-5 h-5 text-green-500" />
-                {:else if connectionStatus === "failed"}
-                    <CircleAlert class="w-5 h-5 text-red-500" />
-                {:else}
-                    <div class="w-5 h-5 rounded-full border-2 border-muted-foreground"></div>
-                {/if}
-            </div>
-            <div class="flex flex-col"><span class="font-medium text-sm">Connection Status</span></div>
-        </div>
-    </div>
-
     {#if connectionStatus === "connected"}
         <!-- Quick Setup -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -233,9 +212,10 @@
                 >
                     <div class="text-2xl mb-2">{pkg.icon}</div>
                     <h3 class="font-semibold mb-1">{pkg.name}</h3>
-                    <p class="text-xs text-muted-foreground mb-3">{pkg.description}</p>
+                    <p class="min-h-10 text-xs text-muted-foreground mb-3">{pkg.description}</p>
                     <Button variant="secondary" size="sm" class="w-full" type="button">
-                        <Plus class="w-3 h-3 mr-2" /> Quick Add
+                        <Plus class="w-3 h-3 mr-2" />
+                        Quick Add
                     </Button>
                 </div>
             {/each}
@@ -256,7 +236,7 @@
                     </div>
                 {:else}
                     {#each indexers as indexer}
-                        <div class="p-3 flex items-center justify-between hover:bg-muted/50">
+                        <div class="py-3 px-5 flex items-center justify-between hover:bg-muted/50">
                             <div class="flex items-center gap-3">
                                 <span class="text-sm font-medium">{indexer.name}</span>
                                 <span class="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground border">
