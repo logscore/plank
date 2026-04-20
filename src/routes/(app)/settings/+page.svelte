@@ -158,7 +158,7 @@
         }}
     >
         <aside class="hidden lg:block">
-            <div class="sticky top-24 space-y-4">
+            <div class="sticky top-8 space-y-4">
                 <nav class="rounded-lg border border-border bg-card p-2">
                     {#each sectionLinks as section}
                         <a href={`#${section.id}`} class="block rounded-md px-3 py-2 transition-colors hover:bg-accent">
@@ -187,7 +187,7 @@
                 </div>
             {/if}
 
-            <section id="tmdb" class="scroll-mt-24 rounded-lg border border-border bg-card">
+            <section id="tmdb" class="scroll-mt-8 rounded-lg border border-border bg-card">
                 <div class="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
                     <div class="flex items-start gap-3">
                         <Film class="mt-0.5 size-6 text-muted-foreground" />
@@ -253,7 +253,7 @@
                 </div>
             </section>
 
-            <section id="opensubtitles" class="scroll-mt-24 rounded-lg border border-border bg-card">
+            <section id="opensubtitles" class="scroll-mt-8 rounded-lg border border-border bg-card">
                 <div class="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
                     <div class="flex items-start gap-3">
                         <Captions class="mt-0.5 size-6 text-muted-foreground" />
@@ -347,7 +347,7 @@
                 </div>
             </section>
 
-            <section id="prowlarr" class="scroll-mt-24 rounded-lg border border-border bg-card">
+            <section id="prowlarr" class="scroll-mt-8 rounded-lg border border-border bg-card">
                 <div class="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
                     <div class="flex items-start gap-3">
                         <Server class="mt-0.5 size-6 text-muted-foreground" />
