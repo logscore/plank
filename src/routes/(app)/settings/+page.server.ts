@@ -1,6 +1,16 @@
-import { error, redirect } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { getSettings, updateSettings } from '$lib/server/settings';
 import type { Actions, PageServerLoad } from './$types';
+
+function parseTrustedGroups(value: string | undefined): string[] {
+	if (!value) {
+		return [];
+	}
+	return value
+		.split(',')
+		.map((group) => group.trim())
+		.filter((group) => group.length > 0);
+}
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -31,15 +41,7 @@ export const actions: Actions = {
 		const opensubtitlesPassword = formData.get('opensubtitlesPassword')?.toString() || '';
 
 		const prowlarrMinSeeders = prowlarrMinSeedersStr ? Number.parseInt(prowlarrMinSeedersStr, 10) : 5;
-
-		let prowlarrTrustedGroups: string[] = [];
-		if (prowlarrTrustedGroupsStr) {
-			// Handle comma-separated list
-			prowlarrTrustedGroups = prowlarrTrustedGroupsStr
-				.split(',')
-				.map((g) => g.trim())
-				.filter((g) => g.length > 0);
-		}
+		const prowlarrTrustedGroups = parseTrustedGroups(prowlarrTrustedGroupsStr);
 
 		try {
 			await updateSettings({
@@ -54,7 +56,7 @@ export const actions: Actions = {
 			});
 		} catch (err) {
 			console.error('Failed to update settings:', err);
-			return { success: false, error: 'Failed to update settings' };
+			return fail(500, { success: false, error: 'Failed to update settings' });
 		}
 
 		return { success: true };

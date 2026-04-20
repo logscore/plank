@@ -27,6 +27,32 @@ run_privileged() {
     fi
 }
 
+docker_compose_available() {
+    docker compose version >/dev/null 2>&1 || command_exists docker-compose
+}
+
+run_docker_compose() {
+    if docker compose version >/dev/null 2>&1; then
+        docker compose "$@"
+    elif command_exists docker-compose; then
+        docker-compose "$@"
+    else
+        echo -e "${RED}Docker Compose is not installed. Install the Docker Compose plugin or docker-compose and try again.${NC}"
+        return 1
+    fi
+}
+
+run_privileged_docker_compose() {
+    if docker compose version >/dev/null 2>&1; then
+        run_privileged docker compose "$@"
+    elif command_exists docker-compose; then
+        run_privileged docker-compose "$@"
+    else
+        echo -e "${RED}Docker Compose is not installed. Install the Docker Compose plugin or docker-compose and try again.${NC}"
+        return 1
+    fi
+}
+
 # Repository URL
 REPO_URL="https://github.com/logscore/plank.git"
 INSTALL_DIR="plank"
@@ -140,6 +166,11 @@ deploy_docker() {
         fi
     done
 
+    if ! docker_compose_available; then
+        echo -e "${YELLOW}Docker Compose is not installed.${NC}"
+        MISSING_DOCKER_DEPS=true
+    fi
+
     if [ "$MISSING_DOCKER_DEPS" = true ]; then
         read -p "Would you like to install missing dependencies? (Y/n): " INSTALL_DEPS
         INSTALL_DEPS=${INSTALL_DEPS:-Y}
@@ -235,6 +266,11 @@ deploy_docker() {
                         run_privileged addgroup "$USER" docker
                         echo -e "${YELLOW}Added $USER to docker group. You may need to log out and back in.${NC}"
                     fi
+
+                    if ! docker_compose_available; then
+                        echo "Installing Docker Compose..."
+                        run_privileged apk add --no-cache docker-cli-compose || run_privileged apk add --no-cache docker-compose
+                    fi
                     ;;
                 macos)
                     echo -e "${RED}Please install Docker Desktop from https://docker.com/products/docker-desktop${NC}"
@@ -259,6 +295,11 @@ deploy_docker() {
         fi
     done
 
+    if ! docker_compose_available; then
+        echo -e "${RED}Error: Docker Compose is still not available.${NC}"
+        exit 1
+    fi
+
     clone_repo
     setup_env
 
@@ -270,11 +311,14 @@ deploy_docker() {
     echo "Starting Docker Compose..."
 
     # Try without sudo first, fall back to sudo if permission denied
-    if docker compose -f docker/docker-compose.yml up -d --build 2>/dev/null; then
+    if run_docker_compose -f docker/docker-compose.yml up -d --build; then
         :
+    elif docker info >/dev/null 2>&1; then
+        echo -e "${RED}Docker Compose failed. Fix the error above and try again.${NC}"
+        exit 1
     else
         echo -e "${YELLOW}Retrying with sudo (you may need to re-login for docker group)...${NC}"
-        run_privileged docker compose -f docker/docker-compose.yml up -d --build
+        run_privileged_docker_compose -f docker/docker-compose.yml up -d --build
     fi
 
     echo -e "\n${GREEN}Deployment Complete!${NC}"
