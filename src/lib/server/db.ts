@@ -282,6 +282,21 @@ export const mediaDb = {
 			.all();
 	},
 
+	getNextEpisodeById(id: string): Media | null {
+		const mediaItem = this.getById(id);
+		if (!mediaItem || mediaItem.type !== 'episode' || !mediaItem.parentId) {
+			return null;
+		}
+
+		const episodes = this.getEpisodesByParentId(mediaItem.parentId);
+		const currentIndex = episodes.findIndex((episode) => episode.id === mediaItem.id);
+		if (currentIndex === -1) {
+			return null;
+		}
+
+		return episodes[currentIndex + 1] ?? null;
+	},
+
 	getEpisodeBySeasonAndNumber(seasonId: string, episodeNumber: number): Media | undefined {
 		return db
 			.select()
