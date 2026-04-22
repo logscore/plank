@@ -76,6 +76,8 @@
                 <Input
                     type="text"
                     id="name"
+                    name="name"
+                    autocomplete="name"
                     bind:value={name}
                     required
                     placeholder="John Doe"
@@ -93,6 +95,8 @@
                 <Input
                     type="email"
                     id="email"
+                    name="email"
+                    autocomplete="username"
                     bind:value={email}
                     required
                     placeholder="name@example.com"
@@ -110,6 +114,8 @@
                 <Input
                     type="password"
                     id="password"
+                    name="password"
+                    autocomplete="new-password"
                     bind:value={password}
                     required
                     minlength={8}
@@ -128,6 +134,8 @@
                 <Input
                     type="password"
                     id="confirmPassword"
+                    name="confirmPassword"
+                    autocomplete="new-password"
                     bind:value={confirmPassword}
                     required
                     placeholder="••••••••"
