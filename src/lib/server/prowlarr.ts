@@ -862,6 +862,49 @@ export interface ProwlarrIndexerSchema {
 	tags: number[];
 }
 
+interface ProwlarrTag {
+	id: number;
+	label: string;
+}
+
+const FLARESOLVERR_TAG_LABEL = 'flaresolverr';
+
+function requiresFlaresolverr(indexer: Partial<ProwlarrIndexer>): boolean {
+	return indexer.fields?.some((field) => field.name === 'info_flaresolverr') ?? false;
+}
+
+async function getOrCreateFlaresolverrTag(url: string, apiKey: string): Promise<number | null> {
+	const response = await fetch(`${url}/api/v1/tag`, {
+		headers: { 'X-Api-Key': apiKey },
+	});
+
+	if (!response.ok) {
+		return null;
+	}
+
+	const tags = (await response.json()) as ProwlarrTag[];
+	const existingTag = tags.find((tag) => tag.label === FLARESOLVERR_TAG_LABEL);
+	if (existingTag) {
+		return existingTag.id;
+	}
+
+	const createResponse = await fetch(`${url}/api/v1/tag`, {
+		method: 'POST',
+		headers: {
+			'X-Api-Key': apiKey,
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify({ label: FLARESOLVERR_TAG_LABEL }),
+	});
+
+	if (!createResponse.ok) {
+		return null;
+	}
+
+	const createdTag = (await createResponse.json()) as ProwlarrTag;
+	return createdTag.id;
+}
+
 export const INDEXER_PACKAGES = {
 	general: {
 		name: 'General Entertainment',
@@ -950,6 +993,13 @@ export async function addProwlarrIndexer(indexer: Partial<ProwlarrIndexer>): Pro
 			priority: 25,
 			appProfileId: 1, // Default profile
 		};
+
+		if (requiresFlaresolverr(payload)) {
+			const tagId = await getOrCreateFlaresolverrTag(url, apiKey);
+			if (tagId !== null) {
+				payload.tags = [...new Set([...(payload.tags ?? []), tagId])];
+			}
+		}
 
 		console.log('Adding Prowlarr indexer with payload:', JSON.stringify(payload));
 
