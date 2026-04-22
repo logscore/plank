@@ -1,6 +1,6 @@
 <script lang="ts">
     import { ArrowLeft, Calendar, Database, EllipsisVertical, Film, Play, RotateCcw, Trash2 } from '@lucide/svelte';
-    import { goto } from '$app/navigation';
+    import { goto, replaceState } from '$app/navigation';
     import { page } from '$app/state';
     import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
     import EpisodeSelector from '$lib/components/EpisodeSelector.svelte';
@@ -54,10 +54,16 @@
             }
             if (seasonsRes.ok) {
                 const nextSeasons = (await seasonsRes.json()) as SeasonWithEpisodes[];
+                const requestedSeason = getSelectedSeasonFromUrl();
                 seasons = nextSeasons;
 
                 if (nextSeasons.length === 0) {
                     selectedSeason = null;
+                } else if (
+                    requestedSeason !== null &&
+                    nextSeasons.some((season) => season.seasonNumber === requestedSeason)
+                ) {
+                    selectedSeason = requestedSeason;
                 } else if (
                     selectedSeason === null ||
                     !nextSeasons.some((season) => season.seasonNumber === selectedSeason)
@@ -262,6 +268,23 @@
             return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
         }
         return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+    }
+
+    function getSelectedSeasonFromUrl(): number | null {
+        const seasonParam = page.url.searchParams.get('s');
+        if (!seasonParam) {
+            return null;
+        }
+
+        const seasonNumber = Number.parseInt(seasonParam, 10);
+        return Number.isNaN(seasonNumber) ? null : seasonNumber;
+    }
+
+    function handleSelectSeason(seasonNumber: number) {
+        selectedSeason = seasonNumber;
+        const nextUrl = new URL(page.url);
+        nextUrl.searchParams.set('s', String(seasonNumber));
+        replaceState(nextUrl, page.state);
     }
 
     async function handleDelete() {
@@ -516,7 +539,7 @@
                                     ? "default"
                                     : "ghost"}
                                 onclick={() =>
-                                    (selectedSeason = season.seasonNumber)}
+                                    handleSelectSeason(season.seasonNumber)}
                                 class="whitespace-nowrap"
                             >
                                 {season.name || `Season ${season.seasonNumber}`}
