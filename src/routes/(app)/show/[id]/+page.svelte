@@ -53,9 +53,16 @@
                 media = await mediaRes.json();
             }
             if (seasonsRes.ok) {
-                seasons = await seasonsRes.json();
-                if (seasons.length > 0) {
-                    selectedSeason = seasons[0].seasonNumber;
+                const nextSeasons = (await seasonsRes.json()) as SeasonWithEpisodes[];
+                seasons = nextSeasons;
+
+                if (nextSeasons.length === 0) {
+                    selectedSeason = null;
+                } else if (
+                    selectedSeason === null ||
+                    !nextSeasons.some((season) => season.seasonNumber === selectedSeason)
+                ) {
+                    selectedSeason = nextSeasons[0].seasonNumber;
                 }
             }
         } catch (e) {
