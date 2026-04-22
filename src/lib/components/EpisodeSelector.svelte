@@ -1,6 +1,7 @@
 <script lang="ts">
     import { ChevronDown, ChevronRight, Play } from '@lucide/svelte';
     import Button from '$lib/components/ui/Button.svelte';
+    import { canPlayEpisode } from '$lib/media-playability';
     import type { Media, SeasonWithEpisodes } from '$lib/types';
 
     let {
@@ -50,15 +51,6 @@
         isOpen = false;
         selectedSeasonIndex = null;
         onPlayEpisode(episode);
-    }
-
-    function canPlayEpisode(episode: Media): boolean {
-        return Boolean(
-            episode.filePath ||
-                episode.fileIndex !== null ||
-                episode.status === 'complete' ||
-                episode.status === 'downloading'
-        );
     }
 
     function getEpisodeStatusLabel(episode: Media): string | null {
@@ -141,7 +133,8 @@
                                 </span>
                                 {#if season.episodeCount}
                                     <span class="text-xs text-muted-foreground ml-2">
-                                        {season.episodeCount} episodes
+                                        {season.episodeCount}
+                                        episodes
                                     </span>
                                 {/if}
                             </div>

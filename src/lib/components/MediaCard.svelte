@@ -2,6 +2,7 @@
     import { EllipsisVertical, Info, Play, RotateCcw, Trash2 } from '@lucide/svelte';
     import { goto } from '$app/navigation';
     import EpisodeSelector from '$lib/components/EpisodeSelector.svelte';
+    import { canPlayEpisode } from '$lib/media-playability';
     import type { Media, SeasonWithEpisodes } from '$lib/types';
     import Button from './ui/Button.svelte';
     import Tv from './ui/Tv.svelte';
@@ -32,12 +33,7 @@
     }
 
     function handlePlayEpisode(episode: Media) {
-        if (
-            episode.filePath ||
-            episode.fileIndex !== null ||
-            episode.status === 'complete' ||
-            episode.status === 'downloading'
-        ) {
+        if (canPlayEpisode(episode)) {
             goto(`/watch/${episode.id}`);
         }
     }

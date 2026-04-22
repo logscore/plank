@@ -9,6 +9,7 @@
     import Button from '$lib/components/ui/Button.svelte';
     import Dialog from '$lib/components/ui/Dialog.svelte';
     import Input from '$lib/components/ui/Input.svelte';
+    import { canPlayEpisode } from '$lib/media-playability';
     import type { Media, SeasonWithEpisodes } from '$lib/types';
     import { confirmDelete, uiState } from '$lib/ui-state.svelte';
 
@@ -70,15 +71,6 @@
         if (canPlayEpisode(episode)) {
             goto(`/watch/${episode.id}`);
         }
-    }
-
-    function canPlayEpisode(episode: Media): boolean {
-        return Boolean(
-            episode.filePath ||
-                episode.fileIndex !== null ||
-                episode.status === 'complete' ||
-                episode.status === 'downloading'
-        );
     }
 
     function isEpisodeRemoved(episode: Media): boolean {
@@ -450,7 +442,8 @@
                         {/if}
                         {#if media.runtime}
                             <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">
-                                {formatRuntime(media.runtime)} avg
+                                {formatRuntime(media.runtime)}
+                                avg
                             </span>
                         {/if}
                         {#if media.totalSeasons}
