@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
+    "dev:reset": "bash scripts/reset-dev.sh",
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && npx svelte-check-rs --tsconfig ./tsconfig.json && npx ultracite fix && npm run knip",

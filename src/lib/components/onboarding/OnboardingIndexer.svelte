@@ -2,6 +2,16 @@
     import { ChevronDown, Loader, Plus, Trash2 } from '@lucide/svelte';
     import { onMount } from 'svelte';
     import { toast } from 'svelte-sonner';
+    import {
+        createAddProwlarrIndexerMutation,
+        createDeleteProwlarrIndexerMutation,
+    } from '$lib/mutations/prowlarr-mutations';
+    import {
+        createProwlarrIndexerSchemasQuery,
+        createProwlarrIndexersQuery,
+        type ProwlarrIndexer,
+        type ProwlarrIndexerSchema,
+    } from '$lib/queries/prowlarr-queries';
     import { cn } from '$lib/utils';
 
     // Props
@@ -10,29 +20,38 @@
         prowlarrApiKey: string;
     }>();
 
-    // Types
-    interface Indexer {
-        id: number;
-        name: string;
-        protocol: string;
-    }
-
-    interface IndexerSchema {
-        name: string;
-        implementation: string;
-        protocol?: string;
-    }
-
     // State
     let testingConnection = $state(false);
     let connectionStatus = $state<'connected' | 'failed' | 'unchecked'>('unchecked');
 
-    let indexers = $state<Indexer[]>([]);
-    let schemas = $state<IndexerSchema[]>([]);
-    let loadingIndexers = $state(false);
-
     let advancedOpen = $state(false);
-    let selectedImplementation = $state('');
+    let pendingIndexerNames = $state<string[]>([]);
+
+    const addIndexerMutation = createAddProwlarrIndexerMutation();
+    const deleteIndexerMutation = createDeleteProwlarrIndexerMutation();
+
+    let indexersQuery = $derived(createProwlarrIndexersQuery(() => connectionStatus === 'connected'));
+    let schemasQuery = $derived(createProwlarrIndexerSchemasQuery(() => connectionStatus === 'connected'));
+    let indexers = $derived(indexersQuery.data ?? []);
+    let schemas = $derived(schemasQuery.data ?? []);
+    let loadingIndexers = $derived(
+        connectionStatus === 'connected' &&
+            indexers.length === 0 &&
+            pendingIndexerNames.length === 0 &&
+            (indexersQuery.isPending || schemasQuery.isPending)
+    );
+    let visibleIndexers = $derived.by(() => {
+        const pendingIndexers: ProwlarrIndexer[] = pendingIndexerNames
+            .filter((name) => !indexers.some((indexer) => indexer.name === name))
+            .map((name) => ({
+                id: 0,
+                name,
+                protocol: 'torrent',
+                optimistic: true,
+            }));
+
+        return [...indexers, ...pendingIndexers];
+    });
 
     // Derived sorted schemas
     let sortedSchemas = $derived([...schemas].sort((a, b) => a.name.localeCompare(b.name)));
@@ -42,9 +61,9 @@
         {
             id: 'general',
             name: 'General',
-            description: 'YTS, 1337x, TFB',
+            description: '1337x, YTS, TFB',
             icon: '🎬',
-            indexers: ['YTS', '1337x', 'The Pirate Bay'],
+            indexers: ['1337x', 'YTS', 'The Pirate Bay'],
         },
         {
             id: 'anime',
@@ -63,6 +82,18 @@
     ];
 
     // Actions
+    async function runWithPendingIndexer<T>(schema: ProwlarrIndexerSchema, action: () => Promise<T>): Promise<T> {
+        pendingIndexerNames = pendingIndexerNames.includes(schema.name)
+            ? pendingIndexerNames
+            : [...pendingIndexerNames, schema.name];
+
+        try {
+            return await action();
+        } finally {
+            pendingIndexerNames = pendingIndexerNames.filter((name) => name !== schema.name);
+        }
+    }
+
     async function testConnection() {
         testingConnection = true;
         connectionStatus = 'unchecked';
@@ -80,7 +111,6 @@
 
             if (data.success) {
                 connectionStatus = 'connected';
-                loadIndexers();
             } else {
                 connectionStatus = 'failed';
             }
@@ -91,101 +121,55 @@
         }
     }
 
-    async function loadIndexers() {
-        loadingIndexers = true;
-        try {
-            const [idxRes, schemaRes] = await Promise.all([
-                fetch('/api/prowlarr/indexer'),
-                fetch('/api/prowlarr/indexer/schema'),
-            ]);
-
-            if (idxRes.ok) {
-                indexers = await idxRes.json();
-            }
-            if (schemaRes.ok) {
-                schemas = await schemaRes.json();
-            }
-        } catch (e) {
-            console.error('Failed to load indexers', e);
-        } finally {
-            loadingIndexers = false;
-        }
-    }
-
-    async function addIndexer(schema: IndexerSchema) {
+    async function addIndexer(schema: ProwlarrIndexerSchema) {
         const toastId = toast.loading(`Adding ${schema.name}...`);
         try {
-            const res = await fetch('/api/prowlarr/indexer', {
-                method: 'POST',
-                body: JSON.stringify(schema),
-                headers: { 'Content-Type': 'application/json' },
-            });
-
-            if (res.ok) {
-                toast.success(`${schema.name} added`, { id: toastId });
-                loadIndexers();
-                selectedImplementation = ''; // Reset selection
-                advancedOpen = false; // Close dropdown
-            } else {
-                toast.error(`Failed to add ${schema.name}`, { id: toastId });
-            }
-        } catch (e) {
-            toast.error('Network error', { id: toastId });
+            await runWithPendingIndexer(schema, () => addIndexerMutation.mutateAsync(schema));
+            toast.success(`${schema.name} added`, { id: toastId });
+            advancedOpen = false;
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : `Failed to add ${schema.name}`, { id: toastId });
         }
     }
 
     async function deleteIndexer(id: number) {
-        // Simplified confirmation for onboarding - just do it or use toast undo?
-        // Let's stick to simple immediate delete for speed in onboarding, or reuse confirmDelete if available globally
         try {
-            const res = await fetch(`/api/prowlarr/indexer?id=${id}`, {
-                method: 'DELETE',
-            });
-            if (res.ok) {
-                toast.success('Indexer removed');
-                loadIndexers();
-            } else {
-                toast.error('Failed to remove indexer');
-            }
-        } catch (e) {
-            toast.error('Network error');
+            await deleteIndexerMutation.mutateAsync(id);
+            toast.success('Indexer removed');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to remove indexer');
         }
     }
 
     async function applyPackage(pkg: (typeof PACKAGES)[0]) {
-        const toastId = toast.loading(`Configuring ${pkg.name}...`);
-        let addedCount = 0;
-        let failCount = 0;
-
-        for (const indexerName of pkg.indexers) {
-            if (indexers.some((i) => i.name === indexerName)) {
-                continue;
-            }
-
-            const schema = schemas.find((s) => s.name === indexerName);
-            if (!schema) {
-                failCount++;
-                continue;
-            }
-
-            try {
-                const res = await fetch('/api/prowlarr/indexer', {
-                    method: 'POST',
-                    body: JSON.stringify(schema),
-                    headers: { 'Content-Type': 'application/json' },
-                });
-                if (res.ok) {
-                    addedCount++;
-                } else {
-                    failCount++;
-                }
-            } catch {
-                failCount++;
-            }
+        if (loadingIndexers || schemas.length === 0) {
+            toast.error('Indexer list is still loading');
+            return;
         }
 
-        loadIndexers();
-        toast.success(`Added ${addedCount} indexers`, { id: toastId });
+        const toastId = toast.loading(`Configuring ${pkg.name}...`);
+        const schemasToAdd = pkg.indexers
+            .filter((indexerName) => !indexers.some((indexer) => indexer.name === indexerName))
+            .map((indexerName) => schemas.find((schema) => schema.name === indexerName))
+            .filter((schema): schema is ProwlarrIndexerSchema => Boolean(schema));
+
+        if (schemasToAdd.length === 0) {
+            toast.success('All package indexers are already configured', { id: toastId });
+            return;
+        }
+
+        const results = await Promise.allSettled(
+            schemasToAdd.map((schema) => runWithPendingIndexer(schema, () => addIndexerMutation.mutateAsync(schema)))
+        );
+        const addedCount = results.filter((result) => result.status === 'fulfilled').length;
+        const failCount = results.length - addedCount;
+
+        if (failCount === 0) {
+            toast.success(`Added ${addedCount} indexers`, { id: toastId });
+            return;
+        }
+
+        toast.error(`Added ${addedCount} indexers, ${failCount} failed`, { id: toastId });
     }
 
     onMount(() => {
@@ -207,17 +191,27 @@
         </div>
     {:else if connectionStatus === "connected"}
         <!-- Configured Indexers Chips -->
-        {#if indexers.length > 0}
+        {#if loadingIndexers}
+            <div class="flex items-center justify-center py-4">
+                <Loader class="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+        {:else if visibleIndexers.length > 0}
             <div class="flex flex-wrap gap-2 p-2 rounded-lg bg-black/20 border border-white/5 min-h-[50px]">
-                {#each indexers as indexer}
+                {#each visibleIndexers as indexer (indexer.name)}
                     <div
-                        class="flex items-center gap-1 pl-2 pr-1 py-1 rounded-full bg-primary/20 text-xs border border-primary/20"
+                        class="flex items-center gap-1 pl-2 pr-1 py-1 rounded-full border text-xs {indexer.optimistic
+                            ? 'bg-primary/10 border-primary/10 text-muted-foreground'
+                            : 'bg-primary/20 border-primary/20'}"
                     >
+                        {#if indexer.optimistic}
+                            <Loader class="w-3 h-3 animate-spin" />
+                        {/if}
                         <span class="font-medium text-primary-foreground/80">{indexer.name}</span>
                         <button
                             type="button"
                             onclick={() => deleteIndexer(indexer.id)}
                             class="hover:bg-red-500/20 hover:text-red-400 rounded-full p-0.5 transition-colors"
+                            disabled={indexer.optimistic}
                         >
                             <Trash2 class="w-3 h-3" />
                         </button>
@@ -233,6 +227,7 @@
                     class="flex flex-col items-center justify-center p-3 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-center gap-2 group"
                     onclick={() => applyPackage(pkg)}
                     type="button"
+                    disabled={loadingIndexers}
                 >
                     <span class="text-xl group-hover:scale-110 transition-transform">{pkg.icon}</span>
                     <div class="space-y-0.5">
@@ -251,6 +246,7 @@
                 type="button"
                 class="w-full flex items-center justify-between p-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 onclick={() => (advancedOpen = !advancedOpen)}
+                disabled={loadingIndexers}
             >
                 <span class="flex items-center gap-2">
                     <Plus class="w-3 h-3" />

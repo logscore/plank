@@ -71,6 +71,11 @@ const QUALITY_SCORES: Record<string, number> = {
  * Pattern to extract quality from title
  */
 const QUALITY_PATTERN = /\b(2160p|4K|UHD|1080p|720p|480p)\b/i;
+const INDEXER_PREFERENCE_SCORES: Record<string, number> = {
+	'1337x': 3,
+	YTS: 2,
+	'The Pirate Bay': 1,
+};
 
 /**
  * Pattern to extract release group from title
@@ -140,7 +145,7 @@ function extractQuality(title: string): string | null {
 
 /**
  * Calculate score for a torrent result
- * Considers quality and seeders
+ * Considers quality, seeders, and source preference
  */
 function calculateScore(result: IndexerResult): number {
 	const quality = extractQuality(result.title);
@@ -148,8 +153,9 @@ function calculateScore(result: IndexerResult): number {
 
 	// Seeders score (logarithmic to not overweight very high seeder counts)
 	const seederScore = Math.log10(result.seeders + 1) * 20;
+	const indexerScore = INDEXER_PREFERENCE_SCORES[result.indexer] ?? 0;
 
-	return qualityScore + seederScore;
+	return qualityScore + seederScore + indexerScore;
 }
 
 /**
@@ -908,8 +914,8 @@ async function getOrCreateFlaresolverrTag(url: string, apiKey: string): Promise<
 export const INDEXER_PACKAGES = {
 	general: {
 		name: 'General Entertainment',
-		description: 'Movies & TV (YTS, 1337x, The Pirate Bay)',
-		indexers: ['YTS', '1337x', 'The Pirate Bay'],
+		description: 'Movies & TV (1337x, YTS, The Pirate Bay)',
+		indexers: ['1337x', 'YTS', 'The Pirate Bay'],
 	},
 	anime: {
 		name: 'Anime Fan',

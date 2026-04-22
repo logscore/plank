@@ -222,6 +222,17 @@ describe('Prowlarr Client', () => {
 			const best = selectBestTorrent(results);
 			expect(best?.title).toBe('Movie.2024.1080p.BluRay-B');
 		});
+
+		it('should prefer 1337x, then YTS, then The Pirate Bay when quality and seeders match', () => {
+			const results: IndexerResult[] = [
+				{ ...createResult('Movie.2024.1080p.BluRay-TPB', 50, 2_147_483_648), indexer: 'The Pirate Bay' },
+				{ ...createResult('Movie.2024.1080p.BluRay-YTS', 50, 2_147_483_648), indexer: 'YTS' },
+				{ ...createResult('Movie.2024.1080p.BluRay-1337x', 50, 2_147_483_648), indexer: '1337x' },
+			];
+
+			const best = selectBestTorrent(results);
+			expect(best?.indexer).toBe('1337x');
+		});
 	});
 
 	describe('searchProwlarr', () => {

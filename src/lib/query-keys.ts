@@ -43,6 +43,8 @@ export const queryKeys = {
 		prowlarr: {
 			status: () => [...queryKeys.system.all, 'prowlarr', 'status'] as const,
 			test: () => [...queryKeys.system.all, 'prowlarr', 'test'] as const,
+			indexers: () => [...queryKeys.system.all, 'prowlarr', 'indexers'] as const,
+			schemas: () => [...queryKeys.system.all, 'prowlarr', 'schemas'] as const,
 		},
 	},
 

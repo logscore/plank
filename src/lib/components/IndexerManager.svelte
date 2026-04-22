@@ -42,9 +42,9 @@
         {
             id: 'general',
             name: 'General Entertainment',
-            description: 'Movies & TV (YTS, 1337x, The Pirate Bay)',
+            description: 'Movies & TV (1337x, YTS, The Pirate Bay)',
             icon: '🎬',
-            indexers: ['YTS', '1337x', 'The Pirate Bay'],
+            indexers: ['1337x', 'YTS', 'The Pirate Bay'],
         },
         {
             id: 'anime',
