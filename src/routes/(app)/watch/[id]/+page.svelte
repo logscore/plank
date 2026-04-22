@@ -4,7 +4,7 @@
     import 'vidstack/player';
     import 'vidstack/player/layouts';
     import 'vidstack/player/ui';
-    import { ArrowLeft, Download, EllipsisVertical, Users } from '@lucide/svelte';
+    import { ArrowLeft, Download, EllipsisVertical, Play, Users, X } from '@lucide/svelte';
     import { onDestroy, onMount } from 'svelte';
     import type { MediaPlayerElement } from 'vidstack/elements';
     import { browser } from '$app/environment';
@@ -51,6 +51,12 @@
     const savePositionMutation = createSavePositionMutation();
     let lastSaveTime = 0;
     const SAVE_INTERVAL_MS = 5000;
+    const NEXT_EPISODE_WINDOW_SECONDS = 60;
+    let nextEpisodeDismissed = $state(false);
+    let playbackPosition = $state(0);
+    let playbackDuration: number | null = $state(null);
+    let playbackEnded = $state(false);
+    let blockStalePositionSave = false;
 
     // Subtitle state
     let subtitleTracks: SubtitleTrackResponse[] = $state([]);
@@ -77,6 +83,79 @@
         );
     }
 
+    function getKnownDuration(): number | undefined {
+        const duration = playerEl?.duration;
+        if (typeof duration !== 'number' || !Number.isFinite(duration) || duration <= 0) {
+            return undefined;
+        }
+        return duration;
+    }
+
+    function syncPlaybackState() {
+        playbackPosition = playerEl?.currentTime ?? 0;
+        playbackDuration = getKnownDuration() ?? null;
+    }
+
+    function getNextEpisodeImage(): string | null {
+        return data.nextEpisode?.stillPath ?? data.nextEpisode?.backdropUrl ?? data.nextEpisode?.posterUrl ?? null;
+    }
+
+    function formatEpisodeLabel(): string {
+        if (!data.nextEpisode || data.nextEpisode.seasonNumber === null || data.nextEpisode.episodeNumber === null) {
+            return 'Next Episode';
+        }
+
+        return `S${String(data.nextEpisode.seasonNumber).padStart(2, '0')}E${String(data.nextEpisode.episodeNumber).padStart(2, '0')}`;
+    }
+
+    function isInNextEpisodeWindow(): boolean {
+        const duration = playbackDuration ?? getKnownDuration();
+        if (!duration) {
+            return false;
+        }
+
+        return Math.max(duration - playbackPosition, 0) <= NEXT_EPISODE_WINDOW_SECONDS;
+    }
+
+    function shouldShowNextEpisodeCard(): boolean {
+        return (
+            data.media.type === 'episode' &&
+            Boolean(data.nextEpisode) &&
+            !nextEpisodeDismissed &&
+            (playbackEnded || isInNextEpisodeWindow())
+        );
+    }
+
+    function dismissNextEpisodeCard() {
+        nextEpisodeDismissed = true;
+    }
+
+    async function handlePlayNext() {
+        const nextEpisode = data.nextEpisode;
+        if (!nextEpisode) {
+            return;
+        }
+
+        if (isInNextEpisodeWindow()) {
+            const duration = playbackDuration ?? getKnownDuration();
+            if (duration) {
+                blockStalePositionSave = true;
+                try {
+                    await savePositionMutation.mutateAsync({
+                        id: data.media.id,
+                        position: duration,
+                        duration,
+                    });
+                } catch (error) {
+                    blockStalePositionSave = false;
+                    console.error('Failed to save completion before playing next episode:', error);
+                }
+            }
+        }
+
+        window.location.assign(`/watch/${nextEpisode.id}`);
+    }
+
     // Sync custom overlay with vidstack controls visibility
     function onControlsChange(event: Event) {
         const visible = (event as CustomEvent).detail;
@@ -100,7 +179,7 @@
     // Play position: save current time
     function savePosition(currentTime: number, duration?: number) {
         const id = data.media.id;
-        if (!id || currentTime <= 0) {
+        if (!id || blockStalePositionSave || currentTime <= 0) {
             return;
         }
 
@@ -163,8 +242,10 @@
 
     // Player event handlers
     function onCanPlay() {
+        syncPlaybackState();
         if (!positionRestored && initialPosition && initialPosition > 0 && playerEl) {
             playerEl.currentTime = initialPosition;
+            playbackPosition = initialPosition;
             positionRestored = true;
         }
         playerReady = true;
@@ -172,6 +253,8 @@
     }
 
     function onPlaying() {
+        syncPlaybackState();
+        playbackEnded = false;
         playerReady = true;
         playerErrorMessage = null;
     }
@@ -187,6 +270,8 @@
     }
 
     function onTimeUpdate() {
+        syncPlaybackState();
+
         const now = Date.now();
         if (now - lastSaveTime < SAVE_INTERVAL_MS) {
             return;
@@ -194,15 +279,20 @@
         lastSaveTime = now;
 
         const currentTime = playerEl?.currentTime ?? 0;
-        const duration = playerEl?.duration;
+        const duration = getKnownDuration();
         if (currentTime > 0) {
             savePosition(currentTime, duration);
         }
     }
 
     function onEnded() {
-        const duration = playerEl?.duration;
+        playbackEnded = true;
+        syncPlaybackState();
+
+        const duration = getKnownDuration();
         if (duration) {
+            playbackPosition = duration;
+            playbackDuration = duration;
             savePosition(duration, duration);
         }
     }
@@ -259,7 +349,7 @@
 
             // Save final position via sendBeacon on page leave
             const id = data.media.id;
-            if (id && playerEl) {
+            if (!blockStalePositionSave && id && playerEl) {
                 const currentTime = playerEl.currentTime;
                 const duration = playerEl.duration;
                 if (currentTime > 0) {
@@ -379,6 +469,57 @@
                     {#if progressInfo && progressInfo.status !== "complete"}
                         <p class="text-sm text-zinc-500">{(progressInfo.progress * 100).toFixed(1)}% downloaded</p>
                     {/if}
+                </div>
+            </div>
+        </div>
+    {/if}
+
+    {#if shouldShowNextEpisodeCard() && data.nextEpisode}
+        <div
+            class="absolute right-4 bottom-24 z-40 w-[min(24rem,calc(100%-2rem))] overflow-hidden rounded-2xl border border-white/10 bg-black/75 shadow-2xl backdrop-blur-xl md:right-6 md:bottom-28"
+        >
+            <div class="relative">
+                <div class="relative aspect-video bg-zinc-900">
+                    {#if getNextEpisodeImage()}
+                        <img
+                            src={getNextEpisodeImage() ?? undefined}
+                            alt={data.nextEpisode.title}
+                            class="w-full h-full object-cover"
+                        >
+                    {:else}
+                        <div class="flex h-full items-center justify-center bg-zinc-900 text-sm text-zinc-400">
+                            Next Episode
+                        </div>
+                    {/if}
+
+                    <div class="absolute inset-0 bg-linear-to-t from-black via-black/60 to-transparent"></div>
+
+                    <button
+                        type="button"
+                        class="absolute top-3 right-3 rounded-full bg-black/60 p-2 text-white transition hover:bg-black/80"
+                        onclick={dismissNextEpisodeCard}
+                        aria-label="Dismiss next episode card"
+                    >
+                        <X class="w-4 h-4" />
+                    </button>
+
+                    <div class="absolute inset-x-0 bottom-0 p-4">
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-300">
+                            {formatEpisodeLabel()}
+                        </p>
+                        <h2 class="mt-2 text-xl font-semibold text-white line-clamp-2">{data.nextEpisode.title}</h2>
+                    </div>
+                </div>
+
+                <div class="space-y-3 p-4">
+                    <button
+                        type="button"
+                        class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-primary/90"
+                        onclick={handlePlayNext}
+                    >
+                        <Play class="w-4 h-4 fill-current" />
+                        Play Next
+                    </button>
                 </div>
             </div>
         </div>

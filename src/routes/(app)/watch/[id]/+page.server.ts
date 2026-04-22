@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { requireMediaAccess } from '$lib/server/api-guard';
+import { mediaDb } from '$lib/server/db';
 import { getMediaProgressSnapshot } from '$lib/server/media-progress';
 import type { PageServerLoad } from './$types';
 
@@ -11,5 +12,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	return {
 		media: mediaItem,
 		progress: getMediaProgressSnapshot(params.id, organizationId),
+		nextEpisode: mediaItem.type === 'episode' ? mediaDb.getNextEpisodeById(mediaItem.id) : null,
 	};
 };
