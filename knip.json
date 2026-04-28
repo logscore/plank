@@ -7,7 +7,7 @@
     "scripts/*.ts"
   ],
   "project": ["src/**/*.ts", "src/**/*.svelte", "scripts/*.ts"],
-  "ignore": ["docs/**"],
+  "ignore": ["site/**"],
   "ignoreDependencies": ["tailwindcss"],
   "ignoreBinaries": ["svelte-check-rs"]
 }

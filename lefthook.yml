@@ -15,5 +15,5 @@ pre-commit:
         - "*.css"
       stage_fixed: true
 
-    - run: svelte-check-rs --ignore 'docs/**'
+    - run: svelte-check-rs --ignore 'site/**'
       stage_fixed: true

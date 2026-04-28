@@ -14,7 +14,7 @@
       "!**/dist",
       "!**/*.min.js",
       "!**/*.min.mjs",
-      "!docs"
+      "!site"
     ]
   },
   "formatter": {
