@@ -33,7 +33,7 @@
         </p>
 
         <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <a href="/docs" rel="noreferrer"
+            <a href="https://plank-docs.lsreeder.com" rel="noreferrer"
                 ><Button size="lg">
                     <Book class="mr-2 h-4 w-4" />
                     Docs

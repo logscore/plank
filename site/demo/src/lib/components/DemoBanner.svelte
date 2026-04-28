@@ -6,7 +6,7 @@
         <span class="mx-2 text-amber-300">•</span>
         <span
             >This site is a demo. Media displayed cannot be streamed here. Visit our
-            <a href="/docs" class="underline font-bold">docs</a> to create your own Plank server and start streaming!</span
+            <a href="https://plank-docs.lsreeder.com" class="underline font-bold">docs</a> to create your own Plank server and start streaming!</span
         >
     </div>
 </div>

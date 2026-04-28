@@ -27,3 +27,4 @@ AGENTS.md
 **/.svelte-kit
 **/build
 **/node_modules
+**/.wrangler
