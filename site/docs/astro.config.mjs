@@ -37,6 +37,4 @@ export default defineConfig({
       ],
     }),
   ],
-  site: "https://plank.lsreeder.com",
-  base: "/docs",
 });
