@@ -1,0 +1,47 @@
+---
+title: Troubleshooting
+description: Common issues and how to fix them.
+---
+
+## Prowlarr won't connect
+
+- Make sure Prowlarr is running. In Docker, check with `docker ps`.
+- Verify `PROWLARR_URL` points to the right address. In Docker, this is `http://prowlarr:9696` internally.
+- If you're on bare metal, make sure the API key in Settings matches the one in Prowlarr's UI under Settings > General > API Key.
+
+## No search results
+
+- Check that you have indexers configured in Settings. Without indexers, Prowlarr has nothing to search.
+- Some indexers require FlareSolverr to bypass Cloudflare. Make sure FlareSolverr is running if you're using protected indexers.
+- Try increasing the timeout or lowering the minimum seeder count.
+
+## Video won't play
+
+- Plank transcodes incompatible formats (MKV, AVI) to MP4 on the fly. This requires FFmpeg.
+- On bare metal, make sure FFmpeg is installed: `ffmpeg -version`.
+- If a video is stuck, try using the retry/redownload option on the media's detail page.
+
+## Downloads are slow
+
+- Torrent speed depends on the number of seeders. Try a different torrent source with more seeders.
+- Using a VPN is recommended for privacy, but some VPNs throttle torrent traffic. Check your VPN's settings.
+- Port `6881` (torrent) needs to be accessible for best performance. In Docker, this is mapped automatically.
+
+## Docker containers won't start
+
+- Check logs: `docker compose -f docker/docker-compose.yml logs`.
+- Make sure ports `3300`, `9696`, `8191`, and `6881` aren't already in use.
+- Verify your `.env` file exists and has valid values.
+
+## Database errors
+
+- Run migrations: `npx drizzle-kit migrate` (bare metal) or restart the Docker container (migrations run on startup).
+- If the database is corrupted, you can delete `plank.db` and restart. This will reset all data. You will lose access to your media, and will need to delete the `/data` directory as we currently dont have a recovery option if the database is nuked.
+
+## Health check
+
+Plank exposes a health endpoint at `/health`. Use it to verify the server is running:
+
+```bash
+curl http://localhost:3300/health
+```

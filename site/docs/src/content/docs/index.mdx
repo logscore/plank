@@ -1,40 +1,36 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
-template: splash # Remove or comment out this line to display the site sidebar on this page.
+title: Plank
+description: A self-hosted media server for streaming movies and TV shows.
+template: splash
 hero:
-  tagline: Congrats on setting up a new Starlight project!
-  image:
-    file: ../../assets/houston.webp
+  tagline: Once you walk the plank, ye never walk back.
   actions:
-    - text: Example Guide
-      link: /guides/example/
+    - text: Get Started
+      link: /docs/guides/getting-started
       icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
+    - text: GitHub
+      link: https://github.com/logscore/plank
       icon: external
       variant: minimal
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-## Next steps
+## What is Plank?
 
-<CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
+Plank is a self-hosted media server that lets you search for, download, and stream movies and TV shows directly in your browser. It handles torrenting, transcoding, and playback all in one place.
+
+<CardGrid>
+	<Card title="Installation" icon="laptop">
+		Install with a single command, Docker, or bare metal. [Read more](/docs/guides/installation).
 	</Card>
-	<Card title="Change page layout" icon="document">
-		Delete `template: splash` in `src/content/docs/index.mdx` to display a
-		sidebar on this page.
+	<Card title="Configuration" icon="setting">
+		Set up API keys, torrent indexers, and subtitles. [Read more](/docs/configuration/settings).
 	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
+	<Card title="Environment Variables" icon="list-format">
+		Full reference of all environment variables. [Read more](/docs/configuration/environment-variables).
 	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
-	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
+	<Card title="Troubleshooting" icon="warning">
+		Common issues and how to fix them. [Read more](/docs/guides/troubleshooting).
 	</Card>
 </CardGrid>

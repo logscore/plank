@@ -1,0 +1,47 @@
+---
+title: Updating
+description: How to update Plank to the latest version.
+---
+
+## Update Script (Recommended)
+
+The install script allows you to update Plank automatically:
+
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/logscore/plank/master/scripts/deploy.sh)
+```
+
+It will prompt you if you want to update Plank, defaulting to yes. Hit enter and it will update Plank to the most recent changes on `master`.
+
+## Docker
+
+Pull the latest changes and rebuild:
+
+```bash
+cd plank
+git pull
+docker compose -f docker/docker-compose.yml --env-file .env up -d --build
+```
+
+Database migrations run automatically on container startup.
+
+## Bare Metal
+
+Pull the latest code, rebuild, and run migrations:
+
+```bash
+cd plank
+git pull
+npm install
+npm run build
+npx drizzle-kit migrate
+```
+
+Then restart the server. If you're using a systemd service:
+
+```bash
+sudo systemctl restart plank
+```
+
+Otherwise, stop the existing process and run `node build` again.

@@ -5,8 +5,6 @@
   <em>"Once you walk the plank, ye never walk back."</em>
 </div>
 
-> ⚠️ This repo is under heavy development and we don't have a consistent way to migrate your media data in your local db or on the file system when we make breaking changes. Use this project at your own peril.
-
 ## Features
 
 - Add magnet links and stream while downloading

@@ -1,0 +1,40 @@
+---
+title: Settings
+description: Configuring Plank through the Settings page.
+---
+
+Most configuration can be done through the **Settings** page in the Plank UI. Settings configured here are stored in the database and encrypted at rest.
+
+## TMDB
+
+A TMDB API key is needed to browse and search for movies and TV shows. Without it, you can still add media via magnet links, but you won't get metadata, posters, or descriptions.
+
+Get a free API key at [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api), then paste it into the TMDB section on the Settings page.
+
+## Prowlarr
+
+Prowlarr is a torrent indexer aggregator. It lets Plank search multiple torrent sites at once.
+
+If you installed with Docker, Prowlarr is already running and configured automatically. You can manage your indexers directly from the Settings page.
+
+For bare metal installs, you'll need to [install Prowlarr separately](https://prowlarr.com/#downloads) and provide the URL and API key in Settings.
+
+### Indexers
+
+After Prowlarr is connected, add indexers from the Settings page. Plank groups them by type:
+
+- **General** -- Broad torrent sites (1337x, RARBG, etc.)
+- **Anime** -- Anime-focused trackers (Nyaa, etc.)
+- **TV** -- TV-specific trackers
+
+### Minimum Seeders
+
+You can set a minimum seeder count to filter out dead torrents. This is configurable in the Settings page.
+
+## OpenSubtitles
+
+OpenSubtitles provides subtitle search and download. To enable it, create an account and get an API key at [opensubtitles.com/consumers](https://www.opensubtitles.com/consumers), then enter your API key, username, and password in Settings.
+
+## Settings vs Environment Variables
+
+Settings configured in the UI take priority over environment variables. If you set a TMDB API key in both the `.env` file and the Settings page, the Settings page value is used.

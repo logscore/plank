@@ -1,0 +1,43 @@
+---
+title: Uninstallation
+description: How to remove Plank.
+---
+
+## Docker
+
+Stop and remove all containers, volumes, and images:
+
+```bash
+cd plank
+docker compose -f docker/docker-compose.yml down -v --rmi all
+```
+
+Then delete the project folder:
+
+```bash
+rm -rf plank
+```
+
+## Bare Metal
+
+Stop the Plank process, then remove the project folder:
+
+```bash
+rm -rf plank
+```
+
+If you installed Plank as a systemd service (via the deploy script), disable and remove it first:
+
+```bash
+sudo systemctl stop plank
+sudo systemctl disable plank
+sudo rm /etc/systemd/system/plank.service
+sudo systemctl daemon-reload
+rm -rf plank
+```
+
+## Cleaning Up Data
+
+Downloaded media is stored in the `data/` directory (or wherever `DATA_PATH` points). The database is at `plank.db` (or wherever `DATABASE_URL` points). Both are inside the project folder by default, so removing the folder removes everything.
+
+If you changed `DATA_PATH` or `DATABASE_URL` to point elsewhere, remove those locations manually.

@@ -1,0 +1,34 @@
+---
+title: Getting Started
+description: First steps after installing Plank.
+---
+
+After [installing Plank](/guides/installation), open your browser and go to `http://localhost:3300` (or your server's address).
+
+## Create Your Account
+
+The first user to register becomes the **admin**. You'll be walked through the onboarding flow to set up your account and organization.
+
+## Set Up API Keys
+
+Head to **Settings** to configure external services:
+
+- **TMDB API Key** -- Required for browsing and searching movies/TV shows. Get one free at [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api).
+- **Prowlarr** -- Automatically configured if you used Docker. Provides torrent indexer search.
+- **OpenSubtitles** -- Optional. Enables subtitle search and download. Get an API key at [opensubtitles.com/consumers](https://www.opensubtitles.com/consumers).
+
+You can set these via the Settings page in the UI or through [environment variables](/configuration/environment-variables).
+
+## Add Your First Media
+
+There are three ways to add content:
+
+1. **Browse** -- Go to the Browse page to discover trending and popular movies and TV shows. Click any title to add it to your library.
+2. **Search** -- Use the Search page to find specific titles across your configured torrent indexers.
+3. **Magnet Links** -- Click the plus icon in the bottom menu bar and paste your magnet link. Plank will automatically detect the type and add it to your library.
+
+Once added, Plank downloads the torrent and begins streaming. You can start watching before the download finishes.
+
+## Invite Others
+
+As an admin, you can invite other users from the **Account** page. Each user gets their own profile and library.

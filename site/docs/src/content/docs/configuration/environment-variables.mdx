@@ -1,0 +1,62 @@
+---
+title: Environment Variables
+description: Full reference of Plank environment variables.
+---
+
+All environment variables are set in the `.env` file at the root of the project. Copy `.env.example` to `.env` to get started.
+
+## Core
+
+| Variable | Description | Default |
+|---|---|---|
+| `PORT` | Port the server listens on | `3300` |
+| `DATABASE_URL` | Path to the SQLite database file | `./plank.db` |
+| `DATA_PATH` | Directory where downloaded media is saved | `./data` |
+
+## Authentication
+
+| Variable | Description | Default |
+|---|---|---|
+| `BETTER_AUTH_SECRET` | Secret key used for session encryption. Use a random 32+ character string. | (none) |
+| `BETTER_AUTH_URL` | Base URL of your Plank instance | `http://localhost:3300` |
+
+## TMDB
+
+| Variable | Description | Default |
+|---|---|---|
+| `TMDB_API_KEY` | API key for The Movie Database. Get one at [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api). | (none) |
+
+## Prowlarr
+
+| Variable | Description | Default |
+|---|---|---|
+| `PROWLARR_URL` | URL of your Prowlarr instance | `http://localhost:9696` |
+| `PUBLIC_PROWLARR_URL` | Public-facing Prowlarr URL (if behind a reverse proxy) | Same as `PROWLARR_URL` |
+| `PROWLARR_API_KEY` | Prowlarr API key. Auto-configured in Docker -- leave blank. | (none) |
+
+## OpenSubtitles
+
+| Variable | Description | Default |
+|---|---|---|
+| `OPENSUBTITLES_API_KEY` | API key from [opensubtitles.com/consumers](https://www.opensubtitles.com/consumers) | (none) |
+| `OPENSUBTITLES_USERNAME` | Your OpenSubtitles username | (none) |
+| `OPENSUBTITLES_PASSWORD` | Your OpenSubtitles password | (none) |
+
+## Docker-Only
+
+These are set in `docker-compose.yml` and generally don't need to be changed.
+
+| Variable | Description | Default |
+|---|---|---|
+| `HOST` | Bind address | `0.0.0.0` |
+| `ORIGIN` | Public URL for CSRF protection | `http://localhost:3300` |
+| `PROWLARR_CONFIG_PATH` | Path to Prowlarr config inside the container | `/prowlarr-config/config.xml` |
+| `FLARESOLVERR_URL` | FlareSolverr URL | `http://flaresolverr:8191` |
+| `MEDIA_PATH` | Host path for media library mount | `./media` |
+| `TZ` | Timezone for containers | `America/New_York` |
+
+## Other
+
+| Variable | Description | Default |
+|---|---|---|
+| `ENABLE_FILE_STORAGE` | Save downloaded files to disk. Reserved for future use. | `true` |
