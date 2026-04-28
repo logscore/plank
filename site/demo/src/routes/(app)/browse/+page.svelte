@@ -48,19 +48,19 @@
             <p class="mt-2 text-sm text-muted-foreground">Trending and popular titles from the catalog.</p>
         </div>
 
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div class="inline-flex rounded-full border border-white/10 bg-black/40 p-1">
-                <button
-                    class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition {browseType === 'trending' ? 'bg-white/10 text-white' : 'text-muted-foreground'}"
-                    onclick={() => setParams('trending', filter)}
-                >
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+			<div class="grid w-full grid-cols-2 rounded-full border border-white/10 bg-black/40 p-1 sm:inline-flex sm:w-auto">
+				<button
+					class="inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition {browseType === 'trending' ? 'bg-white/10 text-white' : 'text-muted-foreground'}"
+					onclick={() => setParams('trending', filter)}
+				>
                     <Flame class="h-4 w-4" />
                     Trending
                 </button>
-                <button
-                    class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition {browseType === 'popular' ? 'bg-white/10 text-white' : 'text-muted-foreground'}"
-                    onclick={() => setParams('popular', filter)}
-                >
+				<button
+					class="inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition {browseType === 'popular' ? 'bg-white/10 text-white' : 'text-muted-foreground'}"
+					onclick={() => setParams('popular', filter)}
+				>
                     <Trophy class="h-4 w-4" />
                     Popular
                 </button>

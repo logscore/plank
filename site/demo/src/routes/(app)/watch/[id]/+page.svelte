@@ -33,12 +33,12 @@
         </p>
 
         <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <a href="https://plank-docs.lsreeder.com" rel="noreferrer"
-                ><Button size="lg">
+            <a href="https://plank-docs.lsreeder.com" class="w-full sm:w-auto">
+                <Button size="lg" class="w-full sm:w-auto">
                     <Book class="mr-2 h-4 w-4" />
                     Docs
-                </Button></a
-            >
+                </Button>
+            </a>
             <Button variant="secondary" size="lg" onclick={() => history.length > 1 ? history.back() : goto('/')}>
                 <ArrowLeft class="mr-2 h-4 w-4" />
                 Back

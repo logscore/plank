@@ -16,6 +16,7 @@
     "@sveltejs/adapter-static": "3.0.8",
     "@sveltejs/kit": "2.53.0",
     "clsx": "2.1.1",
+    "posthog-js": "^1.372.5",
     "svelte-sonner": "1.0.7",
     "tailwind-merge": "3.5.0"
   },

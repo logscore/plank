@@ -54,18 +54,18 @@
             <p class="mt-2 text-sm text-muted-foreground">Search the current library or the catalog.</p>
         </div>
 
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div class="inline-flex rounded-full border border-white/10 bg-black/40 p-1">
-                <button
-                    class="rounded-full px-4 py-2 text-sm font-medium transition {mode === 'library' ? 'bg-white/10 text-white' : 'text-muted-foreground'}"
-                    onclick={() => (mode = 'library')}
-                >
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+			<div class="grid w-full grid-cols-2 rounded-full border border-white/10 bg-black/40 p-1 sm:inline-flex sm:w-auto">
+				<button
+					class="inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-medium transition {mode === 'library' ? 'bg-white/10 text-white' : 'text-muted-foreground'}"
+					onclick={() => (mode = 'library')}
+				>
                     Library
                 </button>
-                <button
-                    class="rounded-full px-4 py-2 text-sm font-medium transition {mode === 'browse' ? 'bg-white/10 text-white' : 'text-muted-foreground'}"
-                    onclick={() => (mode = 'browse')}
-                >
+				<button
+					class="inline-flex w-full items-center justify-center rounded-full px-4 py-2 text-sm font-medium transition {mode === 'browse' ? 'bg-white/10 text-white' : 'text-muted-foreground'}"
+					onclick={() => (mode = 'browse')}
+				>
                     Browse
                 </button>
             </div>

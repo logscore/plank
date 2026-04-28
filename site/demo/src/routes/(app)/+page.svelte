@@ -33,18 +33,18 @@
             <h1 class="text-3xl font-semibold tracking-tight">Library</h1>
             <p class="mt-2 text-sm text-muted-foreground">Your private media library.</p>
         </div>
-        <div class="inline-flex rounded-full border border-white/10 bg-black/40 p-1">
-            <button
-                class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition {activeTab === 'movies' ? 'bg-white/10 text-white' : 'text-muted-foreground'}"
-                onclick={() => switchTab('movies')}
-            >
+		<div class="grid w-full grid-cols-2 rounded-full border border-white/10 bg-black/40 p-1 sm:inline-flex sm:w-auto">
+			<button
+				class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-full px-2 py-2 text-sm font-medium transition {activeTab === 'movies' ? 'bg-white/10 text-white' : 'text-muted-foreground'}"
+				onclick={() => switchTab('movies')}
+			>
                 <Film class="h-4 w-4" />
                 Movies
             </button>
-            <button
-                class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition {activeTab === 'shows' ? 'bg-white/10 text-white' : 'text-muted-foreground'}"
-                onclick={() => switchTab('shows')}
-            >
+			<button
+				class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition {activeTab === 'shows' ? 'bg-white/10 text-white' : 'text-muted-foreground'}"
+				onclick={() => switchTab('shows')}
+			>
                 <Tv class="h-4 w-4" />
                 TV Shows
             </button>

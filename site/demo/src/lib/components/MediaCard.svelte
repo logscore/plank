@@ -33,6 +33,19 @@
         goto(`/watch/${episode.id}`);
     }
 
+    function openDetails() {
+        goto(detailsLink);
+    }
+
+    function handleCardKeydown(e: KeyboardEvent) {
+        if (e.key !== 'Enter' && e.key !== ' ') {
+            return;
+        }
+
+        e.preventDefault();
+        openDetails();
+    }
+
     function handleClickOutside(e: MouseEvent) {
         const target = e.target as HTMLElement;
         if (showMenu && !target.closest('.media-menu')) {
@@ -56,7 +69,12 @@
 <svelte:document onclick={handleClickOutside} />
 
 <div
-    class="group relative aspect-2/3 rounded-lg border border-border/50 bg-card shadow-lg outline-none transition-all duration-500 hover:z-20 hover:scale-[1.02] hover:border-red-500"
+    class="group relative aspect-2/3 cursor-pointer rounded-lg border border-border/50 bg-card shadow-lg outline-none transition-all duration-500 hover:z-20 hover:scale-[1.02] hover:border-red-500"
+    role="link"
+    tabindex="0"
+    aria-label={`Open details for ${media.title}`}
+    onclick={openDetails}
+    onkeydown={handleCardKeydown}
 >
     <div class="absolute inset-0 overflow-hidden rounded-lg">
         {#if media.type === 'show'}
@@ -82,7 +100,7 @@
     </div>
 
     <div
-        class="pointer-events-none absolute inset-0 flex translate-y-2 flex-col justify-between rounded-lg bg-black/60 p-4 opacity-0 backdrop-blur-sm transition-all duration-300 ease-out group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100"
+        class="pointer-events-none absolute inset-0 z-10 flex translate-y-2 flex-col justify-between rounded-lg bg-black/60 p-4 opacity-0 backdrop-blur-sm transition-all duration-300 ease-out group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100"
     >
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden space-y-2">
             <h4 class="shrink-0 text-lg leading-tight font-bold text-white">{media.title}</h4>
@@ -126,6 +144,7 @@
                     variant="ghost"
                     size="icon"
                     class="size-9.25 shrink-0 text-white hover:bg-neutral-800"
+                    aria-label="Open options"
                     onclick={handleMenuClick}
                     title="Options"
                 >

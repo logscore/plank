@@ -50,18 +50,23 @@
 
 {#if media}
     <div class="relative min-h-screen overflow-hidden">
-        {#if media.backdropUrl}
-            <img
-                src={media.backdropUrl}
-                alt={media.title}
-                class="absolute inset-0 h-full w-full object-cover opacity-20"
-            >
+        {#if media.backdropUrl || media.posterUrl}
+            <picture>
+                {#if media.backdropUrl}
+                    <source media="(min-width: 1024px)" srcset={media.backdropUrl} />
+                {/if}
+                <img
+                    src={media.posterUrl ?? media.backdropUrl}
+                    alt={media.title}
+                    class="absolute inset-0 h-full w-full object-cover opacity-30 lg:opacity-20"
+                >
+            </picture>
         {/if}
         <div class="absolute inset-0 bg-linear-to-b from-background/30 via-background/80 to-background"></div>
 
         <div class="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
             <div class="grid gap-8 lg:grid-cols-[320px_1fr] lg:items-end">
-                <div class="overflow-hidden rounded-2xl border border-white/10 shadow-2xl">
+                <div class="hidden overflow-hidden rounded-2xl border border-white/10 shadow-2xl lg:block">
                     {#if media.posterUrl}
                         <img src={media.posterUrl} alt={media.title} class="w-full object-cover">
                     {:else}

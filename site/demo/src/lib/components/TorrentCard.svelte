@@ -1,5 +1,6 @@
 <script lang="ts">
     import { ChevronDown, Play, Plus } from '@lucide/svelte';
+    import { goto } from '$app/navigation';
     import type { BrowseItem, DemoSeasonSummary } from '$lib/types';
     import { cn } from '$lib/utils';
     import Button from './ui/Button.svelte';
@@ -29,6 +30,7 @@
     } = $props();
 
     const isTvShow = $derived(item.mediaType === 'show');
+    const detailsLink = $derived(item.mediaType === 'show' ? `/show/${item.id}` : `/movie/${item.id}`);
 
     let seasonMenuOpen = $state(false);
     let progressState = $state<'idle' | 'adding' | 'completing'>('idle');
@@ -43,6 +45,19 @@
     function handleWatchNow(e: Event) {
         e.stopPropagation();
         onWatchNow?.(item);
+    }
+
+    function openDetails() {
+        goto(detailsLink);
+    }
+
+    function handleCardKeydown(e: KeyboardEvent) {
+        if (e.key !== 'Enter' && e.key !== ' ') {
+            return;
+        }
+
+        e.preventDefault();
+        openDetails();
     }
 
     $effect(() => {
@@ -74,6 +89,11 @@
 
 <div
     class={cn('group relative aspect-2/3 cursor-pointer rounded-lg border border-border/50 bg-card shadow-lg outline-none transition-all duration-300 hover:z-20 hover:scale-[1.02] hover:border-primary/50', className)}
+    role="link"
+    tabindex="0"
+    aria-label={`Open details for ${item.title}`}
+    onclick={openDetails}
+    onkeydown={handleCardKeydown}
 >
     <div class="absolute inset-0 overflow-hidden rounded-lg">
         {#if item.voteAverage && item.voteAverage > 0}
