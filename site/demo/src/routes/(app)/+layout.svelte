@@ -34,7 +34,7 @@
 </script>
 
 <svelte:head>
-    <title>{currentTitle} · Plank</title>
+    <title>{currentTitle} | Plank</title>
 </svelte:head>
 
 <Layout>{@render children()}</Layout>
