@@ -1,15 +1,15 @@
 <script lang="ts">
-    import { Check, Download, Ear, Globe, Loader, Search, Shield, Star } from '@lucide/svelte';
-    import Button from '$lib/components/ui/Button.svelte';
-    import Dialog from '$lib/components/ui/Dialog.svelte';
-    import { createDownloadSubtitleMutation } from '$lib/mutations/media-mutations';
-    import { searchOpenSubtitles } from '$lib/queries/media-queries';
-    import type { OpenSubtitleResult } from '$lib/types';
+    import { Check, Download, Ear, Globe, Loader, Search, Shield, Star } from "@lucide/svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import Dialog from "$lib/components/ui/Dialog.svelte";
+    import { createDownloadSubtitleMutation } from "$lib/mutations/media-mutations";
+    import { searchOpenSubtitles } from "$lib/queries/media-queries";
+    import type { OpenSubtitleResult } from "$lib/types";
 
     let {
         open = $bindable(false),
         mediaId,
-        mediaTitle = '',
+        mediaTitle = "",
         seasonNumber,
         episodeNumber,
     }: {
@@ -22,25 +22,25 @@
 
     let results: OpenSubtitleResult[] = $state([]);
     let searching = $state(false);
-    let searchError = $state('');
-    let selectedLanguages = $state('en');
+    let searchError = $state("");
+    let selectedLanguages = $state("en");
     let downloadingIds = $state<Set<string>>(new Set());
     let downloadedIds = $state<Set<string>>(new Set());
 
     const downloadMutation = createDownloadSubtitleMutation();
 
     const LANGUAGES = [
-        { code: 'en', name: 'English' },
-        { code: 'es', name: 'Spanish' },
-        { code: 'fr', name: 'French' },
-        { code: 'de', name: 'German' },
-        { code: 'it', name: 'Italian' },
-        { code: 'pt', name: 'Portuguese' },
-        { code: 'ja', name: 'Japanese' },
-        { code: 'ko', name: 'Korean' },
-        { code: 'zh', name: 'Chinese' },
+        { code: "en", name: "English" },
+        { code: "es", name: "Spanish" },
+        { code: "fr", name: "French" },
+        { code: "de", name: "German" },
+        { code: "it", name: "Italian" },
+        { code: "pt", name: "Portuguese" },
+        { code: "ja", name: "Japanese" },
+        { code: "ko", name: "Korean" },
+        { code: "zh", name: "Chinese" },
         // { code: 'ar', name: 'Arabic' },
-        { code: 'ru', name: 'Russian' },
+        { code: "ru", name: "Russian" },
         // { code: 'hi', name: 'Hindi' },
         // { code: 'pl', name: 'Polish' },
         // { code: 'tr', name: 'Turkish' },
@@ -64,7 +64,7 @@
 
     async function performSearch() {
         searching = true;
-        searchError = '';
+        searchError = "";
         results = [];
 
         try {
@@ -74,7 +74,7 @@
                 episodeNumber,
             });
         } catch (err) {
-            searchError = err instanceof Error ? err.message : 'Search failed';
+            searchError = err instanceof Error ? err.message : "Search failed";
         } finally {
             searching = false;
         }
@@ -114,18 +114,18 @@
     }
 
     function toggleLanguage(code: string) {
-        const langs = selectedLanguages ? selectedLanguages.split(',') : [];
+        const langs = selectedLanguages ? selectedLanguages.split(",") : [];
         const index = langs.indexOf(code);
         if (index >= 0) {
             langs.splice(index, 1);
         } else {
             langs.push(code);
         }
-        selectedLanguages = langs.join(',');
+        selectedLanguages = langs.join(",");
     }
 
     function isLanguageSelected(code: string): boolean {
-        return selectedLanguages.split(',').includes(code);
+        return selectedLanguages.split(",").includes(code);
     }
 
     let showLanguageFilter = $state(false);

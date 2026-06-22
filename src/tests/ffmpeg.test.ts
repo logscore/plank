@@ -1,5 +1,5 @@
-import { PassThrough } from 'node:stream';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PassThrough } from "node:stream";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	createTransmuxStream,
 	getPlaybackCompatibility,
@@ -7,11 +7,11 @@ import {
 	needsTransmux,
 	probeFile,
 	transmuxFile,
-} from '$lib/server/ffmpeg';
+} from "$lib/server/ffmpeg";
 
 // Mock ffmpeg-installer
-vi.mock('@ffmpeg-installer/ffmpeg', () => ({
-	default: { path: '/mock/ffmpeg' },
+vi.mock("@ffmpeg-installer/ffmpeg", () => ({
+	default: { path: "/mock/ffmpeg" },
 }));
 
 // Mock fluent-ffmpeg
@@ -38,63 +38,63 @@ const { mockFfmpegConstructor, mockFfmpegCommand } = vi.hoisted(() => {
 	};
 });
 
-vi.mock('fluent-ffmpeg', () => ({
+vi.mock("fluent-ffmpeg", () => ({
 	default: mockFfmpegConstructor,
 }));
 
-describe('FFmpeg Service', () => {
+describe("FFmpeg Service", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		// Reset event handlers
 		mockFfmpegCommand.on.mockImplementation((event, callback) => {
-			if (event === 'end') {
+			if (event === "end") {
 				setTimeout(callback, 0);
 			}
 			return mockFfmpegCommand;
 		});
 	});
 
-	describe('Format Helpers', () => {
-		it('should identify transmuxable formats', () => {
-			expect(needsTransmux('video.mkv')).toBe(true);
-			expect(needsTransmux('video.avi')).toBe(true);
-			expect(needsTransmux('video.mp4')).toBe(false);
+	describe("Format Helpers", () => {
+		it("should identify transmuxable formats", () => {
+			expect(needsTransmux("video.mkv")).toBe(true);
+			expect(needsTransmux("video.avi")).toBe(true);
+			expect(needsTransmux("video.mp4")).toBe(false);
 		});
 
-		it('should identify supported formats', () => {
-			expect(isSupportedFormat('video.mp4')).toBe(true);
-			expect(isSupportedFormat('video.mkv')).toBe(true);
-			expect(isSupportedFormat('text.txt')).toBe(false);
+		it("should identify supported formats", () => {
+			expect(isSupportedFormat("video.mp4")).toBe(true);
+			expect(isSupportedFormat("video.mkv")).toBe(true);
+			expect(isSupportedFormat("text.txt")).toBe(false);
 		});
 	});
 
-	describe('createTransmuxStream', () => {
-		it('should create a transmux stream', () => {
+	describe("createTransmuxStream", () => {
+		it("should create a transmux stream", () => {
 			const input = new PassThrough();
-			const stream = createTransmuxStream({ inputStream: input, fileName: 'video.mkv' });
+			const stream = createTransmuxStream({ inputStream: input, fileName: "video.mkv" });
 
 			expect(mockFfmpegConstructor).toHaveBeenCalledWith(input);
-			expect(mockFfmpegCommand.inputFormat).toHaveBeenCalledWith('matroska');
-			expect(mockFfmpegCommand.outputFormat).toHaveBeenCalledWith('mp4');
+			expect(mockFfmpegCommand.inputFormat).toHaveBeenCalledWith("matroska");
+			expect(mockFfmpegCommand.outputFormat).toHaveBeenCalledWith("mp4");
 			expect(stream).toBeInstanceOf(PassThrough);
 		});
 
-		it('should handle start time', () => {
+		it("should handle start time", () => {
 			const input = new PassThrough();
 			createTransmuxStream({ inputStream: input, start: 10 });
 
 			expect(mockFfmpegCommand.setStartTime).toHaveBeenCalledWith(10);
 		});
 
-		it('should handle errors', () => {
+		it("should handle errors", () => {
 			const input = new PassThrough();
 			const onError = vi.fn();
 
 			// Mock error handler
 			mockFfmpegCommand.on.mockImplementation((event, callback) => {
-				if (event === 'error') {
+				if (event === "error") {
 					setTimeout(() => {
-						callback(new Error('FFmpeg error'), null, 'stderr output');
+						callback(new Error("FFmpeg error"), null, "stderr output");
 					}, 0);
 				}
 				return mockFfmpegCommand;
@@ -106,43 +106,43 @@ describe('FFmpeg Service', () => {
 					resolve();
 				});
 				const stream = createTransmuxStream({ inputStream: input, onError });
-				stream.on('error', () => {}); // Prevent uncaught exception
+				stream.on("error", () => {}); // Prevent uncaught exception
 			});
 		});
 	});
 
-	describe('transmuxFile', () => {
-		it('should transmux file', async () => {
+	describe("transmuxFile", () => {
+		it("should transmux file", async () => {
 			mockFfmpegCommand.run.mockImplementation(() => {
 				// Simulate success
 			});
 
-			await transmuxFile('input.mkv', 'output.mp4');
+			await transmuxFile("input.mkv", "output.mp4");
 
-			expect(mockFfmpegConstructor).toHaveBeenCalledWith('input.mkv');
-			expect(mockFfmpegCommand.output).toHaveBeenCalledWith('output.mp4');
+			expect(mockFfmpegConstructor).toHaveBeenCalledWith("input.mkv");
+			expect(mockFfmpegCommand.output).toHaveBeenCalledWith("output.mp4");
 			expect(mockFfmpegCommand.run).toHaveBeenCalled();
 		});
 
-		it('should handle transmux errors', async () => {
+		it("should handle transmux errors", async () => {
 			mockFfmpegCommand.on.mockImplementation((event, callback) => {
-				if (event === 'error') {
-					setTimeout(() => callback(new Error('Transmux failed')), 0);
+				if (event === "error") {
+					setTimeout(() => callback(new Error("Transmux failed")), 0);
 				}
 				return mockFfmpegCommand;
 			});
 
-			await expect(transmuxFile('input.mkv', 'output.mp4')).rejects.toThrow('Transmux failed');
+			await expect(transmuxFile("input.mkv", "output.mp4")).rejects.toThrow("Transmux failed");
 		});
 	});
 
-	describe('probeFile', () => {
-		it('should probe file metadata', async () => {
+	describe("probeFile", () => {
+		it("should probe file metadata", async () => {
 			const mockMetadata = {
 				format: { duration: 100 },
 				streams: [
-					{ codec_type: 'video', codec_name: 'h264', width: 1920, height: 1080 },
-					{ codec_type: 'audio', codec_name: 'aac', channels: 2 },
+					{ codec_type: "video", codec_name: "h264", width: 1920, height: 1080 },
+					{ codec_type: "audio", codec_name: "aac", channels: 2 },
 				],
 			};
 
@@ -152,11 +152,11 @@ describe('FFmpeg Service', () => {
 				}
 			);
 
-			const result = await probeFile('movie.mp4');
+			const result = await probeFile("movie.mp4");
 
 			expect(result).toEqual({
-				videoCodec: 'h264',
-				audioCodec: 'aac',
+				videoCodec: "h264",
+				audioCodec: "aac",
 				duration: 100,
 				width: 1920,
 				height: 1080,
@@ -165,38 +165,38 @@ describe('FFmpeg Service', () => {
 			});
 		});
 
-		it('should handle probe errors', async () => {
+		it("should handle probe errors", async () => {
 			(mockFfmpegConstructor as any).ffprobe.mockImplementation(
 				(_path: string, callback: (err: Error | null, data?: any) => void) => {
-					callback(new Error('Probe failed'));
+					callback(new Error("Probe failed"));
 				}
 			);
 
-			await expect(probeFile('movie.mp4')).rejects.toThrow('Probe failed');
+			await expect(probeFile("movie.mp4")).rejects.toThrow("Probe failed");
 		});
 	});
 
-	describe('getPlaybackCompatibility', () => {
-		it('ignores embedded mp4 text subtitle data tracks', async () => {
+	describe("getPlaybackCompatibility", () => {
+		it("ignores embedded mp4 text subtitle data tracks", async () => {
 			(mockFfmpegConstructor as any).ffprobe.mockImplementation(
 				(_path: string, callback: (err: Error | null, data?: any) => void) => {
 					callback(null, {
 						format: { duration: 100 },
 						streams: [
-							{ codec_type: 'video', codec_name: 'h264', width: 1920, height: 1080 },
-							{ codec_type: 'audio', codec_name: 'aac', channels: 2 },
+							{ codec_type: "video", codec_name: "h264", width: 1920, height: 1080 },
+							{ codec_type: "audio", codec_name: "aac", channels: 2 },
 							{
-								codec_type: 'data',
-								codec_name: 'bin_data',
-								codec_tag_string: 'text',
-								tags: { handler_name: 'SubtitleHandler' },
+								codec_type: "data",
+								codec_name: "bin_data",
+								codec_tag_string: "text",
+								tags: { handler_name: "SubtitleHandler" },
 							},
 						],
 					});
 				}
 			);
 
-			const result = await getPlaybackCompatibility('movie.mp4');
+			const result = await getPlaybackCompatibility("movie.mp4");
 
 			expect(result.hasDataStreams).toBe(false);
 			expect(result.requiresNormalization).toBe(false);

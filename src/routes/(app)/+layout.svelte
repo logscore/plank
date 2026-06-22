@@ -1,26 +1,26 @@
 <script lang="ts">
-    import { goto } from '$app/navigation';
-    import { page } from '$app/state';
-    import { authClient } from '$lib/auth-client';
-    import AddMediaDialog from '$lib/components/AddMediaDialog.svelte';
-    import ConfirmationDialog from '$lib/components/ConfirmationDialog.svelte';
-    import InviteMemberDialog from '$lib/components/InviteMemberDialog.svelte';
-    import Layout from '$lib/components/Layout.svelte';
-    import { prefetchBrowseData } from '$lib/prefetch';
-    import '../../app.css';
+    import { goto } from "$app/navigation";
+    import { page } from "$app/state";
+    import { authClient } from "$lib/auth-client";
+    import AddMediaDialog from "$lib/components/AddMediaDialog.svelte";
+    import ConfirmationDialog from "$lib/components/ConfirmationDialog.svelte";
+    import InviteMemberDialog from "$lib/components/InviteMemberDialog.svelte";
+    import Layout from "$lib/components/Layout.svelte";
+    import { prefetchBrowseData } from "$lib/prefetch";
+    import "../../app.css";
 
     let { children } = $props();
 
-    const APP_NAME = 'Plank';
+    const APP_NAME = "Plank";
     const ROUTE_TITLES: Record<string, string> = {
-        '/': 'Home',
-        '/account': 'Account',
-        '/browse': 'Browse',
-        '/onboarding': 'Onboarding',
-        '/profiles': 'Profiles',
-        '/profiles/manage': 'Manage Profiles',
-        '/search': 'Search',
-        '/settings': 'Settings',
+        "/": "Home",
+        "/account": "Account",
+        "/browse": "Browse",
+        "/onboarding": "Onboarding",
+        "/profiles": "Profiles",
+        "/profiles/manage": "Manage Profiles",
+        "/search": "Search",
+        "/settings": "Settings",
     };
 
     const pageTitle = $derived.by(() => {
@@ -36,7 +36,7 @@
 
     async function handleLogout() {
         await authClient.signOut();
-        goto('/login');
+        goto("/login");
     }
 </script>
 

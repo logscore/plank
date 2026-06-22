@@ -5,8 +5,8 @@
  * Filters for high-quality releases from trusted groups.
  */
 
-import parseTorrent from 'parse-torrent';
-import { getSettings } from '$lib/server/settings';
+import parseTorrent from "parse-torrent";
+import { getSettings } from "$lib/server/settings";
 
 /**
  * Standardized Indexer search result
@@ -60,11 +60,11 @@ const LOW_QUALITY_PATTERNS = [
  * Keys are uppercase to match extractQuality output
  */
 const QUALITY_SCORES: Record<string, number> = {
-	'1080P': 100,
-	'2160P': 85,
+	"1080P": 100,
+	"2160P": 85,
 	UHD: 80,
-	'720P': 60,
-	'4K': 40,
+	"720P": 60,
+	"4K": 40,
 };
 
 /**
@@ -72,16 +72,16 @@ const QUALITY_SCORES: Record<string, number> = {
  */
 const QUALITY_PATTERN = /\b(2160p|4K|UHD|1080p|720p|480p)\b/i;
 const INDEXER_PREFERENCE_SCORES: Record<string, number> = {
-	'1337x': 3,
+	"1337x": 3,
 	YTS: 2,
-	'The Pirate Bay': 1,
+	"The Pirate Bay": 1,
 };
 
 /**
  * Pattern to extract release group from title
  */
 const RELEASE_GROUP_PATTERN = /-([A-Za-z0-9]+)(?:\[.*\])?$/;
-const TV_SEARCH_CATEGORY = '5000';
+const TV_SEARCH_CATEGORY = "5000";
 
 /**
  * Parse Prowlarr API response into typed results
@@ -108,7 +108,7 @@ export function parseProwlarrResults(results: ProwlarrResultItem[]): IndexerResu
 			seeders: r.seeders || 0,
 			peers: (r.seeders || 0) + (r.leechers || 0),
 			publishDate: r.publishDate,
-			indexer: r.indexer || 'Unknown',
+			indexer: r.indexer || "Unknown",
 		}));
 }
 
@@ -181,7 +181,7 @@ export function selectBestTorrent(results: IndexerResult[]): IndexerResult | nul
  * Check if hostname is localhost
  */
 function isLocalhost(hostname: string): boolean {
-	return hostname === 'localhost' || hostname === '127.0.0.1';
+	return hostname === "localhost" || hostname === "127.0.0.1";
 }
 
 /**
@@ -189,7 +189,7 @@ function isLocalhost(hostname: string): boolean {
  */
 function extractMagnetFromBody(buffer: ArrayBuffer, contentType: string): string | null {
 	// Check if it's a torrent file
-	if (contentType.includes('torrent') || contentType.includes('octet-stream')) {
+	if (contentType.includes("torrent") || contentType.includes("octet-stream")) {
 		const parsed = parseTorrent(Buffer.from(buffer));
 		if (parsed?.infoHash) {
 			// @ts-expect-error - types missing for toMagnetURI
@@ -200,7 +200,7 @@ function extractMagnetFromBody(buffer: ArrayBuffer, contentType: string): string
 	// Check if the body itself is a magnet link (text response)
 	if (buffer.byteLength < 1000) {
 		const text = new TextDecoder().decode(buffer).trim();
-		if (text.startsWith('magnet:')) {
+		if (text.startsWith("magnet:")) {
 			return text;
 		}
 	}
@@ -215,16 +215,16 @@ async function handleRedirect(
 	response: Response,
 	tryFetch: (url: string) => Promise<string | null>
 ): Promise<string | null> {
-	const location = response.headers.get('location');
+	const location = response.headers.get("location");
 	if (!location) {
 		return null;
 	}
 
-	if (location.startsWith('magnet:')) {
+	if (location.startsWith("magnet:")) {
 		return location;
 	}
 
-	if (location.startsWith('http')) {
+	if (location.startsWith("http")) {
 		return tryFetch(location);
 	}
 
@@ -238,8 +238,8 @@ async function tryFetchMagnet(fetchUrl: string): Promise<string | null> {
 	try {
 		// Use redirect: 'manual' to capture magnet: redirects (Node's fetch can't follow non-HTTP)
 		const response = await fetch(fetchUrl, {
-			redirect: 'manual',
-			headers: { 'User-Agent': 'Plank/1.0' },
+			redirect: "manual",
+			headers: { "User-Agent": "Plank/1.0" },
 		});
 
 		// Handle redirects (3xx status)
@@ -253,7 +253,7 @@ async function tryFetchMagnet(fetchUrl: string): Promise<string | null> {
 		}
 
 		// Parse response body for magnet
-		const contentType = response.headers.get('content-type') || '';
+		const contentType = response.headers.get("content-type") || "";
 		const buffer = await response.arrayBuffer();
 		return extractMagnetFromBody(buffer, contentType);
 	} catch {
@@ -291,7 +291,7 @@ async function rewriteUrlForConfig(url: string): Promise<string> {
  * If it returns a .torrent file instead, we parse it to extract the magnet link.
  */
 export async function resolveMagnetLink(url: string): Promise<string> {
-	if (url.startsWith('magnet:')) {
+	if (url.startsWith("magnet:")) {
 		return url;
 	}
 
@@ -306,7 +306,7 @@ export async function resolveMagnetLink(url: string): Promise<string> {
 	try {
 		const targetUrl = new URL(url);
 		if (isLocalhost(targetUrl.hostname)) {
-			targetUrl.hostname = 'prowlarr';
+			targetUrl.hostname = "prowlarr";
 			const fallbackUrl = targetUrl.toString();
 
 			if (fallbackUrl !== primaryUrl) {
@@ -332,24 +332,24 @@ export async function searchProwlarr(query: string, category?: string): Promise<
 	const { url, apiKey } = settings.prowlarr;
 
 	if (!apiKey) {
-		console.error('Prowlarr API key not configured');
+		console.error("Prowlarr API key not configured");
 		return [];
 	}
 
 	const params = new URLSearchParams({
 		apikey: apiKey,
 		query,
-		type: 'search',
+		type: "search",
 	});
 
 	if (category) {
-		params.append('categories', category);
+		params.append("categories", category);
 	}
 
 	try {
 		// Prowlarr /api/v1/search
 		const response = await fetch(`${url}/api/v1/search?${params}`, {
-			headers: { Accept: 'application/json' },
+			headers: { Accept: "application/json" },
 		});
 
 		if (!response.ok) {
@@ -360,13 +360,13 @@ export async function searchProwlarr(query: string, category?: string): Promise<
 		const data: ProwlarrResultItem[] = await response.json();
 		return parseProwlarrResults(data);
 	} catch (error) {
-		console.error('Prowlarr search error:', error);
+		console.error("Prowlarr search error:", error);
 		return [];
 	}
 }
 
 export interface FindBestTorrentOptions {
-	mediaType?: 'movie' | 'episode';
+	mediaType?: "movie" | "episode";
 	seasonNumber?: number;
 	episodeNumber?: number;
 	showTitle?: string;
@@ -375,17 +375,17 @@ export interface FindBestTorrentOptions {
 }
 
 function getEpisodeSearchLabel(options?: FindBestTorrentOptions): string | null {
-	if (!(options?.mediaType === 'episode' && options.seasonNumber && options.episodeNumber)) {
+	if (!(options?.mediaType === "episode" && options.seasonNumber && options.episodeNumber)) {
 		return null;
 	}
-	return `S${String(options.seasonNumber).padStart(2, '0')}E${String(options.episodeNumber).padStart(2, '0')}`;
+	return `S${String(options.seasonNumber).padStart(2, "0")}E${String(options.episodeNumber).padStart(2, "0")}`;
 }
 
 function normalizeSearchText(value: string): string {
 	return value
 		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, ' ')
-		.replace(/\s+/g, ' ')
+		.replace(/[^a-z0-9]+/g, " ")
+		.replace(/\s+/g, " ")
 		.trim();
 }
 
@@ -428,8 +428,8 @@ function buildEpisodeSearchQueries(imdbId: string, options: FindBestTorrentOptio
 	if (!(options.showTitle && options.seasonNumber && options.episodeNumber)) {
 		return [imdbId, `imdb:${imdbId}`];
 	}
-	const paddedSeason = String(options.seasonNumber).padStart(2, '0');
-	const paddedEpisode = String(options.episodeNumber).padStart(2, '0');
+	const paddedSeason = String(options.seasonNumber).padStart(2, "0");
+	const paddedEpisode = String(options.episodeNumber).padStart(2, "0");
 	const seasonEpisode = `S${paddedSeason}E${paddedEpisode}`;
 	const fallbackQueries = [
 		imdbId,
@@ -506,7 +506,7 @@ function logEpisodeSelectionSummary(
 			`[Prowlarr] Candidate titles for ${episodeLabel}: ${results
 				.slice(0, 5)
 				.map((result) => result.title)
-				.join(' | ')}`
+				.join(" | ")}`
 		);
 		return;
 	}
@@ -515,7 +515,7 @@ function logEpisodeSelectionSummary(
 		`[Prowlarr] Candidate titles for ${episodeLabel}: ${episodeFiltered
 			.slice(0, 5)
 			.map((result) => result.title)
-			.join(' | ')}`
+			.join(" | ")}`
 	);
 }
 
@@ -533,12 +533,12 @@ export async function findTorrentCandidates(
 ): Promise<IndexerResult[]> {
 	const settings = await getSettings();
 	const results =
-		options?.mediaType === 'episode' && options.seasonNumber && options.episodeNumber
+		options?.mediaType === "episode" && options.seasonNumber && options.episodeNumber
 			? await searchEpisodeTorrent(imdbId, options)
 			: await searchProwlarr(imdbId);
 	const qualityFiltered = filterByQuality(results);
 	const episodeFiltered =
-		options?.mediaType === 'episode' && options.seasonNumber && options.episodeNumber
+		options?.mediaType === "episode" && options.seasonNumber && options.episodeNumber
 			? filterForEpisodeResults(
 					qualityFiltered,
 					options.seasonNumber,
@@ -563,12 +563,12 @@ export async function findBestTorrent(imdbId: string, options?: FindBestTorrentO
 	}
 	const settings = await getSettings();
 	const results =
-		options?.mediaType === 'episode' && options.seasonNumber && options.episodeNumber
+		options?.mediaType === "episode" && options.seasonNumber && options.episodeNumber
 			? await searchEpisodeTorrent(imdbId, options)
 			: await searchProwlarr(imdbId);
 	const qualityFiltered = filterByQuality(results);
 	const episodeFiltered =
-		options?.mediaType === 'episode' && options.seasonNumber && options.episodeNumber
+		options?.mediaType === "episode" && options.seasonNumber && options.episodeNumber
 			? filterForEpisodeResults(
 					qualityFiltered,
 					options.seasonNumber,
@@ -585,7 +585,7 @@ export async function findBestTorrent(imdbId: string, options?: FindBestTorrentO
 	}
 
 	// Resolve HTTP download URLs to magnet links
-	if (best?.magnetUri.startsWith('http')) {
+	if (best?.magnetUri.startsWith("http")) {
 		best.magnetUri = await resolveMagnetLink(best.magnetUri);
 	}
 
@@ -642,11 +642,11 @@ const MIN_SEASON_PACK_SIZE = 1 * 1024 * 1024 * 1024; // 1GB
  * Check if a title matches a specific season number
  */
 function matchesSeasonNumber(title: string, seasonNumber: number): boolean {
-	const paddedSeason = seasonNumber.toString().padStart(2, '0');
+	const paddedSeason = seasonNumber.toString().padStart(2, "0");
 	const patterns = [
-		new RegExp(`\\bS${paddedSeason}\\b`, 'i'), // S01, S02
-		new RegExp(`\\bS${seasonNumber}\\b`, 'i'), // S1, S2 (without padding)
-		new RegExp(`\\bSeason[\\s.]*${seasonNumber}\\b`, 'i'), // Season 1, Season.1
+		new RegExp(`\\bS${paddedSeason}\\b`, "i"), // S01, S02
+		new RegExp(`\\bS${seasonNumber}\\b`, "i"), // S1, S2 (without padding)
+		new RegExp(`\\bSeason[\\s.]*${seasonNumber}\\b`, "i"), // Season 1, Season.1
 	];
 	return patterns.some((pattern) => pattern.test(title));
 }
@@ -659,13 +659,13 @@ function isSingleEpisode(title: string): boolean {
 }
 
 function matchesEpisodeNumber(title: string, seasonNumber: number, episodeNumber: number): boolean {
-	const paddedSeason = seasonNumber.toString().padStart(2, '0');
-	const paddedEpisode = episodeNumber.toString().padStart(2, '0');
+	const paddedSeason = seasonNumber.toString().padStart(2, "0");
+	const paddedEpisode = episodeNumber.toString().padStart(2, "0");
 	const patterns = [
-		new RegExp(`\\bS${paddedSeason}E${paddedEpisode}\\b`, 'i'),
-		new RegExp(`\\bS${seasonNumber}E${episodeNumber}\\b`, 'i'),
-		new RegExp(`\\b${seasonNumber}x${episodeNumber}\\b`, 'i'),
-		new RegExp(`\\b${seasonNumber}x${paddedEpisode}\\b`, 'i'),
+		new RegExp(`\\bS${paddedSeason}E${paddedEpisode}\\b`, "i"),
+		new RegExp(`\\bS${seasonNumber}E${episodeNumber}\\b`, "i"),
+		new RegExp(`\\b${seasonNumber}x${episodeNumber}\\b`, "i"),
+		new RegExp(`\\b${seasonNumber}x${paddedEpisode}\\b`, "i"),
 	];
 	return patterns.some((pattern) => pattern.test(title));
 }
@@ -740,12 +740,12 @@ export async function searchSeasonTorrent(
 	const { apiKey } = settings.prowlarr;
 
 	if (!apiKey) {
-		console.error('Prowlarr API key not configured');
+		console.error("Prowlarr API key not configured");
 		return [];
 	}
 
 	// Format season number with padding
-	const paddedSeason = seasonNumber.toString().padStart(2, '0');
+	const paddedSeason = seasonNumber.toString().padStart(2, "0");
 
 	// Build search queries
 	const searchQueries: string[] = [];
@@ -807,7 +807,7 @@ export async function findBestSeasonTorrent(
 			const seederFiltered = nonEpisodes.filter((r) => r.seeders >= settings.prowlarr.minSeeders);
 			const best = selectBestTorrent(seederFiltered.length > 0 ? seederFiltered : nonEpisodes);
 
-			if (best?.magnetUri.startsWith('http')) {
+			if (best?.magnetUri.startsWith("http")) {
 				best.magnetUri = await resolveMagnetLink(best.magnetUri);
 			}
 			return best;
@@ -818,7 +818,7 @@ export async function findBestSeasonTorrent(
 	const seederFiltered = seasonPacks.filter((r) => r.seeders >= settings.prowlarr.minSeeders);
 	const best = selectBestTorrent(seederFiltered.length > 0 ? seederFiltered : seasonPacks);
 
-	if (best?.magnetUri.startsWith('http')) {
+	if (best?.magnetUri.startsWith("http")) {
 		best.magnetUri = await resolveMagnetLink(best.magnetUri);
 	}
 	return best;
@@ -873,15 +873,15 @@ interface ProwlarrTag {
 	label: string;
 }
 
-const FLARESOLVERR_TAG_LABEL = 'flaresolverr';
+const FLARESOLVERR_TAG_LABEL = "flaresolverr";
 
 function requiresFlaresolverr(indexer: Partial<ProwlarrIndexer>): boolean {
-	return indexer.fields?.some((field) => field.name === 'info_flaresolverr') ?? false;
+	return indexer.fields?.some((field) => field.name === "info_flaresolverr") ?? false;
 }
 
 async function getOrCreateFlaresolverrTag(url: string, apiKey: string): Promise<number | null> {
 	const response = await fetch(`${url}/api/v1/tag`, {
-		headers: { 'X-Api-Key': apiKey },
+		headers: { "X-Api-Key": apiKey },
 	});
 
 	if (!response.ok) {
@@ -895,10 +895,10 @@ async function getOrCreateFlaresolverrTag(url: string, apiKey: string): Promise<
 	}
 
 	const createResponse = await fetch(`${url}/api/v1/tag`, {
-		method: 'POST',
+		method: "POST",
 		headers: {
-			'X-Api-Key': apiKey,
-			'Content-Type': 'application/json',
+			"X-Api-Key": apiKey,
+			"Content-Type": "application/json",
 		},
 		body: JSON.stringify({ label: FLARESOLVERR_TAG_LABEL }),
 	});
@@ -913,19 +913,19 @@ async function getOrCreateFlaresolverrTag(url: string, apiKey: string): Promise<
 
 export const INDEXER_PACKAGES = {
 	general: {
-		name: 'General Entertainment',
-		description: 'Movies & TV (1337x, YTS, The Pirate Bay)',
-		indexers: ['1337x', 'YTS', 'The Pirate Bay'],
+		name: "General Entertainment",
+		description: "Movies & TV (1337x, YTS, The Pirate Bay)",
+		indexers: ["1337x", "YTS", "The Pirate Bay"],
 	},
 	anime: {
-		name: 'Anime Fan',
-		description: 'Anime (Nyaa.si, AnimeTosho, AniDex)',
-		indexers: ['Nyaa.si', 'AnimeTosho', 'AniDex'],
+		name: "Anime Fan",
+		description: "Anime (Nyaa.si, AnimeTosho, AniDex)",
+		indexers: ["Nyaa.si", "AnimeTosho", "AniDex"],
 	},
 	tv: {
-		name: 'TV Show Specialists',
-		description: 'TV Series (EZTV, TorrentGalaxy, TorLock)',
-		indexers: ['EZTV', 'TorrentGalaxy', 'TorLock'],
+		name: "TV Show Specialists",
+		description: "TV Series (EZTV, TorrentGalaxy, TorLock)",
+		indexers: ["EZTV", "TorrentGalaxy", "TorLock"],
 	},
 };
 
@@ -942,14 +942,14 @@ export async function getProwlarrIndexers(): Promise<ProwlarrIndexer[]> {
 
 	try {
 		const response = await fetch(`${url}/api/v1/indexer`, {
-			headers: { 'X-Api-Key': apiKey },
+			headers: { "X-Api-Key": apiKey },
 		});
 		if (!response.ok) {
 			return [];
 		}
 		return await response.json();
 	} catch (error) {
-		console.error('Failed to get indexers:', error);
+		console.error("Failed to get indexers:", error);
 		return [];
 	}
 }
@@ -967,14 +967,14 @@ export async function getProwlarrIndexerSchemas(): Promise<ProwlarrIndexerSchema
 
 	try {
 		const response = await fetch(`${url}/api/v1/indexer/schema`, {
-			headers: { 'X-Api-Key': apiKey },
+			headers: { "X-Api-Key": apiKey },
 		});
 		if (!response.ok) {
 			return [];
 		}
 		return await response.json();
 	} catch (error) {
-		console.error('Failed to get indexer schemas:', error);
+		console.error("Failed to get indexer schemas:", error);
 		return [];
 	}
 }
@@ -1007,26 +1007,26 @@ export async function addProwlarrIndexer(indexer: Partial<ProwlarrIndexer>): Pro
 			}
 		}
 
-		console.log('Adding Prowlarr indexer with payload:', JSON.stringify(payload));
+		console.log("Adding Prowlarr indexer with payload:", JSON.stringify(payload));
 
 		const response = await fetch(`${url}/api/v1/indexer`, {
-			method: 'POST',
+			method: "POST",
 			headers: {
-				'X-Api-Key': apiKey,
-				'Content-Type': 'application/json',
+				"X-Api-Key": apiKey,
+				"Content-Type": "application/json",
 			},
 			body: JSON.stringify(payload),
 		});
 
 		if (!response.ok) {
 			const text = await response.text();
-			console.error('Failed to add indexer, Prowlarr response:', response.status, text);
+			console.error("Failed to add indexer, Prowlarr response:", response.status, text);
 			return false;
 		}
 
 		return response.ok;
 	} catch (error) {
-		console.error('Failed to add indexer:', error);
+		console.error("Failed to add indexer:", error);
 		return false;
 	}
 }
@@ -1044,13 +1044,13 @@ export async function deleteProwlarrIndexer(id: number): Promise<boolean> {
 
 	try {
 		const response = await fetch(`${url}/api/v1/indexer/${id}`, {
-			method: 'DELETE',
-			headers: { 'X-Api-Key': apiKey },
+			method: "DELETE",
+			headers: { "X-Api-Key": apiKey },
 		});
 
 		return response.ok;
 	} catch (error) {
-		console.error('Failed to delete indexer:', error);
+		console.error("Failed to delete indexer:", error);
 		return false;
 	}
 }
@@ -1067,14 +1067,14 @@ export async function testProwlarrConnection(
 	const apiKey = prowlarrApiKey || settings.prowlarr.apiKey;
 
 	if (!(url && apiKey)) {
-		return { success: false, message: 'URL or API Key missing' };
+		return { success: false, message: "URL or API Key missing" };
 	}
 
 	try {
 		// Use /ping endpoint which is public, but we want to test auth too
 		// So we use /api/v1/health which requires auth
 		const response = await fetch(`${url}/api/v1/health`, {
-			headers: { 'X-Api-Key': apiKey },
+			headers: { "X-Api-Key": apiKey },
 		});
 
 		if (response.ok) {
@@ -1082,6 +1082,6 @@ export async function testProwlarrConnection(
 		}
 		return { success: false, message: `Status: ${response.status}` };
 	} catch (error) {
-		return { success: false, message: error instanceof Error ? error.message : 'Connection failed' };
+		return { success: false, message: error instanceof Error ? error.message : "Connection failed" };
 	}
 }

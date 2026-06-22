@@ -1,14 +1,14 @@
-import { createQuery } from '@tanstack/svelte-query';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createQuery } from "@tanstack/svelte-query";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock svelte-query to capture calls
-vi.mock('@tanstack/svelte-query', () => ({
+vi.mock("@tanstack/svelte-query", () => ({
 	createQuery: vi.fn(),
 	useQueryClient: vi.fn(),
 	createMutation: vi.fn(),
 }));
 
-import { createSeasonsQuery, fetchSeasons, searchTMDB } from '$lib/queries/browse-queries';
+import { createSeasonsQuery, fetchSeasons, searchTMDB } from "$lib/queries/browse-queries";
 import {
 	createMediaDetailQuery,
 	createMediaListQuery,
@@ -19,150 +19,150 @@ import {
 	fetchMediaProgress,
 	searchMedia,
 	searchOpenSubtitles,
-} from '$lib/queries/media-queries';
+} from "$lib/queries/media-queries";
 
 // Mock global fetch
 const fetchMock = vi.fn();
 global.fetch = fetchMock;
 
-describe('Client Queries', () => {
+describe("Client Queries", () => {
 	beforeEach(() => {
 		fetchMock.mockReset();
 		vi.mocked(createQuery).mockClear();
 	});
 
-	describe('Media Queries', () => {
-		it('fetchMediaList should call correct endpoint with params', async () => {
+	describe("Media Queries", () => {
+		it("fetchMediaList should call correct endpoint with params", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
-				json: async () => [{ id: '1', title: 'Movie' }],
+				json: async () => [{ id: "1", title: "Movie" }],
 			});
 
-			await fetchMediaList('movie');
-			expect(fetchMock).toHaveBeenCalledWith('/api/media?type=movie');
+			await fetchMediaList("movie");
+			expect(fetchMock).toHaveBeenCalledWith("/api/media?type=movie");
 
-			await fetchMediaList('all');
-			expect(fetchMock).toHaveBeenCalledWith('/api/media');
+			await fetchMediaList("all");
+			expect(fetchMock).toHaveBeenCalledWith("/api/media");
 		});
 
-		it('fetchMediaDetail should call correct endpoint', async () => {
+		it("fetchMediaDetail should call correct endpoint", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
-				json: async () => ({ id: '1', title: 'Movie' }),
+				json: async () => ({ id: "1", title: "Movie" }),
 			});
 
-			await fetchMediaDetail('123');
-			expect(fetchMock).toHaveBeenCalledWith('/api/media/123');
+			await fetchMediaDetail("123");
+			expect(fetchMock).toHaveBeenCalledWith("/api/media/123");
 		});
 
-		it('searchMedia should call search endpoint', async () => {
+		it("searchMedia should call search endpoint", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
-				json: async () => [{ id: '1', title: 'Search Result' }],
+				json: async () => [{ id: "1", title: "Search Result" }],
 			});
 
-			await searchMedia('avatar');
-			expect(fetchMock).toHaveBeenCalledWith('/api/media/search?q=avatar');
+			await searchMedia("avatar");
+			expect(fetchMock).toHaveBeenCalledWith("/api/media/search?q=avatar");
 		});
 
-		it('searchMedia should return empty array for short queries', async () => {
-			const result = await searchMedia('a');
+		it("searchMedia should return empty array for short queries", async () => {
+			const result = await searchMedia("a");
 			expect(result).toEqual([]);
 			expect(fetchMock).not.toHaveBeenCalled();
 		});
 
-		it('fetchMediaProgress should call progress endpoint', async () => {
+		it("fetchMediaProgress should call progress endpoint", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
-				json: async () => ({ status: 'downloading', progress: 0.5 }),
+				json: async () => ({ status: "downloading", progress: 0.5 }),
 			});
 
-			await fetchMediaProgress('123');
-			expect(fetchMock).toHaveBeenCalledWith('/api/media/123/progress');
+			await fetchMediaProgress("123");
+			expect(fetchMock).toHaveBeenCalledWith("/api/media/123/progress");
 		});
 
-		it('searchOpenSubtitles should omit null episode number', async () => {
+		it("searchOpenSubtitles should omit null episode number", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
 				json: async () => [],
 			});
 
-			await searchOpenSubtitles('123', {
-				languages: 'en',
+			await searchOpenSubtitles("123", {
+				languages: "en",
 				seasonNumber: 1,
 				episodeNumber: null,
 			});
 
-			const url = new URL(vi.mocked(fetchMock).mock.calls[0][0] as string, 'http://localhost');
-			expect(url.pathname).toBe('/api/media/123/subtitles/search');
-			expect(url.searchParams.get('seasonNumber')).toBe('1');
-			expect(url.searchParams.get('episodeNumber')).toBeNull();
+			const url = new URL(vi.mocked(fetchMock).mock.calls[0][0] as string, "http://localhost");
+			expect(url.pathname).toBe("/api/media/123/subtitles/search");
+			expect(url.searchParams.get("seasonNumber")).toBe("1");
+			expect(url.searchParams.get("episodeNumber")).toBeNull();
 		});
 	});
 
-	describe('Browse Queries', () => {
-		it('fetchTrending should call trending endpoint', async () => {
+	describe("Browse Queries", () => {
+		it("fetchTrending should call trending endpoint", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
 				json: async () => ({ items: [], page: 1, totalPages: 1 }),
 			});
 
-			await import('$lib/queries/browse-queries').then((m) => m.fetchTrending('movie', 2));
+			await import("$lib/queries/browse-queries").then((m) => m.fetchTrending("movie", 2));
 			expect(fetchMock).toHaveBeenCalledWith(
-				expect.stringContaining('/api/browse?type=trending&filter=movie&page=2')
+				expect.stringContaining("/api/browse?type=trending&filter=movie&page=2")
 			);
 		});
 
-		it('fetchBrowse should call browse endpoint', async () => {
+		it("fetchBrowse should call browse endpoint", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
 				json: async () => ({ items: [], page: 1, totalPages: 1 }),
 			});
 
-			await import('$lib/queries/browse-queries').then((m) => m.fetchBrowse('popular', 'show', 1));
+			await import("$lib/queries/browse-queries").then((m) => m.fetchBrowse("popular", "show", 1));
 			expect(fetchMock).toHaveBeenCalledWith(
-				expect.stringContaining('/api/browse?type=popular&filter=show&page=1')
+				expect.stringContaining("/api/browse?type=popular&filter=show&page=1")
 			);
 		});
 
-		it('resolveTorrent should call resolve endpoint', async () => {
+		it("resolveTorrent should call resolve endpoint", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
 				json: async () => ({ success: true }),
 			});
 
 			const item = {
-				imdbId: 'tt123',
+				imdbId: "tt123",
 				tmdbId: 456,
-				title: 'Test Movie',
+				title: "Test Movie",
 			};
 
-			await import('$lib/queries/browse-queries').then((m) => m.resolveTorrent(item));
-			expect(fetchMock).toHaveBeenCalledWith('/api/browse/resolve', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+			await import("$lib/queries/browse-queries").then((m) => m.resolveTorrent(item));
+			expect(fetchMock).toHaveBeenCalledWith("/api/browse/resolve", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(item),
 			});
 		});
 
-		it('fetchProwlarrStatus should call status endpoint', async () => {
+		it("fetchProwlarrStatus should call status endpoint", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
 				json: async () => ({
 					configured: true,
-					url: '',
-					connectionStatus: 'connected',
+					url: "",
+					connectionStatus: "connected",
 					indexerCount: 1,
 					indexers: [],
 					needsSetup: false,
 				}),
 			});
 
-			await import('$lib/queries/browse-queries').then((m) => m.fetchProwlarrStatus());
-			expect(fetchMock).toHaveBeenCalledWith('/api/prowlarr/status');
+			await import("$lib/queries/browse-queries").then((m) => m.fetchProwlarrStatus());
+			expect(fetchMock).toHaveBeenCalledWith("/api/prowlarr/status");
 		});
 
-		it('resolveSeasonTorrent should call resolve-season endpoint', async () => {
+		it("resolveSeasonTorrent should call resolve-season endpoint", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
 				json: async () => ({ success: true }),
@@ -171,229 +171,229 @@ describe('Client Queries', () => {
 			const params = {
 				tmdbId: 123,
 				seasonNumber: 1,
-				showTitle: 'Show',
+				showTitle: "Show",
 			};
 
-			await import('$lib/queries/browse-queries').then((m) => m.resolveSeasonTorrent(params));
-			expect(fetchMock).toHaveBeenCalledWith('/api/browse/resolve-season', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+			await import("$lib/queries/browse-queries").then((m) => m.resolveSeasonTorrent(params));
+			expect(fetchMock).toHaveBeenCalledWith("/api/browse/resolve-season", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(params),
 			});
 		});
 
-		it('searchTMDB should call TMDB search endpoint', async () => {
+		it("searchTMDB should call TMDB search endpoint", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
 				json: async () => ({ results: [], page: 1, total_pages: 1 }),
 			});
 
-			await searchTMDB('matrix');
-			expect(fetchMock).toHaveBeenCalledWith('/api/tmdb/search?q=matrix');
+			await searchTMDB("matrix");
+			expect(fetchMock).toHaveBeenCalledWith("/api/tmdb/search?q=matrix");
 		});
 
-		it('searchTMDB should handle empty/short queries', async () => {
-			const result = await searchTMDB('a');
+		it("searchTMDB should handle empty/short queries", async () => {
+			const result = await searchTMDB("a");
 			expect(result.items).toEqual([]);
 			expect(fetchMock).not.toHaveBeenCalled();
 		});
 
-		it('fetchSeasons should call seasons endpoint', async () => {
+		it("fetchSeasons should call seasons endpoint", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
 				json: async () => ({ seasons: [] }),
 			});
 
 			await fetchSeasons(12_345);
-			expect(fetchMock).toHaveBeenCalledWith('/api/browse/seasons/12345');
+			expect(fetchMock).toHaveBeenCalledWith("/api/browse/seasons/12345");
 		});
 	});
 
-	describe('TanStack Query Creators', () => {
-		it('createMediaListQuery should configure query correctly', () => {
-			createMediaListQuery('movie');
+	describe("TanStack Query Creators", () => {
+		it("createMediaListQuery should configure query correctly", () => {
+			createMediaListQuery("movie");
 			expect(createQuery).toHaveBeenCalled();
 			const optionsFn = vi.mocked(createQuery).mock.calls[0][0] as () => any;
 			const options = optionsFn();
 			expect(options).toEqual(
 				expect.objectContaining({
-					queryKey: ['media', 'list', 'movie'],
+					queryKey: ["media", "list", "movie"],
 				})
 			);
 		});
 
-		it('createMediaDetailQuery should configure query correctly', () => {
-			createMediaDetailQuery('123');
+		it("createMediaDetailQuery should configure query correctly", () => {
+			createMediaDetailQuery("123");
 			expect(createQuery).toHaveBeenCalled();
 			const optionsFn = vi.mocked(createQuery).mock.calls[0][0] as () => any;
 			const options = optionsFn();
 			expect(options).toEqual(
 				expect.objectContaining({
-					queryKey: ['media', 'detail', '123'],
+					queryKey: ["media", "detail", "123"],
 					enabled: true,
 				})
 			);
 		});
 
-		it('createSearchMediaQuery should configure query correctly', () => {
-			createSearchMediaQuery(() => 'avatar');
+		it("createSearchMediaQuery should configure query correctly", () => {
+			createSearchMediaQuery(() => "avatar");
 			expect(createQuery).toHaveBeenCalled();
 			const optionsFn = vi.mocked(createQuery).mock.calls[0][0] as () => any;
 			const options = optionsFn();
 			expect(options).toEqual(
 				expect.objectContaining({
-					queryKey: ['media', 'search', 'avatar'],
+					queryKey: ["media", "search", "avatar"],
 					enabled: true,
 				})
 			);
 		});
 
-		it('createMediaProgressQuery should configure query correctly', () => {
-			createMediaProgressQuery('123');
+		it("createMediaProgressQuery should configure query correctly", () => {
+			createMediaProgressQuery("123");
 			expect(createQuery).toHaveBeenCalled();
 			const optionsFn = vi.mocked(createQuery).mock.calls[0][0] as () => any;
 			const options = optionsFn();
 			expect(options).toEqual(
 				expect.objectContaining({
-					queryKey: ['media', 'progress', '123'],
+					queryKey: ["media", "progress", "123"],
 					refetchInterval: 1000,
 				})
 			);
 		});
 
-		it('createSeasonsQuery should configure query correctly', () => {
+		it("createSeasonsQuery should configure query correctly", () => {
 			createSeasonsQuery(123);
 			expect(createQuery).toHaveBeenCalled();
 			const optionsFn = vi.mocked(createQuery).mock.calls[0][0] as () => any;
 			const options = optionsFn();
 			expect(options).toEqual(
 				expect.objectContaining({
-					queryKey: ['browse', 'seasons', 123],
+					queryKey: ["browse", "seasons", 123],
 					staleTime: 3_600_000,
 				})
 			);
 		});
 	});
 
-	describe('Error Handling', () => {
-		it('fetchMediaList should throw error when response is not ok', async () => {
+	describe("Error Handling", () => {
+		it("fetchMediaList should throw error when response is not ok", async () => {
 			fetchMock.mockResolvedValue({
 				ok: false,
 				status: 500,
-				statusText: 'Internal Server Error',
+				statusText: "Internal Server Error",
 			});
 
-			await expect(fetchMediaList('all')).rejects.toThrow('Failed to fetch all media');
+			await expect(fetchMediaList("all")).rejects.toThrow("Failed to fetch all media");
 		});
 
-		it('fetchMediaDetail should throw error when response is not ok', async () => {
+		it("fetchMediaDetail should throw error when response is not ok", async () => {
 			fetchMock.mockResolvedValue({
 				ok: false,
 				status: 404,
-				statusText: 'Not Found',
+				statusText: "Not Found",
 			});
 
-			await expect(fetchMediaDetail('123')).rejects.toThrow('Failed to fetch media detail');
+			await expect(fetchMediaDetail("123")).rejects.toThrow("Failed to fetch media detail");
 		});
 
-		it('searchMedia should throw error when response is not ok', async () => {
+		it("searchMedia should throw error when response is not ok", async () => {
 			fetchMock.mockResolvedValue({
 				ok: false,
 				status: 500,
-				statusText: 'Error',
+				statusText: "Error",
 			});
 
-			await expect(searchMedia('avatar')).rejects.toThrow('Failed to search media');
+			await expect(searchMedia("avatar")).rejects.toThrow("Failed to search media");
 		});
 
-		it('fetchMediaProgress should throw error when response is not ok', async () => {
+		it("fetchMediaProgress should throw error when response is not ok", async () => {
 			fetchMock.mockResolvedValue({
 				ok: false,
 				status: 500,
-				statusText: 'Error',
+				statusText: "Error",
 			});
 
-			await expect(fetchMediaProgress('123')).rejects.toThrow('Failed to fetch progress');
+			await expect(fetchMediaProgress("123")).rejects.toThrow("Failed to fetch progress");
 		});
 
-		it('fetchTrending should throw error when response is not ok', async () => {
+		it("fetchTrending should throw error when response is not ok", async () => {
 			fetchMock.mockResolvedValue({
 				ok: false,
 				status: 500,
-				statusText: 'Error',
+				statusText: "Error",
 			});
 
-			const { fetchTrending } = await import('$lib/queries/browse-queries');
-			await expect(fetchTrending('all', 1)).rejects.toThrow('Failed to fetch trending');
+			const { fetchTrending } = await import("$lib/queries/browse-queries");
+			await expect(fetchTrending("all", 1)).rejects.toThrow("Failed to fetch trending");
 		});
 
-		it('fetchBrowse should throw error when response is not ok', async () => {
+		it("fetchBrowse should throw error when response is not ok", async () => {
 			fetchMock.mockResolvedValue({
 				ok: false,
 				status: 500,
-				statusText: 'Error',
+				statusText: "Error",
 			});
 
-			const { fetchBrowse } = await import('$lib/queries/browse-queries');
-			await expect(fetchBrowse('popular', 'movie', 1)).rejects.toThrow('Failed to fetch popular');
+			const { fetchBrowse } = await import("$lib/queries/browse-queries");
+			await expect(fetchBrowse("popular", "movie", 1)).rejects.toThrow("Failed to fetch popular");
 		});
 
-		it('resolveTorrent should throw error when response is not ok', async () => {
+		it("resolveTorrent should throw error when response is not ok", async () => {
 			fetchMock.mockResolvedValue({
 				ok: false,
 				status: 500,
-				statusText: 'Error',
+				statusText: "Error",
 			});
 
-			const { resolveTorrent } = await import('$lib/queries/browse-queries');
-			await expect(resolveTorrent({ imdbId: 'tt', tmdbId: 1, title: 'T' })).rejects.toThrow(
-				'Failed to resolve torrent'
+			const { resolveTorrent } = await import("$lib/queries/browse-queries");
+			await expect(resolveTorrent({ imdbId: "tt", tmdbId: 1, title: "T" })).rejects.toThrow(
+				"Failed to resolve torrent"
 			);
 		});
 
-		it('fetchProwlarrStatus should throw error when response is not ok', async () => {
+		it("fetchProwlarrStatus should throw error when response is not ok", async () => {
 			fetchMock.mockResolvedValue({
 				ok: false,
 				status: 500,
-				statusText: 'Error',
+				statusText: "Error",
 			});
 
-			const { fetchProwlarrStatus } = await import('$lib/queries/browse-queries');
-			await expect(fetchProwlarrStatus()).rejects.toThrow('Failed to fetch Prowlarr status');
+			const { fetchProwlarrStatus } = await import("$lib/queries/browse-queries");
+			await expect(fetchProwlarrStatus()).rejects.toThrow("Failed to fetch Prowlarr status");
 		});
 
-		it('searchTMDB should throw error when response is not ok', async () => {
+		it("searchTMDB should throw error when response is not ok", async () => {
 			fetchMock.mockResolvedValue({
 				ok: false,
 				status: 500,
-				statusText: 'Error',
+				statusText: "Error",
 			});
 
-			const { searchTMDB } = await import('$lib/queries/browse-queries');
-			await expect(searchTMDB('query')).rejects.toThrow('Failed to search TMDB');
+			const { searchTMDB } = await import("$lib/queries/browse-queries");
+			await expect(searchTMDB("query")).rejects.toThrow("Failed to search TMDB");
 		});
 
-		it('fetchSeasons should throw error when response is not ok', async () => {
+		it("fetchSeasons should throw error when response is not ok", async () => {
 			fetchMock.mockResolvedValue({
 				ok: false,
 				status: 500,
-				statusText: 'Error',
+				statusText: "Error",
 			});
 
-			const { fetchSeasons } = await import('$lib/queries/browse-queries');
-			await expect(fetchSeasons(123)).rejects.toThrow('Failed to fetch seasons');
+			const { fetchSeasons } = await import("$lib/queries/browse-queries");
+			await expect(fetchSeasons(123)).rejects.toThrow("Failed to fetch seasons");
 		});
 
-		it('resolveSeasonTorrent should throw error when response is not ok', async () => {
+		it("resolveSeasonTorrent should throw error when response is not ok", async () => {
 			fetchMock.mockResolvedValue({
 				ok: false,
 				status: 500,
-				statusText: 'Error',
+				statusText: "Error",
 			});
 
-			const { resolveSeasonTorrent } = await import('$lib/queries/browse-queries');
-			await expect(resolveSeasonTorrent({ tmdbId: 1, seasonNumber: 1, showTitle: 'T' })).rejects.toThrow(
-				'Failed to resolve season torrent'
+			const { resolveSeasonTorrent } = await import("$lib/queries/browse-queries");
+			await expect(resolveSeasonTorrent({ tmdbId: 1, seasonNumber: 1, showTitle: "T" })).rejects.toThrow(
+				"Failed to resolve season torrent"
 			);
 		});
 	});

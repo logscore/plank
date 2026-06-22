@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { X } from '@lucide/svelte';
-    import type { Snippet } from 'svelte';
+    import { X } from "@lucide/svelte";
+    import type { Snippet } from "svelte";
 
     let {
         open = $bindable(false),
@@ -21,7 +21,7 @@
     }
 
     function handleKeydown(e: KeyboardEvent) {
-        if (e.key === 'Escape') {
+        if (e.key === "Escape") {
             close();
         }
     }

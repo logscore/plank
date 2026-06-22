@@ -1,10 +1,10 @@
-import type { CreateMutationOptions } from '@tanstack/svelte-query';
-import { createMutation, useQueryClient } from '@tanstack/svelte-query';
-import { queryKeys } from '$lib/query-keys';
-import type { Media } from '$lib/types';
+import type { CreateMutationOptions } from "@tanstack/svelte-query";
+import { createMutation, useQueryClient } from "@tanstack/svelte-query";
+import { queryKeys } from "$lib/query-keys";
+import type { Media } from "$lib/types";
 
 export interface AddFromBrowseMagnetParams {
-	mode?: 'magnet';
+	mode?: "magnet";
 	magnetLink: string;
 	title: string;
 	year?: number | null;
@@ -12,7 +12,7 @@ export interface AddFromBrowseMagnetParams {
 }
 
 export interface AddSeasonFromBrowseParams {
-	mode: 'browse-season';
+	mode: "browse-season";
 	tmdbId: number;
 	seasonNumber: number;
 	title: string;
@@ -25,8 +25,8 @@ export interface AddSeasonFromBrowseParams {
 }
 
 export interface AddSeasonFromBrowseResult {
-	mode: 'browse-season';
-	status: 'queued';
+	mode: "browse-season";
+	status: "queued";
 	showId: string;
 	seasonId: string;
 	seasonNumber: number;
@@ -41,14 +41,14 @@ export function createAddFromBrowseMutation() {
 
 	const options: CreateMutationOptions<AddFromBrowseResponse, Error, AddFromBrowseParams, undefined> = {
 		mutationFn: async (params: AddFromBrowseParams): Promise<AddFromBrowseResponse> => {
-			const response = await fetch('/api/media', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+			const response = await fetch("/api/media", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(params),
 			});
 
 			if (!response.ok) {
-				throw new Error('Failed to add to library');
+				throw new Error("Failed to add to library");
 			}
 
 			return response.json();

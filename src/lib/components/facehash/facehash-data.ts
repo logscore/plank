@@ -1,15 +1,15 @@
-import { DEFAULT_COLORS } from './colors';
-import { stringHash } from './hash';
+import { DEFAULT_COLORS } from "./colors";
+import { stringHash } from "./hash";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type Variant = 'gradient' | 'solid';
-export type Intensity3D = 'none' | 'subtle' | 'medium' | 'dramatic';
-export type FaceType = 'round' | 'cross' | 'line' | 'curved';
+export type Variant = "gradient" | "solid";
+export type Intensity3D = "none" | "subtle" | "medium" | "dramatic";
+export type FaceType = "round" | "cross" | "line" | "curved";
 
-export const FACE_TYPES = ['round', 'cross', 'line', 'curved'] as const;
+export const FACE_TYPES = ["round", "cross", "line", "curved"] as const;
 
 export interface FacehashData {
 	/** The face type to render */
@@ -47,22 +47,22 @@ export const INTENSITY_PRESETS = {
 	none: {
 		rotateRange: 0,
 		translateZ: 0,
-		perspective: 'none',
+		perspective: "none",
 	},
 	subtle: {
 		rotateRange: 5,
 		translateZ: 4,
-		perspective: '800px',
+		perspective: "800px",
 	},
 	medium: {
 		rotateRange: 10,
 		translateZ: 8,
-		perspective: '500px',
+		perspective: "500px",
 	},
 	dramatic: {
 		rotateRange: 15,
 		translateZ: 12,
-		perspective: '300px',
+		perspective: "300px",
 	},
 } as const;
 
@@ -88,7 +88,7 @@ export function computeFacehash(name: string, colorsLength: number = DEFAULT_COL
 	const timing = { delay: blinkDelay, duration: blinkDuration };
 
 	return {
-		faceType: FACE_TYPES[faceIndex] ?? 'round',
+		faceType: FACE_TYPES[faceIndex] ?? "round",
 		colorIndex,
 		rotation: position,
 		initial: name.charAt(0).toUpperCase(),
@@ -99,7 +99,7 @@ export function computeFacehash(name: string, colorsLength: number = DEFAULT_COL
 	};
 }
 
-const FALLBACK_COLOR = '#ec4899'; // pink-500
+const FALLBACK_COLOR = "#ec4899"; // pink-500
 
 /**
  * Gets a color from an array by index, with fallback to default colors.

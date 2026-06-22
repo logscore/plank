@@ -4,8 +4,8 @@ class UIState {
 
 	deleteConfirmation = $state({
 		open: false,
-		title: '',
-		description: '',
+		title: "",
+		description: "",
 		confirmAction: async () => {
 			// Default no-op action
 		},

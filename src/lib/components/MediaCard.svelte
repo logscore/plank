@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { EllipsisVertical, Info, Play, RotateCcw, Trash2 } from '@lucide/svelte';
-    import { goto } from '$app/navigation';
-    import EpisodeSelector from '$lib/components/EpisodeSelector.svelte';
-    import { canPlayEpisode } from '$lib/media-playability';
-    import type { Media, SeasonWithEpisodes } from '$lib/types';
-    import Button from './ui/Button.svelte';
-    import Tv from './ui/Tv.svelte';
+    import { EllipsisVertical, Info, Play, RotateCcw, Trash2 } from "@lucide/svelte";
+    import { goto } from "$app/navigation";
+    import EpisodeSelector from "$lib/components/EpisodeSelector.svelte";
+    import { canPlayEpisode } from "$lib/media-playability";
+    import type { Media, SeasonWithEpisodes } from "$lib/types";
+    import Button from "./ui/Button.svelte";
+    import Tv from "./ui/Tv.svelte";
 
     let { media, onDelete } = $props<{
         media: Media;
@@ -28,7 +28,7 @@
                 seasons = await res.json();
             }
         } catch (err) {
-            console.error('Failed to load episodes:', err);
+            console.error("Failed to load episodes:", err);
         }
     }
 
@@ -55,14 +55,14 @@
         retrying = true;
         try {
             const res = await fetch(`/api/media/${media.id}/retry`, {
-                method: 'POST',
+                method: "POST",
             });
             if (res.ok) {
                 // Status will update via polling/SSE; for now reload
                 window.location.reload();
             }
         } catch (err) {
-            console.error('Failed to retry download:', err);
+            console.error("Failed to retry download:", err);
         } finally {
             retrying = false;
         }
@@ -70,7 +70,7 @@
 
     function handleClickOutside(e: MouseEvent) {
         const target = e.target as HTMLElement;
-        if (showMenu && !target.closest('.media-menu')) {
+        if (showMenu && !target.closest(".media-menu")) {
             showMenu = false;
         }
         // Close mobile overlay if clicked outside
@@ -81,14 +81,14 @@
 
     function toggleMobileActive(e: Event) {
         // Don't toggle if we clicked an interactive element inside
-        if ((e.target as HTMLElement).closest('button, a')) {
+        if ((e.target as HTMLElement).closest("button, a")) {
             return;
         }
         isMobileActive = !isMobileActive;
     }
 
     function handleKeydown(e: KeyboardEvent) {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             toggleMobileActive(e);
         }
@@ -96,7 +96,7 @@
 
     function formatRuntime(minutes: number | null) {
         if (!minutes) {
-            return '';
+            return "";
         }
         const h = Math.floor(minutes / 60);
         const m = minutes % 60;
@@ -104,8 +104,8 @@
     }
 
     // Determine the link based on media type
-    const detailsLink = $derived(media.type === 'show' ? `/show/${media.id}` : `/movie/${media.id}`);
-    const playLink = $derived(media.type === 'show' ? `/show/${media.id}` : `/watch/${media.id}`);
+    const detailsLink = $derived(media.type === "show" ? `/show/${media.id}` : `/movie/${media.id}`);
+    const playLink = $derived(media.type === "show" ? `/show/${media.id}` : `/watch/${media.id}`);
 </script>
 
 <svelte:document onclick={handleClickOutside} />

@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { Captions, Check, ChevronDown, Film, Loader2, PlugZap, Save, Server, Unplug, X } from '@lucide/svelte';
-    import { toast } from 'svelte-sonner';
-    import { enhance } from '$app/forms';
-    import IndexerManager from '$lib/components/IndexerManager.svelte';
-    import Button from '$lib/components/ui/Button.svelte';
-    import Input from '$lib/components/ui/Input.svelte';
-    import type { ActionData, PageData } from './$types';
+    import { Captions, Check, ChevronDown, Film, Loader2, PlugZap, Save, Server, Unplug, X } from "@lucide/svelte";
+    import { toast } from "svelte-sonner";
+    import { enhance } from "$app/forms";
+    import IndexerManager from "$lib/components/IndexerManager.svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import Input from "$lib/components/ui/Input.svelte";
+    import type { ActionData, PageData } from "./$types";
 
     interface SectionLink {
         id: string;
@@ -17,63 +17,63 @@
 
     let formElement = $state<HTMLFormElement | null>(null);
     let saving = $state(false);
-    let tmdbApiKey = $state('');
-    let prowlarrUrl = $state('');
-    let prowlarrApiKey = $state('');
-    let opensubtitlesApiKey = $state('');
-    let opensubtitlesUsername = $state('');
-    let opensubtitlesPassword = $state('');
+    let tmdbApiKey = $state("");
+    let prowlarrUrl = $state("");
+    let prowlarrApiKey = $state("");
+    let opensubtitlesApiKey = $state("");
+    let opensubtitlesUsername = $state("");
+    let opensubtitlesPassword = $state("");
     let indexerManagementOpen = $state(false);
     let connectionStates = $state({
-        tmdb: 'idle',
-        opensubtitles: 'idle',
-        prowlarr: 'idle',
+        tmdb: "idle",
+        opensubtitles: "idle",
+        prowlarr: "idle",
     });
     let connectionMessages = $state({
-        tmdb: '',
-        opensubtitles: '',
-        prowlarr: '',
+        tmdb: "",
+        opensubtitles: "",
+        prowlarr: "",
     });
 
     const sectionLinks: SectionLink[] = [
-        { id: 'tmdb', label: 'TMDB', description: 'Metadata and artwork' },
-        { id: 'opensubtitles', label: 'OpenSubtitles', description: 'Subtitle search' },
-        { id: 'prowlarr', label: 'Prowlarr', description: 'Indexers and discovery' },
+        { id: "tmdb", label: "TMDB", description: "Metadata and artwork" },
+        { id: "opensubtitles", label: "OpenSubtitles", description: "Subtitle search" },
+        { id: "prowlarr", label: "Prowlarr", description: "Indexers and discovery" },
     ];
 
     function getStatusIconClass(status: string): string {
-        if (status === 'success') {
-            return 'text-green-600 dark:text-green-500';
+        if (status === "success") {
+            return "text-green-600 dark:text-green-500";
         }
-        if (status === 'error') {
-            return 'text-destructive';
+        if (status === "error") {
+            return "text-destructive";
         }
-        return 'text-muted-foreground';
+        return "text-muted-foreground";
     }
 
-    function buildTestConnectionRequestBody(target: 'tmdb' | 'opensubtitles' | 'prowlarr'): Record<string, string> {
+    function buildTestConnectionRequestBody(target: "tmdb" | "opensubtitles" | "prowlarr"): Record<string, string> {
         if (!formElement) {
             return { target };
         }
         const formData = new FormData(formElement);
         return {
             target,
-            tmdbApiKey: formData.get('tmdbApiKey')?.toString() || '',
-            prowlarrUrl: formData.get('prowlarrUrl')?.toString() || '',
-            prowlarrApiKey: formData.get('prowlarrApiKey')?.toString() || '',
-            opensubtitlesApiKey: formData.get('opensubtitlesApiKey')?.toString() || '',
-            opensubtitlesUsername: formData.get('opensubtitlesUsername')?.toString() || '',
-            opensubtitlesPassword: formData.get('opensubtitlesPassword')?.toString() || '',
+            tmdbApiKey: formData.get("tmdbApiKey")?.toString() || "",
+            prowlarrUrl: formData.get("prowlarrUrl")?.toString() || "",
+            prowlarrApiKey: formData.get("prowlarrApiKey")?.toString() || "",
+            opensubtitlesApiKey: formData.get("opensubtitlesApiKey")?.toString() || "",
+            opensubtitlesUsername: formData.get("opensubtitlesUsername")?.toString() || "",
+            opensubtitlesPassword: formData.get("opensubtitlesPassword")?.toString() || "",
         };
     }
 
     function applyConnectionResult(
-        target: 'tmdb' | 'opensubtitles' | 'prowlarr',
+        target: "tmdb" | "opensubtitles" | "prowlarr",
         success: boolean,
         message: string,
         showToast: boolean
     ): void {
-        connectionStates[target] = success ? 'success' : 'error';
+        connectionStates[target] = success ? "success" : "error";
         connectionMessages[target] = message;
         if (!showToast) {
             return;
@@ -85,24 +85,24 @@
         toast.error(message);
     }
 
-    async function testConnection(target: 'tmdb' | 'opensubtitles' | 'prowlarr', showToast = true): Promise<void> {
+    async function testConnection(target: "tmdb" | "opensubtitles" | "prowlarr", showToast = true): Promise<void> {
         if (!formElement) {
             return;
         }
 
-        connectionStates[target] = 'loading';
-        connectionMessages[target] = '';
+        connectionStates[target] = "loading";
+        connectionMessages[target] = "";
 
         try {
-            const response = await fetch('/api/settings/test-connection', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+            const response = await fetch("/api/settings/test-connection", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(buildTestConnectionRequestBody(target)),
             });
             const result = (await response.json()) as { success: boolean; message: string };
             applyConnectionResult(target, result.success, result.message, showToast);
         } catch (err) {
-            const message = err instanceof Error ? err.message : 'Connection failed';
+            const message = err instanceof Error ? err.message : "Connection failed";
             applyConnectionResult(target, false, message, showToast);
         }
     }

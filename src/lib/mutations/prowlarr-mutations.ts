@@ -1,15 +1,15 @@
-import { createMutation, useQueryClient } from '@tanstack/svelte-query';
-import type { ProwlarrIndexerSchema } from '$lib/queries/prowlarr-queries';
-import { queryKeys } from '$lib/query-keys';
+import { createMutation, useQueryClient } from "@tanstack/svelte-query";
+import type { ProwlarrIndexerSchema } from "$lib/queries/prowlarr-queries";
+import { queryKeys } from "$lib/query-keys";
 
 export function createAddProwlarrIndexerMutation() {
 	const queryClient = useQueryClient();
 
 	return createMutation<{ success: true }, Error, ProwlarrIndexerSchema>(() => ({
 		mutationFn: async (schema) => {
-			const response = await fetch('/api/prowlarr/indexer', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+			const response = await fetch("/api/prowlarr/indexer", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(schema),
 			});
 
@@ -32,12 +32,12 @@ export function createDeleteProwlarrIndexerMutation() {
 	return createMutation<{ success: true }, Error, number>(() => ({
 		mutationFn: async (id) => {
 			const response = await fetch(`/api/prowlarr/indexer?id=${id}`, {
-				method: 'DELETE',
+				method: "DELETE",
 			});
 
 			if (!response.ok) {
 				const data = await response.json().catch(() => ({}));
-				throw new Error(data.error || 'Failed to remove indexer');
+				throw new Error(data.error || "Failed to remove indexer");
 			}
 
 			return response.json();

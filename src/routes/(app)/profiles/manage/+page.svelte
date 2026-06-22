@@ -1,24 +1,24 @@
 <script lang="ts">
-    import { ArrowLeft, Camera, Check, Loader, Pencil, Trash2, Users, X } from '@lucide/svelte';
-    import { tick } from 'svelte';
-    import { toast } from 'svelte-sonner';
-    import { goto, invalidateAll } from '$app/navigation';
-    import { authClient } from '$lib/auth-client';
-    import Facehash from '$lib/components/facehash/Facehash.svelte';
-    import Button from '$lib/components/ui/Button.svelte';
-    import Input from '$lib/components/ui/Input.svelte';
-    import { confirmDelete } from '$lib/ui-state.svelte';
-    import type { PageData } from './$types';
+    import { ArrowLeft, Camera, Check, Loader, Pencil, Trash2, Users, X } from "@lucide/svelte";
+    import { tick } from "svelte";
+    import { toast } from "svelte-sonner";
+    import { goto, invalidateAll } from "$app/navigation";
+    import { authClient } from "$lib/auth-client";
+    import Facehash from "$lib/components/facehash/Facehash.svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import Input from "$lib/components/ui/Input.svelte";
+    import { confirmDelete } from "$lib/ui-state.svelte";
+    import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
 
     // Create form state
-    let newName = $state('');
+    let newName = $state("");
     let creating = $state(false);
 
     // Edit state
     let editingId = $state<string | null>(null);
-    let editName = $state('');
+    let editName = $state("");
     let editLogo = $state<string | null>(null);
     let pendingLogoFile = $state<File | null>(null);
     let pendingLogoPreview = $state<string | null>(null);
@@ -35,8 +35,8 @@
         try {
             const slug = newName
                 .toLowerCase()
-                .replace(/\s+/g, '-')
-                .replace(/[^a-z0-9-]/g, '');
+                .replace(/\s+/g, "-")
+                .replace(/[^a-z0-9-]/g, "");
 
             const result = await authClient.organization.create({
                 name: newName.trim(),
@@ -44,15 +44,15 @@
             });
 
             if (result.error) {
-                toast.error(result.error.message || 'Failed to create profile');
+                toast.error(result.error.message || "Failed to create profile");
                 return;
             }
 
-            newName = '';
-            toast.success('Profile created');
+            newName = "";
+            toast.success("Profile created");
             await invalidateAll();
         } catch {
-            toast.error('Failed to create profile');
+            toast.error("Failed to create profile");
         } finally {
             creating = false;
         }
@@ -72,7 +72,7 @@
 
     function cancelEdit() {
         editingId = null;
-        editName = '';
+        editName = "";
         editLogo = null;
         if (pendingLogoPreview) {
             URL.revokeObjectURL(pendingLogoPreview);
@@ -102,38 +102,38 @@
         try {
             if (pendingLogoFile) {
                 const formData = new FormData();
-                formData.append('file', pendingLogoFile);
-                formData.append('organizationId', editingId);
+                formData.append("file", pendingLogoFile);
+                formData.append("organizationId", editingId);
 
-                const logoRes = await fetch('/api/upload/logo', {
-                    method: 'POST',
+                const logoRes = await fetch("/api/upload/logo", {
+                    method: "POST",
                     body: formData,
                 });
 
                 if (!logoRes.ok) {
                     const err = await logoRes.json();
-                    toast.error(err.message || 'Failed to upload logo');
+                    toast.error(err.message || "Failed to upload logo");
                     return;
                 }
             }
 
             const res = await fetch(`/api/profiles/${editingId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name: editName.trim() }),
             });
 
             if (!res.ok) {
                 const data = await res.json();
-                toast.error(data.error || 'Failed to update profile');
+                toast.error(data.error || "Failed to update profile");
                 return;
             }
 
-            toast.success('Profile updated');
+            toast.success("Profile updated");
             cancelEdit();
             await invalidateAll();
         } catch {
-            toast.error('Failed to update profile');
+            toast.error("Failed to update profile");
         } finally {
             saving = false;
         }
@@ -141,18 +141,18 @@
 
     function deleteProfile(profile: (typeof data.profiles)[0]) {
         confirmDelete(
-            'Delete Profile',
+            "Delete Profile",
             `Are you sure you want to delete "${profile.name}"? All media in this profile will be lost.`,
             async () => {
                 const res = await fetch(`/api/profiles/${profile.id}`, {
-                    method: 'DELETE',
+                    method: "DELETE",
                 });
                 if (!res.ok) {
                     const data = await res.json();
-                    toast.error(data.error || 'Failed to delete profile');
+                    toast.error(data.error || "Failed to delete profile");
                     return;
                 }
-                toast.success('Profile deleted');
+                toast.success("Profile deleted");
                 await invalidateAll();
             }
         );

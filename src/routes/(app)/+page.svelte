@@ -1,26 +1,26 @@
 <script lang="ts">
-    import { Film, Tv } from '@lucide/svelte';
-    import { createQuery } from '@tanstack/svelte-query';
-    import { goto } from '$app/navigation';
-    import { page } from '$app/state';
-    import ContinueWatchingCard from '$lib/components/ContinueWatchingCard.svelte';
-    import MediaCard from '$lib/components/MediaCard.svelte';
-    import Button from '$lib/components/ui/Button.svelte';
-    import { createDeleteMediaMutation } from '$lib/mutations/media-mutations';
-    import { createContinueWatchingQuery, fetchMediaList } from '$lib/queries/media-queries';
-    import { queryKeys } from '$lib/query-keys';
-    import { confirmDelete } from '$lib/ui-state.svelte';
+    import { Film, Tv } from "@lucide/svelte";
+    import { createQuery } from "@tanstack/svelte-query";
+    import { goto } from "$app/navigation";
+    import { page } from "$app/state";
+    import ContinueWatchingCard from "$lib/components/ContinueWatchingCard.svelte";
+    import MediaCard from "$lib/components/MediaCard.svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import { createDeleteMediaMutation } from "$lib/mutations/media-mutations";
+    import { createContinueWatchingQuery, fetchMediaList } from "$lib/queries/media-queries";
+    import { queryKeys } from "$lib/query-keys";
+    import { confirmDelete } from "$lib/ui-state.svelte";
 
     // Query hooks for movies and TV shows
     const moviesQuery = createQuery(() => ({
-        queryKey: queryKeys.media.list('movie'),
-        queryFn: () => fetchMediaList('movie'),
+        queryKey: queryKeys.media.list("movie"),
+        queryFn: () => fetchMediaList("movie"),
         staleTime: 2 * 60 * 1000, // 2 minutes
     }));
 
     const showsQuery = createQuery(() => ({
-        queryKey: queryKeys.media.list('show'),
-        queryFn: () => fetchMediaList('show'),
+        queryKey: queryKeys.media.list("show"),
+        queryFn: () => fetchMediaList("show"),
         staleTime: 2 * 60 * 1000, // 2 minutes
     }));
 
@@ -39,20 +39,20 @@
     const queryError = $derived(moviesQuery.error || showsQuery.error);
 
     // UI State
-    const activeTab = $derived((page.url.searchParams.get('type') as 'movies' | 'shows') || 'movies');
+    const activeTab = $derived((page.url.searchParams.get("type") as "movies" | "shows") || "movies");
 
     function deleteMedia(id: string, event: Event) {
         event.preventDefault();
         event.stopPropagation();
 
         confirmDelete(
-            'Delete Media',
-            'Are you sure you want to remove this? This action cannot be undone.',
+            "Delete Media",
+            "Are you sure you want to remove this? This action cannot be undone.",
             async () => {
                 try {
                     await deleteMutation.mutateAsync(id);
                 } catch (e) {
-                    console.error('Failed to delete media:', e);
+                    console.error("Failed to delete media:", e);
                 }
             }
         );

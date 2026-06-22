@@ -1,9 +1,9 @@
 // Opens a single SSE connection for live movie and episode progress
 // FEATURE: Live progress transport for movie and episode download monitoring
 
-import { browser } from '$app/environment';
-import { isTerminalProgressStatus } from '$lib/progress-status';
-import type { ProgressInfo } from '$lib/queries/media-queries';
+import { browser } from "$app/environment";
+import { isTerminalProgressStatus } from "$lib/progress-status";
+import type { ProgressInfo } from "$lib/queries/media-queries";
 
 export function connectMediaProgressStream(
 	mediaId: string,
@@ -31,7 +31,7 @@ export function connectMediaProgressStream(
 				close();
 			}
 		} catch (errorValue) {
-			console.error('Failed to parse progress stream payload:', errorValue);
+			console.error("Failed to parse progress stream payload:", errorValue);
 			close();
 		}
 	};

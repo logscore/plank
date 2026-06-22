@@ -1,20 +1,20 @@
-import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes } from 'node:crypto';
-import { env } from '$env/dynamic/private';
+import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes } from "node:crypto";
+import { env } from "$env/dynamic/private";
 
-const ALGORITHM = 'aes-256-gcm';
+const ALGORITHM = "aes-256-gcm";
 const KEY_LENGTH = 32;
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
-const SALT = 'plank-settings-encryption';
+const SALT = "plank-settings-encryption";
 const PBKDF2_ITERATIONS = 100_000;
-const ENCRYPTED_PREFIX = 'enc:';
+const ENCRYPTED_PREFIX = "enc:";
 
 function deriveKey(): Buffer {
 	const secret = env.BETTER_AUTH_SECRET;
 	if (!secret) {
-		throw new Error('BETTER_AUTH_SECRET is not set — cannot encrypt/decrypt settings');
+		throw new Error("BETTER_AUTH_SECRET is not set — cannot encrypt/decrypt settings");
 	}
-	return pbkdf2Sync(secret, SALT, PBKDF2_ITERATIONS, KEY_LENGTH, 'sha256');
+	return pbkdf2Sync(secret, SALT, PBKDF2_ITERATIONS, KEY_LENGTH, "sha256");
 }
 
 /**
@@ -30,10 +30,10 @@ export function encrypt(plaintext: string): string {
 	const iv = randomBytes(IV_LENGTH);
 	const cipher = createCipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
 
-	const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+	const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
 	const authTag = cipher.getAuthTag();
 
-	return `${ENCRYPTED_PREFIX}${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`;
+	return `${ENCRYPTED_PREFIX}${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted.toString("hex")}`;
 }
 
 /**
@@ -51,22 +51,22 @@ export function decrypt(value: string): string {
 	}
 
 	const payload = value.slice(ENCRYPTED_PREFIX.length);
-	const [ivHex, authTagHex, ciphertextHex] = payload.split(':');
+	const [ivHex, authTagHex, ciphertextHex] = payload.split(":");
 
 	if (!(ivHex && authTagHex && ciphertextHex)) {
-		throw new Error('Malformed encrypted value');
+		throw new Error("Malformed encrypted value");
 	}
 
 	const key = deriveKey();
-	const iv = Buffer.from(ivHex, 'hex');
-	const authTag = Buffer.from(authTagHex, 'hex');
-	const ciphertext = Buffer.from(ciphertextHex, 'hex');
+	const iv = Buffer.from(ivHex, "hex");
+	const authTag = Buffer.from(authTagHex, "hex");
+	const ciphertext = Buffer.from(ciphertextHex, "hex");
 
 	const decipher = createDecipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
 	decipher.setAuthTag(authTag);
 
 	const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-	return decrypted.toString('utf8');
+	return decrypted.toString("utf8");
 }
 
 /** Check whether a value is already encrypted */

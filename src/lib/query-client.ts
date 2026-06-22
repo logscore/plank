@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/svelte-query';
+import { QueryClient } from "@tanstack/svelte-query";
 
 export const queryClient = new QueryClient({
 	defaultOptions: {
@@ -7,7 +7,7 @@ export const queryClient = new QueryClient({
 			gcTime: 60 * 60 * 1000, // 60 minutes - keep in memory for 1 hour
 			retry: (failureCount, error) => {
 				// Don't retry on 4xx errors
-				if (error && typeof error === 'object' && 'status' in error) {
+				if (error && typeof error === "object" && "status" in error) {
 					const status = error.status as number;
 					if (status >= 400 && status < 500) {
 						return false;

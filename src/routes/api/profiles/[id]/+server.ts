@@ -1,12 +1,12 @@
-import { error, json } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
-import { db } from '$lib/server/db/index';
-import { schema } from '$lib/server/db/schema';
-import type { RequestHandler } from './$types';
+import { error, json } from "@sveltejs/kit";
+import { eq } from "drizzle-orm";
+import { db } from "$lib/server/db/index";
+import { schema } from "$lib/server/db/schema";
+import type { RequestHandler } from "./$types";
 
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
-	if (!locals.user || locals.user.role !== 'admin') {
-		throw error(403, 'Admin access required');
+	if (!locals.user || locals.user.role !== "admin") {
+		throw error(403, "Admin access required");
 	}
 
 	const body = await request.json();
@@ -23,7 +23,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	}
 
 	if (Object.keys(updates).length === 0) {
-		throw error(400, 'No updates provided');
+		throw error(400, "No updates provided");
 	}
 
 	db.update(schema.organization).set(updates).where(eq(schema.organization.id, params.id)).run();
@@ -33,13 +33,13 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 };
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
-	if (!locals.user || locals.user.role !== 'admin') {
-		throw error(403, 'Admin access required');
+	if (!locals.user || locals.user.role !== "admin") {
+		throw error(403, "Admin access required");
 	}
 
 	const org = db.select().from(schema.organization).where(eq(schema.organization.id, params.id)).get();
 	if (!org) {
-		throw error(404, 'Profile not found');
+		throw error(404, "Profile not found");
 	}
 
 	// Delete the organization (cascades to members, invitations, and media via FK)

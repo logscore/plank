@@ -1,10 +1,10 @@
 // Builds consistent progress snapshots for movies and episode downloads
 // FEATURE: Live progress transport for movie and episode download monitoring
 
-import { isTerminalProgressStatus } from '$lib/progress-status';
-import type { Media } from '$lib/server/db/schema';
-import { mediaDb } from './db';
-import { getDownloadStatus, isDownloadActive } from './torrent';
+import { isTerminalProgressStatus } from "$lib/progress-status";
+import type { Media } from "$lib/server/db/schema";
+import { mediaDb } from "./db";
+import { getDownloadStatus, isDownloadActive } from "./torrent";
 
 export interface MediaProgressSnapshot {
 	status: string;
@@ -19,7 +19,7 @@ export interface MediaProgressSnapshot {
 }
 
 function getEpisodeKey(mediaItem: Media): number | null {
-	if (mediaItem.type !== 'episode' || mediaItem.seasonNumber === null || mediaItem.episodeNumber === null) {
+	if (mediaItem.type !== "episode" || mediaItem.seasonNumber === null || mediaItem.episodeNumber === null) {
 		return null;
 	}
 	return mediaItem.seasonNumber * 100 + mediaItem.episodeNumber;
@@ -34,7 +34,7 @@ function getEpisodeProgress(mediaItem: Media): number | null {
 }
 
 function getResolvedProgress(mediaItem: Media): number {
-	if (mediaItem.filePath || mediaItem.status === 'complete') {
+	if (mediaItem.filePath || mediaItem.status === "complete") {
 		return 1;
 	}
 	const episodeProgress = getEpisodeProgress(mediaItem);
@@ -45,17 +45,17 @@ function getResolvedProgress(mediaItem: Media): number {
 }
 
 function getResolvedStatus(mediaItem: Media): string {
-	if (mediaItem.filePath || mediaItem.status === 'complete') {
-		return 'complete';
+	if (mediaItem.filePath || mediaItem.status === "complete") {
+		return "complete";
 	}
-	return getDownloadStatus(mediaItem.id)?.status ?? mediaItem.status ?? 'pending';
+	return getDownloadStatus(mediaItem.id)?.status ?? mediaItem.status ?? "pending";
 }
 
 function getResolvedFileSize(mediaItem: Media): number | null | undefined {
 	if (mediaItem.fileSize) {
 		return mediaItem.fileSize;
 	}
-	if (mediaItem.type === 'episode' && mediaItem.parentId && !(mediaItem.magnetLink || mediaItem.infohash)) {
+	if (mediaItem.type === "episode" && mediaItem.parentId && !(mediaItem.magnetLink || mediaItem.infohash)) {
 		return null;
 	}
 	return getDownloadStatus(mediaItem.id)?.totalSize;

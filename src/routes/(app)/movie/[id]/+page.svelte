@@ -11,36 +11,36 @@
         RefreshCw,
         RotateCcw,
         Trash2,
-    } from '@lucide/svelte';
-    import { onDestroy, onMount } from 'svelte';
-    import { goto } from '$app/navigation';
-    import { connectMediaProgressStream } from '$lib/client/media-progress-stream';
-    import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
-    import OpenSubtitlesDialog from '$lib/components/OpenSubtitlesDialog.svelte';
-    import SubtitleMenu from '$lib/components/SubtitleMenu.svelte';
-    import Button from '$lib/components/ui/Button.svelte';
-    import Dialog from '$lib/components/ui/Dialog.svelte';
-    import Input from '$lib/components/ui/Input.svelte';
-    import { createAddMediaMutation, createDeleteMediaMutation } from '$lib/mutations/media-mutations';
-    import { isTerminalProgressStatus } from '$lib/progress-status';
-    import { confirmDelete, uiState } from '$lib/ui-state.svelte';
-    import type { PageData } from './$types';
+    } from "@lucide/svelte";
+    import { onDestroy, onMount } from "svelte";
+    import { goto } from "$app/navigation";
+    import { connectMediaProgressStream } from "$lib/client/media-progress-stream";
+    import DeleteConfirmationModal from "$lib/components/DeleteConfirmationModal.svelte";
+    import OpenSubtitlesDialog from "$lib/components/OpenSubtitlesDialog.svelte";
+    import SubtitleMenu from "$lib/components/SubtitleMenu.svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import Dialog from "$lib/components/ui/Dialog.svelte";
+    import Input from "$lib/components/ui/Input.svelte";
+    import { createAddMediaMutation, createDeleteMediaMutation } from "$lib/mutations/media-mutations";
+    import { isTerminalProgressStatus } from "$lib/progress-status";
+    import { confirmDelete, uiState } from "$lib/ui-state.svelte";
+    import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
     let deleting = $state(false);
     let retrying = $state(false);
     let copied = $state(false);
     let redownloadDialogOpen = $state(false);
-    let retryError = $state('');
-    let manualSourceInput = $state('');
+    let retryError = $state("");
+    let manualSourceInput = $state("");
 
     // Mutations
     const addMediaMutation = createAddMediaMutation();
     const deleteMediaMutation = createDeleteMediaMutation();
 
     // Add Media Dialog state
-    let magnetInput = $state('');
-    let magnetError = $state('');
+    let magnetInput = $state("");
+    let magnetError = $state("");
     let adding = $state(false);
 
     // OpenSubtitles Dialog state
@@ -64,7 +64,7 @@
 
     function formatFileSize(bytes: number | null): string {
         if (!bytes) {
-            return 'Unknown';
+            return "Unknown";
         }
         if (bytes < 1024) {
             return `${bytes} B`;
@@ -90,14 +90,14 @@
 
     function formatDate(date: Date | null): string {
         if (!date) {
-            return 'Unknown';
+            return "Unknown";
         }
-        return new Date(date).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
+        return new Date(date).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
         });
     }
 
@@ -112,7 +112,7 @@
                 copied = false;
             }, 2000);
         } catch (err) {
-            console.error('Failed to copy text: ', err);
+            console.error("Failed to copy text: ", err);
         }
     }
 
@@ -141,21 +141,21 @@
 
     function getColorForCertification(cert: string | null): string {
         if (!cert) {
-            return 'border-white/30 text-white';
+            return "border-white/30 text-white";
         }
         switch (cert.toUpperCase()) {
-            case 'G':
-                return 'bg-green-500/20 text-green-400 border-green-500/30';
-            case 'PG':
-                return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-            case 'PG-13':
-                return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-            case 'R':
-                return 'bg-red-500/20 text-red-400 border-red-500/30';
-            case 'NC-17':
-                return 'bg-red-900/20 text-red-600 border-red-900/30';
+            case "G":
+                return "bg-green-500/20 text-green-400 border-green-500/30";
+            case "PG":
+                return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+            case "PG-13":
+                return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+            case "R":
+                return "bg-red-500/20 text-red-400 border-red-500/30";
+            case "NC-17":
+                return "bg-red-900/20 text-red-600 border-red-900/30";
             default:
-                return 'border-white/30 text-white';
+                return "border-white/30 text-white";
         }
     }
 
@@ -178,31 +178,31 @@
     });
 
     function openRedownloadDialog() {
-        retryError = '';
-        manualSourceInput = '';
+        retryError = "";
+        manualSourceInput = "";
         redownloadDialogOpen = true;
     }
 
     function closeRedownloadDialog() {
         redownloadDialogOpen = false;
-        retryError = '';
-        manualSourceInput = '';
+        retryError = "";
+        manualSourceInput = "";
     }
 
-    async function runMovieRetry(body?: { mode?: 'same' | 'replace'; magnetLink?: string }) {
+    async function runMovieRetry(body?: { mode?: "same" | "replace"; magnetLink?: string }) {
         retrying = true;
-        retryError = '';
+        retryError = "";
         try {
             const response = await fetch(`/api/media/${data.media.id}/retry`, {
-                method: 'POST',
-                headers: body ? { 'Content-Type': 'application/json' } : undefined,
+                method: "POST",
+                headers: body ? { "Content-Type": "application/json" } : undefined,
                 body: body ? JSON.stringify(body) : undefined,
             });
             const result = (await response.json().catch(() => null)) as { message?: string } | null;
             if (!response.ok) {
-                throw new Error(result?.message || 'Failed to retry download');
+                throw new Error(result?.message || "Failed to retry download");
             }
-            if (body?.mode === 'replace' && body.magnetLink) {
+            if (body?.mode === "replace" && body.magnetLink) {
                 data = {
                     ...data,
                     media: {
@@ -211,7 +211,7 @@
                     },
                 };
             }
-            liveStatus = 'pending';
+            liveStatus = "pending";
             liveProgress = 0;
             downloadSpeed = 0;
             peers = 0;
@@ -220,8 +220,8 @@
             startStream();
             return true;
         } catch (e) {
-            console.error('Failed to retry download:', e);
-            retryError = e instanceof Error ? e.message : 'Failed to retry download';
+            console.error("Failed to retry download:", e);
+            retryError = e instanceof Error ? e.message : "Failed to retry download";
             return false;
         } finally {
             retrying = false;
@@ -229,7 +229,7 @@
     }
 
     async function handleRetryCurrentSource() {
-        const success = await runMovieRetry({ mode: 'same' });
+        const success = await runMovieRetry({ mode: "same" });
         if (success) {
             closeRedownloadDialog();
         }
@@ -240,7 +240,7 @@
             return;
         }
         const success = await runMovieRetry({
-            mode: 'replace',
+            mode: "replace",
             magnetLink: manualSourceInput.trim(),
         });
         if (success) {
@@ -250,22 +250,22 @@
 
     async function addMagnet() {
         if (!magnetInput.trim()) {
-            magnetError = 'Please enter a magnet link';
+            magnetError = "Please enter a magnet link";
             return;
         }
-        if (!magnetInput.startsWith('magnet:')) {
-            magnetError = 'Invalid magnet link format';
+        if (!magnetInput.startsWith("magnet:")) {
+            magnetError = "Invalid magnet link format";
             return;
         }
 
-        magnetError = '';
+        magnetError = "";
         adding = true;
         try {
             await addMediaMutation.mutateAsync({ magnetLink: magnetInput });
-            magnetInput = '';
+            magnetInput = "";
             uiState.addMediaDialogOpen = false;
         } catch (e) {
-            magnetError = (e as Error).message || 'Failed to add media';
+            magnetError = (e as Error).message || "Failed to add media";
         } finally {
             adding = false;
         }
@@ -273,15 +273,15 @@
 
     async function handleDelete() {
         confirmDelete(
-            'Delete Media',
-            'Are you sure you want to delete this? This action cannot be undone.',
+            "Delete Media",
+            "Are you sure you want to delete this? This action cannot be undone.",
             async () => {
                 deleting = true;
                 try {
                     await deleteMediaMutation.mutateAsync(data.media.id);
-                    goto('/');
+                    goto("/");
                 } catch (e) {
-                    console.error('Failed to delete media:', e);
+                    console.error("Failed to delete media:", e);
                 } finally {
                     deleting = false;
                 }

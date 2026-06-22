@@ -5,9 +5,9 @@
  * Used to avoid repeated Jackett queries for the same content.
  */
 
-import { eq, inArray } from 'drizzle-orm';
-import { db } from './db/index';
-import { torrentCache } from './db/schema';
+import { eq, inArray } from "drizzle-orm";
+import { db } from "./db/index";
+import { torrentCache } from "./db/schema";
 
 /**
  * Cached torrent data

@@ -1,19 +1,19 @@
 <script lang="ts">
-    import { ArrowLeft, Check, Copy, Github, RefreshCw, TriangleAlert } from '@lucide/svelte';
-    import { page } from '$app/stores';
-    import Button from '$lib/components/ui/Button.svelte';
+    import { ArrowLeft, Check, Copy, Github, RefreshCw, TriangleAlert } from "@lucide/svelte";
+    import { page } from "$app/stores";
+    import Button from "$lib/components/ui/Button.svelte";
 
     let copied = $state(false);
 
     const errorDetails = $derived(() => {
         const { status, error } = $page;
         const timestamp = new Date().toISOString();
-        const url = typeof window !== 'undefined' ? window.location.href : '';
-        const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+        const url = typeof window !== "undefined" ? window.location.href : "";
+        const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
 
         return {
             status,
-            message: error?.message || 'Unknown error',
+            message: error?.message || "Unknown error",
             timestamp,
             url,
             userAgent,
@@ -40,13 +40,13 @@ User Agent: ${details.userAgent}`;
     }
 
     function refreshPage() {
-        if (typeof window !== 'undefined') {
+        if (typeof window !== "undefined") {
             window.location.reload();
         }
     }
 
     function goBack() {
-        if (typeof window !== 'undefined') {
+        if (typeof window !== "undefined") {
             window.history.back();
         }
     }

@@ -1,8 +1,8 @@
-import { env } from '$env/dynamic/private';
+import { env } from "$env/dynamic/private";
 
 export const config = {
 	paths: {
-		data: env.DATA_PATH || './data',
+		data: env.DATA_PATH || "./data",
 		get library() {
 			return `${this.data}/library`;
 		},
@@ -11,21 +11,21 @@ export const config = {
 		},
 	},
 	tmdb: {
-		apiKey: env.TMDB_API_KEY || '',
-		baseUrl: 'https://api.themoviedb.org/3',
-		imageBaseUrl: 'https://image.tmdb.org/t/p',
+		apiKey: env.TMDB_API_KEY || "",
+		baseUrl: "https://api.themoviedb.org/3",
+		imageBaseUrl: "https://image.tmdb.org/t/p",
 	},
 	prowlarr: {
-		url: env.PROWLARR_URL || 'http://localhost:9696',
-		apiKey: env.PROWLARR_API_KEY || '',
+		url: env.PROWLARR_URL || "http://localhost:9696",
+		apiKey: env.PROWLARR_API_KEY || "",
 		// Trusted release groups for high-quality content
-		trustedGroups: ['YTS', 'YIFY', '.BONE.', 'x1337', 'TVTEAM'],
+		trustedGroups: ["YTS", "YIFY", ".BONE.", "x1337", "TVTEAM"],
 		// Minimum seeders for a valid torrent
 		minSeeders: 5,
 	},
 	opensubtitles: {
-		apiKey: env.OPENSUBTITLES_API_KEY || '',
-		username: env.OPENSUBTITLES_USERNAME || '',
-		password: env.OPENSUBTITLES_PASSWORD || '',
+		apiKey: env.OPENSUBTITLES_API_KEY || "",
+		username: env.OPENSUBTITLES_USERNAME || "",
+		password: env.OPENSUBTITLES_PASSWORD || "",
 	},
 };

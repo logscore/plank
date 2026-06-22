@@ -1,17 +1,17 @@
 <script lang="ts">
-    import { ArrowLeft, Calendar, Database, EllipsisVertical, Film, Play, RotateCcw, Trash2 } from '@lucide/svelte';
-    import { goto, replaceState } from '$app/navigation';
-    import { page } from '$app/state';
-    import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
-    import EpisodeSelector from '$lib/components/EpisodeSelector.svelte';
-    import OpenSubtitlesDialog from '$lib/components/OpenSubtitlesDialog.svelte';
-    import SubtitleMenu from '$lib/components/SubtitleMenu.svelte';
-    import Button from '$lib/components/ui/Button.svelte';
-    import Dialog from '$lib/components/ui/Dialog.svelte';
-    import Input from '$lib/components/ui/Input.svelte';
-    import { canPlayEpisode } from '$lib/media-playability';
-    import type { Media, SeasonWithEpisodes } from '$lib/types';
-    import { confirmDelete, uiState } from '$lib/ui-state.svelte';
+    import { ArrowLeft, Calendar, Database, EllipsisVertical, Film, Play, RotateCcw, Trash2 } from "@lucide/svelte";
+    import { goto, replaceState } from "$app/navigation";
+    import { page } from "$app/state";
+    import DeleteConfirmationModal from "$lib/components/DeleteConfirmationModal.svelte";
+    import EpisodeSelector from "$lib/components/EpisodeSelector.svelte";
+    import OpenSubtitlesDialog from "$lib/components/OpenSubtitlesDialog.svelte";
+    import SubtitleMenu from "$lib/components/SubtitleMenu.svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import Dialog from "$lib/components/ui/Dialog.svelte";
+    import Input from "$lib/components/ui/Input.svelte";
+    import { canPlayEpisode } from "$lib/media-playability";
+    import type { Media, SeasonWithEpisodes } from "$lib/types";
+    import { confirmDelete, uiState } from "$lib/ui-state.svelte";
 
     let media: Media | null = $state(null);
     let seasons: SeasonWithEpisodes[] = $state([]);
@@ -22,20 +22,20 @@
     let activeEpisodeMenuId = $state<string | null>(null);
     let redownloadDialogOpen = $state(false);
     let selectedEpisode = $state<Media | null>(null);
-    let retryDialogError = $state('');
-    let manualSourceInput = $state('');
+    let retryDialogError = $state("");
+    let manualSourceInput = $state("");
     // OpenSubtitles dialog state
     let openSubtitlesDialogOpen = $state(false);
     let subtitleDialogMediaId = $state<string | undefined>(undefined);
     let subtitleDialogSeasonNumber = $state<number | undefined>(undefined);
     let subtitleDialogEpisodeNumber = $state<number | null>(null);
-    let subtitleDialogTitle = $state('');
+    let subtitleDialogTitle = $state("");
 
     function openSubtitlesForEpisode(episode: Media) {
         subtitleDialogMediaId = episode.id;
         subtitleDialogSeasonNumber = currentSeason?.seasonNumber;
         subtitleDialogEpisodeNumber = episode.episodeNumber;
-        subtitleDialogTitle = `${media?.title} - S${String(currentSeason?.seasonNumber ?? 0).padStart(2, '0')}E${String(episode.episodeNumber).padStart(2, '0')}`;
+        subtitleDialogTitle = `${media?.title} - S${String(currentSeason?.seasonNumber ?? 0).padStart(2, "0")}E${String(episode.episodeNumber).padStart(2, "0")}`;
         openSubtitlesDialogOpen = true;
     }
 
@@ -72,7 +72,7 @@
                 }
             }
         } catch (e) {
-            console.error('Failed to load show:', e);
+            console.error("Failed to load show:", e);
         } finally {
             if (showSpinner) {
                 loading = false;
@@ -87,67 +87,67 @@
     }
 
     function isEpisodeRemoved(episode: Media): boolean {
-        return episode.status === 'removed';
+        return episode.status === "removed";
     }
 
     function getEpisodeStatusLabel(episode: Media): string {
-        if (episode.status === 'complete' || episode.filePath) {
-            return 'Downloaded';
+        if (episode.status === "complete" || episode.filePath) {
+            return "Downloaded";
         }
-        if (episode.status === 'removed') {
-            return 'Removed';
+        if (episode.status === "removed") {
+            return "Removed";
         }
-        if (episode.status === 'searching') {
-            return 'Searching';
+        if (episode.status === "searching") {
+            return "Searching";
         }
-        if (episode.status === 'downloading') {
-            return 'Downloading';
+        if (episode.status === "downloading") {
+            return "Downloading";
         }
-        if (episode.status === 'not_found') {
-            return 'Not Found';
+        if (episode.status === "not_found") {
+            return "Not Found";
         }
-        if (episode.status === 'error') {
-            return 'Error';
+        if (episode.status === "error") {
+            return "Error";
         }
-        return 'Pending';
+        return "Pending";
     }
 
     function getEpisodeStatusClass(episode: Media): string {
-        if (episode.status === 'complete' || episode.filePath) {
-            return 'bg-emerald-500 text-emerald-100';
+        if (episode.status === "complete" || episode.filePath) {
+            return "bg-emerald-500 text-emerald-100";
         }
-        if (episode.status === 'removed') {
-            return 'bg-rose-500 text-rose-100';
+        if (episode.status === "removed") {
+            return "bg-rose-500 text-rose-100";
         }
-        if (episode.status === 'downloading') {
-            return 'bg-blue-500 text-blue-100';
+        if (episode.status === "downloading") {
+            return "bg-blue-500 text-blue-100";
         }
-        if (episode.status === 'searching') {
-            return 'bg-amber-500 text-amber-100';
+        if (episode.status === "searching") {
+            return "bg-amber-500 text-amber-100";
         }
-        if (episode.status === 'not_found' || episode.status === 'error') {
-            return 'bg-red-500 text-red-100';
+        if (episode.status === "not_found" || episode.status === "error") {
+            return "bg-red-500 text-red-100";
         }
-        return 'bg-muted text-muted-foreground';
+        return "bg-muted text-muted-foreground";
     }
 
     function getEpisodeCardClass(episode: Media): string {
-        return isEpisodeRemoved(episode) ? 'border-rose-500/40 bg-rose-500/5' : 'border-border hover:border-primary/50';
+        return isEpisodeRemoved(episode) ? "border-rose-500/40 bg-rose-500/5" : "border-border hover:border-primary/50";
     }
 
     function openRedownloadDialog(episode: Media) {
         activeEpisodeMenuId = null;
         selectedEpisode = episode;
         redownloadDialogOpen = true;
-        retryDialogError = '';
-        manualSourceInput = '';
+        retryDialogError = "";
+        manualSourceInput = "";
     }
 
     function closeRedownloadDialog() {
         redownloadDialogOpen = false;
         selectedEpisode = null;
-        retryDialogError = '';
-        manualSourceInput = '';
+        retryDialogError = "";
+        manualSourceInput = "";
     }
 
     function toggleEpisodeMenu(episodeId: string, event: Event) {
@@ -157,38 +157,38 @@
 
     function closeEpisodeMenu(event: MouseEvent) {
         const target = event.target as HTMLElement;
-        if (!target.closest('.episode-actions-menu')) {
+        if (!target.closest(".episode-actions-menu")) {
             activeEpisodeMenuId = null;
         }
     }
 
     async function runEpisodeRetry(
         episode: Media,
-        body?: { mode?: 'same' | 'replace' | 'remove'; magnetLink?: string }
+        body?: { mode?: "same" | "replace" | "remove"; magnetLink?: string }
     ) {
         if (retryingEpisodeIds.has(episode.id)) {
             return false;
         }
 
         retryingEpisodeIds = new Set(retryingEpisodeIds).add(episode.id);
-        retryDialogError = '';
+        retryDialogError = "";
         try {
             const response = await fetch(`/api/media/${episode.id}/retry`, {
-                method: 'POST',
-                headers: body ? { 'Content-Type': 'application/json' } : undefined,
+                method: "POST",
+                headers: body ? { "Content-Type": "application/json" } : undefined,
                 body: body ? JSON.stringify(body) : undefined,
             });
             const result = (await response.json().catch(() => null)) as {
                 message?: string;
             } | null;
             if (!response.ok) {
-                throw new Error(result?.message || 'Episode action failed');
+                throw new Error(result?.message || "Episode action failed");
             }
             await loadShow(false);
             return true;
         } catch (error) {
-            console.error('Failed to run episode retry action:', error);
-            retryDialogError = error instanceof Error ? error.message : 'Episode action failed';
+            console.error("Failed to run episode retry action:", error);
+            retryDialogError = error instanceof Error ? error.message : "Episode action failed";
             return false;
         } finally {
             const updated = new Set(retryingEpisodeIds);
@@ -202,7 +202,7 @@
             return;
         }
         const success = await runEpisodeRetry(selectedEpisode, {
-            mode: 'same',
+            mode: "same",
         });
         if (success) {
             closeRedownloadDialog();
@@ -214,7 +214,7 @@
             return;
         }
         const success = await runEpisodeRetry(selectedEpisode, {
-            mode: 'replace',
+            mode: "replace",
             magnetLink: manualSourceInput.trim(),
         });
         if (success) {
@@ -225,17 +225,17 @@
     function handleRemoveEpisodeDownload(episode: Media) {
         activeEpisodeMenuId = null;
         confirmDelete(
-            'Remove Episode Download',
-            'This removes the downloaded file but keeps the episode metadata so you can redownload it later.',
+            "Remove Episode Download",
+            "This removes the downloaded file but keeps the episode metadata so you can redownload it later.",
             async () => {
-                await runEpisodeRetry(episode, { mode: 'remove' });
+                await runEpisodeRetry(episode, { mode: "remove" });
             }
         );
     }
 
     function formatRuntime(minutes: number | null): string {
         if (!minutes) {
-            return '';
+            return "";
         }
         if (minutes < 60) {
             return `${minutes}m`;
@@ -245,18 +245,18 @@
 
     function formatDate(date: string | Date | null): string {
         if (!date) {
-            return 'Unknown';
+            return "Unknown";
         }
-        return new Date(date).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
+        return new Date(date).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
         });
     }
 
     function formatFileSize(bytes: number | null): string {
         if (!bytes) {
-            return 'Unknown';
+            return "Unknown";
         }
         if (bytes < 1024) {
             return `${bytes} B`;
@@ -271,7 +271,7 @@
     }
 
     function getSelectedSeasonFromUrl(): number | null {
-        const seasonParam = page.url.searchParams.get('s');
+        const seasonParam = page.url.searchParams.get("s");
         if (!seasonParam) {
             return null;
         }
@@ -283,7 +283,7 @@
     function handleSelectSeason(seasonNumber: number) {
         selectedSeason = seasonNumber;
         const nextUrl = new URL(page.url);
-        nextUrl.searchParams.set('s', String(seasonNumber));
+        nextUrl.searchParams.set("s", String(seasonNumber));
         replaceState(nextUrl, page.state);
     }
 
@@ -293,19 +293,19 @@
         }
 
         confirmDelete(
-            'Delete Show',
-            'Are you sure you want to delete this show? This action cannot be undone.',
+            "Delete Show",
+            "Are you sure you want to delete this show? This action cannot be undone.",
             async () => {
                 deleting = true;
                 try {
                     const res = await fetch(`/api/media/${media?.id}`, {
-                        method: 'DELETE',
+                        method: "DELETE",
                     });
                     if (res.ok) {
-                        goto('/');
+                        goto("/");
                     }
                 } catch (e) {
-                    console.error('Failed to delete show:', e);
+                    console.error("Failed to delete show:", e);
                 } finally {
                     deleting = false;
                 }
@@ -315,25 +315,25 @@
 
     function getColorForCertification(cert: string | null): string {
         if (!cert) {
-            return 'border-white/30 text-white';
+            return "border-white/30 text-white";
         }
         switch (cert.toUpperCase()) {
-            case 'TV-Y':
-            case 'TV-G':
-            case 'G':
-                return 'bg-green-500/20 text-green-400 border-green-500/30';
-            case 'TV-PG':
-            case 'PG':
-                return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-            case 'TV-14':
-            case 'PG-13':
-                return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-            case 'TV-MA':
-            case 'R':
-            case 'NC-17':
-                return 'bg-red-500/20 text-red-400 border-red-500/30';
+            case "TV-Y":
+            case "TV-G":
+            case "G":
+                return "bg-green-500/20 text-green-400 border-green-500/30";
+            case "TV-PG":
+            case "PG":
+                return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+            case "TV-14":
+            case "PG-13":
+                return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+            case "TV-MA":
+            case "R":
+            case "NC-17":
+                return "bg-red-500/20 text-red-400 border-red-500/30";
             default:
-                return 'border-white/30 text-white';
+                return "border-white/30 text-white";
         }
     }
 
@@ -351,23 +351,23 @@
     const currentSeason = $derived(seasons.find((s) => s.seasonNumber === selectedSeason));
     const allEpisodes = $derived(seasons.flatMap((season) => season.episodes));
     const downloadedEpisodeCount = $derived(
-        allEpisodes.filter((episode) => episode.status === 'complete' || episode.filePath).length
+        allEpisodes.filter((episode) => episode.status === "complete" || episode.filePath).length
     );
     const totalEpisodeSize = $derived(allEpisodes.reduce((sum, episode) => sum + (episode.fileSize ?? 0), 0));
     const showStatus = $derived.by(() => {
         if (allEpisodes.length === 0) {
-            return 'pending';
+            return "pending";
         }
-        if (allEpisodes.every((episode) => episode.status === 'complete' || episode.filePath)) {
-            return 'complete';
+        if (allEpisodes.every((episode) => episode.status === "complete" || episode.filePath)) {
+            return "complete";
         }
-        if (allEpisodes.some((episode) => episode.status === 'downloading' || episode.status === 'searching')) {
-            return 'downloading';
+        if (allEpisodes.some((episode) => episode.status === "downloading" || episode.status === "searching")) {
+            return "downloading";
         }
-        if (allEpisodes.some((episode) => episode.status === 'error' || episode.status === 'not_found')) {
-            return 'error';
+        if (allEpisodes.some((episode) => episode.status === "error" || episode.status === "not_found")) {
+            return "error";
         }
-        return 'pending';
+        return "pending";
     });
 
     $effect(() => {
@@ -376,7 +376,7 @@
 
     $effect(() => {
         const hasActiveEpisodes = allEpisodes.some(
-            (episode) => episode.status === 'searching' || episode.status === 'downloading'
+            (episode) => episode.status === "searching" || episode.status === "downloading"
         );
         if (!hasActiveEpisodes) {
             return;

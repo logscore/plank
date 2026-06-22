@@ -1,50 +1,54 @@
-FROM node:22-bookworm
-
-# Install curl for healthcheck and ffmpeg for transmuxing and subtitle probing
-# I don't like this and would rather apt-get install ffmpeg, but the Debian mirrors were broken
-RUN ARCH=$(dpkg --print-architecture) && \
-    if [ "$ARCH" = "arm64" ]; then \
-    ARCH_NAME="linuxarm64"; \
-    else \
-    ARCH_NAME="linux64"; \
-    fi && \
-    curl -L https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-${ARCH_NAME}-GPL.tar.xz -o /tmp/ffmpeg.tar.xz && \
-    mkdir -p /tmp/ffmpeg-extract && \
-    tar -xf /tmp/ffmpeg.tar.xz -C /tmp/ffmpeg-extract --strip-components=1 && \
-    cp /tmp/ffmpeg-extract/bin/ffmpeg /usr/local/bin/ && \
-    cp /tmp/ffmpeg-extract/bin/ffprobe /usr/local/bin/ && \
-    rm -rf /tmp/ffmpeg* && \
-    chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe
+FROM node:22-bookworm AS build
 
 WORKDIR /app
 
 COPY package*.json ./
-# Install all deps (including dev) for build
 RUN npm ci
 
 COPY . .
 
-# Build-time dummy values for better-auth
-ENV BETTER_AUTH_SECRET=dummy-build-secret
-ENV BETTER_AUTH_URL=http://localhost:3300
+RUN BETTER_AUTH_SECRET=dummy-build-secret \
+    BETTER_AUTH_URL=http://localhost:3300 \
+    npm run build
 
-RUN npm run build
+FROM node:22-bookworm AS prod-deps
 
-# Remove dev deps to keep image light, then reinstall only drizzle-kit
-RUN npm prune --production && npm install drizzle-kit
+WORKDIR /app
 
-# Create necessary directories
-RUN mkdir -p /app/db /app/data/library /app/data/temp
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
 
-# Make scripts executable
-RUN chmod +x /app/docker/entrypoint.sh /app/docker/configure-prowlarr.sh
+FROM node:22-bookworm-slim AS runtime
 
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    PORT=3300 \
+    HOST=0.0.0.0 \
+    DATA_PATH=/app/data
+
+WORKDIR /app
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates curl ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY package*.json ./
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=build /app/build ./build
+COPY --from=build /app/drizzle.config.ts ./drizzle.config.ts
+COPY --from=build /app/src/lib/server/db/schema.ts ./src/lib/server/db/schema.ts
+COPY --from=build /app/docker/entrypoint.sh ./docker/entrypoint.sh
+COPY --from=build /app/docker/configure-prowlarr.sh ./docker/configure-prowlarr.sh
+
+RUN mkdir -p /app/db /app/data/library /app/data/temp && \
+    chmod +x /app/docker/entrypoint.sh /app/docker/configure-prowlarr.sh && \
+    chown -R node:node /app
+
+USER node
 
 EXPOSE 3300
-EXPOSE 6881
+EXPOSE 6881/tcp 6881/udp
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3300/health || exit 1
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]

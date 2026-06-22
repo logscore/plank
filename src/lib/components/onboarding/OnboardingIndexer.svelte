@@ -1,18 +1,18 @@
 <script lang="ts">
-    import { ChevronDown, Loader, Plus, Trash2 } from '@lucide/svelte';
-    import { onMount } from 'svelte';
-    import { toast } from 'svelte-sonner';
+    import { ChevronDown, Loader, Plus, Trash2 } from "@lucide/svelte";
+    import { onMount } from "svelte";
+    import { toast } from "svelte-sonner";
     import {
         createAddProwlarrIndexerMutation,
         createDeleteProwlarrIndexerMutation,
-    } from '$lib/mutations/prowlarr-mutations';
+    } from "$lib/mutations/prowlarr-mutations";
     import {
         createProwlarrIndexerSchemasQuery,
         createProwlarrIndexersQuery,
         type ProwlarrIndexer,
         type ProwlarrIndexerSchema,
-    } from '$lib/queries/prowlarr-queries';
-    import { cn } from '$lib/utils';
+    } from "$lib/queries/prowlarr-queries";
+    import { cn } from "$lib/utils";
 
     // Props
     let { prowlarrUrl, prowlarrApiKey } = $props<{
@@ -22,7 +22,7 @@
 
     // State
     let testingConnection = $state(false);
-    let connectionStatus = $state<'connected' | 'failed' | 'unchecked'>('unchecked');
+    let connectionStatus = $state<"connected" | "failed" | "unchecked">("unchecked");
 
     let advancedOpen = $state(false);
     let pendingIndexerNames = $state<string[]>([]);
@@ -30,12 +30,12 @@
     const addIndexerMutation = createAddProwlarrIndexerMutation();
     const deleteIndexerMutation = createDeleteProwlarrIndexerMutation();
 
-    let indexersQuery = $derived(createProwlarrIndexersQuery(() => connectionStatus === 'connected'));
-    let schemasQuery = $derived(createProwlarrIndexerSchemasQuery(() => connectionStatus === 'connected'));
+    let indexersQuery = $derived(createProwlarrIndexersQuery(() => connectionStatus === "connected"));
+    let schemasQuery = $derived(createProwlarrIndexerSchemasQuery(() => connectionStatus === "connected"));
     let indexers = $derived(indexersQuery.data ?? []);
     let schemas = $derived(schemasQuery.data ?? []);
     let loadingIndexers = $derived(
-        connectionStatus === 'connected' &&
+        connectionStatus === "connected" &&
             indexers.length === 0 &&
             pendingIndexerNames.length === 0 &&
             (indexersQuery.isPending || schemasQuery.isPending)
@@ -46,7 +46,7 @@
             .map((name) => ({
                 id: 0,
                 name,
-                protocol: 'torrent',
+                protocol: "torrent",
                 optimistic: true,
             }));
 
@@ -59,25 +59,25 @@
     // Constants
     const PACKAGES = [
         {
-            id: 'general',
-            name: 'General',
-            description: '1337x, YTS, TFB',
-            icon: '🎬',
-            indexers: ['1337x', 'YTS', 'The Pirate Bay'],
+            id: "general",
+            name: "General",
+            description: "1337x, YTS, TFB",
+            icon: "🎬",
+            indexers: ["1337x", "YTS", "The Pirate Bay"],
         },
         {
-            id: 'anime',
-            name: 'Anime',
-            description: 'Nyaa, AnimeTosho',
-            icon: '🎌',
-            indexers: ['Nyaa.si', 'AnimeTosho', 'AniDex'],
+            id: "anime",
+            name: "Anime",
+            description: "Nyaa, AnimeTosho",
+            icon: "🎌",
+            indexers: ["Nyaa.si", "AnimeTosho", "AniDex"],
         },
         {
-            id: 'show',
-            name: 'TV Shows',
-            description: 'EZTV, Galaxy',
-            icon: '📺',
-            indexers: ['EZTV', 'TorrentGalaxy', 'TorLock'],
+            id: "show",
+            name: "TV Shows",
+            description: "EZTV, Galaxy",
+            icon: "📺",
+            indexers: ["EZTV", "TorrentGalaxy", "TorLock"],
         },
     ];
 
@@ -96,26 +96,26 @@
 
     async function testConnection() {
         testingConnection = true;
-        connectionStatus = 'unchecked';
+        connectionStatus = "unchecked";
 
         try {
-            const res = await fetch('/api/prowlarr/test', {
-                method: 'POST',
+            const res = await fetch("/api/prowlarr/test", {
+                method: "POST",
                 body: JSON.stringify({
                     url: prowlarrUrl,
                     apiKey: prowlarrApiKey,
                 }),
-                headers: { 'Content-Type': 'application/json' },
+                headers: { "Content-Type": "application/json" },
             });
             const data = await res.json();
 
             if (data.success) {
-                connectionStatus = 'connected';
+                connectionStatus = "connected";
             } else {
-                connectionStatus = 'failed';
+                connectionStatus = "failed";
             }
         } catch (e) {
-            connectionStatus = 'failed';
+            connectionStatus = "failed";
         } finally {
             testingConnection = false;
         }
@@ -135,15 +135,15 @@
     async function deleteIndexer(id: number) {
         try {
             await deleteIndexerMutation.mutateAsync(id);
-            toast.success('Indexer removed');
+            toast.success("Indexer removed");
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Failed to remove indexer');
+            toast.error(error instanceof Error ? error.message : "Failed to remove indexer");
         }
     }
 
     async function applyPackage(pkg: (typeof PACKAGES)[0]) {
         if (loadingIndexers || schemas.length === 0) {
-            toast.error('Indexer list is still loading');
+            toast.error("Indexer list is still loading");
             return;
         }
 
@@ -154,14 +154,14 @@
             .filter((schema): schema is ProwlarrIndexerSchema => Boolean(schema));
 
         if (schemasToAdd.length === 0) {
-            toast.success('All package indexers are already configured', { id: toastId });
+            toast.success("All package indexers are already configured", { id: toastId });
             return;
         }
 
         const results = await Promise.allSettled(
             schemasToAdd.map((schema) => runWithPendingIndexer(schema, () => addIndexerMutation.mutateAsync(schema)))
         );
-        const addedCount = results.filter((result) => result.status === 'fulfilled').length;
+        const addedCount = results.filter((result) => result.status === "fulfilled").length;
         const failCount = results.length - addedCount;
 
         if (failCount === 0) {

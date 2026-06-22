@@ -1,10 +1,10 @@
 // Syncs TMDB season metadata and queues episode downloads for browse
 // FEATURE: Metadata-first episodic torrent acquisition for queued season ingestion flows
 
-import { mediaDb, seasonsDb } from './db';
-import { getShowLibraryDirectoryId } from './library-paths';
-import { acquireMediaByImdb, waitForTerminalMediaState } from './media-acquisition';
-import { getSeasonDetailsWithExternalIds, getTVDetails, saveTmdbImages } from './tmdb';
+import { mediaDb, seasonsDb } from "./db";
+import { getShowLibraryDirectoryId } from "./library-paths";
+import { acquireMediaByImdb, waitForTerminalMediaState } from "./media-acquisition";
+import { getSeasonDetailsWithExternalIds, getTVDetails, saveTmdbImages } from "./tmdb";
 
 const SEASON_DOWNLOAD_CONCURRENCY = 3;
 const activeSeasonJobs = new Map<string, Promise<void>>();
@@ -27,8 +27,8 @@ export interface AddSeasonFromBrowseContext {
 }
 
 export interface AddSeasonFromBrowseResult {
-	mode: 'browse-season';
-	status: 'queued';
+	mode: "browse-season";
+	status: "queued";
 	showId: string;
 	seasonId: string;
 	seasonNumber: number;
@@ -60,10 +60,10 @@ function getSeasonJobKey(showId: string, seasonNumber: number): string {
 }
 
 function shouldQueueEpisode(episode: { filePath: string | null; status: string | null }): boolean {
-	if (episode.filePath || episode.status === 'complete') {
+	if (episode.filePath || episode.status === "complete") {
 		return false;
 	}
-	return episode.status === 'pending' || episode.status === 'searching';
+	return episode.status === "pending" || episode.status === "searching";
 }
 
 async function resolveShowMetadata(params: AddSeasonFromBrowseParams): Promise<ShowMetadata> {
@@ -118,7 +118,7 @@ async function saveShowImages(showId: string, metadata: ShowMetadata): Promise<v
 				certification: metadata.certification,
 				totalSeasons: metadata.totalSeasons,
 			},
-			'library',
+			"library",
 			showDirectoryId
 		);
 		mediaDb.updateMetadata(showId, {
@@ -135,7 +135,7 @@ async function upsertShow(
 	params: AddSeasonFromBrowseParams
 ): Promise<{ showId: string; metadata: ShowMetadata }> {
 	const metadata = await resolveShowMetadata(params);
-	const existingShow = mediaDb.getByTmdbId(params.tmdbId, context.organizationId, 'show');
+	const existingShow = mediaDb.getByTmdbId(params.tmdbId, context.organizationId, "show");
 	if (existingShow) {
 		mediaDb.updateMetadata(existingShow.id, {
 			title: metadata.title,
@@ -156,7 +156,7 @@ async function upsertShow(
 	const show = mediaDb.create({
 		userId: context.userId,
 		organizationId: context.organizationId,
-		type: 'show',
+		type: "show",
 		title: metadata.title,
 		year: metadata.year,
 		posterUrl: metadata.posterUrl,
@@ -175,8 +175,8 @@ async function upsertShow(
 
 export async function syncSeasonMetadata(showId: string, tmdbId: number, seasonNumber: number) {
 	const show = mediaDb.getById(showId);
-	if (!(show && show.type === 'show')) {
-		throw new Error('Show not found');
+	if (!(show && show.type === "show")) {
+		throw new Error("Show not found");
 	}
 	const seasonDetails = await getSeasonDetailsWithExternalIds(tmdbId, seasonNumber);
 	const airedEpisodes = seasonDetails.episodes.filter((episode) => isEpisodeAired(episode.airDate));
@@ -208,13 +208,13 @@ export async function syncSeasonMetadata(showId: string, tmdbId: number, seasonN
 			seasonDetails.seasonNumber,
 			episode.episodeNumber
 		);
-		const nextStatus = episode.imdbId ? 'pending' : 'not_found';
+		const nextStatus = episode.imdbId ? "pending" : "not_found";
 		if (existingEpisode) {
 			let status = existingEpisode.status;
 			if (!(episode.imdbId || existingEpisode.filePath || existingEpisode.magnetLink)) {
 				status = nextStatus;
-			} else if (existingEpisode.status === 'not_found' && episode.imdbId && !existingEpisode.filePath) {
-				status = 'pending';
+			} else if (existingEpisode.status === "not_found" && episode.imdbId && !existingEpisode.filePath) {
+				status = "pending";
 			}
 			mediaDb.update(existingEpisode.id, {
 				parentId: showId,
@@ -236,7 +236,7 @@ export async function syncSeasonMetadata(showId: string, tmdbId: number, seasonN
 		mediaDb.create({
 			userId: show.userId,
 			organizationId: show.organizationId,
-			type: 'episode',
+			type: "episode",
 			parentId: showId,
 			seasonId: season.id,
 			seasonNumber: seasonDetails.seasonNumber,
@@ -261,16 +261,16 @@ export async function syncSeasonMetadata(showId: string, tmdbId: number, seasonN
 
 async function processSeasonEpisode(mediaId: string): Promise<void> {
 	const episode = mediaDb.getById(mediaId);
-	if (!(episode && episode.type === 'episode' && shouldQueueEpisode(episode))) {
+	if (!(episode && episode.type === "episode" && shouldQueueEpisode(episode))) {
 		return;
 	}
-	mediaDb.update(mediaId, { status: 'searching', progress: 0 });
+	mediaDb.update(mediaId, { status: "searching", progress: 0 });
 	const result = await acquireMediaByImdb(mediaId, {
-		mediaType: 'episode',
+		mediaType: "episode",
 		seasonNumber: episode.seasonNumber,
 		episodeNumber: episode.episodeNumber,
 	});
-	if (result.status === 'started' || result.status === 'active') {
+	if (result.status === "started" || result.status === "active") {
 		await waitForTerminalMediaState(mediaId);
 	}
 }
@@ -314,8 +314,8 @@ export async function addSeasonFromBrowse(
 	const { season, episodes } = await syncSeasonMetadata(showId, params.tmdbId, params.seasonNumber);
 	queueSeasonDownloads(showId, season.id, season.seasonNumber);
 	return {
-		mode: 'browse-season',
-		status: 'queued',
+		mode: "browse-season",
+		status: "queued",
 		showId,
 		seasonId: season.id,
 		seasonNumber: season.seasonNumber,

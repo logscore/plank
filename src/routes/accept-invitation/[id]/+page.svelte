@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { goto } from '$app/navigation';
-    import Button from '$lib/components/ui/Button.svelte';
-    import type { PageData } from './$types';
+    import { goto } from "$app/navigation";
+    import Button from "$lib/components/ui/Button.svelte";
+    import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
 </script>

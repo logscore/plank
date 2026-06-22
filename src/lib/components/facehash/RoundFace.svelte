@@ -1,6 +1,6 @@
 <script lang="ts">
     let {
-        class: className = '',
+        class: className = "",
         enableBlink = false,
         blinkTimings,
     }: {
@@ -15,13 +15,13 @@
     const rightBlinkStyle = $derived(
         enableBlink && blinkTimings?.right
             ? `animation: facehash-blink ${blinkTimings.right.duration}s ease-in-out ${blinkTimings.right.delay}s infinite; transform-origin: center center;`
-            : ''
+            : ""
     );
 
     const leftBlinkStyle = $derived(
         enableBlink && blinkTimings?.left
             ? `animation: facehash-blink ${blinkTimings.left.duration}s ease-in-out ${blinkTimings.left.delay}s infinite; transform-origin: center center;`
-            : ''
+            : ""
     );
 </script>
 

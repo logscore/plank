@@ -5,14 +5,14 @@
  * and cached magnet links. Called lazily after browse items render.
  */
 
-import { error, json } from '@sveltejs/kit';
-import { getBrowseItemDetails } from '$lib/server/tmdb';
-import { getCachedTorrents } from '$lib/server/torrent-cache';
-import type { RequestHandler } from './$types';
+import { error, json } from "@sveltejs/kit";
+import { getBrowseItemDetails } from "$lib/server/tmdb";
+import { getCachedTorrents } from "$lib/server/torrent-cache";
+import type { RequestHandler } from "./$types";
 
 interface DetailRequest {
 	tmdbId: number;
-	mediaType: 'movie' | 'show';
+	mediaType: "movie" | "show";
 }
 
 interface DetailResult {
@@ -24,7 +24,7 @@ interface DetailResult {
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw error(401, "Unauthorized");
 	}
 
 	const body: { items: DetailRequest[] } = await request.json();

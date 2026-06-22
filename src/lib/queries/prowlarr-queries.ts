@@ -1,6 +1,6 @@
-import { createQuery } from '@tanstack/svelte-query';
-import { queryKeys } from '$lib/query-keys';
-import { createFetchError } from './fetch-error';
+import { createQuery } from "@tanstack/svelte-query";
+import { queryKeys } from "$lib/query-keys";
+import { createFetchError } from "./fetch-error";
 
 export interface ProwlarrIndexer {
 	id: number;
@@ -16,17 +16,17 @@ export interface ProwlarrIndexerSchema {
 }
 
 export async function fetchProwlarrIndexers(): Promise<ProwlarrIndexer[]> {
-	const response = await fetch('/api/prowlarr/indexer');
+	const response = await fetch("/api/prowlarr/indexer");
 	if (!response.ok) {
-		throw createFetchError('Failed to fetch indexers', response.status);
+		throw createFetchError("Failed to fetch indexers", response.status);
 	}
 	return response.json();
 }
 
 export async function fetchProwlarrIndexerSchemas(): Promise<ProwlarrIndexerSchema[]> {
-	const response = await fetch('/api/prowlarr/indexer/schema');
+	const response = await fetch("/api/prowlarr/indexer/schema");
 	if (!response.ok) {
-		throw createFetchError('Failed to fetch indexer schemas', response.status);
+		throw createFetchError("Failed to fetch indexer schemas", response.status);
 	}
 	return response.json();
 }

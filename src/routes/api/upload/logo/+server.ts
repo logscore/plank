@@ -1,25 +1,25 @@
-import { error, json } from '@sveltejs/kit';
-import { and, eq } from 'drizzle-orm';
-import { db } from '$lib/server/db/index';
-import { schema } from '$lib/server/db/schema';
-import { replaceStoredImage } from '$lib/server/image-processing';
-import type { RequestHandler } from './$types';
+import { error, json } from "@sveltejs/kit";
+import { and, eq } from "drizzle-orm";
+import { db } from "$lib/server/db/index";
+import { schema } from "$lib/server/db/schema";
+import { replaceStoredImage } from "$lib/server/image-processing";
+import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw error(401, "Unauthorized");
 	}
 
 	const formData = await request.formData();
-	const file = formData.get('file');
-	const organizationId = formData.get('organizationId');
+	const file = formData.get("file");
+	const organizationId = formData.get("organizationId");
 
 	if (!(file && file instanceof File)) {
-		throw error(400, 'No file provided');
+		throw error(400, "No file provided");
 	}
 
-	if (!organizationId || typeof organizationId !== 'string') {
-		throw error(400, 'Organization ID required');
+	if (!organizationId || typeof organizationId !== "string") {
+		throw error(400, "Organization ID required");
 	}
 
 	const membership = db
@@ -28,8 +28,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.where(and(eq(schema.member.userId, locals.user.id), eq(schema.member.organizationId, organizationId)))
 		.get();
 
-	if (!membership || (membership.role !== 'owner' && membership.role !== 'admin')) {
-		throw error(403, 'Only owners and admins can update organization logo');
+	if (!membership || (membership.role !== "owner" && membership.role !== "admin")) {
+		throw error(403, "Only owners and admins can update organization logo");
 	}
 
 	const currentOrg = db
@@ -39,9 +39,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.get();
 
 	const buffer = Buffer.from(await file.arrayBuffer());
-	const result = await replaceStoredImage(currentOrg?.logo, buffer, file.type, 'logos', organizationId);
+	const result = await replaceStoredImage(currentOrg?.logo, buffer, file.type, "logos", organizationId);
 
-	if ('error' in result) {
+	if ("error" in result) {
 		throw error(400, result.error);
 	}
 

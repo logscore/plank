@@ -5,10 +5,10 @@
  * Searches for season packs and filters out individual episodes.
  */
 
-import { error, json } from '@sveltejs/kit';
-import { findBestSeasonTorrent, parseTorrentTitle } from '$lib/server/prowlarr';
-import { getBrowseItemDetails } from '$lib/server/tmdb';
-import type { RequestHandler } from './$types';
+import { error, json } from "@sveltejs/kit";
+import { findBestSeasonTorrent, parseTorrentTitle } from "$lib/server/prowlarr";
+import { getBrowseItemDetails } from "$lib/server/tmdb";
+import type { RequestHandler } from "./$types";
 
 export interface ResolveSeasonRequest {
 	tmdbId: number;
@@ -35,21 +35,21 @@ export interface ResolveSeasonResponse {
 export const POST: RequestHandler = async ({ request, locals }) => {
 	// Auth check
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw error(401, "Unauthorized");
 	}
 
 	const body: ResolveSeasonRequest = await request.json();
 	const { tmdbId, seasonNumber, showTitle, imdbId } = body;
 
 	if (!tmdbId || seasonNumber === undefined || !showTitle) {
-		throw error(400, 'tmdbId, seasonNumber, and showTitle are required');
+		throw error(400, "tmdbId, seasonNumber, and showTitle are required");
 	}
 
 	// Get IMDB ID if not provided
 	let resolvedImdbId = imdbId;
 	if (!resolvedImdbId) {
 		try {
-			const details = await getBrowseItemDetails(tmdbId, 'show');
+			const details = await getBrowseItemDetails(tmdbId, "show");
 			resolvedImdbId = details.imdbId ?? undefined;
 		} catch (e) {
 			console.error(`[API] Failed to get IMDB ID for TMDB ${tmdbId}:`, e);
@@ -62,7 +62,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!torrent) {
 		return json({
 			success: false,
-			error: 'No suitable torrent found',
+			error: "No suitable torrent found",
 			message: `Could not find a season pack for ${showTitle} Season ${seasonNumber}`,
 		});
 	}

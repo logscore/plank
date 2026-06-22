@@ -1,16 +1,16 @@
-import { betterAuth } from 'better-auth';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { organization } from 'better-auth/plugins';
-import { eq } from 'drizzle-orm';
-import { env } from '$env/dynamic/private';
-import { db } from './db/index';
-import { schema } from './db/schema';
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { organization } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
+import { env } from "$env/dynamic/private";
+import { db } from "./db/index";
+import { schema } from "./db/schema";
 
 export const auth = betterAuth({
 	secret: env.BETTER_AUTH_SECRET,
 	baseURL: env.BETTER_AUTH_URL,
 	database: drizzleAdapter(db, {
-		provider: 'sqlite',
+		provider: "sqlite",
 		schema: {
 			user: schema.user,
 			session: schema.session,
@@ -27,8 +27,8 @@ export const auth = betterAuth({
 	user: {
 		additionalFields: {
 			role: {
-				type: 'string',
-				defaultValue: 'user',
+				type: "string",
+				defaultValue: "user",
 				input: false,
 			},
 		},
@@ -46,7 +46,7 @@ export const auth = betterAuth({
 					return {
 						data: {
 							...user,
-							role: existingUsers.length === 0 ? 'admin' : 'user',
+							role: existingUsers.length === 0 ? "admin" : "user",
 						},
 					};
 				},
@@ -62,7 +62,7 @@ export const auth = betterAuth({
 					.from(schema.user)
 					.where(eq(schema.user.id, user.id))
 					.get();
-				return dbUser?.role === 'admin';
+				return dbUser?.role === "admin";
 			},
 		}),
 	],

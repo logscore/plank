@@ -1,14 +1,14 @@
 <script lang="ts">
-    import { Check, ChevronDown, ClosedCaption, Plus, Trash2 } from '@lucide/svelte';
-    import Button from '$lib/components/ui/Button.svelte';
-    import { createDeleteSubtitleMutation, createSetDefaultSubtitleMutation } from '$lib/mutations/media-mutations';
-    import type { SubtitleTrackResponse } from '$lib/queries/media-queries';
-    import { createSubtitleTracksQuery } from '$lib/queries/media-queries';
+    import { Check, ChevronDown, ClosedCaption, Plus, Trash2 } from "@lucide/svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import { createDeleteSubtitleMutation, createSetDefaultSubtitleMutation } from "$lib/mutations/media-mutations";
+    import type { SubtitleTrackResponse } from "$lib/queries/media-queries";
+    import { createSubtitleTracksQuery } from "$lib/queries/media-queries";
 
     let {
         mediaId,
         onAddSubtitles,
-        buttonClass = '',
+        buttonClass = "",
         compact = false,
     }: {
         mediaId: string;
@@ -58,14 +58,14 @@
 
     function getSourceLabel(source: string): string {
         switch (source) {
-            case 'embedded':
-                return 'Embedded';
-            case 'sidecar':
-                return 'File';
-            case 'opensubtitles':
-                return 'OpenSub';
-            case 'manual':
-                return 'Manual';
+            case "embedded":
+                return "Embedded";
+            case "sidecar":
+                return "File";
+            case "opensubtitles":
+                return "OpenSub";
+            case "manual":
+                return "Manual";
             default:
                 return source;
         }
@@ -76,12 +76,12 @@
 
     $effect(() => {
         if (isOpen) {
-            document.addEventListener('click', handleClickOutside);
+            document.addEventListener("click", handleClickOutside);
         } else {
-            document.removeEventListener('click', handleClickOutside);
+            document.removeEventListener("click", handleClickOutside);
         }
         return () => {
-            document.removeEventListener('click', handleClickOutside);
+            document.removeEventListener("click", handleClickOutside);
         };
     });
 </script>

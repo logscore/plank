@@ -1,37 +1,37 @@
 <script lang="ts">
-    import { goto } from '$app/navigation';
-    import { authClient } from '$lib/auth-client';
-    import Facehash from '$lib/components/facehash/Facehash.svelte';
-    import OnboardingIndexer from '$lib/components/onboarding/OnboardingIndexer.svelte';
-    import Button from '$lib/components/ui/Button.svelte';
-    import Input from '$lib/components/ui/Input.svelte';
-    import type { PageData } from './$types';
+    import { goto } from "$app/navigation";
+    import { authClient } from "$lib/auth-client";
+    import Facehash from "$lib/components/facehash/Facehash.svelte";
+    import OnboardingIndexer from "$lib/components/onboarding/OnboardingIndexer.svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import Input from "$lib/components/ui/Input.svelte";
+    import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
 
     let step = $state(1); // 1: Create Profile, 2: Indexers, 3: Invite
     let loading = $state(false);
-    let error = $state('');
+    let error = $state("");
 
     // Profile form
-    let profileName = $state('');
-    let organizationId = $state('');
+    let profileName = $state("");
+    let organizationId = $state("");
 
     // Invitation form
-    let inviteEmail = $state('');
+    let inviteEmail = $state("");
     let invitedEmails = $state<string[]>([]);
 
     async function handleCreateProfile(e: Event) {
         e.preventDefault();
         loading = true;
-        error = '';
+        error = "";
 
         try {
             const slug =
                 profileName
                     .toLowerCase()
-                    .replace(/\s+/g, '-')
-                    .replace(/[^a-z0-9-]/g, '') || `profile-${Date.now()}`;
+                    .replace(/\s+/g, "-")
+                    .replace(/[^a-z0-9-]/g, "") || `profile-${Date.now()}`;
 
             const result = await authClient.organization.create({
                 name: profileName,
@@ -39,7 +39,7 @@
             });
 
             if (result.error) {
-                error = result.error.message || 'Failed to create profile';
+                error = result.error.message || "Failed to create profile";
             } else if (result.data) {
                 organizationId = result.data.id;
 
@@ -50,7 +50,7 @@
                 step = 2;
             }
         } catch {
-            error = 'An error occurred. Please try again.';
+            error = "An error occurred. Please try again.";
         } finally {
             loading = false;
         }
@@ -67,30 +67,30 @@
         }
 
         loading = true;
-        error = '';
+        error = "";
 
         try {
             const result = await authClient.organization.inviteMember({
                 email: inviteEmail,
-                role: 'member',
+                role: "member",
                 organizationId,
             });
 
             if (result.error) {
-                error = result.error.message || 'Failed to invite member';
+                error = result.error.message || "Failed to invite member";
             } else {
                 invitedEmails = [...invitedEmails, inviteEmail];
-                inviteEmail = '';
+                inviteEmail = "";
             }
         } catch {
-            error = 'An error occurred inviting member.';
+            error = "An error occurred inviting member.";
         } finally {
             loading = false;
         }
     }
 
     async function handleFinish() {
-        goto('/');
+        goto("/");
     }
 </script>
 

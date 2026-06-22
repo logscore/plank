@@ -1,10 +1,10 @@
 // Resolves stable library paths for movies shows seasons and episodes
 // FEATURE: Shared filesystem layout for media storage and cleanup behavior
 
-import path from 'node:path';
-import { config } from '$lib/config';
-import { mediaDb } from './db';
-import { buildEpisodeFileName, buildMovieLibraryDirectoryName, buildShowLibraryDirectoryName } from './media-naming';
+import path from "node:path";
+import { config } from "$lib/config";
+import { mediaDb } from "./db";
+import { buildEpisodeFileName, buildMovieLibraryDirectoryName, buildShowLibraryDirectoryName } from "./media-naming";
 
 interface MovieDirectoryMedia {
 	id: string;
@@ -53,7 +53,7 @@ export function getShowLibraryDirectoryId(show: ShowDirectoryMedia): string {
 }
 
 export function getSeasonLibraryDirectory(show: ShowDirectoryMedia, seasonNumber: number | null): string {
-	return path.join(getShowLibraryRoot(show), `Season ${String(seasonNumber ?? 0).padStart(2, '0')}`);
+	return path.join(getShowLibraryRoot(show), `Season ${String(seasonNumber ?? 0).padStart(2, "0")}`);
 }
 
 export function getEpisodeLibraryPath(

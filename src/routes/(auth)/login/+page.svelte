@@ -1,19 +1,19 @@
 <script lang="ts">
-    import { goto } from '$app/navigation';
-    import { page } from '$app/state';
-    import { authClient } from '$lib/auth-client';
-    import Button from '$lib/components/ui/Button.svelte';
-    import Input from '$lib/components/ui/Input.svelte';
+    import { goto } from "$app/navigation";
+    import { page } from "$app/state";
+    import { authClient } from "$lib/auth-client";
+    import Button from "$lib/components/ui/Button.svelte";
+    import Input from "$lib/components/ui/Input.svelte";
 
-    let email = $state('');
-    let password = $state('');
+    let email = $state("");
+    let password = $state("");
     let loading = $state(false);
-    let error = $state('');
+    let error = $state("");
 
     async function handleSubmit(e: Event) {
         e.preventDefault();
         loading = true;
-        error = '';
+        error = "";
 
         try {
             const result = await authClient.signIn.email({
@@ -22,13 +22,13 @@
             });
 
             if (result.error) {
-                error = result.error.message || 'Invalid credentials';
+                error = result.error.message || "Invalid credentials";
             } else {
-                const redirectTo = page.url.searchParams.get('redirectTo');
-                goto(redirectTo || '/profiles');
+                const redirectTo = page.url.searchParams.get("redirectTo");
+                goto(redirectTo || "/profiles");
             }
         } catch (e) {
-            error = 'An error occurred. Please try again.';
+            error = "An error occurred. Please try again.";
         } finally {
             loading = false;
         }

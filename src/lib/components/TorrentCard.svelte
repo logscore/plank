@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { ChevronDown, Play, Plus } from '@lucide/svelte';
-    import type { BrowseItem } from '$lib/server/tmdb';
-    import { cn } from '$lib/utils';
-    import Button from './ui/Button.svelte';
-    import type { SeasonData } from './ui/ContextMenu.svelte';
-    import ContextMenu from './ui/ContextMenu.svelte';
-    import Tv from './ui/Tv.svelte';
+    import { ChevronDown, Play, Plus } from "@lucide/svelte";
+    import type { BrowseItem } from "$lib/server/tmdb";
+    import { cn } from "$lib/utils";
+    import Button from "./ui/Button.svelte";
+    import type { SeasonData } from "./ui/ContextMenu.svelte";
+    import ContextMenu from "./ui/ContextMenu.svelte";
+    import Tv from "./ui/Tv.svelte";
 
     let {
         item,
@@ -38,7 +38,7 @@
         class?: string;
     } = $props();
 
-    const isTvShow = $derived(item.mediaType === 'show');
+    const isTvShow = $derived(item.mediaType === "show");
     // Check if seasons are already loaded (from parent's cache)
     const hasSeasonsLoaded = $derived(seasons.length > 0);
 
@@ -53,14 +53,14 @@
 
     function handleClick(e: Event) {
         // Don't toggle if we clicked an interactive element inside
-        if ((e.target as HTMLElement).closest('button, a')) {
+        if ((e.target as HTMLElement).closest("button, a")) {
             return;
         }
         isMobileActive = !isMobileActive;
     }
 
     function handleKeydown(e: KeyboardEvent) {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             isMobileActive = !isMobileActive;
         }
@@ -136,14 +136,14 @@
 
     const isDisabled = $derived(isAdding);
 
-    let progressState = $state<'idle' | 'adding' | 'completing'>('idle');
+    let progressState = $state<"idle" | "adding" | "completing">("idle");
     let progressWidth = $state(0);
     let transitionDuration = $state(0);
 
     $effect(() => {
         if (isAdding) {
-            if (progressState === 'idle') {
-                progressState = 'adding';
+            if (progressState === "idle") {
+                progressState = "adding";
                 progressWidth = 0;
                 transitionDuration = 0;
 
@@ -155,13 +155,13 @@
                     });
                 });
             }
-        } else if (progressState === 'adding') {
-            progressState = 'completing';
+        } else if (progressState === "adding") {
+            progressState = "completing";
             progressWidth = 100;
             transitionDuration = 200; // Fast finish
 
             setTimeout(() => {
-                progressState = 'idle';
+                progressState = "idle";
                 progressWidth = 0;
                 transitionDuration = 0;
             }, 500); // Wait for completion animation

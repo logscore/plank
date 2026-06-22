@@ -1,7 +1,7 @@
-import { eq } from 'drizzle-orm';
-import { db } from '$lib/server/db/index';
-import { user as userTable } from '$lib/server/db/schema';
-import type { LayoutServerLoad } from './$types';
+import { eq } from "drizzle-orm";
+import { db } from "$lib/server/db/index";
+import { user as userTable } from "$lib/server/db/schema";
+import type { LayoutServerLoad } from "./$types";
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	if (!locals.user) {

@@ -1,7 +1,7 @@
 <script lang="ts">
-    import '../app.css';
-    import { Toaster } from 'svelte-sonner';
-    import QueryProvider from '$lib/components/QueryProvider.svelte';
+    import "../app.css";
+    import { Toaster } from "svelte-sonner";
+    import QueryProvider from "$lib/components/QueryProvider.svelte";
 
     let { children } = $props();
 </script>

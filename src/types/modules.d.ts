@@ -1,4 +1,4 @@
-declare module 'parse-torrent' {
+declare module "parse-torrent" {
 	interface ParsedTorrent {
 		infoHash?: string;
 		name?: string;
@@ -9,7 +9,7 @@ declare module 'parse-torrent' {
 	export = parseTorrent;
 }
 
-declare module 'parse-torrent-title' {
+declare module "parse-torrent-title" {
 	interface ParsedTitle {
 		title: string;
 		year?: number;
@@ -23,8 +23,8 @@ declare module 'parse-torrent-title' {
 	export function parse(title: string): ParsedTitle;
 }
 
-declare module 'webtorrent' {
-	import type { Readable } from 'node:stream';
+declare module "webtorrent" {
+	import type { Readable } from "node:stream";
 
 	interface TorrentFile {
 		name: string;
@@ -53,11 +53,11 @@ declare module 'webtorrent' {
 		ready: boolean;
 		paused: boolean;
 		destroy(opts?: { destroyStore?: boolean }, callback?: () => void): void;
-		on(event: 'done' | 'metadata' | 'ready', callback: () => void): void;
-		on(event: 'upload' | 'download', callback: (bytes: number) => void): void;
-		on(event: 'wire', callback: (wire: unknown) => void): void;
-		on(event: 'noPeers', callback: (announceType: string) => void): void;
-		on(event: 'warning' | 'error', callback: (err: Error) => void): void;
+		on(event: "done" | "metadata" | "ready", callback: () => void): void;
+		on(event: "upload" | "download", callback: (bytes: number) => void): void;
+		on(event: "wire", callback: (wire: unknown) => void): void;
+		on(event: "noPeers", callback: (announceType: string) => void): void;
+		on(event: "warning" | "error", callback: (err: Error) => void): void;
 		on(event: string, callback: (...args: unknown[]) => void): void;
 	}
 
@@ -93,8 +93,8 @@ declare module 'webtorrent' {
 		uploadSpeed: number;
 		progress: number;
 		ratio: number;
-		on(event: 'torrent', callback: (torrent: Torrent) => void): void;
-		on(event: 'error', callback: (err: Error) => void): void;
+		on(event: "torrent", callback: (torrent: Torrent) => void): void;
+		on(event: "error", callback: (err: Error) => void): void;
 		on(event: string, callback: (...args: unknown[]) => void): void;
 	}
 

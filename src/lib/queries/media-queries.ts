@@ -1,15 +1,15 @@
-import { createQuery } from '@tanstack/svelte-query';
-import { queryKeys } from '$lib/query-keys';
-import type { Media, OpenSubtitleResult } from '$lib/types';
-import { createFetchError } from './fetch-error';
+import { createQuery } from "@tanstack/svelte-query";
+import { queryKeys } from "$lib/query-keys";
+import type { Media, OpenSubtitleResult } from "$lib/types";
+import { createFetchError } from "./fetch-error";
 
-export type { FetchError } from './fetch-error';
+export type { FetchError } from "./fetch-error";
 
 /**
  * Fetch media list by type
  */
-export async function fetchMediaList(type: 'movie' | 'show' | 'all'): Promise<Media[]> {
-	const params = type !== 'all' ? `?type=${type}` : '';
+export async function fetchMediaList(type: "movie" | "show" | "all"): Promise<Media[]> {
+	const params = type !== "all" ? `?type=${type}` : "";
 	const response = await fetch(`/api/media${params}`);
 
 	if (!response.ok) {
@@ -19,7 +19,7 @@ export async function fetchMediaList(type: 'movie' | 'show' | 'all'): Promise<Me
 	return response.json();
 }
 
-export function createMediaListQuery(type: 'movie' | 'show' | 'all' = 'all') {
+export function createMediaListQuery(type: "movie" | "show" | "all" = "all") {
 	return createQuery(() => ({
 		queryKey: queryKeys.media.list(type),
 		queryFn: () => fetchMediaList(type),
@@ -101,9 +101,9 @@ export function createMediaProgressQuery(id: string, options?: { enabled?: boole
 }
 
 export async function fetchContinueWatching(): Promise<Media[]> {
-	const response = await fetch('/api/media/continue-watching');
+	const response = await fetch("/api/media/continue-watching");
 	if (!response.ok) {
-		throw createFetchError('Failed to fetch continue watching', response.status);
+		throw createFetchError("Failed to fetch continue watching", response.status);
 	}
 	return response.json();
 }
@@ -124,7 +124,7 @@ export interface PlayPosition {
 export async function fetchPlayPosition(id: string): Promise<PlayPosition> {
 	const response = await fetch(`/api/media/${id}/position`);
 	if (!response.ok) {
-		throw createFetchError('Failed to fetch position', response.status);
+		throw createFetchError("Failed to fetch position", response.status);
 	}
 	return response.json();
 }
@@ -143,7 +143,7 @@ export interface SubtitleTrackResponse {
 export async function fetchSubtitleTracks(id: string): Promise<SubtitleTrackResponse[]> {
 	const response = await fetch(`/api/media/${id}/subtitles`);
 	if (!response.ok) {
-		throw createFetchError('Failed to fetch subtitles', response.status);
+		throw createFetchError("Failed to fetch subtitles", response.status);
 	}
 	return response.json();
 }
@@ -166,17 +166,17 @@ export async function searchOpenSubtitles(
 ): Promise<OpenSubtitleResult[]> {
 	const params = new URLSearchParams();
 	if (options?.languages) {
-		params.set('languages', options.languages);
+		params.set("languages", options.languages);
 	}
 	if (options?.seasonNumber !== undefined) {
-		params.set('seasonNumber', String(options.seasonNumber));
+		params.set("seasonNumber", String(options.seasonNumber));
 	}
 	if (options?.episodeNumber != null) {
-		params.set('episodeNumber', String(options.episodeNumber));
+		params.set("episodeNumber", String(options.episodeNumber));
 	}
 	const response = await fetch(`/api/media/${mediaId}/subtitles/search?${params.toString()}`);
 	if (!response.ok) {
-		throw createFetchError('Failed to search subtitles', response.status);
+		throw createFetchError("Failed to search subtitles", response.status);
 	}
 	return response.json();
 }
