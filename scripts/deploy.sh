@@ -157,11 +157,6 @@ setup_env() {
     # Generate random secret for authentication
     BETTER_AUTH_SECRET=$(openssl rand -hex 32)
     echo -e "Generated auth secret: ${GREEN}${BETTER_AUTH_SECRET:0:16}...${NC}"
-
-    # File storage
-    read -p "Enable File Storage? (true/false) [true]: " ENABLE_FILE_STORAGE
-    ENABLE_FILE_STORAGE=${ENABLE_FILE_STORAGE:-true}
-
     cat > .env << EOF
 # Database
 DATABASE_URL=$(env_value "$DATABASE_URL")
@@ -189,7 +184,6 @@ BETTER_AUTH_SECRET=$(env_value "$BETTER_AUTH_SECRET")
 BETTER_AUTH_URL=$(env_value "$BETTER_AUTH_URL")
 
 # Server
-ENABLE_FILE_STORAGE=$(env_value "$ENABLE_FILE_STORAGE")
 PORT=$(env_value "$PORT")
 HOST=0.0.0.0
 ORIGIN=$(env_value "$BETTER_AUTH_URL")

@@ -127,10 +127,6 @@ OPENSUBTITLES_PASSWORD=
 # Authentication
 BETTER_AUTH_SECRET=super-secret-32-char-string
 BETTER_AUTH_URL=http://localhost:3300
-
-# Reserved for future functionality. Keep as true
-ENABLE_FILE_STORAGE=true
-
 PORT=3300
 ORIGIN=http://localhost:3300 # Required for Docker CSRF protection
 ```
@@ -292,7 +288,6 @@ node build
 | `OPENSUBTITLES_PASSWORD` | OpenSubtitles account password                                                      | -                       |
 | `BETTER_AUTH_SECRET`     | Auth secret (auto-generated)                                                        | -                       |
 | `BETTER_AUTH_URL`        | Base URL for auth                                                                   | `http://localhost:3300` |
-| `ENABLE_FILE_STORAGE`    | Save downloaded files to disk (reserved for future use)                             | `true`                  |
 | `PORT`                   | Server port                                                                         | `3300`                  |
 | `ORIGIN`                 | Public URL for CSRF (Docker)                                                        | `http://localhost:3300` |
 

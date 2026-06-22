@@ -154,7 +154,9 @@
             .filter((schema): schema is ProwlarrIndexerSchema => Boolean(schema));
 
         if (schemasToAdd.length === 0) {
-            toast.success("All package indexers are already configured", { id: toastId });
+            toast.success("All package indexers are already configured", {
+                id: toastId,
+            });
             return;
         }
 
@@ -169,7 +171,9 @@
             return;
         }
 
-        toast.error(`Added ${addedCount} indexers, ${failCount} failed`, { id: toastId });
+        toast.error(`Added ${addedCount} indexers, ${failCount} failed`, {
+            id: toastId,
+        });
     }
 
     onMount(() => {
@@ -196,7 +200,7 @@
                 <Loader class="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
         {:else if visibleIndexers.length > 0}
-            <div class="flex flex-wrap gap-2 p-2 rounded-lg bg-black/20 border border-white/5 min-h-[50px]">
+            <div class="flex flex-wrap gap-2 p-2 rounded-lg bg-black/20 border border-white/5 min-h-12.5">
                 {#each visibleIndexers as indexer (indexer.name)}
                     <div
                         class="flex items-center gap-1 pl-2 pr-1 py-1 rounded-full border text-xs {indexer.optimistic

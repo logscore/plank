@@ -16,7 +16,6 @@ vi.mock("$env/dynamic/private", () => ({
 		BETTER_AUTH_SECRET: "test-secret-key-for-testing-purposes",
 		BETTER_AUTH_URL: "http://localhost:5173",
 		TMDB_API_KEY: "test-tmdb-api-key",
-		ENABLE_FILE_STORAGE: "false",
 		DATA_PATH: "/tmp/test-data", // Config mock needs this
 	},
 }));
