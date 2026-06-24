@@ -1,7 +1,7 @@
-import type { BrowseResponse } from '$lib/queries/browse-queries';
-import { fetchBrowse, fetchProwlarrStatus } from '$lib/queries/browse-queries';
-import { queryClient } from '$lib/query-client';
-import { queryKeys } from '$lib/query-keys';
+import type { BrowseResponse } from "$lib/queries/browse-queries";
+import { fetchBrowse, fetchProwlarrStatus } from "$lib/queries/browse-queries";
+import { queryClient } from "$lib/query-client";
+import { queryKeys } from "$lib/query-keys";
 
 // How many poster images to preload per tab (first visible page of items)
 const IMAGE_PRELOAD_COUNT = 18;
@@ -24,7 +24,7 @@ function preloadImages(items: { posterUrl: string | null }[]) {
 	};
 
 	// Use requestIdleCallback if available, otherwise setTimeout
-	if (typeof requestIdleCallback === 'function') {
+	if (typeof requestIdleCallback === "function") {
 		requestIdleCallback(load);
 	} else {
 		setTimeout(load, 0);
@@ -34,7 +34,7 @@ function preloadImages(items: { posterUrl: string | null }[]) {
 /**
  * Prefetch browse data (trending/popular) and preload poster images.
  */
-export function prefetchBrowse(type: 'trending' | 'popular', filter: 'all' | 'movie' | 'show' = 'all') {
+export function prefetchBrowse(type: "trending" | "popular", filter: "all" | "movie" | "show" = "all") {
 	queryClient
 		.prefetchInfiniteQuery({
 			queryKey: queryKeys.browse.infinite(type, filter),
@@ -56,9 +56,9 @@ export function prefetchBrowse(type: 'trending' | 'popular', filter: 'all' | 'mo
  * Prefetch both browse tabs (trending and popular) for a given filter
  * Call this on page load to warm the cache for tab switching
  */
-export function prefetchBothBrowseTabs(filter: 'all' | 'movie' | 'show' = 'all') {
-	prefetchBrowse('trending', filter);
-	prefetchBrowse('popular', filter);
+export function prefetchBothBrowseTabs(filter: "all" | "movie" | "show" = "all") {
+	prefetchBrowse("trending", filter);
+	prefetchBrowse("popular", filter);
 }
 
 /**
@@ -71,5 +71,5 @@ export function prefetchBrowseData() {
 		queryFn: fetchProwlarrStatus,
 		staleTime: 5 * 60 * 1000, // 5 minutes
 	});
-	prefetchBothBrowseTabs('all');
+	prefetchBothBrowseTabs("all");
 }

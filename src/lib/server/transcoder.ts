@@ -1,10 +1,31 @@
-import { existsSync } from 'node:fs';
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import { mediaDb } from './db';
-import { normalizeFileForPlayback, probeFile, requiresBrowserSafePlayback } from './ffmpeg';
+import { existsSync } from "node:fs";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { mediaDb } from "./db";
+import { normalizeFileForPlayback, probeFile, requiresBrowserSafePlayback } from "./ffmpeg";
 
 const activeNormalizationJobs = new Map<string, Promise<string | null>>();
+const LIBRARY_SCAN_CONCURRENCY = 1;
+
+let activeLibraryScan: Promise<void> | null = null;
+
+async function runWithConcurrency<T>(
+	items: T[],
+	concurrency: number,
+	worker: (item: T) => Promise<void>
+): Promise<void> {
+	let nextIndex = 0;
+	const workerCount = Math.min(concurrency, items.length);
+	await Promise.all(
+		Array.from({ length: workerCount }, async () => {
+			while (nextIndex < items.length) {
+				const item = items[nextIndex];
+				nextIndex += 1;
+				await worker(item);
+			}
+		})
+	);
+}
 
 async function verifyFileIntegrity(filePath: string): Promise<boolean> {
 	try {
@@ -21,7 +42,7 @@ async function verifyFileIntegrity(filePath: string): Promise<boolean> {
 }
 
 async function isDirectPlaybackReady(filePath: string): Promise<boolean> {
-	if (path.extname(filePath).toLowerCase() !== '.mp4') {
+	if (path.extname(filePath).toLowerCase() !== ".mp4") {
 		return false;
 	}
 	try {
@@ -33,24 +54,40 @@ async function isDirectPlaybackReady(filePath: string): Promise<boolean> {
 }
 
 export async function transcodeLibrary(): Promise<void> {
-	await scanMovies();
-	await scanShows();
+	if (activeLibraryScan) {
+		return activeLibraryScan;
+	}
+
+	activeLibraryScan = (async () => {
+		await scanMovies();
+		await scanShows();
+	})();
+
+	try {
+		await activeLibraryScan;
+	} finally {
+		activeLibraryScan = null;
+	}
 }
 
 async function scanMovies(): Promise<void> {
 	const movies = mediaDb
 		.getAll()
-		.filter((media) => media.type === 'movie' && media.filePath && existsSync(media.filePath));
-	await Promise.all(movies.map(async (media) => normalizeMediaForPlayback(media.id)));
+		.filter((media) => media.type === "movie" && media.filePath && existsSync(media.filePath));
+	await runWithConcurrency(movies, LIBRARY_SCAN_CONCURRENCY, async (media) => {
+		await normalizeMediaForPlayback(media.id);
+	});
 }
 
 async function scanShows(): Promise<void> {
 	const showIds = mediaDb
 		.getAll()
-		.filter((media) => media.type === 'show')
+		.filter((media) => media.type === "show")
 		.map((media) => media.id);
 	const episodes = showIds.flatMap((showId) => mediaDb.getEpisodesByParentId(showId));
-	await Promise.all(episodes.map(async (episode) => normalizeMediaForPlayback(episode.id)));
+	await runWithConcurrency(episodes, LIBRARY_SCAN_CONCURRENCY, async (episode) => {
+		await normalizeMediaForPlayback(episode.id);
+	});
 }
 
 export async function transcodeMovieFile(mediaId: string): Promise<void> {
@@ -59,7 +96,9 @@ export async function transcodeMovieFile(mediaId: string): Promise<void> {
 
 export async function transcodeTVEpisodes(showId: string): Promise<void> {
 	const episodes = mediaDb.getEpisodesByParentId(showId);
-	await Promise.all(episodes.map(async (episode) => normalizeMediaForPlayback(episode.id)));
+	await runWithConcurrency(episodes, LIBRARY_SCAN_CONCURRENCY, async (episode) => {
+		await normalizeMediaForPlayback(episode.id);
+	});
 }
 
 export async function finalizeMediaToLibrary(
@@ -121,7 +160,7 @@ export async function normalizeMediaForPlayback(mediaId: string): Promise<string
 		}
 		console.log(`[Transcoder] Normalizing ${media.type} ${mediaId}: ${media.filePath}`);
 		await safeNormalize(media.filePath, (newPath, newSize) => {
-			if (media.type === 'episode') {
+			if (media.type === "episode") {
 				mediaDb.updateFileInfo(media.id, {
 					fileIndex: media.fileIndex,
 					filePath: newPath,
@@ -147,7 +186,7 @@ async function shouldNormalizeFile(filePath: string | null): Promise<boolean> {
 		return false;
 	}
 	const extension = path.extname(filePath).toLowerCase();
-	if (extension !== '.mp4') {
+	if (extension !== ".mp4") {
 		return true;
 	}
 	try {

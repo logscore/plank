@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { Film, LogOut, Play, Plus, Search, Settings, User, Users } from '@lucide/svelte';
-    import type { Snippet } from 'svelte';
-    import { fade, fly } from 'svelte/transition';
-    import { page } from '$app/state';
-    import { uiState } from '$lib/ui-state.svelte';
-    import { cn } from '$lib/utils';
-    import Facehash from './facehash/Facehash.svelte';
+    import { Film, LogOut, Play, Plus, Search, Settings, User, Users } from "@lucide/svelte";
+    import type { Snippet } from "svelte";
+    import { fade, fly } from "svelte/transition";
+    import { page } from "$app/state";
+    import { uiState } from "$lib/ui-state.svelte";
+    import { cn } from "$lib/utils";
+    import Facehash from "./facehash/Facehash.svelte";
 
     let {
         children,
@@ -18,21 +18,21 @@
     let showAccountMenu = $state(false);
 
     const navItems = [
-        { href: '/', icon: Film, label: 'Library' },
-        { href: '/browse', icon: Play, label: 'Browse' },
-        { href: '/search', icon: Search, label: 'Search' },
+        { href: "/", icon: Film, label: "Library" },
+        { href: "/browse", icon: Play, label: "Browse" },
+        { href: "/search", icon: Search, label: "Search" },
     ];
 
     // Hide nav on player, profile selection, and onboarding pages
     const hideNav = $derived(
-        page.url.pathname.startsWith('/watch') ||
-            page.url.pathname === '/profiles' ||
-            page.url.pathname.startsWith('/profiles/') ||
-            page.url.pathname.startsWith('/onboarding')
+        page.url.pathname.startsWith("/watch") ||
+            page.url.pathname === "/profiles" ||
+            page.url.pathname.startsWith("/profiles/") ||
+            page.url.pathname.startsWith("/onboarding")
     );
 
     function handleClickOutside(e: MouseEvent) {
-        if (showAccountMenu && !(e.target as HTMLElement).closest('.account-menu')) {
+        if (showAccountMenu && !(e.target as HTMLElement).closest(".account-menu")) {
             showAccountMenu = false;
         }
     }

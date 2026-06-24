@@ -1,21 +1,21 @@
-import { error, json } from '@sveltejs/kit';
-import { and, eq, like } from 'drizzle-orm';
-import { db } from '$lib/server/db/index';
-import { media } from '$lib/server/db/schema';
-import type { RequestHandler } from './$types';
+import { error, json } from "@sveltejs/kit";
+import { and, eq, like } from "drizzle-orm";
+import { db } from "$lib/server/db/index";
+import { media } from "$lib/server/db/schema";
+import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw error(401, "Unauthorized");
 	}
 
 	const organizationId = locals.session?.activeOrganizationId;
 	if (!organizationId) {
-		throw error(400, 'No active profile selected');
+		throw error(400, "No active profile selected");
 	}
 
-	const query = url.searchParams.get('q');
-	const type = url.searchParams.get('type');
+	const query = url.searchParams.get("q");
+	const type = url.searchParams.get("type");
 
 	if (!query || query.length < 2) {
 		return json([]);
@@ -26,14 +26,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			where: and(
 				eq(media.organizationId, organizationId),
 				like(media.title, `%${query}%`),
-				type ? eq(media.type, type as 'movie' | 'show') : undefined
+				type ? eq(media.type, type as "movie" | "show") : undefined
 			),
 			orderBy: (media, { desc }) => [desc(media.addedAt)],
 		});
 
 		return json(results);
 	} catch (err) {
-		console.error('Search failed:', err);
-		throw error(500, 'Failed to search library');
+		console.error("Search failed:", err);
+		throw error(500, "Failed to search library");
 	}
 };

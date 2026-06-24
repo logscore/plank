@@ -53,6 +53,22 @@ run_privileged_docker_compose() {
     fi
 }
 
+default_public_prowlarr_url() {
+    local base_url="$1"
+
+    if [[ "$base_url" =~ ^(https?://[^/:]+)(:[0-9]+)?(/.*)?$ ]]; then
+        echo "${BASH_REMATCH[1]}:9696"
+    else
+        echo "http://localhost:9696"
+    fi
+}
+
+env_value() {
+    local value="$1"
+    value=${value//\'/\'\\\'\'}
+    printf "'%s'" "$value"
+}
+
 # Repository URL
 REPO_URL="https://github.com/logscore/plank.git"
 INSTALL_DIR="plank"
@@ -82,6 +98,8 @@ clone_repo() {
 
 # Function to prompt for environment variables
 setup_env() {
+    DEPLOYMENT_TARGET="$1"
+
     echo -e "\n${YELLOW}=== Configuration ===${NC}"
 
     if [ -f .env ]; then
@@ -94,49 +112,81 @@ setup_env() {
 
     echo "Generating .env file..."
 
-    # Use absolute path for database
-    DEFAULT_DB_PATH="$(pwd)/plank.db"
-    DEFAULT_DATA_PATH="$(pwd)/data"
-
-    # Database
-    DATABASE_URL=$DEFAULT_DB_PATH
-
-    # Data path for downloads
-    DATA_PATH=$DEFAULT_DATA_PATH
-
-    # TMDB API Key
-    read -p "Enter TMDB API Key (get yours at https://www.themoviedb.org/settings/api): " TMDB_API_KEY
-
-    # Generate random secret for authentication
-    BETTER_AUTH_SECRET=$(openssl rand -hex 32)
-    echo -e "Generated auth secret: ${GREEN}${BETTER_AUTH_SECRET:0:16}...${NC}"
-
-    read -p "Enter Base URL [http://localhost:3300]: " BETTER_AUTH_URL
-    BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3300}
-
-    # File storage
-    read -p "Enable File Storage? (true/false) [true]: " ENABLE_FILE_STORAGE
-    ENABLE_FILE_STORAGE=${ENABLE_FILE_STORAGE:-true}
-
     # Port
     read -p "Enter Port [3300]: " PORT
     PORT=${PORT:-3300}
 
+    # Public URL
+    read -p "Enter Base URL [http://localhost:${PORT}]: " BETTER_AUTH_URL
+    BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:${PORT}}
+
+    if [ "$DEPLOYMENT_TARGET" = "docker" ]; then
+        DATABASE_URL=/app/db/plank.db
+        DATA_PATH=/app/data
+        PROWLARR_URL=http://prowlarr:9696
+        FLARESOLVERR_URL=http://flaresolverr:8191
+
+        DEFAULT_MEDIA_PATH="$(pwd)/media"
+        read -p "Enter Media Library Path [${DEFAULT_MEDIA_PATH}]: " MEDIA_PATH
+        MEDIA_PATH=${MEDIA_PATH:-$DEFAULT_MEDIA_PATH}
+    else
+        DATABASE_URL="$(pwd)/plank.db"
+        DATA_PATH="$(pwd)/data"
+        MEDIA_PATH=
+
+        read -p "Enter Prowlarr URL [http://localhost:9696]: " PROWLARR_URL
+        PROWLARR_URL=${PROWLARR_URL:-http://localhost:9696}
+
+        read -p "Enter FlareSolverr URL [http://localhost:8191]: " FLARESOLVERR_URL
+        FLARESOLVERR_URL=${FLARESOLVERR_URL:-http://localhost:8191}
+    fi
+
+    DEFAULT_PUBLIC_PROWLARR_URL=$(default_public_prowlarr_url "$BETTER_AUTH_URL")
+    read -p "Enter Public Prowlarr URL [${DEFAULT_PUBLIC_PROWLARR_URL}]: " PUBLIC_PROWLARR_URL
+    PUBLIC_PROWLARR_URL=${PUBLIC_PROWLARR_URL:-$DEFAULT_PUBLIC_PROWLARR_URL}
+
+    # TMDB API Key
+    read -p "Enter TMDB API Key (get yours at https://www.themoviedb.org/settings/api): " TMDB_API_KEY
+
+    # OpenSubtitles credentials
+    read -p "Enter OpenSubtitles API Key (optional): " OPENSUBTITLES_API_KEY
+    read -p "Enter OpenSubtitles Username (optional): " OPENSUBTITLES_USERNAME
+    read -s -p "Enter OpenSubtitles Password (optional): " OPENSUBTITLES_PASSWORD
+    echo ""
+
+    # Generate random secret for authentication
+    BETTER_AUTH_SECRET=$(openssl rand -hex 32)
+    echo -e "Generated auth secret: ${GREEN}${BETTER_AUTH_SECRET:0:16}...${NC}"
     cat > .env << EOF
-DATABASE_URL=${DATABASE_URL}
-DATA_PATH=${DATA_PATH}
-TMDB_API_KEY=${TMDB_API_KEY}
+# Database
+DATABASE_URL=$(env_value "$DATABASE_URL")
 
-# Prowlarr/FlareSolverr (auto-configured for Docker, API key extracted automatically)
-PROWLARR_URL=http://prowlarr:9696
+# Storage
+DATA_PATH=$(env_value "$DATA_PATH")
+MEDIA_PATH=$(env_value "$MEDIA_PATH")
+
+# TMDB
+TMDB_API_KEY=$(env_value "$TMDB_API_KEY")
+
+# Prowlarr/FlareSolverr
+PROWLARR_URL=$(env_value "$PROWLARR_URL")
+PUBLIC_PROWLARR_URL=$(env_value "$PUBLIC_PROWLARR_URL")
 PROWLARR_API_KEY=
-FLARESOLVERR_URL=http://flaresolverr:8191
+FLARESOLVERR_URL=$(env_value "$FLARESOLVERR_URL")
 
-BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-BETTER_AUTH_URL=${BETTER_AUTH_URL}
-ENABLE_FILE_STORAGE=${ENABLE_FILE_STORAGE}
-PORT=${PORT}
-ORIGIN=${BETTER_AUTH_URL}
+# OpenSubtitles
+OPENSUBTITLES_API_KEY=$(env_value "$OPENSUBTITLES_API_KEY")
+OPENSUBTITLES_USERNAME=$(env_value "$OPENSUBTITLES_USERNAME")
+OPENSUBTITLES_PASSWORD=$(env_value "$OPENSUBTITLES_PASSWORD")
+
+# Authentication
+BETTER_AUTH_SECRET=$(env_value "$BETTER_AUTH_SECRET")
+BETTER_AUTH_URL=$(env_value "$BETTER_AUTH_URL")
+
+# Server
+PORT=$(env_value "$PORT")
+HOST=0.0.0.0
+ORIGIN=$(env_value "$BETTER_AUTH_URL")
 EOF
 
     echo -e "${GREEN}.env file created successfully!${NC}"
@@ -301,7 +351,7 @@ deploy_docker() {
     fi
 
     clone_repo
-    setup_env
+    setup_env docker
 
     # Load env vars to ensure they are available for Docker Compose interpolation
     set -a
@@ -481,7 +531,7 @@ deploy_bare_metal() {
     echo "NPM version: $(npm -v)"
 
     clone_repo
-    setup_env
+    setup_env bare-metal
 
     # Load env vars for bare metal execution
     set -a

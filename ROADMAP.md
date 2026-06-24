@@ -1,11 +1,14 @@
 # ROADMAP
 
+- [ ] Convert current UI to the demo UI. I think its better
+- [ ] English subtitles auto download and select (fix select logic to always pick the first one)
 - [ ] The tv show episodes should all start downloading when they are available
   - [ ] If a user clicks play on a video that isnt downloading actively, it starts the torrent stream for that and we go to the watch and start streaming.
 - [ ] Find some way to let the user pick which torrent source they want to download from. Redownloads have the same feature
   - Maybe a dropdown in the browse/search?
 - [ ] Be able to edit the details of a movie/show and episodes
 - [ ] Select an audio for the movie. Multi-lang support for dubs
+- [ ] Movie filters in search, and browse and library
 - [x] Subtitles
   - [ ] Fix the code to grab other non vtt subtitles and use those or convert them to vtt immediately. For example, k-pop demon hunters has over a dozen subtitles built in. We dont use any because they're srt. Or maybe we can just support them?
 - [ ] I think i might remove the tabs between movies and tv shows and instead add a simple filter system. Mainly this is because i dont want a different continue watching banner on both tabs

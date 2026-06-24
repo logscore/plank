@@ -1,16 +1,16 @@
 <script lang="ts">
-    import { ChevronDown, Film, Globe, LibraryBig, LoaderCircle, Search } from '@lucide/svelte';
-    import { useQueryClient } from '@tanstack/svelte-query';
-    import { goto } from '$app/navigation';
-    import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
-    import MediaCard from '$lib/components/MediaCard.svelte';
-    import TorrentCard from '$lib/components/TorrentCard.svelte';
-    import Button from '$lib/components/ui/Button.svelte';
-    import type { SeasonData } from '$lib/components/ui/ContextMenu.svelte';
-    import Dialog from '$lib/components/ui/Dialog.svelte';
-    import Input from '$lib/components/ui/Input.svelte';
-    import { createAddFromBrowseMutation } from '$lib/mutations/browse-mutations';
-    import { createAddMediaMutation, createDeleteMediaMutation } from '$lib/mutations/media-mutations';
+    import { ChevronDown, Film, Globe, LibraryBig, LoaderCircle, Search } from "@lucide/svelte";
+    import { useQueryClient } from "@tanstack/svelte-query";
+    import { goto } from "$app/navigation";
+    import DeleteConfirmationModal from "$lib/components/DeleteConfirmationModal.svelte";
+    import MediaCard from "$lib/components/MediaCard.svelte";
+    import TorrentCard from "$lib/components/TorrentCard.svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import type { SeasonData } from "$lib/components/ui/ContextMenu.svelte";
+    import Dialog from "$lib/components/ui/Dialog.svelte";
+    import Input from "$lib/components/ui/Input.svelte";
+    import { createAddFromBrowseMutation } from "$lib/mutations/browse-mutations";
+    import { createAddMediaMutation, createDeleteMediaMutation } from "$lib/mutations/media-mutations";
     import {
         type BrowseDetailItem,
         type BrowseItem,
@@ -19,14 +19,14 @@
         resolveTorrent,
         type SeasonSummary,
         searchTMDB,
-    } from '$lib/queries/browse-queries';
-    import { searchMedia } from '$lib/queries/media-queries';
-    import { queryKeys } from '$lib/query-keys';
-    import type { Media } from '$lib/types';
-    import { confirmDelete, uiState } from '$lib/ui-state.svelte';
+    } from "$lib/queries/browse-queries";
+    import { searchMedia } from "$lib/queries/media-queries";
+    import { queryKeys } from "$lib/query-keys";
+    import type { Media } from "$lib/types";
+    import { confirmDelete, uiState } from "$lib/ui-state.svelte";
 
-    let query = $state('');
-    let searchType = $state<'local' | 'tmdb'>('local');
+    let query = $state("");
+    let searchType = $state<"local" | "tmdb">("local");
     let localResults: Media[] = $state([]);
     let tmdbResults: BrowseItem[] = $state([]);
     let searching = $state(false);
@@ -34,8 +34,8 @@
     let showDropdown = $state(false);
 
     // Add Media Dialog state
-    let magnetInput = $state('');
-    let error = $state('');
+    let magnetInput = $state("");
+    let error = $state("");
     let adding = $state(false);
     let deletingId = $state<string | null>(null);
     let resolvingItems = $state<Set<number>>(new Set());
@@ -113,7 +113,7 @@
 
         searching = true;
         try {
-            if (searchType === 'local') {
+            if (searchType === "local") {
                 const res = await queryClient.fetchQuery({
                     queryKey: queryKeys.media.search(query),
                     queryFn: () => searchMedia(query),
@@ -133,7 +133,7 @@
                 enrichItems(res.items);
             }
         } catch (e) {
-            console.error('Search failed:', e);
+            console.error("Search failed:", e);
         } finally {
             searching = false;
         }
@@ -151,15 +151,15 @@
         event.stopPropagation();
 
         confirmDelete(
-            'Delete Media',
-            'Are you sure you want to remove this item? This action cannot be undone.',
+            "Delete Media",
+            "Are you sure you want to remove this item? This action cannot be undone.",
             async () => {
                 try {
                     deletingId = id;
                     await deleteMediaMutation.mutateAsync(id);
                     localResults = localResults.filter((m: Media) => m.id !== id);
                 } catch (e) {
-                    console.error('Failed to delete media:', e);
+                    console.error("Failed to delete media:", e);
                 } finally {
                     deletingId = null;
                 }
@@ -169,25 +169,25 @@
 
     async function addMagnet() {
         if (!magnetInput.trim()) {
-            error = 'Please enter a magnet link';
+            error = "Please enter a magnet link";
             return;
         }
-        if (!magnetInput.startsWith('magnet:')) {
-            error = 'Invalid magnet link format';
+        if (!magnetInput.startsWith("magnet:")) {
+            error = "Invalid magnet link format";
             return;
         }
 
-        error = '';
+        error = "";
         adding = true;
         try {
             await addMediaMutation.mutateAsync({ magnetLink: magnetInput });
-            magnetInput = '';
+            magnetInput = "";
             uiState.addMediaDialogOpen = false;
             if (query.trim().length >= 2) {
                 performSearch();
             }
         } catch (e) {
-            error = (e as Error).message || 'Failed to add media';
+            error = (e as Error).message || "Failed to add media";
         } finally {
             adding = false;
         }
@@ -214,13 +214,13 @@
             });
 
             if (!(result.success && result.torrent)) {
-                console.error('Failed to resolve torrent:', result.message || result.error);
+                console.error("Failed to resolve torrent:", result.message || result.error);
                 return null;
             }
 
             return result.torrent.magnetLink;
         } catch (err) {
-            console.error('Failed to resolve torrent:', err);
+            console.error("Failed to resolve torrent:", err);
             return null;
         } finally {
             const updated = new Set(resolvingItems);
@@ -241,7 +241,7 @@
             const magnetLink = await getMagnetLink(item);
             if (!magnetLink) {
                 // If resolution fails, we must clear the adding state
-                throw new Error('Could not resolve magnet link');
+                throw new Error("Could not resolve magnet link");
             }
 
             await addToLibraryMutation.mutateAsync({
@@ -251,7 +251,7 @@
                 tmdbId: item.tmdbId,
             });
         } catch (err) {
-            console.error('Failed to add to library:', err);
+            console.error("Failed to add to library:", err);
         } finally {
             const updated = new Set(addingItems);
             updated.delete(item.tmdbId);
@@ -270,7 +270,7 @@
         try {
             const magnetLink = await getMagnetLink(item);
             if (!magnetLink) {
-                throw new Error('Could not resolve magnet link');
+                throw new Error("Could not resolve magnet link");
             }
 
             const media = await addToLibraryMutation.mutateAsync({
@@ -279,11 +279,11 @@
                 year: item.year,
                 tmdbId: item.tmdbId,
             });
-            if ('id' in media) {
+            if ("id" in media) {
                 goto(`/watch/${media.id}`);
             }
         } catch (err) {
-            console.error('Failed to add and watch:', err);
+            console.error("Failed to add and watch:", err);
         } finally {
             const updated = new Set(addingItems);
             updated.delete(item.tmdbId);
@@ -329,7 +329,7 @@
             seasonsCache = new Map(seasonsCache).set(item.tmdbId, seasonData);
             return seasonData;
         } catch (err) {
-            console.error('Failed to fetch seasons:', err);
+            console.error("Failed to fetch seasons:", err);
             return [];
         } finally {
             const updated = new Set(seasonsLoading);
@@ -340,7 +340,7 @@
 
     // Prefetch seasons for a TV show on hover - fire and forget
     function handlePrefetchSeasons(item: BrowseItem) {
-        if (item.mediaType !== 'show') {
+        if (item.mediaType !== "show") {
             return;
         }
         // Fire and forget - shared promise logic handles deduplication
@@ -362,7 +362,7 @@
 
         try {
             await addToLibraryMutation.mutateAsync({
-                mode: 'browse-season',
+                mode: "browse-season",
                 title: item.title,
                 year: item.year,
                 tmdbId: item.tmdbId,
@@ -374,7 +374,7 @@
                 certification: item.certification,
             });
         } catch (err) {
-            console.error('Failed to add season to library:', err);
+            console.error("Failed to add season to library:", err);
         } finally {
             const updated = new Set(addingItems);
             updated.delete(item.tmdbId);

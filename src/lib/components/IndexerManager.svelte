@@ -1,9 +1,9 @@
 <script lang="ts">
-    import { ChevronDown, ChevronUp, Plus, RefreshCw, Trash2 } from '@lucide/svelte';
-    import { onMount } from 'svelte';
-    import { toast } from 'svelte-sonner';
-    import Button from '$lib/components/ui/Button.svelte';
-    import { confirmDelete } from '$lib/ui-state.svelte';
+    import { ChevronDown, ChevronUp, Plus, RefreshCw, Trash2 } from "@lucide/svelte";
+    import { onMount } from "svelte";
+    import { toast } from "svelte-sonner";
+    import Button from "$lib/components/ui/Button.svelte";
+    import { confirmDelete } from "$lib/ui-state.svelte";
 
     // Props
     let { prowlarrUrl, prowlarrApiKey } = $props<{
@@ -25,14 +25,14 @@
     }
 
     // State
-    let connectionStatus = $state<'connected' | 'failed' | 'unchecked'>('unchecked');
+    let connectionStatus = $state<"connected" | "failed" | "unchecked">("unchecked");
 
     let indexers = $state<Indexer[]>([]);
     let schemas = $state<IndexerSchema[]>([]);
     let loadingIndexers = $state(false);
 
     let advancedOpen = $state(false);
-    let selectedImplementation = $state('');
+    let selectedImplementation = $state("");
 
     // Derived sorted schemas (don't mutate state in template)
     let sortedSchemas = $derived([...schemas].sort((a, b) => a.name.localeCompare(b.name)));
@@ -40,51 +40,51 @@
     // Constants
     const PACKAGES = [
         {
-            id: 'general',
-            name: 'General Entertainment',
-            description: 'Movies & TV (1337x, YTS, The Pirate Bay)',
-            icon: '🎬',
-            indexers: ['1337x', 'YTS', 'The Pirate Bay'],
+            id: "general",
+            name: "General Entertainment",
+            description: "Movies & TV (1337x, YTS, The Pirate Bay)",
+            icon: "🎬",
+            indexers: ["1337x", "YTS", "The Pirate Bay"],
         },
         {
-            id: 'anime',
-            name: 'Anime Fan',
-            description: 'Anime (Nyaa.si, AnimeTosho, AniDex)',
-            icon: '🎌',
-            indexers: ['Nyaa.si', 'AnimeTosho', 'AniDex'],
+            id: "anime",
+            name: "Anime Fan",
+            description: "Anime (Nyaa.si, AnimeTosho, AniDex)",
+            icon: "🎌",
+            indexers: ["Nyaa.si", "AnimeTosho", "AniDex"],
         },
         {
-            id: 'show',
-            name: 'TV Show Specialists',
-            description: 'TV Series (EZTV, TorrentGalaxy, TorLock)',
-            icon: '📺',
-            indexers: ['EZTV', 'TorrentGalaxy', 'TorLock'],
+            id: "show",
+            name: "TV Show Specialists",
+            description: "TV Series (EZTV, TorrentGalaxy, TorLock)",
+            icon: "📺",
+            indexers: ["EZTV", "TorrentGalaxy", "TorLock"],
         },
     ];
 
     // Actions
     async function testConnection() {
-        connectionStatus = 'unchecked';
+        connectionStatus = "unchecked";
 
         try {
-            const res = await fetch('/api/prowlarr/test', {
-                method: 'POST',
+            const res = await fetch("/api/prowlarr/test", {
+                method: "POST",
                 body: JSON.stringify({
                     url: prowlarrUrl,
                     apiKey: prowlarrApiKey,
                 }),
-                headers: { 'Content-Type': 'application/json' },
+                headers: { "Content-Type": "application/json" },
             });
             const data = await res.json();
 
             if (data.success) {
-                connectionStatus = 'connected';
+                connectionStatus = "connected";
                 loadIndexers();
             } else {
-                connectionStatus = 'failed';
+                connectionStatus = "failed";
             }
         } catch (e) {
-            connectionStatus = 'failed';
+            connectionStatus = "failed";
         }
     }
 
@@ -92,8 +92,8 @@
         loadingIndexers = true;
         try {
             const [idxRes, schemaRes] = await Promise.all([
-                fetch('/api/prowlarr/indexer'),
-                fetch('/api/prowlarr/indexer/schema'),
+                fetch("/api/prowlarr/indexer"),
+                fetch("/api/prowlarr/indexer/schema"),
             ]);
 
             if (idxRes.ok) {
@@ -103,7 +103,7 @@
                 schemas = await schemaRes.json();
             }
         } catch (e) {
-            console.error('Failed to load indexers', e);
+            console.error("Failed to load indexers", e);
         } finally {
             loadingIndexers = false;
         }
@@ -112,10 +112,10 @@
     async function addIndexer(schema: IndexerSchema) {
         const toastId = toast.loading(`Adding ${schema.name}...`);
         try {
-            const res = await fetch('/api/prowlarr/indexer', {
-                method: 'POST',
+            const res = await fetch("/api/prowlarr/indexer", {
+                method: "POST",
                 body: JSON.stringify(schema),
-                headers: { 'Content-Type': 'application/json' },
+                headers: { "Content-Type": "application/json" },
             });
 
             if (res.ok) {
@@ -125,24 +125,24 @@
                 toast.error(`Failed to add ${schema.name}`, { id: toastId });
             }
         } catch (e) {
-            toast.error('Network error', { id: toastId });
+            toast.error("Network error", { id: toastId });
         }
     }
 
     async function deleteIndexer(id: number, name: string) {
-        confirmDelete(`Remove ${name}?`, 'Are you sure you want to remove this indexer?', async () => {
+        confirmDelete(`Remove ${name}?`, "Are you sure you want to remove this indexer?", async () => {
             try {
                 const res = await fetch(`/api/prowlarr/indexer?id=${id}`, {
-                    method: 'DELETE',
+                    method: "DELETE",
                 });
                 if (res.ok) {
-                    toast.success('Indexer removed');
+                    toast.success("Indexer removed");
                     loadIndexers();
                 } else {
-                    toast.error('Failed to remove indexer');
+                    toast.error("Failed to remove indexer");
                 }
             } catch (e) {
-                toast.error('Network error');
+                toast.error("Network error");
             }
         });
     }
@@ -168,10 +168,10 @@
 
             // Add
             try {
-                const res = await fetch('/api/prowlarr/indexer', {
-                    method: 'POST',
+                const res = await fetch("/api/prowlarr/indexer", {
+                    method: "POST",
                     body: JSON.stringify(schema),
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { "Content-Type": "application/json" },
                 });
                 if (res.ok) {
                     addedCount++;
@@ -191,7 +191,7 @@
     onMount(() => {
         if (prowlarrUrl && prowlarrApiKey) {
             testConnection();
-        } else if (prowlarrUrl && prowlarrApiKey === '') {
+        } else if (prowlarrUrl && prowlarrApiKey === "") {
             // Case where API key is managed by server (empty string passed)
             testConnection();
         }

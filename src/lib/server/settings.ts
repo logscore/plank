@@ -1,8 +1,8 @@
-import { eq } from 'drizzle-orm';
-import { config as envConfig } from '$lib/config';
-import { decrypt, encrypt, isEncrypted } from '$lib/server/crypto';
-import { db } from '$lib/server/db/index';
-import { configuration } from '$lib/server/db/schema';
+import { eq } from "drizzle-orm";
+import { config as envConfig } from "$lib/config";
+import { decrypt, encrypt, isEncrypted } from "$lib/server/crypto";
+import { db } from "$lib/server/db/index";
+import { configuration } from "$lib/server/db/schema";
 
 export interface AppSettings {
 	tmdb: {
@@ -26,15 +26,15 @@ export interface AppSettings {
 
 /** Fields stored encrypted at rest */
 const ENCRYPTED_FIELDS = [
-	'tmdbApiKey',
-	'prowlarrApiKey',
-	'opensubtitlesApiKey',
-	'opensubtitlesUsername',
-	'opensubtitlesPassword',
+	"tmdbApiKey",
+	"prowlarrApiKey",
+	"opensubtitlesApiKey",
+	"opensubtitlesUsername",
+	"opensubtitlesPassword",
 ] as const;
 
 /** Fields stored as plain text (or serialized JSON) */
-const PLAIN_FIELDS = ['prowlarrUrl', 'prowlarrMinSeeders'] as const;
+const PLAIN_FIELDS = ["prowlarrUrl", "prowlarrMinSeeders"] as const;
 
 type SettingsUpdate = Partial<{
 	tmdbApiKey: string;
@@ -50,7 +50,7 @@ type SettingsUpdate = Partial<{
 /** Decrypt a stored value, returning empty string for nullish values */
 function decryptField(value: string | null | undefined): string {
 	if (!value) {
-		return '';
+		return "";
 	}
 	return decrypt(value);
 }
@@ -72,7 +72,7 @@ async function migrateUnencryptedFields(stored: typeof configuration.$inferSelec
 	}
 
 	if (needsMigration) {
-		await db.update(configuration).set(updates).where(eq(configuration.id, 'default'));
+		await db.update(configuration).set(updates).where(eq(configuration.id, "default"));
 	}
 }
 
@@ -91,7 +91,7 @@ export async function getSettings(): Promise<AppSettings> {
 	try {
 		// Try to get from DB
 		const stored = await db.query.configuration.findFirst({
-			where: eq(configuration.id, 'default'),
+			where: eq(configuration.id, "default"),
 		});
 
 		// Transparently migrate any plaintext credentials to encrypted
@@ -120,7 +120,7 @@ export async function getSettings(): Promise<AppSettings> {
 				apiKey: decryptField(stored?.tmdbApiKey) || envConfig.tmdb.apiKey,
 				baseUrl: envConfig.tmdb.baseUrl,
 				imageBaseUrl: envConfig.tmdb.imageBaseUrl,
-				language: 'en-US',
+				language: "en-US",
 			},
 			prowlarr: {
 				url: stored?.prowlarrUrl || envConfig.prowlarr.url,
@@ -139,11 +139,11 @@ export async function getSettings(): Promise<AppSettings> {
 		settingsCacheTime = now;
 		return settings;
 	} catch (e) {
-		console.error('Failed to load settings from DB, falling back to env:', e);
+		console.error("Failed to load settings from DB, falling back to env:", e);
 		return {
 			tmdb: {
 				...envConfig.tmdb,
-				language: 'en-US',
+				language: "en-US",
 			},
 			prowlarr: envConfig.prowlarr,
 			opensubtitles: envConfig.opensubtitles,
@@ -162,7 +162,7 @@ export async function updateSettings(updates: SettingsUpdate) {
 
 	for (const field of ENCRYPTED_FIELDS) {
 		if (updates[field] !== undefined) {
-			values[field] = updates[field] ? encrypt(updates[field] as string) : '';
+			values[field] = updates[field] ? encrypt(updates[field] as string) : "";
 		}
 	}
 
@@ -178,7 +178,7 @@ export async function updateSettings(updates: SettingsUpdate) {
 
 	await db
 		.insert(configuration)
-		.values({ id: 'default', ...values })
+		.values({ id: "default", ...values })
 		.onConflictDoUpdate({ target: configuration.id, set: values });
 
 	invalidateSettingsCache();

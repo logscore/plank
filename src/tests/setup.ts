@@ -1,28 +1,27 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { afterAll, beforeAll, beforeEach, vi } from 'vitest';
-import * as schema from '$lib/server/db/schema';
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { afterAll, beforeAll, beforeEach, vi } from "vitest";
+import * as schema from "$lib/server/db/schema";
 
 // Create a test database
-const testDb = new Database(':memory:');
-testDb.pragma('journal_mode = WAL');
+const testDb = new Database(":memory:");
+testDb.pragma("journal_mode = WAL");
 
 export const db = drizzle(testDb, { schema });
 
 // Mock environment variables
-vi.mock('$env/dynamic/private', () => ({
+vi.mock("$env/dynamic/private", () => ({
 	env: {
-		DATABASE_URL: ':memory:',
-		BETTER_AUTH_SECRET: 'test-secret-key-for-testing-purposes',
-		BETTER_AUTH_URL: 'http://localhost:5173',
-		TMDB_API_KEY: 'test-tmdb-api-key',
-		ENABLE_FILE_STORAGE: 'false',
-		DATA_PATH: '/tmp/test-data', // Config mock needs this
+		DATABASE_URL: ":memory:",
+		BETTER_AUTH_SECRET: "test-secret-key-for-testing-purposes",
+		BETTER_AUTH_URL: "http://localhost:5173",
+		TMDB_API_KEY: "test-tmdb-api-key",
+		DATA_PATH: "/tmp/test-data", // Config mock needs this
 	},
 }));
 
 // Mock the database module to use our test instance
-vi.mock('$lib/server/db/index', async () => {
+vi.mock("$lib/server/db/index", async () => {
 	return {
 		db: drizzle(testDb, { schema }),
 	};
@@ -276,19 +275,19 @@ beforeAll(() => {
 
 // Clean tables before each test
 beforeEach(() => {
-	testDb.exec('DELETE FROM subtitles');
-	testDb.exec('DELETE FROM seasons');
-	testDb.exec('DELETE FROM downloads');
-	testDb.exec('DELETE FROM configuration');
-	testDb.exec('DELETE FROM media');
-	testDb.exec('DELETE FROM media_fts');
-	testDb.exec('DELETE FROM invitation');
-	testDb.exec('DELETE FROM member');
-	testDb.exec('DELETE FROM session');
-	testDb.exec('DELETE FROM account');
-	testDb.exec('DELETE FROM verification');
-	testDb.exec('DELETE FROM organization');
-	testDb.exec('DELETE FROM user');
+	testDb.exec("DELETE FROM subtitles");
+	testDb.exec("DELETE FROM seasons");
+	testDb.exec("DELETE FROM downloads");
+	testDb.exec("DELETE FROM configuration");
+	testDb.exec("DELETE FROM media");
+	testDb.exec("DELETE FROM media_fts");
+	testDb.exec("DELETE FROM invitation");
+	testDb.exec("DELETE FROM member");
+	testDb.exec("DELETE FROM session");
+	testDb.exec("DELETE FROM account");
+	testDb.exec("DELETE FROM verification");
+	testDb.exec("DELETE FROM organization");
+	testDb.exec("DELETE FROM user");
 	testDb.exec("INSERT INTO configuration (id, tmdb_language, prowlarr_min_seeders) VALUES ('default', 'en-US', 5)");
 });
 

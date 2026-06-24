@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { Play } from '@lucide/svelte';
-    import type { Media } from '$lib/types';
+    import { Play } from "@lucide/svelte";
+    import type { Media } from "$lib/types";
 
     let { media } = $props<{ media: Media }>();
 
@@ -10,7 +10,7 @@
             : 0
     );
 
-    const link = $derived(media.type === 'show' ? `/show/${media.id}` : `/watch/${media.id}`);
+    const link = $derived(media.type === "show" ? `/show/${media.id}` : `/watch/${media.id}`);
     const imageUrl = $derived(media.backdropUrl ?? media.stillPath ?? media.posterUrl);
 </script>
 

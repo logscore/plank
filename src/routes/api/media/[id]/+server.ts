@@ -1,8 +1,8 @@
-import { json } from '@sveltejs/kit';
-import { requireMediaAccess } from '$lib/server/api-guard';
-import { mediaDb } from '$lib/server/db';
-import { cancelDownload, deleteMediaFiles } from '$lib/server/torrent';
-import type { RequestHandler } from './$types';
+import { json } from "@sveltejs/kit";
+import { requireMediaAccess } from "$lib/server/api-guard";
+import { mediaDb } from "$lib/server/db";
+import { cancelDownload, deleteMediaFiles } from "$lib/server/torrent";
+import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const { mediaItem } = requireMediaAccess(locals, params.id);

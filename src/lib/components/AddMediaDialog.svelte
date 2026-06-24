@@ -1,27 +1,27 @@
 <script lang="ts">
-    import { Film, Tv } from '@lucide/svelte';
-    import { goto } from '$app/navigation';
-    import Button from '$lib/components/ui/Button.svelte';
-    import Dialog from '$lib/components/ui/Dialog.svelte';
-    import Input from '$lib/components/ui/Input.svelte';
-    import { createAddMediaMutation } from '$lib/mutations/media-mutations';
-    import type { MediaType } from '$lib/types';
-    import { uiState } from '$lib/ui-state.svelte';
+    import { Film, Tv } from "@lucide/svelte";
+    import { goto } from "$app/navigation";
+    import Button from "$lib/components/ui/Button.svelte";
+    import Dialog from "$lib/components/ui/Dialog.svelte";
+    import Input from "$lib/components/ui/Input.svelte";
+    import { createAddMediaMutation } from "$lib/mutations/media-mutations";
+    import type { MediaType } from "$lib/types";
+    import { uiState } from "$lib/ui-state.svelte";
 
     // Mutation hook
     const addMediaMutation = createAddMediaMutation();
 
     // UI State
-    let magnetInput = $state('');
+    let magnetInput = $state("");
     let selectedType = $state<MediaType | null>(null);
-    let error = $state('');
+    let error = $state("");
 
     async function addMagnet() {
         if (!magnetInput.trim()) {
             return;
         }
 
-        error = '';
+        error = "";
 
         try {
             const result = await addMediaMutation.mutateAsync({
@@ -32,18 +32,18 @@
             // Check if this was a season addition to an existing show
             // Note: result type might not imply _seasonAdded directly if strictly typed, but we use it in +page.svelte
             if (result._seasonAdded) {
-                goto('?type=shows', { replaceState: true, noScroll: true });
-            } else if (result.type === 'show') {
-                goto('?type=shows', { replaceState: true, noScroll: true });
+                goto("?type=shows", { replaceState: true, noScroll: true });
+            } else if (result.type === "show") {
+                goto("?type=shows", { replaceState: true, noScroll: true });
             } else {
-                goto('?type=movies', { replaceState: true, noScroll: true });
+                goto("?type=movies", { replaceState: true, noScroll: true });
             }
 
-            magnetInput = '';
+            magnetInput = "";
             selectedType = null;
             uiState.addMediaDialogOpen = false;
         } catch (e) {
-            error = e instanceof Error ? e.message : 'Failed to add media';
+            error = e instanceof Error ? e.message : "Failed to add media";
         }
     }
 </script>

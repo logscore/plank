@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { uiState } from '$lib/ui-state.svelte';
-    import Button from './ui/Button.svelte';
-    import Dialog from './ui/Dialog.svelte';
+    import { uiState } from "$lib/ui-state.svelte";
+    import Button from "./ui/Button.svelte";
+    import Dialog from "./ui/Dialog.svelte";
 
     let loading = $state(false);
 

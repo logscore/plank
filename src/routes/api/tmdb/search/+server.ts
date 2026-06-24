@@ -6,10 +6,10 @@
  * by the client via /api/browse/details.
  */
 
-import { error, json } from '@sveltejs/kit';
-import type { BrowseItem } from '$lib/server/tmdb';
-import { searchMovie, searchTVShow } from '$lib/server/tmdb';
-import type { RequestHandler } from './$types';
+import { error, json } from "@sveltejs/kit";
+import type { BrowseItem } from "$lib/server/tmdb";
+import { searchMovie, searchTVShow } from "$lib/server/tmdb";
+import type { RequestHandler } from "./$types";
 
 interface SearchResponse {
 	results: BrowseItem[];
@@ -20,12 +20,12 @@ interface SearchResponse {
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw error(401, "Unauthorized");
 	}
 
-	const query = url.searchParams.get('q')?.trim() || '';
-	const type = (url.searchParams.get('type') as 'all' | 'movie' | 'show') || 'all';
-	const page = Number.parseInt(url.searchParams.get('page') || '1', 10);
+	const query = url.searchParams.get("q")?.trim() || "";
+	const type = (url.searchParams.get("type") as "all" | "movie" | "show") || "all";
+	const page = Number.parseInt(url.searchParams.get("page") || "1", 10);
 
 	if (query.length < 2) {
 		return json({ results: [], total: 0, page: 1, totalPages: 0 });
@@ -34,14 +34,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	try {
 		const searchPromises: Promise<BrowseItem[]>[] = [];
 
-		if (type === 'all' || type === 'movie') {
+		if (type === "all" || type === "movie") {
 			searchPromises.push(
 				searchMovie(query).then((movies) =>
 					movies
 						.filter((movie) => movie.tmdbId !== null)
 						.map((movie): BrowseItem => {
 							if (!movie.tmdbId) {
-								throw new Error('Movie tmdbId is null');
+								throw new Error("Movie tmdbId is null");
 							}
 							return {
 								tmdbId: movie.tmdbId,
@@ -53,7 +53,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 								overview: movie.overview,
 								voteAverage: null,
 								genres: [],
-								mediaType: 'movie' as const,
+								mediaType: "movie" as const,
 								certification: null,
 								needsResolve: true,
 							};
@@ -62,14 +62,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			);
 		}
 
-		if (type === 'all' || type === 'show') {
+		if (type === "all" || type === "show") {
 			searchPromises.push(
 				searchTVShow(query).then((shows) =>
 					shows
 						.filter((show) => show.tmdbId !== null)
 						.map((show): BrowseItem => {
 							if (!show.tmdbId) {
-								throw new Error('Show tmdbId is null');
+								throw new Error("Show tmdbId is null");
 							}
 							return {
 								tmdbId: show.tmdbId,
@@ -81,7 +81,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 								overview: show.overview,
 								voteAverage: null,
 								genres: [],
-								mediaType: 'show' as const,
+								mediaType: "show" as const,
 								certification: null,
 								needsResolve: true,
 							};
@@ -136,7 +136,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		return json(response);
 	} catch (err) {
-		console.error('Search error:', err);
-		throw error(500, 'Internal server error');
+		console.error("Search error:", err);
+		throw error(500, "Internal server error");
 	}
 };

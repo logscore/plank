@@ -1,5 +1,5 @@
 <script lang="ts">
-    import IndexerManager from '$lib/components/IndexerManager.svelte';
+    import IndexerManager from "$lib/components/IndexerManager.svelte";
 
     // Props
     let { prowlarrUrl, hasApiKey } = $props<{

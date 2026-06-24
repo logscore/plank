@@ -1,26 +1,26 @@
 <script lang="ts">
-    import 'vidstack/player/styles/default/theme.css';
-    import 'vidstack/player/styles/default/layouts/video.css';
-    import 'vidstack/player';
-    import 'vidstack/player/layouts';
-    import 'vidstack/player/ui';
-    import { ArrowLeft, Download, EllipsisVertical, Play, Users, X } from '@lucide/svelte';
-    import { onDestroy, onMount } from 'svelte';
-    import type { MediaPlayerElement } from 'vidstack/elements';
-    import { browser } from '$app/environment';
-    import { connectMediaProgressStream } from '$lib/client/media-progress-stream';
-    import { createSavePositionMutation } from '$lib/mutations/media-mutations';
-    import { isTerminalProgressStatus } from '$lib/progress-status';
+    import "vidstack/player/styles/default/theme.css";
+    import "vidstack/player/styles/default/layouts/video.css";
+    import "vidstack/player";
+    import "vidstack/player/layouts";
+    import "vidstack/player/ui";
+    import { ArrowLeft, Download, EllipsisVertical, Play, Users, X } from "@lucide/svelte";
+    import { onDestroy, onMount } from "svelte";
+    import type { MediaPlayerElement } from "vidstack/elements";
+    import { browser } from "$app/environment";
+    import { connectMediaProgressStream } from "$lib/client/media-progress-stream";
+    import { createSavePositionMutation } from "$lib/mutations/media-mutations";
+    import { isTerminalProgressStatus } from "$lib/progress-status";
     import {
         fetchPlayPosition,
         fetchSubtitleTracks,
         type ProgressInfo,
         type SubtitleTrackResponse,
-    } from '$lib/queries/media-queries';
-    import type { PageData } from './$types';
+    } from "$lib/queries/media-queries";
+    import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
-    let currentMediaId = $state('');
+    let currentMediaId = $state("");
     let progressInfo: ProgressInfo | null = $state(null);
     let stopProgressStream: (() => void) | null = $state(null);
     let playerReady = $state(false);
@@ -77,15 +77,15 @@
 
     function getIsReady(): boolean {
         return (
-            progressInfo?.status === 'complete' ||
+            progressInfo?.status === "complete" ||
             (progressInfo?.progress ?? 0) > 0.05 ||
-            data.media.status === 'complete'
+            data.media.status === "complete"
         );
     }
 
     function getKnownDuration(): number | undefined {
         const duration = playerEl?.duration;
-        if (typeof duration !== 'number' || !Number.isFinite(duration) || duration <= 0) {
+        if (typeof duration !== "number" || !Number.isFinite(duration) || duration <= 0) {
             return undefined;
         }
         return duration;
@@ -102,10 +102,10 @@
 
     function formatEpisodeLabel(): string {
         if (!data.nextEpisode || data.nextEpisode.seasonNumber === null || data.nextEpisode.episodeNumber === null) {
-            return 'Next Episode';
+            return "Next Episode";
         }
 
-        return `S${String(data.nextEpisode.seasonNumber).padStart(2, '0')}E${String(data.nextEpisode.episodeNumber).padStart(2, '0')}`;
+        return `S${String(data.nextEpisode.seasonNumber).padStart(2, "0")}E${String(data.nextEpisode.episodeNumber).padStart(2, "0")}`;
     }
 
     function isInNextEpisodeWindow(): boolean {
@@ -119,7 +119,7 @@
 
     function shouldShowNextEpisodeCard(): boolean {
         return (
-            data.media.type === 'episode' &&
+            data.media.type === "episode" &&
             Boolean(data.nextEpisode) &&
             !nextEpisodeDismissed &&
             (playbackEnded || isInNextEpisodeWindow())
@@ -148,7 +148,7 @@
                     });
                 } catch (error) {
                     blockStalePositionSave = false;
-                    console.error('Failed to save completion before playing next episode:', error);
+                    console.error("Failed to save completion before playing next episode:", error);
                 }
             }
         }
@@ -171,7 +171,7 @@
     }
 
     function handleGlobalClick(e: MouseEvent) {
-        if (showMenu && !(e.target as HTMLElement).closest('#player-menu')) {
+        if (showMenu && !(e.target as HTMLElement).closest("#player-menu")) {
             showMenu = false;
         }
     }
@@ -199,7 +199,7 @@
 
     function getLoadingTitle(): string {
         if (playerErrorMessage) {
-            return 'Playback failed';
+            return "Playback failed";
         }
         return `Loading ${data.media.title}...`;
     }
@@ -208,13 +208,13 @@
         if (playerErrorMessage) {
             return playerErrorMessage;
         }
-        if (progressInfo?.status === 'downloading') {
-            return 'Media pixies are preparing your stream';
+        if (progressInfo?.status === "downloading") {
+            return "Media pixies are preparing your stream";
         }
-        if (progressInfo?.status === 'searching' || progressInfo?.status === 'initializing') {
-            return 'Preparing your stream';
+        if (progressInfo?.status === "searching" || progressInfo?.status === "initializing") {
+            return "Preparing your stream";
         }
-        return 'Waiting for video to stream in from space';
+        return "Waiting for video to stream in from space";
     }
 
     function startProgressStream() {
@@ -260,13 +260,13 @@
     }
 
     function onPlayerError(event: Event) {
-        console.error('Player failed to load media:', event);
+        console.error("Player failed to load media:", event);
         playerReady = false;
         if (isTerminalProgressStatus(progressInfo?.status ?? data.media.status)) {
-            playerErrorMessage = 'Playback failed to start. Please retry the download.';
+            playerErrorMessage = "Playback failed to start. Please retry the download.";
             return;
         }
-        playerErrorMessage = 'Playback is still preparing. It should start soon.';
+        playerErrorMessage = "Playback is still preparing. It should start soon.";
     }
 
     function onTimeUpdate() {
@@ -304,25 +304,25 @@
         }
 
         const el = playerEl;
-        el.addEventListener('can-play', onCanPlay);
-        el.addEventListener('playing', onPlaying);
-        el.addEventListener('error', onPlayerError);
-        el.addEventListener('time-update', onTimeUpdate);
-        el.addEventListener('ended', onEnded);
-        el.addEventListener('controls-change', onControlsChange);
+        el.addEventListener("can-play", onCanPlay);
+        el.addEventListener("playing", onPlaying);
+        el.addEventListener("error", onPlayerError);
+        el.addEventListener("time-update", onTimeUpdate);
+        el.addEventListener("ended", onEnded);
+        el.addEventListener("controls-change", onControlsChange);
 
         return () => {
-            el.removeEventListener('can-play', onCanPlay);
-            el.removeEventListener('playing', onPlaying);
-            el.removeEventListener('error', onPlayerError);
-            el.removeEventListener('time-update', onTimeUpdate);
-            el.removeEventListener('ended', onEnded);
-            el.removeEventListener('controls-change', onControlsChange);
+            el.removeEventListener("can-play", onCanPlay);
+            el.removeEventListener("playing", onPlaying);
+            el.removeEventListener("error", onPlayerError);
+            el.removeEventListener("time-update", onTimeUpdate);
+            el.removeEventListener("ended", onEnded);
+            el.removeEventListener("controls-change", onControlsChange);
         };
     });
 
     onMount(async () => {
-        document.addEventListener('click', handleGlobalClick);
+        document.addEventListener("click", handleGlobalClick);
         startProgressStream();
 
         const mediaId = data.media.id;
@@ -333,11 +333,11 @@
             fetchSubtitleTracks(mediaId),
         ]);
 
-        if (posResult.status === 'fulfilled' && posResult.value.position > 0) {
+        if (posResult.status === "fulfilled" && posResult.value.position > 0) {
             initialPosition = posResult.value.position;
         }
 
-        if (subsResult.status === 'fulfilled') {
+        if (subsResult.status === "fulfilled") {
             subtitleTracks = subsResult.value;
         }
     });
@@ -345,7 +345,7 @@
     onDestroy(() => {
         stopLiveProgressStream();
         if (browser) {
-            document.removeEventListener('click', handleGlobalClick);
+            document.removeEventListener("click", handleGlobalClick);
 
             // Save final position via sendBeacon on page leave
             const id = data.media.id;

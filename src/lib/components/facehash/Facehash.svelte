@@ -1,23 +1,23 @@
 <script lang="ts">
-    import { cn } from '$lib/utils';
-    import CrossFace from './CrossFace.svelte';
-    import CurvedFace from './CurvedFace.svelte';
-    import { DEFAULT_COLORS } from './colors';
-    import type { Intensity3D, Variant } from './facehash-data';
-    import { computeFacehash, getColor, INTENSITY_PRESETS } from './facehash-data';
-    import LineFace from './LineFace.svelte';
-    import RoundFace from './RoundFace.svelte';
+    import { cn } from "$lib/utils";
+    import CrossFace from "./CrossFace.svelte";
+    import CurvedFace from "./CurvedFace.svelte";
+    import { DEFAULT_COLORS } from "./colors";
+    import type { Intensity3D, Variant } from "./facehash-data";
+    import { computeFacehash, getColor, INTENSITY_PRESETS } from "./facehash-data";
+    import LineFace from "./LineFace.svelte";
+    import RoundFace from "./RoundFace.svelte";
 
     let {
         name,
         size = 40,
-        variant = 'gradient',
-        intensity3d = 'dramatic',
+        variant = "gradient",
+        intensity3d = "dramatic",
         interactive = true,
         showInitial = true,
         colors,
         enableBlink = false,
-        class: className = '',
+        class: className = "",
     }: {
         /** String to generate a deterministic face from. Same string always produces the same face. */
         name: string;
@@ -46,11 +46,11 @@
     const faceData = $derived(computeFacehash(name, colorsLength));
     const preset = $derived(INTENSITY_PRESETS[intensity3d]);
     const bgColor = $derived(getColor(colors, faceData.colorIndex));
-    const sizeValue = $derived(typeof size === 'number' ? `${size}px` : size);
+    const sizeValue = $derived(typeof size === "number" ? `${size}px` : size);
 
     // Calculate 3D transform
     const transform = $derived.by(() => {
-        if (intensity3d === 'none') {
+        if (intensity3d === "none") {
             return undefined;
         }
         const rotateX = isHovered && interactive ? 0 : faceData.rotation.x * preset.rotateRange;
@@ -61,7 +61,7 @@
     // Container style
     const containerStyle = $derived.by(() => {
         let style = `width: ${sizeValue}; height: ${sizeValue}; background-color: ${bgColor};`;
-        if (intensity3d !== 'none') {
+        if (intensity3d !== "none") {
             style += ` perspective: ${preset.perspective}; transform-style: preserve-3d;`;
         }
         return style;
@@ -70,15 +70,15 @@
     // Face container style
     const faceStyle = $derived.by(() => {
         let style =
-            'position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2;';
+            "position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2;";
         if (transform) {
             style += ` transform: ${transform};`;
         }
-        if (intensity3d !== 'none') {
-            style += ' transform-style: preserve-3d;';
+        if (intensity3d !== "none") {
+            style += " transform-style: preserve-3d;";
         }
         if (interactive) {
-            style += ' transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);';
+            style += " transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);";
         }
         return style;
     });

@@ -1,9 +1,9 @@
-import { json } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
-import { auth } from '$lib/server/auth';
-import { db } from '$lib/server/db/index';
-import { schema } from '$lib/server/db/schema';
-import type { RequestHandler } from './$types';
+import { json } from "@sveltejs/kit";
+import { eq } from "drizzle-orm";
+import { auth } from "$lib/server/auth";
+import { db } from "$lib/server/db/index";
+import { schema } from "$lib/server/db/schema";
+import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ request }) => {
 	const session = await auth.api.getSession({
@@ -11,7 +11,7 @@ export const GET: RequestHandler = async ({ request }) => {
 	});
 
 	if (!session?.user) {
-		return new Response('Unauthorized', { status: 401 });
+		return new Response("Unauthorized", { status: 401 });
 	}
 
 	// Get user's organizations through member table
@@ -31,7 +31,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	});
 
 	if (!session?.user) {
-		return new Response('Unauthorized', { status: 401 });
+		return new Response("Unauthorized", { status: 401 });
 	}
 
 	const body = await request.json();
@@ -50,7 +50,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		return json(organization, { status: 201 });
 	} catch (error) {
-		console.error('Failed to create organization:', error);
-		return json({ error: 'Failed to create organization' }, { status: 400 });
+		console.error("Failed to create organization:", error);
+		return json({ error: "Failed to create organization" }, { status: 400 });
 	}
 };

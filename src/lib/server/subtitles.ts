@@ -1,41 +1,41 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import { config } from '$lib/config';
-import { subtitlesDb } from './db';
+import fs from "node:fs/promises";
+import path from "node:path";
+import { config } from "$lib/config";
+import { subtitlesDb } from "./db";
 
-const SIDECAR_EXTENSIONS = ['.srt', '.ass', '.ssa', '.vtt', '.sub'];
+const SIDECAR_EXTENSIONS = [".srt", ".ass", ".ssa", ".vtt", ".sub"];
 
 const LANGUAGE_MAP: Record<string, string> = {
-	eng: 'English',
-	spa: 'Spanish',
-	fre: 'French',
-	fra: 'French',
-	ger: 'German',
-	deu: 'German',
-	ita: 'Italian',
-	por: 'Portuguese',
-	jpn: 'Japanese',
-	kor: 'Korean',
-	chi: 'Chinese',
-	zho: 'Chinese',
-	ara: 'Arabic',
-	rus: 'Russian',
-	hin: 'Hindi',
-	pol: 'Polish',
-	tur: 'Turkish',
-	nld: 'Dutch',
-	dut: 'Dutch',
-	swe: 'Swedish',
-	nor: 'Norwegian',
-	dan: 'Danish',
-	fin: 'Finnish',
-	und: 'Unknown',
+	eng: "English",
+	spa: "Spanish",
+	fre: "French",
+	fra: "French",
+	ger: "German",
+	deu: "German",
+	ita: "Italian",
+	por: "Portuguese",
+	jpn: "Japanese",
+	kor: "Korean",
+	chi: "Chinese",
+	zho: "Chinese",
+	ara: "Arabic",
+	rus: "Russian",
+	hin: "Hindi",
+	pol: "Polish",
+	tur: "Turkish",
+	nld: "Dutch",
+	dut: "Dutch",
+	swe: "Swedish",
+	nor: "Norwegian",
+	dan: "Danish",
+	fin: "Finnish",
+	und: "Unknown",
 };
 
 function parseLanguageFromFilename(fileName: string): { language: string; label: string } {
-	const nameWithoutExt = fileName.slice(0, fileName.lastIndexOf('.'));
-	const parts = nameWithoutExt.split('.');
-	const lastPart = parts.at(-1)?.toLowerCase() ?? '';
+	const nameWithoutExt = fileName.slice(0, fileName.lastIndexOf("."));
+	const parts = nameWithoutExt.split(".");
+	const lastPart = parts.at(-1)?.toLowerCase() ?? "";
 	if (LANGUAGE_MAP[lastPart]) {
 		return { language: lastPart, label: LANGUAGE_MAP[lastPart] };
 	}
@@ -45,18 +45,18 @@ function parseLanguageFromFilename(fileName: string): { language: string; label:
 		}
 	}
 	if (parts.length >= 2) {
-		const secondLast = parts.at(-2)?.toLowerCase() ?? '';
+		const secondLast = parts.at(-2)?.toLowerCase() ?? "";
 		for (const [code, name] of Object.entries(LANGUAGE_MAP)) {
 			if (secondLast === code || secondLast === name.toLowerCase()) {
 				return { language: code, label: name };
 			}
 		}
 	}
-	return { language: 'und', label: 'Unknown' };
+	return { language: "und", label: "Unknown" };
 }
 
 function getSubtitleDir(mediaId: string): string {
-	return path.join(config.paths.library, mediaId, 'subtitles');
+	return path.join(config.paths.library, mediaId, "subtitles");
 }
 
 function isSubtitleFile(fileName: string): boolean {
@@ -81,7 +81,7 @@ export async function discoverSidecarSubtitles(mediaId: string, libraryDir: stri
 		if (existingPaths.has(sourcePath)) {
 			continue;
 		}
-		if (path.extname(fileName).toLowerCase() !== '.vtt') {
+		if (path.extname(fileName).toLowerCase() !== ".vtt") {
 			continue;
 		}
 		const { language, label } = parseLanguageFromFilename(fileName);
@@ -89,8 +89,8 @@ export async function discoverSidecarSubtitles(mediaId: string, libraryDir: stri
 			mediaId,
 			language,
 			label,
-			source: 'sidecar',
-			format: 'vtt',
+			source: "sidecar",
+			format: "vtt",
 			filePath: sourcePath,
 			streamIndex: null,
 			isDefault: false,

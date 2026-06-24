@@ -1,26 +1,26 @@
-import { createReadStream, existsSync, statSync } from 'node:fs';
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import type { Readable } from 'node:stream';
-import parseTorrent from 'parse-torrent';
-import ptt from 'parse-torrent-title';
-import { config } from '$lib/config';
-import type { MediaType } from '$lib/types';
-import { downloadsDb, mediaDb, seasonsDb } from './db';
-import { isSupportedFormat, SUPPORTED_VIDEO_FORMATS } from './ffmpeg';
+import { createReadStream, existsSync, statSync } from "node:fs";
+import fs from "node:fs/promises";
+import path from "node:path";
+import type { Readable } from "node:stream";
+import parseTorrent from "parse-torrent";
+import ptt from "parse-torrent-title";
+import { config } from "$lib/config";
+import type { MediaType } from "$lib/types";
+import { downloadsDb, mediaDb, seasonsDb } from "./db";
+import { isSupportedFormat, SUPPORTED_VIDEO_FORMATS } from "./ffmpeg";
 import {
 	getEpisodeLibraryPath,
 	getMovieLibraryRoot,
 	getSeasonLibraryDirectory,
 	getShowLibraryRoot,
-} from './library-paths';
-import { parseMagnet } from './magnet';
-import { buildMovieFileName } from './media-naming';
-import { discoverSubtitles } from './subtitles';
-import { searchMovie, searchTVShow } from './tmdb';
-import { finalizeMediaToLibrary } from './transcoder';
+} from "./library-paths";
+import { parseMagnet } from "./magnet";
+import { buildMovieFileName } from "./media-naming";
+import { discoverSubtitles } from "./subtitles";
+import { searchMovie, searchTVShow } from "./tmdb";
+import { finalizeMediaToLibrary } from "./transcoder";
 
-const SUBTITLE_EXTENSIONS = ['.srt', '.ass', '.ssa', '.vtt', '.sub'];
+const SUBTITLE_EXTENSIONS = [".srt", ".ass", ".ssa", ".vtt", ".sub"];
 
 // WebTorrent types
 interface TorrentFile {
@@ -50,11 +50,11 @@ interface Torrent {
 	ready: boolean;
 	paused: boolean;
 	destroy(opts?: { destroyStore?: boolean }, callback?: () => void): void;
-	on(event: 'done' | 'metadata' | 'ready', callback: () => void): void;
-	on(event: 'upload' | 'download', callback: (bytes: number) => void): void;
-	on(event: 'wire', callback: (wire: unknown) => void): void;
-	on(event: 'noPeers', callback: (announceType: string) => void): void;
-	on(event: 'warning' | 'error', callback: (err: Error) => void): void;
+	on(event: "done" | "metadata" | "ready", callback: () => void): void;
+	on(event: "upload" | "download", callback: (bytes: number) => void): void;
+	on(event: "wire", callback: (wire: unknown) => void): void;
+	on(event: "noPeers", callback: (announceType: string) => void): void;
+	on(event: "warning" | "error", callback: (err: Error) => void): void;
 	on(event: string, callback: (...args: unknown[]) => void): void;
 	emit(event: string, ...args: unknown[]): boolean;
 }
@@ -86,7 +86,7 @@ interface ActiveDownload {
 	selectedFileIndex: number | null; // Currently selected file for streaming
 	episodeMapping: Map<number, number>; // episodeKey (S*100+E) -> fileIndex
 	progress: number;
-	status: 'initializing' | 'downloading' | 'finalizing' | 'complete' | 'error';
+	status: "initializing" | "downloading" | "finalizing" | "complete" | "error";
 	activeStreams: number;
 	totalSize: number;
 	error?: string;
@@ -116,7 +116,7 @@ function getDownloadOwnerMediaId(mediaItem: {
 	magnetLink?: string | null;
 	infohash?: string | null;
 }): string {
-	if (mediaItem.type === 'episode' && mediaItem.parentId && !(mediaItem.magnetLink || mediaItem.infohash)) {
+	if (mediaItem.type === "episode" && mediaItem.parentId && !(mediaItem.magnetLink || mediaItem.infohash)) {
 		return mediaItem.parentId;
 	}
 	return mediaItem.id;
@@ -138,7 +138,7 @@ function resolveEpisodeFileIndex(
 	},
 	downloads: ActiveDownload[]
 ): number | undefined {
-	if (mediaItem.type !== 'episode') {
+	if (mediaItem.type !== "episode") {
 		return mediaItem.fileIndex ?? undefined;
 	}
 	if (mediaItem.fileIndex !== null) {
@@ -149,7 +149,7 @@ function resolveEpisodeFileIndex(
 		return undefined;
 	}
 	return downloads
-		.find((download) => download.mediaType === 'show' && download.episodeMapping.has(episodeKey))
+		.find((download) => download.mediaType === "show" && download.episodeMapping.has(episodeKey))
 		?.episodeMapping.get(episodeKey);
 }
 
@@ -161,18 +161,18 @@ const MIN_VIDEO_SIZE = 50 * 1024 * 1024;
 
 // Public trackers for better peer discovery
 const TRACKERS = [
-	'udp://tracker.opentrackr.org:1337/announce',
-	'udp://open.tracker.cl:1337/announce',
-	'udp://tracker.openbittorrent.com:6969/announce',
-	'udp://open.stealth.si:80/announce',
-	'udp://tracker.torrent.eu.org:451/announce',
-	'udp://exodus.desync.com:6969/announce',
-	'udp://tracker.moeking.me:6969/announce',
-	'udp://explodie.org:6969/announce',
-	'udp://tracker.dler.org:6969/announce',
-	'udp://tracker.theoks.net:6969/announce',
-	'http://tracker.openbittorrent.com:80/announce',
-	'http://tracker.opentrackr.org:1337/announce',
+	"udp://tracker.opentrackr.org:1337/announce",
+	"udp://open.tracker.cl:1337/announce",
+	"udp://tracker.openbittorrent.com:6969/announce",
+	"udp://open.stealth.si:80/announce",
+	"udp://tracker.torrent.eu.org:451/announce",
+	"udp://exodus.desync.com:6969/announce",
+	"udp://tracker.moeking.me:6969/announce",
+	"udp://explodie.org:6969/announce",
+	"udp://tracker.dler.org:6969/announce",
+	"udp://tracker.theoks.net:6969/announce",
+	"http://tracker.openbittorrent.com:80/announce",
+	"http://tracker.opentrackr.org:1337/announce",
 ];
 
 // Regex patterns for episode parsing
@@ -184,13 +184,13 @@ async function getClient(): Promise<WebTorrentClient> {
 		// Suppress expected 'utp-native not found' warning during WebTorrent import
 		const originalError = console.error;
 		console.error = (...args: unknown[]) => {
-			if (typeof args[0] === 'string' && args[0].includes('uTP not supported')) {
+			if (typeof args[0] === "string" && args[0].includes("uTP not supported")) {
 				return;
 			}
 			originalError.apply(console, args);
 		};
 
-		const WebTorrent = await import('webtorrent');
+		const WebTorrent = await import("webtorrent");
 		client = new WebTorrent.default({
 			maxConns: 100,
 			downloadLimit: -1,
@@ -200,12 +200,13 @@ async function getClient(): Promise<WebTorrentClient> {
 		console.error = originalError;
 
 		// Add global error handler
-		(client as unknown as { on: (event: string, handler: (err: Error) => void) => void }).on(
-			'error',
-			(err: Error) => {
-				console.error('[WebTorrent] Global client error:', err);
+		(
+			client as unknown as {
+				on: (event: string, handler: (err: Error) => void) => void;
 			}
-		);
+		).on("error", (err: Error) => {
+			console.error("[WebTorrent] Global client error:", err);
+		});
 
 		// console.log('[WebTorrent] Client initialized successfully');
 	}
@@ -215,14 +216,14 @@ async function getClient(): Promise<WebTorrentClient> {
 function getMimeType(fileName: string): string {
 	const ext = path.extname(fileName).toLowerCase();
 	const mimeTypes: Record<string, string> = {
-		'.mp4': 'video/mp4',
-		'.mkv': 'video/x-matroska',
-		'.webm': 'video/webm',
-		'.avi': 'video/x-msvideo',
-		'.mov': 'video/quicktime',
-		'.m4v': 'video/x-m4v',
+		".mp4": "video/mp4",
+		".mkv": "video/x-matroska",
+		".webm": "video/webm",
+		".avi": "video/x-msvideo",
+		".mov": "video/quicktime",
+		".m4v": "video/x-m4v",
 	};
-	return mimeTypes[ext] || 'application/octet-stream';
+	return mimeTypes[ext] || "application/octet-stream";
 }
 
 function findVideoFile(files: TorrentFile[]): TorrentFile | null {
@@ -387,7 +388,7 @@ function createNewEpisode(
 	mediaDb.create({
 		userId: showMedia.userId,
 		organizationId: showMedia.organizationId,
-		type: 'episode',
+		type: "episode",
 		parentId: showMedia.id,
 		seasonId,
 		seasonNumber,
@@ -398,7 +399,7 @@ function createNewEpisode(
 		fileSize: videoFile?.length ?? null,
 		downloadedBytes: 0,
 		displayOrder,
-		status: 'pending',
+		status: "pending",
 	});
 }
 
@@ -432,7 +433,7 @@ async function createEpisodesFromMapping(
 	mapping: Map<number, number>
 ): Promise<void> {
 	const mediaItem = mediaDb.getById(mediaId);
-	if (!mediaItem || mediaItem.type !== 'show') {
+	if (!mediaItem || mediaItem.type !== "show") {
 		return;
 	}
 
@@ -470,7 +471,10 @@ async function fetchAndUpdateMetadata(mediaId: string, fileName: string, mediaTy
 		}
 
 		// Update title from filename (only if we don't have TMDB data)
-		mediaDb.updateMetadata(mediaId, { title: parsed.title, year: parsed.year || null });
+		mediaDb.updateMetadata(mediaId, {
+			title: parsed.title,
+			year: parsed.year || null,
+		});
 
 		// Search TMDB if API key is configured
 		if (config.tmdb.apiKey) {
@@ -479,7 +483,7 @@ async function fetchAndUpdateMetadata(mediaId: string, fileName: string, mediaTy
 			// );
 
 			const results =
-				mediaType === 'show'
+				mediaType === "show"
 					? await searchTVShow(parsed.title, parsed.year)
 					: await searchMovie(parsed.title, parsed.year);
 
@@ -512,7 +516,7 @@ export async function startDownload(mediaId: string, magnetLink: string): Promis
 
 	if (!infohash) {
 		console.error(`[${mediaId}] Could not extract infohash from magnet link`);
-		throw new Error('Invalid magnet link - could not extract infohash');
+		throw new Error("Invalid magnet link - could not extract infohash");
 	}
 
 	// Check if this specific torrent is already active
@@ -543,13 +547,13 @@ async function handleDownloadComplete(infohash: string, download: ActiveDownload
 	// const logPrefix = `[${download.mediaId}:${infohash.slice(0, 8)}]`;
 
 	// Prevent double-completion
-	if (download.status === 'complete' || download.status === 'finalizing') {
+	if (download.status === "complete" || download.status === "finalizing") {
 		// console.log(`${logPrefix} Already marked complete, skipping`);
 		return;
 	}
 
 	// console.log(`${logPrefix} Handling download completion...`);
-	download.status = 'finalizing';
+	download.status = "finalizing";
 	download.progress = 1;
 
 	// Stop seeding - deselect all files to prevent uploading
@@ -561,22 +565,22 @@ async function handleDownloadComplete(infohash: string, download: ActiveDownload
 	try {
 		await moveToLibrary(download.mediaId, download);
 	} catch (err) {
-		console.error('[Finalizer] Post-download finalization failed:', err);
-		download.status = 'error';
-		download.error = err instanceof Error ? err.message : 'Failed to finalize download';
+		console.error("[Finalizer] Post-download finalization failed:", err);
+		download.status = "error";
+		download.error = err instanceof Error ? err.message : "Failed to finalize download";
 		const failedRecord = downloadsDb.getByInfohash(download.mediaId, infohash);
 		if (failedRecord) {
-			downloadsDb.updateProgress(failedRecord.id, download.progress, 'error');
+			downloadsDb.updateProgress(failedRecord.id, download.progress, "error");
 		}
 		updateMediaStatusFromDownloads(download.mediaId);
 		return;
 	}
-	download.status = 'complete';
+	download.status = "complete";
 
 	// Update download record in database
 	const downloadRecord = downloadsDb.getByInfohash(download.mediaId, infohash);
 	if (downloadRecord) {
-		downloadsDb.updateProgress(downloadRecord.id, 1, 'complete');
+		downloadsDb.updateProgress(downloadRecord.id, 1, "complete");
 		// console.log(`${logPrefix} Updated download record ${downloadRecord.id} to complete`);
 	}
 
@@ -588,18 +592,18 @@ async function handleDownloadComplete(infohash: string, download: ActiveDownload
 /** Update media status based on all active downloads for that media */
 function updateMediaStatusFromDownloads(mediaId: string): void {
 	const downloads = getDownloadsForMedia(mediaId);
-	const allComplete = downloads.length === 0 || downloads.every((d) => d.status === 'complete');
-	const anyError = downloads.some((d) => d.status === 'error');
+	const allComplete = downloads.length === 0 || downloads.every((d) => d.status === "complete");
+	const anyError = downloads.some((d) => d.status === "error");
 
 	if (allComplete) {
-		mediaDb.updateProgress(mediaId, 1, 'complete');
+		mediaDb.updateProgress(mediaId, 1, "complete");
 	} else if (anyError) {
 		// If any download has error but others are still going, keep downloading status
 		const hasActiveDownloads = downloads.some(
-			(d) => d.status === 'downloading' || d.status === 'initializing' || d.status === 'finalizing'
+			(d) => d.status === "downloading" || d.status === "initializing" || d.status === "finalizing"
 		);
 		if (!hasActiveDownloads) {
-			mediaDb.updateProgress(mediaId, 0, 'error');
+			mediaDb.updateProgress(mediaId, 0, "error");
 		}
 	}
 }
@@ -610,13 +614,13 @@ function startCompletionChecker(infohash: string, download: ActiveDownload, torr
 
 	const checkInterval = setInterval(() => {
 		// Stop checking if download is no longer active or already complete
-		if (!activeDownloads.has(infohash) || download.status === 'complete' || download.status === 'finalizing') {
+		if (!activeDownloads.has(infohash) || download.status === "complete" || download.status === "finalizing") {
 			clearInterval(checkInterval);
 			return;
 		}
 
 		// For movies, check single file
-		if (download.mediaType === 'movie' && download.videoFile?.progress === 1) {
+		if (download.mediaType === "movie" && download.videoFile?.progress === 1) {
 			// console.log(`${logPrefix} Completion checker detected finished download`);
 			clearInterval(checkInterval);
 			handleDownloadComplete(infohash, download, torrent).catch((err) => {
@@ -626,7 +630,7 @@ function startCompletionChecker(infohash: string, download: ActiveDownload, torr
 		}
 
 		// For TV shows, check if all selected files are complete
-		if (download.mediaType === 'show') {
+		if (download.mediaType === "show") {
 			const selectedComplete = download.videoFiles.every((f) => f.progress === 1);
 			if (selectedComplete) {
 				// console.log(`${logPrefix} Completion checker detected all files finished`);
@@ -649,9 +653,9 @@ function getOrAddTorrent(
 	let infoHash: string | undefined;
 	try {
 		const parsed = parseTorrent(magnetLink);
-		if (typeof parsed === 'string') {
+		if (typeof parsed === "string") {
 			infoHash = parsed;
-		} else if (parsed && typeof parsed === 'object' && 'infoHash' in parsed) {
+		} else if (parsed && typeof parsed === "object" && "infoHash" in parsed) {
 			infoHash = parsed.infoHash;
 		}
 	} catch (e) {
@@ -681,12 +685,12 @@ async function handleTVShowReady(
 	download.videoFiles = findVideoFiles(torrent.files);
 
 	if (download.videoFiles.length === 0) {
-		const allFiles = torrent.files.map((f) => f.name).join(', ');
+		const allFiles = torrent.files.map((f) => f.name).join(", ");
 		console.error(`${logPrefix} No supported video files found. Files: ${allFiles}`);
-		download.status = 'error';
-		download.error = `No supported video file found. Supported formats: ${SUPPORTED_VIDEO_FORMATS.join(', ')}`;
+		download.status = "error";
+		download.error = `No supported video file found. Supported formats: ${SUPPORTED_VIDEO_FORMATS.join(", ")}`;
 		cleanupDownload(download.infohash, true);
-		reject(new Error('No supported video file found in torrent'));
+		reject(new Error("No supported video file found in torrent"));
 		return false;
 	}
 
@@ -728,7 +732,7 @@ async function handleTVShowReady(
 		f.select();
 	}
 
-	fetchAndUpdateMetadata(mediaId, download.videoFiles[0]?.name ?? torrent.name, 'show');
+	fetchAndUpdateMetadata(mediaId, download.videoFiles[0]?.name ?? torrent.name, "show");
 	return true;
 }
 
@@ -744,12 +748,12 @@ function handleMovieReady(
 	const videoFile = findVideoFile(torrent.files);
 
 	if (!videoFile) {
-		const allFiles = torrent.files.map((f) => f.name).join(', ');
+		const allFiles = torrent.files.map((f) => f.name).join(", ");
 		console.error(`${logPrefix} No supported video file found. Files: ${allFiles}`);
-		download.status = 'error';
-		download.error = `No supported video file found. Supported formats: ${SUPPORTED_VIDEO_FORMATS.join(', ')}`;
+		download.status = "error";
+		download.error = `No supported video file found. Supported formats: ${SUPPORTED_VIDEO_FORMATS.join(", ")}`;
 		cleanupDownload(download.infohash, true);
-		reject(new Error('No supported video file found in torrent'));
+		reject(new Error("No supported video file found in torrent"));
 		return false;
 	}
 
@@ -757,8 +761,8 @@ function handleMovieReady(
 	// 	`${logPrefix} Selected video: ${videoFile.name} (${(videoFile.length / 1024 / 1024).toFixed(2)} MB)`
 	// );
 
-	if (actualMediaType === 'movie') {
-		fetchAndUpdateMetadata(mediaId, videoFile.name, 'movie');
+	if (actualMediaType === "movie") {
+		fetchAndUpdateMetadata(mediaId, videoFile.name, "movie");
 	}
 
 	for (const f of torrent.files) {
@@ -781,14 +785,14 @@ function handleMovieReady(
 function checkAlreadyComplete(infohash: string, download: ActiveDownload, torrent: Torrent): void {
 	const logPrefix = `[${download.mediaId}:${infohash.slice(0, 8)}]`;
 
-	if (download.mediaType === 'movie' && (download.videoFile?.progress === 1 || torrent.done)) {
+	if (download.mediaType === "movie" && (download.videoFile?.progress === 1 || torrent.done)) {
 		// console.log(`${logPrefix} Video file already complete, triggering done handler`);
 		setImmediate(() => {
 			handleDownloadComplete(infohash, download, torrent).catch((err) => {
 				console.error(`${logPrefix} Error handling already-complete download:`, err);
 			});
 		});
-	} else if (download.mediaType === 'show') {
+	} else if (download.mediaType === "show") {
 		const allComplete = download.videoFiles.every((f) => f.progress === 1);
 		if (allComplete || torrent.done) {
 			// console.log(`${logPrefix} All TV files already complete, triggering done handler`);
@@ -809,12 +813,12 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 	await fs.mkdir(downloadPath, { recursive: true });
 
 	const mediaItem = mediaDb.getById(mediaId);
-	const mediaType: MediaType = mediaItem?.type === 'show' ? 'show' : 'movie';
-	const actualMediaType = mediaItem?.type ?? 'movie';
+	const mediaType: MediaType = mediaItem?.type === "show" ? "show" : "movie";
+	const actualMediaType = mediaItem?.type ?? "movie";
 
 	// console.log(`[${mediaId}:${infohash.slice(0, 8)}] Starting download (type: ${mediaType})...`);
 	// console.log(`[${mediaId}:${infohash.slice(0, 8)}] Magnet: ${magnetLink.substring(0, 80)}...`);
-	mediaDb.updateProgress(mediaId, 0, 'downloading');
+	mediaDb.updateProgress(mediaId, 0, "downloading");
 
 	const torrentClient = await getClient();
 
@@ -824,7 +828,7 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 		try {
 			torrent = getOrAddTorrent(torrentClient, magnetLink, downloadPath, mediaId);
 			if (!torrent) {
-				reject(new Error('Failed to add torrent'));
+				reject(new Error("Failed to add torrent"));
 				return;
 			}
 		} catch (e) {
@@ -844,7 +848,7 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 			selectedFileIndex: null,
 			episodeMapping: new Map(),
 			progress: 0,
-			status: 'initializing',
+			status: "initializing",
 			activeStreams: 0,
 			totalSize: 0,
 		};
@@ -865,14 +869,14 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 		// 	console.warn(`${logPrefix} Warning:`, err.message);
 		// });
 
-		torrent.on('ready', async () => {
+		torrent.on("ready", async () => {
 			if (!torrent) {
 				return;
 			}
 			// console.log(`${logPrefix} Torrent ready: ${torrent.infoHash}`);
 
 			const success =
-				mediaType === 'show'
+				mediaType === "show"
 					? await handleTVShowReady(mediaId, download, torrent, reject)
 					: handleMovieReady(mediaId, actualMediaType, download, torrent, reject);
 
@@ -880,16 +884,16 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 				return;
 			}
 
-			download.status = 'downloading';
+			download.status = "downloading";
 			startCompletionChecker(infohash, download, torrent);
 			checkAlreadyComplete(infohash, download, torrent);
 			resolve();
 		});
 
-		torrent.on('download', () => {
-			if (download.mediaType === 'movie' && download.videoFile) {
+		torrent.on("download", () => {
+			if (download.mediaType === "movie" && download.videoFile) {
 				download.progress = download.videoFile.progress;
-			} else if (download.mediaType === 'show' && download.videoFiles.length > 0) {
+			} else if (download.mediaType === "show" && download.videoFiles.length > 0) {
 				const totalDownloaded = download.videoFiles.reduce((sum, f) => sum + f.downloaded, 0);
 				download.progress = totalDownloaded / download.totalSize;
 			}
@@ -897,7 +901,7 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 			// Don't update media progress here - it will be aggregated in getDownloadStatus
 		});
 
-		torrent.on('done', () => {
+		torrent.on("done", () => {
 			if (!torrent) {
 				return;
 			}
@@ -907,23 +911,30 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 			});
 		});
 
-		torrent.on('error', (err: Error) => {
+		torrent.on("error", (err: Error) => {
 			console.error(`${logPrefix} Torrent error:`, err);
-			download.status = 'error';
+			download.status = "error";
 			download.error = err.message;
+			const downloadRecord = downloadsDb.getByInfohash(mediaId, infohash);
+			if (downloadRecord) {
+				downloadsDb.updateProgress(downloadRecord.id, download.progress, "error");
+			}
+			mediaDb.updateProgress(mediaId, download.progress, "error");
+			// Tear down errored torrents so peer connections, timers, and buffers do not linger.
+			cleanupDownload(infohash, false);
 			reject(err);
 		});
 
 		setTimeout(() => {
-			if (download.status === 'initializing') {
-				const timeoutError = 'No seeders found - the torrent may be dead or unavailable';
-				download.status = 'error';
+			if (download.status === "initializing") {
+				const timeoutError = "No seeders found - the torrent may be dead or unavailable";
+				download.status = "error";
 				download.error = timeoutError;
 				const downloadRecord = downloadsDb.getByInfohash(mediaId, infohash);
 				if (downloadRecord) {
-					downloadsDb.updateProgress(downloadRecord.id, 0, 'error');
+					downloadsDb.updateProgress(downloadRecord.id, 0, "error");
 				}
-				mediaDb.updateProgress(mediaId, 0, 'error');
+				mediaDb.updateProgress(mediaId, 0, "error");
 				cleanupDownload(infohash, true);
 				reject(new Error(timeoutError));
 			}
@@ -931,7 +942,7 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 
 		if (torrent.ready) {
 			setImmediate(() => {
-				torrent?.emit('ready');
+				torrent?.emit("ready");
 			});
 		}
 	});
@@ -1015,7 +1026,7 @@ async function updateEpisodeFileInfo(
 				filePath,
 				fileSize,
 			});
-			mediaDb.updateEpisodeProgress(episode.id, fileSize, 'complete');
+			mediaDb.updateEpisodeProgress(episode.id, fileSize, "complete");
 			discoverSubtitles(episode.id, filePath, path.dirname(filePath)).catch((error) => {
 				console.error(`[${mediaId}] Subtitle discovery failed for ${videoFile.name}:`, error);
 			});
@@ -1040,12 +1051,12 @@ function getEpisodeForFileIndex(mediaId: string, download: ActiveDownload, fileI
 async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): Promise<void> {
 	const logPrefix = `[${mediaId}:${download.infohash.slice(0, 8)}]`;
 	const episode = mediaDb.getById(mediaId);
-	if (!(episode && episode.type === 'episode' && download.videoFile)) {
+	if (!(episode && episode.type === "episode" && download.videoFile)) {
 		return;
 	}
 	const sourcePath = path.join(download.torrent.path, download.videoFile.path);
 	const show = episode.parentId ? mediaDb.getById(episode.parentId) : null;
-	if (!(show && show.type === 'show')) {
+	if (!(show && show.type === "show")) {
 		return;
 	}
 	const seasonDir = getSeasonLibraryDirectory(show, episode.seasonNumber);
@@ -1067,7 +1078,7 @@ async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): 
 		filePath: finalized.filePath,
 		fileSize: finalized.fileSize,
 	});
-	mediaDb.updateEpisodeProgress(mediaId, finalized.fileSize, 'complete');
+	mediaDb.updateEpisodeProgress(mediaId, finalized.fileSize, "complete");
 	discoverSubtitles(mediaId, finalized.filePath, seasonDir).catch((errorValue) => {
 		console.error(`${logPrefix} Subtitle discovery failed:`, errorValue);
 	});
@@ -1077,7 +1088,7 @@ async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): 
 async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): Promise<void> {
 	const logPrefix = `[${mediaId}:${download.infohash.slice(0, 8)}]`;
 	const show = mediaDb.getById(mediaId);
-	if (!(show && show.type === 'show')) {
+	if (!(show && show.type === "show")) {
 		return;
 	}
 	const baseDir = getShowLibraryRoot(show);
@@ -1116,7 +1127,7 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 
 	// Copy video files organized by season and trigger per-episode subtitle discovery
 	for (const [seasonNum, files] of filesBySeason.entries()) {
-		const seasonDir = path.join(baseDir, `Season ${seasonNum.toString().padStart(2, '0')}`);
+		const seasonDir = path.join(baseDir, `Season ${seasonNum.toString().padStart(2, "0")}`);
 		await fs.mkdir(seasonDir, { recursive: true });
 
 		for (const videoFile of files) {
@@ -1135,11 +1146,11 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 
 async function moveToLibrary(mediaId: string, download: ActiveDownload): Promise<void> {
 	const mediaItem = mediaDb.getById(mediaId);
-	if (mediaItem?.type === 'episode') {
+	if (mediaItem?.type === "episode") {
 		await moveEpisodeToLibrary(mediaId, download);
 		return;
 	}
-	if (download.mediaType === 'movie') {
+	if (download.mediaType === "movie") {
 		await moveMovieToLibrary(mediaId, download);
 	} else {
 		await moveTVShowToLibrary(mediaId, download);
@@ -1212,7 +1223,7 @@ function getTorrentStream(
 	start?: number,
 	end?: number
 ): StreamInfo | null {
-	if (download.mediaType === 'show' && fileIndex !== undefined) {
+	if (download.mediaType === "show" && fileIndex !== undefined) {
 		const videoFile = download.videoFiles[fileIndex];
 		if (!videoFile) {
 			return null;
@@ -1239,7 +1250,7 @@ function getTorrentStream(
 
 export async function getVideoStream(mediaId: string, start?: number, end?: number): Promise<StreamInfo | null> {
 	const mediaItem = mediaDb.getById(mediaId);
-	if (!mediaItem || mediaItem.type === 'show') {
+	if (!mediaItem || mediaItem.type === "show") {
 		return null;
 	}
 	const libraryStream = getLibraryVideoStream(mediaItem, start, end);
@@ -1251,13 +1262,13 @@ export async function getVideoStream(mediaId: string, start?: number, end?: numb
 	const fileIndex = resolveEpisodeFileIndex(mediaItem, downloads);
 
 	const suitableDownload = downloads.find((d) => {
-		if (d.status === 'error') {
+		if (d.status === "error") {
 			return false;
 		}
-		if (d.mediaType === 'movie' && d.videoFile) {
+		if (d.mediaType === "movie" && d.videoFile) {
 			return true;
 		}
-		if (d.mediaType === 'show' && fileIndex !== undefined) {
+		if (d.mediaType === "show" && fileIndex !== undefined) {
 			return d.videoFiles[fileIndex] !== undefined;
 		}
 		return false;
@@ -1296,16 +1307,16 @@ function createTorrentStream(
 		download.activeStreams = Math.max(0, download.activeStreams - 1);
 	};
 
-	torrentStream.once('end', decrementStreams);
-	torrentStream.once('error', decrementStreams);
-	torrentStream.once('close', decrementStreams);
+	torrentStream.once("end", decrementStreams);
+	torrentStream.once("error", decrementStreams);
+	torrentStream.once("close", decrementStreams);
 
 	return {
 		stream: torrentStream,
 		fileSize,
 		fileName,
 		mimeType: getMimeType(fileName),
-		isComplete: download.status === 'complete',
+		isComplete: download.status === "complete",
 	};
 }
 
@@ -1314,7 +1325,7 @@ interface DownloadStatusResult {
 	downloadSpeed: number;
 	uploadSpeed: number;
 	peers: number;
-	status: 'idle' | 'initializing' | 'downloading' | 'complete' | 'error';
+	status: "idle" | "initializing" | "downloading" | "complete" | "error";
 	error?: string;
 	episodeProgress?: Map<number, number>;
 	activeDownloads?: number;
@@ -1337,7 +1348,7 @@ interface AggregatedStats {
 
 /** Collect episode progress from a TV show download */
 function collectEpisodeProgress(download: ActiveDownload, episodeProgress: Map<number, number>): void {
-	if (download.mediaType !== 'show') {
+	if (download.mediaType !== "show") {
 		return;
 	}
 	for (const [episodeKey, fileIndex] of download.episodeMapping.entries()) {
@@ -1371,13 +1382,13 @@ function aggregateDownloadStats(downloads: ActiveDownload[]): AggregatedStats {
 		result.totalSize += download.totalSize;
 		result.totalProgress += download.progress * download.totalSize;
 
-		result.hasInitializing = result.hasInitializing || download.status === 'initializing';
+		result.hasInitializing = result.hasInitializing || download.status === "initializing";
 		result.hasDownloading =
-			result.hasDownloading || download.status === 'downloading' || download.status === 'finalizing';
-		result.hasError = result.hasError || download.status === 'error';
-		result.allComplete = result.allComplete && download.status === 'complete';
+			result.hasDownloading || download.status === "downloading" || download.status === "finalizing";
+		result.hasError = result.hasError || download.status === "error";
+		result.allComplete = result.allComplete && download.status === "complete";
 
-		if (download.status === 'error' && download.error) {
+		if (download.status === "error" && download.error) {
 			result.errors.push(download.error);
 		}
 
@@ -1388,17 +1399,17 @@ function aggregateDownloadStats(downloads: ActiveDownload[]): AggregatedStats {
 }
 
 /** Determine overall status from aggregated stats */
-function determineOverallStatus(stats: AggregatedStats): DownloadStatusResult['status'] {
+function determineOverallStatus(stats: AggregatedStats): DownloadStatusResult["status"] {
 	if (stats.allComplete) {
-		return 'complete';
+		return "complete";
 	}
 	if (stats.hasError && !stats.hasDownloading && !stats.hasInitializing) {
-		return 'error';
+		return "error";
 	}
 	if (stats.hasInitializing) {
-		return 'initializing';
+		return "initializing";
 	}
-	return 'downloading';
+	return "downloading";
 }
 
 export function getDownloadStatus(mediaId: string): DownloadStatusResult | null {
@@ -1407,8 +1418,14 @@ export function getDownloadStatus(mediaId: string): DownloadStatusResult | null 
 	const downloads = getDownloadsForMedia(downloadOwnerId);
 
 	if (downloads.length === 0) {
-		if (mediaItem?.status === 'complete') {
-			return { progress: 1, downloadSpeed: 0, uploadSpeed: 0, peers: 0, status: 'complete' };
+		if (mediaItem?.status === "complete") {
+			return {
+				progress: 1,
+				downloadSpeed: 0,
+				uploadSpeed: 0,
+				peers: 0,
+				status: "complete",
+			};
 		}
 		return null;
 	}
@@ -1423,7 +1440,7 @@ export function getDownloadStatus(mediaId: string): DownloadStatusResult | null 
 		uploadSpeed: stats.totalUploadSpeed,
 		peers: stats.totalPeers,
 		status,
-		error: stats.errors.length > 0 ? stats.errors.join('; ') : undefined,
+		error: stats.errors.length > 0 ? stats.errors.join("; ") : undefined,
 		episodeProgress: stats.episodeProgress.size > 0 ? stats.episodeProgress : undefined,
 		activeDownloads: downloads.length,
 		totalSize: stats.totalSize,
@@ -1437,6 +1454,10 @@ export function isDownloadActive(mediaId: string): boolean {
 	return downloads.length > 0;
 }
 
+export function hasActiveDownloads(): boolean {
+	return activeDownloads.size > 0;
+}
+
 /** Check if download is ready for streaming */
 function isDownloadReadyForStreaming(download: ActiveDownload | undefined, fileIndex?: number): boolean {
 	if (!download) {
@@ -1444,18 +1465,18 @@ function isDownloadReadyForStreaming(download: ActiveDownload | undefined, fileI
 	}
 
 	// For TV shows with specific file index
-	if (download.mediaType === 'show' && fileIndex !== undefined) {
+	if (download.mediaType === "show" && fileIndex !== undefined) {
 		const videoFile = download.videoFiles[fileIndex];
 		return Boolean(
 			videoFile &&
-				download.status !== 'initializing' &&
-				(videoFile.progress >= 0.02 || download.status === 'complete')
+				download.status !== "initializing" &&
+				(videoFile.progress >= 0.02 || download.status === "complete")
 		);
 	}
 
 	// For movies
 	if (download.videoFile) {
-		return download.status !== 'initializing' && (download.progress >= 0.02 || download.status === 'complete');
+		return download.status !== "initializing" && (download.progress >= 0.02 || download.status === "complete");
 	}
 
 	return false;
@@ -1499,7 +1520,7 @@ export async function cancelDownload(mediaId: string): Promise<void> {
 	// console.log(`[${mediaId}] Cancelling all downloads...`);
 	const mediaItem = mediaDb.getById(mediaId);
 	const targetMediaIds =
-		mediaItem?.type === 'show'
+		mediaItem?.type === "show"
 			? [mediaId, ...mediaDb.getEpisodesByParentId(mediaId).map((episode) => episode.id)]
 			: [mediaId];
 	const downloads = targetMediaIds.flatMap((targetMediaId) => getDownloadsForMedia(targetMediaId));
@@ -1530,21 +1551,26 @@ export async function cancelDownload(mediaId: string): Promise<void> {
 export async function deleteMediaFiles(mediaId: string): Promise<void> {
 	// console.log(`[${mediaId}] Deleting media files...`);
 	const mediaItem = mediaDb.getById(mediaId);
-	if (mediaItem?.type === 'episode') {
+	if (mediaItem?.type === "episode") {
 		if (mediaItem.filePath) {
 			await fs.rm(mediaItem.filePath, { force: true }).catch(() => undefined);
 		}
-		await fs.rm(path.join(config.paths.temp, mediaId), { recursive: true, force: true }).catch(() => undefined);
+		await fs
+			.rm(path.join(config.paths.temp, mediaId), {
+				recursive: true,
+				force: true,
+			})
+			.catch(() => undefined);
 		return;
 	}
 	let libraryPaths = [path.join(config.paths.library, mediaId)];
-	if (mediaItem?.type === 'show') {
+	if (mediaItem?.type === "show") {
 		libraryPaths = Array.from(new Set([getShowLibraryRoot(mediaItem), path.join(config.paths.library, mediaId)]));
-	} else if (mediaItem?.type === 'movie') {
+	} else if (mediaItem?.type === "movie") {
 		libraryPaths = [getMovieLibraryRoot(mediaItem)];
 	}
 	const tempPaths =
-		mediaItem?.type === 'show'
+		mediaItem?.type === "show"
 			? [
 					path.join(config.paths.temp, mediaId),
 					...mediaDb
@@ -1557,7 +1583,7 @@ export async function deleteMediaFiles(mediaId: string): Promise<void> {
 		try {
 			await fs.rm(libraryPath, { recursive: true, force: true });
 		} catch (e) {
-			if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
+			if ((e as NodeJS.ErrnoException).code !== "ENOENT") {
 				console.error(`[${mediaId}] Error deleting library directory:`, e);
 			}
 		}
@@ -1567,7 +1593,7 @@ export async function deleteMediaFiles(mediaId: string): Promise<void> {
 		try {
 			await fs.rm(tempPath, { recursive: true, force: true });
 		} catch (e) {
-			if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
+			if ((e as NodeJS.ErrnoException).code !== "ENOENT") {
 				console.error(`[${mediaId}] Error deleting temp directory:`, e);
 			}
 		}
@@ -1585,12 +1611,12 @@ async function finalizeFromTemp(mediaId: string, videoPath: string, fileName: st
 	}
 	let destDir = path.join(config.paths.library, mediaId);
 	let destPath = path.join(destDir, fileName);
-	if (mediaItem.type === 'movie') {
+	if (mediaItem.type === "movie") {
 		destDir = getMovieLibraryRoot(mediaItem);
 		destPath = path.join(destDir, buildMovieFileName(mediaItem, fileName));
-	} else if (mediaItem.type === 'episode') {
+	} else if (mediaItem.type === "episode") {
 		const show = mediaItem.parentId ? mediaDb.getById(mediaItem.parentId) : null;
-		if (!(show && show.type === 'show')) {
+		if (!(show && show.type === "show")) {
 			return false;
 		}
 		destDir = getSeasonLibraryDirectory(show, mediaItem.seasonNumber);
@@ -1600,7 +1626,7 @@ async function finalizeFromTemp(mediaId: string, videoPath: string, fileName: st
 	try {
 		const finalized = await finalizeMediaToLibrary(videoPath, destPath);
 
-		if (mediaItem.type === 'episode') {
+		if (mediaItem.type === "episode") {
 			mediaDb.updateFileInfo(mediaId, {
 				fileIndex: mediaItem.fileIndex,
 				filePath: finalized.filePath,
@@ -1610,7 +1636,7 @@ async function finalizeFromTemp(mediaId: string, videoPath: string, fileName: st
 			mediaDb.updateFilePath(mediaId, finalized.filePath, finalized.fileSize);
 		}
 
-		mediaDb.updateProgress(mediaId, 1, 'complete');
+		mediaDb.updateProgress(mediaId, 1, "complete");
 
 		// Clean up temp directory
 		const tempDir = path.join(config.paths.temp, mediaId);
@@ -1677,7 +1703,7 @@ async function recoverSingleMedia(mediaItem: {
 	// Check if file exists in library
 	if (mediaItem.filePath && existsSync(mediaItem.filePath)) {
 		// console.log(`[Recovery] [${mediaId}] File already in library, marking complete`);
-		mediaDb.updateProgress(mediaId, 1, 'complete');
+		mediaDb.updateProgress(mediaId, 1, "complete");
 		return;
 	}
 
@@ -1700,16 +1726,16 @@ async function recoverSingleMedia(mediaItem: {
 		// console.log(`[Recovery] [${mediaId}] No file found, restarting download`);
 		startDownload(mediaId, mediaItem.magnetLink).catch((e) => {
 			console.error(`[Recovery] [${mediaId}] Failed to restart download:`, e);
-			mediaDb.updateProgress(mediaId, 0, 'error');
+			mediaDb.updateProgress(mediaId, 0, "error");
 		});
 	} else if (mediaItem.imdbId) {
-		const { acquireMediaByImdb } = await import('./media-acquisition');
+		const { acquireMediaByImdb } = await import("./media-acquisition");
 		const result = await acquireMediaByImdb(mediaId);
-		if (result.status === 'error') {
-			mediaDb.updateProgress(mediaId, 0, 'error');
+		if (result.status === "error") {
+			mediaDb.updateProgress(mediaId, 0, "error");
 		}
 	} else {
-		mediaDb.updateProgress(mediaId, 0, 'not_found');
+		mediaDb.updateProgress(mediaId, 0, "not_found");
 	}
 }
 

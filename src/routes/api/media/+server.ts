@@ -1,10 +1,10 @@
-import { error, json } from '@sveltejs/kit';
-import { config } from '$lib/config';
-import { requireAuth } from '$lib/server/api-guard';
-import { downloadsDb, mediaDb } from '$lib/server/db';
-import { getMovieLibraryDirectoryId, getShowLibraryDirectoryId } from '$lib/server/library-paths';
-import { parseMagnet } from '$lib/server/magnet';
-import { addSeasonFromBrowse } from '$lib/server/season-sync';
+import { error, json } from "@sveltejs/kit";
+import { config } from "$lib/config";
+import { requireAuth } from "$lib/server/api-guard";
+import { downloadsDb, mediaDb } from "$lib/server/db";
+import { getMovieLibraryDirectoryId, getShowLibraryDirectoryId } from "$lib/server/library-paths";
+import { parseMagnet } from "$lib/server/magnet";
+import { addSeasonFromBrowse } from "$lib/server/season-sync";
 import {
 	getMovieDetails,
 	getTVDetails,
@@ -12,10 +12,10 @@ import {
 	saveTmdbImages,
 	searchMovie,
 	searchTVShow,
-} from '$lib/server/tmdb';
-import { startDownload } from '$lib/server/torrent';
-import type { MediaType } from '$lib/types';
-import type { RequestHandler } from './$types';
+} from "$lib/server/tmdb";
+import { startDownload } from "$lib/server/torrent";
+import type { MediaType } from "$lib/types";
+import type { RequestHandler } from "./$types";
 
 interface MediaMetadata {
 	title: string;
@@ -32,7 +32,7 @@ interface MediaMetadata {
 }
 
 interface BrowseSeasonRequest {
-	mode: 'browse-season';
+	mode: "browse-season";
 	tmdbId: number;
 	seasonNumber: number;
 	title: string;
@@ -45,12 +45,12 @@ interface BrowseSeasonRequest {
 }
 
 function isBrowseSeasonRequest(body: unknown): body is BrowseSeasonRequest {
-	return Boolean(body && typeof body === 'object' && 'mode' in body && body.mode === 'browse-season');
+	return Boolean(body && typeof body === "object" && "mode" in body && body.mode === "browse-season");
 }
 
 function createDefaultMetadata(title: string, year: number | undefined, tmdbId?: number): MediaMetadata {
 	return {
-		title: title || 'Unknown',
+		title: title || "Unknown",
 		year: year || null,
 		posterUrl: null,
 		backdropUrl: null,
@@ -77,7 +77,7 @@ async function fetchTmdbMetadata(
 	}
 
 	try {
-		const results = mediaType === 'show' ? await searchTVShow(title, year) : await searchMovie(title, year);
+		const results = mediaType === "show" ? await searchTVShow(title, year) : await searchMovie(title, year);
 
 		if (results.length === 0) {
 			return metadata;
@@ -90,11 +90,11 @@ async function fetchTmdbMetadata(
 		}
 
 		const details =
-			mediaType === 'show' ? await getTVDetails(basicResult.tmdbId) : await getMovieDetails(basicResult.tmdbId);
+			mediaType === "show" ? await getTVDetails(basicResult.tmdbId) : await getMovieDetails(basicResult.tmdbId);
 
 		return { ...metadata, ...details };
 	} catch (e) {
-		console.error('[TMDB] Search failed:', e);
+		console.error("[TMDB] Search failed:", e);
 		return metadata;
 	}
 }
@@ -131,7 +131,7 @@ async function enrichBrowseMetadata(
 	// Fetch full details for fields the browse view doesn't provide
 	if (config.tmdb.apiKey) {
 		try {
-			const details = mediaType === 'show' ? await getTVDetails(tmdbId) : await getMovieDetails(tmdbId);
+			const details = mediaType === "show" ? await getTVDetails(tmdbId) : await getMovieDetails(tmdbId);
 			metadata.runtime = details.runtime ?? null;
 			metadata.originalLanguage = details.originalLanguage ?? null;
 			metadata.totalSeasons = details.totalSeasons ?? null;
@@ -158,10 +158,10 @@ function saveImagesAsync(metadata: MediaMetadata, mediaId: string, mediaType: Me
 	(async () => {
 		try {
 			const directoryId =
-				mediaType === 'show'
+				mediaType === "show"
 					? getShowLibraryDirectoryId({ id: mediaId, title: metadata.title, year: metadata.year })
 					: getMovieLibraryDirectoryId({ id: mediaId, title: metadata.title, year: metadata.year });
-			const updatedImages = await saveTmdbImages(metadata, 'library', directoryId);
+			const updatedImages = await saveTmdbImages(metadata, "library", directoryId);
 			mediaDb.updateMetadata(mediaId, {
 				posterUrl: updatedImages.posterUrl,
 				backdropUrl: updatedImages.backdropUrl,
@@ -174,7 +174,7 @@ function saveImagesAsync(metadata: MediaMetadata, mediaId: string, mediaType: Me
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	const { organizationId } = requireAuth(locals);
-	const type = url.searchParams.get('type') as MediaType | null;
+	const type = url.searchParams.get("type") as MediaType | null;
 	const list = mediaDb.list(organizationId, type ?? undefined);
 	return json(list);
 };
@@ -186,20 +186,20 @@ function determineMediaType(providedType: MediaType | undefined, name: string, t
 	}
 	// Use raw name first as it contains more signals (e.g. S01)
 	if (name && isTVShowFilename(name)) {
-		return 'show';
+		return "show";
 	}
 	// Fallback to parsed title
 	if (title && isTVShowFilename(title)) {
-		return 'show';
+		return "show";
 	}
-	return 'movie';
+	return "movie";
 }
 
 /** Resume an existing download if it's in a resumable state */
 function resumeIfNeeded(mediaId: string, magnetLink: string): void {
 	startDownload(mediaId, magnetLink).catch((e) => {
 		console.error(`Failed to resume download for ${mediaId}:`, e);
-		mediaDb.updateProgress(mediaId, 0, 'error');
+		mediaDb.updateProgress(mediaId, 0, "error");
 	});
 }
 
@@ -208,7 +208,7 @@ function findExistingMedia(infohash: string, organizationId: string, magnetLink:
 	// Check by infohash on media table
 	const existing = mediaDb.getByInfohash(infohash, organizationId);
 	if (existing) {
-		if (existing.status === 'pending' || existing.status === 'searching' || existing.status === 'downloading') {
+		if (existing.status === "pending" || existing.status === "searching" || existing.status === "downloading") {
 			resumeIfNeeded(existing.id, magnetLink);
 		}
 		return json(existing, { status: 200 }) as unknown as Response;
@@ -218,7 +218,7 @@ function findExistingMedia(infohash: string, organizationId: string, magnetLink:
 	const existingDownload = downloadsDb.infohashExistsForOrg(infohash, organizationId);
 	if (existingDownload) {
 		const { download, media } = existingDownload;
-		if (download.status === 'added' || download.status === 'downloading') {
+		if (download.status === "added" || download.status === "downloading") {
 			resumeIfNeeded(media.id, magnetLink);
 		}
 		return json(media, { status: 200 }) as unknown as Response;
@@ -260,7 +260,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = (await request.json()) as Record<string, unknown>;
 	if (isBrowseSeasonRequest(body)) {
 		if (!(body.tmdbId && body.seasonNumber !== undefined && body.title)) {
-			throw error(400, 'tmdbId, seasonNumber, and title are required');
+			throw error(400, "tmdbId, seasonNumber, and title are required");
 		}
 		const result = await addSeasonFromBrowse(
 			{ userId, organizationId },
@@ -278,16 +278,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		);
 		return json(result, { status: 202 });
 	}
-	const magnetLink = typeof body.magnetLink === 'string' ? body.magnetLink : null;
+	const magnetLink = typeof body.magnetLink === "string" ? body.magnetLink : null;
 	const providedType = body.type as MediaType | undefined;
 
-	if (!magnetLink?.startsWith('magnet:')) {
-		throw error(400, 'Invalid magnet link');
+	if (!magnetLink?.startsWith("magnet:")) {
+		throw error(400, "Invalid magnet link");
 	}
 
 	const { infohash, title, year, name } = parseMagnet(magnetLink);
 	if (!infohash) {
-		throw error(400, 'Invalid magnet link - could not extract infohash');
+		throw error(400, "Invalid magnet link - could not extract infohash");
 	}
 
 	const mediaType = determineMediaType(providedType, name, title);
@@ -302,20 +302,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const metadata = await resolveMetadata(body, title, year, mediaType);
 
 	// For TV shows, check if we should merge into an existing show within this profile
-	if (mediaType === 'show' && metadata.tmdbId) {
-		const existingShow = mediaDb.getByTmdbId(metadata.tmdbId, organizationId, 'show');
+	if (mediaType === "show" && metadata.tmdbId) {
+		const existingShow = mediaDb.getByTmdbId(metadata.tmdbId, organizationId, "show");
 		if (existingShow) {
 			const download = downloadsDb.create({
 				mediaId: existingShow.id,
 				magnetLink,
 				infohash,
-				status: 'added',
+				status: "added",
 				progress: 0,
 			});
 
 			startDownload(existingShow.id, magnetLink).catch((e) => {
 				console.error(`Failed to start download for ${existingShow.id}:`, e);
-				downloadsDb.updateProgress(download.id, 0, 'error');
+				downloadsDb.updateProgress(download.id, 0, "error");
 			});
 
 			return json({ ...existingShow, _seasonAdded: true }, { status: 200 });
@@ -347,7 +347,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		mediaId: mediaItem.id,
 		magnetLink,
 		infohash,
-		status: 'added',
+		status: "added",
 		progress: 0,
 	});
 
@@ -357,7 +357,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Start download
 	startDownload(mediaItem.id, magnetLink).catch((e) => {
 		console.error(`Failed to start download for ${mediaItem.id}:`, e);
-		mediaDb.updateProgress(mediaItem.id, 0, 'error');
+		mediaDb.updateProgress(mediaItem.id, 0, "error");
 	});
 
 	return json(mediaItem, { status: 201 });

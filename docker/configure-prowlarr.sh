@@ -255,7 +255,7 @@ main() {
     setup_flaresolverr "$API_KEY" "$FLARESOLVERR_TAG_ID" || log_warn "FlareSolverr proxy setup failed, but continuing..."
     
     log_info "Prowlarr configuration complete!"
-    log_info "API Key: ${API_KEY}"
+    log_info "API key extracted and saved"
     
     # Output API key to stdout for capture by calling process
     echo "PROWLARR_API_KEY=${API_KEY}"

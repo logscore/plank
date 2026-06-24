@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { Lock } from '@lucide/svelte';
-    import Facehash from '$lib/components/facehash/Facehash.svelte';
-    import { cn } from '$lib/utils';
+    import { Lock } from "@lucide/svelte";
+    import Facehash from "$lib/components/facehash/Facehash.svelte";
+    import { cn } from "$lib/utils";
 
     let {
         name,

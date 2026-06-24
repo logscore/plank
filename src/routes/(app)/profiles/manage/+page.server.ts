@@ -1,17 +1,17 @@
-import { redirect } from '@sveltejs/kit';
-import { sql } from 'drizzle-orm';
-import { db } from '$lib/server/db/index';
-import { schema } from '$lib/server/db/schema';
-import type { PageServerLoad } from './$types';
+import { redirect } from "@sveltejs/kit";
+import { sql } from "drizzle-orm";
+import { db } from "$lib/server/db/index";
+import { schema } from "$lib/server/db/schema";
+import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
-		throw redirect(302, '/login');
+		throw redirect(302, "/login");
 	}
 
 	// Admin-only page
-	if (locals.user.role !== 'admin') {
-		throw redirect(302, '/profiles');
+	if (locals.user.role !== "admin") {
+		throw redirect(302, "/profiles");
 	}
 
 	// Get ALL organizations with member counts

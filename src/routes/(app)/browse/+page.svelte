@@ -1,15 +1,15 @@
 <script lang="ts">
-    import { Flame, Trophy } from '@lucide/svelte';
-    import { createInfiniteQuery, createQuery, useQueryClient } from '@tanstack/svelte-query';
-    import { toast } from 'svelte-sonner';
-    import { goto } from '$app/navigation';
-    import { env } from '$env/dynamic/public';
-    import CardSkeleton from '$lib/components/CardSkeleton.svelte';
-    import ProwlarrSetup from '$lib/components/ProwlarrSetup.svelte';
-    import TorrentCard from '$lib/components/TorrentCard.svelte';
-    import type { SeasonData } from '$lib/components/ui/ContextMenu.svelte';
-    import { createAddFromBrowseMutation } from '$lib/mutations/browse-mutations';
-    import { prefetchBrowse } from '$lib/prefetch';
+    import { Flame, Trophy } from "@lucide/svelte";
+    import { createInfiniteQuery, createQuery, useQueryClient } from "@tanstack/svelte-query";
+    import { toast } from "svelte-sonner";
+    import { goto } from "$app/navigation";
+    import { env } from "$env/dynamic/public";
+    import CardSkeleton from "$lib/components/CardSkeleton.svelte";
+    import ProwlarrSetup from "$lib/components/ProwlarrSetup.svelte";
+    import TorrentCard from "$lib/components/TorrentCard.svelte";
+    import type { SeasonData } from "$lib/components/ui/ContextMenu.svelte";
+    import { createAddFromBrowseMutation } from "$lib/mutations/browse-mutations";
+    import { prefetchBrowse } from "$lib/prefetch";
     import {
         type BrowseDetailItem,
         type BrowseItem,
@@ -20,13 +20,13 @@
         fetchSeasons,
         resolveTorrent,
         type SeasonSummary,
-    } from '$lib/queries/browse-queries';
-    import { queryKeys } from '$lib/query-keys';
+    } from "$lib/queries/browse-queries";
+    import { queryKeys } from "$lib/query-keys";
 
     interface Props {
         data: {
-            type: 'trending' | 'popular';
-            filter: 'all' | 'movie' | 'show';
+            type: "trending" | "popular";
+            filter: "all" | "movie" | "show";
         };
     }
 
@@ -40,7 +40,7 @@
 
     // Derive params from URL (available immediately, not streamed)
     const activeTab = $derived(data.type);
-    const activeFilter = $derived(data.filter || 'all');
+    const activeFilter = $derived(data.filter || "all");
 
     // Prowlarr status via TanStack Query (long staleTime - rarely changes)
     const prowlarrQuery = createQuery(() => ({
@@ -174,7 +174,7 @@
                     browseQuery.fetchNextPage();
                 }
             },
-            { rootMargin: '300px' }
+            { rootMargin: "300px" }
         );
 
         observer.observe(loadMoreTrigger);
@@ -184,7 +184,7 @@
 
     // Prefetch the other tab for instant tab switching
     $effect(() => {
-        const otherTab = activeTab === 'trending' ? 'popular' : 'trending';
+        const otherTab = activeTab === "trending" ? "popular" : "trending";
         prefetchBrowse(otherTab, activeFilter);
     });
 
@@ -209,13 +209,13 @@
             });
 
             if (!(result.success && result.torrent)) {
-                console.error('Failed to resolve torrent:', result.message || result.error);
+                console.error("Failed to resolve torrent:", result.message || result.error);
                 return null;
             }
 
             return result.torrent.magnetLink;
         } catch (err) {
-            console.error('Failed to resolve torrent:', err);
+            console.error("Failed to resolve torrent:", err);
             return null;
         } finally {
             const updated = new Set(resolvingItems);
@@ -236,8 +236,8 @@
             const magnetLink = await getMagnetLink(item);
             if (!magnetLink) {
                 // If resolution fails, we must clear the adding state
-                toast.error('No magnet link found for this title');
-                throw new Error('Could not resolve magnet link');
+                toast.error("No magnet link found for this title");
+                throw new Error("Could not resolve magnet link");
             }
 
             await addToLibraryMutation.mutateAsync({
@@ -246,11 +246,11 @@
                 year: item.year,
                 tmdbId: item.tmdbId,
             });
-            toast.success('Added to library');
+            toast.success("Added to library");
         } catch (err) {
-            console.error('Failed to add to library:', err);
-            if (err instanceof Error && err.message !== 'Could not resolve magnet link') {
-                toast.error('Failed to add to library. No valid magnet link found');
+            console.error("Failed to add to library:", err);
+            if (err instanceof Error && err.message !== "Could not resolve magnet link") {
+                toast.error("Failed to add to library. No valid magnet link found");
             }
         } finally {
             const updated = new Set(addingItems);
@@ -270,8 +270,8 @@
         try {
             const magnetLink = await getMagnetLink(item);
             if (!magnetLink) {
-                toast.error('No magnet link found for this title');
-                throw new Error('Could not resolve magnet link');
+                toast.error("No magnet link found for this title");
+                throw new Error("Could not resolve magnet link");
             }
 
             const media = await addToLibraryMutation.mutateAsync({
@@ -282,9 +282,9 @@
             });
             goto(`/watch/${media.id}`);
         } catch (err) {
-            console.error('Failed to add and watch:', err);
-            if (err instanceof Error && err.message !== 'Could not resolve magnet link') {
-                toast.error('Failed to start playback');
+            console.error("Failed to add and watch:", err);
+            if (err instanceof Error && err.message !== "Could not resolve magnet link") {
+                toast.error("Failed to start playback");
             }
         } finally {
             const updated = new Set(addingItems);
@@ -331,7 +331,7 @@
             seasonsCache = new Map(seasonsCache).set(item.tmdbId, seasonData);
             return seasonData;
         } catch (err) {
-            console.error('Failed to fetch seasons:', err);
+            console.error("Failed to fetch seasons:", err);
             return [];
         } finally {
             const updated = new Set(seasonsLoading);
@@ -342,7 +342,7 @@
 
     // Prefetch seasons for a TV show on hover - fire and forget
     function handlePrefetchSeasons(item: BrowseItem) {
-        if (item.mediaType !== 'show') {
+        if (item.mediaType !== "show") {
             return;
         }
         // Fire and forget
@@ -364,7 +364,7 @@
 
         try {
             await addToLibraryMutation.mutateAsync({
-                mode: 'browse-season',
+                mode: "browse-season",
                 title: item.title,
                 year: item.year,
                 tmdbId: item.tmdbId,
@@ -377,8 +377,8 @@
             });
             toast.success(`Season ${seasonNumber} queued`);
         } catch (err) {
-            console.error('Failed to add season to library:', err);
-            toast.error('Failed to add season');
+            console.error("Failed to add season to library:", err);
+            toast.error("Failed to add season");
         } finally {
             const updated = new Set(addingItems);
             updated.delete(item.tmdbId);

@@ -1,56 +1,56 @@
 export const queryKeys = {
 	// Media queries
 	media: {
-		all: ['media'] as const,
-		lists: () => [...queryKeys.media.all, 'list'] as const,
-		list: (type: 'movie' | 'show' | 'all') => [...queryKeys.media.lists(), type] as const,
-		detail: (id: string) => [...queryKeys.media.all, 'detail', id] as const,
-		search: (query: string) => [...queryKeys.media.all, 'search', query] as const,
-		continueWatching: () => [...queryKeys.media.all, 'continue-watching'] as const,
-		position: (id: string) => [...queryKeys.media.all, 'position', id] as const,
-		subtitles: (id: string) => [...queryKeys.media.all, 'subtitles', id] as const,
-		progress: (id: string) => [...queryKeys.media.all, 'progress', id] as const,
+		all: ["media"] as const,
+		lists: () => [...queryKeys.media.all, "list"] as const,
+		list: (type: "movie" | "show" | "all") => [...queryKeys.media.lists(), type] as const,
+		detail: (id: string) => [...queryKeys.media.all, "detail", id] as const,
+		search: (query: string) => [...queryKeys.media.all, "search", query] as const,
+		continueWatching: () => [...queryKeys.media.all, "continue-watching"] as const,
+		position: (id: string) => [...queryKeys.media.all, "position", id] as const,
+		subtitles: (id: string) => [...queryKeys.media.all, "subtitles", id] as const,
+		progress: (id: string) => [...queryKeys.media.all, "progress", id] as const,
 	},
 
 	// Browse queries
 	browse: {
-		all: ['browse'] as const,
-		trending: (filter: 'all' | 'movie' | 'show', page: number) =>
-			[...queryKeys.browse.all, 'trending', filter, page] as const,
-		popular: (filter: 'all' | 'movie' | 'show', page: number) =>
-			[...queryKeys.browse.all, 'popular', filter, page] as const,
-		infinite: (type: 'trending' | 'popular', filter: 'all' | 'movie' | 'show') =>
-			[...queryKeys.browse.all, 'infinite', type, filter] as const,
-		details: (tmdbIds: number[]) => [...queryKeys.browse.all, 'details', ...tmdbIds.toSorted()] as const,
-		resolve: (tmdbId: number) => [...queryKeys.browse.all, 'resolve', tmdbId] as const,
+		all: ["browse"] as const,
+		trending: (filter: "all" | "movie" | "show", page: number) =>
+			[...queryKeys.browse.all, "trending", filter, page] as const,
+		popular: (filter: "all" | "movie" | "show", page: number) =>
+			[...queryKeys.browse.all, "popular", filter, page] as const,
+		infinite: (type: "trending" | "popular", filter: "all" | "movie" | "show") =>
+			[...queryKeys.browse.all, "infinite", type, filter] as const,
+		details: (tmdbIds: number[]) => [...queryKeys.browse.all, "details", ...tmdbIds.toSorted()] as const,
+		resolve: (tmdbId: number) => [...queryKeys.browse.all, "resolve", tmdbId] as const,
 		resolveSeason: (tmdbId: number, seasonNumber: number) =>
-			[...queryKeys.browse.all, 'resolve', 'season', tmdbId, seasonNumber] as const,
-		seasons: (tmdbId: number) => [...queryKeys.browse.all, 'seasons', tmdbId] as const,
+			[...queryKeys.browse.all, "resolve", "season", tmdbId, seasonNumber] as const,
+		seasons: (tmdbId: number) => [...queryKeys.browse.all, "seasons", tmdbId] as const,
 	},
 
 	// Torrent queries
 	torrents: {
-		all: ['torrents'] as const,
-		search: (params: Record<string, unknown>) => [...queryKeys.torrents.all, 'search', params] as const,
+		all: ["torrents"] as const,
+		search: (params: Record<string, unknown>) => [...queryKeys.torrents.all, "search", params] as const,
 		browse: (category: string, params: Record<string, unknown>) =>
-			[...queryKeys.torrents.all, 'browse', category, params] as const,
-		cache: (imdbIds: string[]) => [...queryKeys.torrents.all, 'cache', imdbIds.sort()] as const,
+			[...queryKeys.torrents.all, "browse", category, params] as const,
+		cache: (imdbIds: string[]) => [...queryKeys.torrents.all, "cache", imdbIds.sort()] as const,
 	},
 
 	// System queries
 	system: {
-		all: ['system'] as const,
+		all: ["system"] as const,
 		prowlarr: {
-			status: () => [...queryKeys.system.all, 'prowlarr', 'status'] as const,
-			test: () => [...queryKeys.system.all, 'prowlarr', 'test'] as const,
-			indexers: () => [...queryKeys.system.all, 'prowlarr', 'indexers'] as const,
-			schemas: () => [...queryKeys.system.all, 'prowlarr', 'schemas'] as const,
+			status: () => [...queryKeys.system.all, "prowlarr", "status"] as const,
+			test: () => [...queryKeys.system.all, "prowlarr", "test"] as const,
+			indexers: () => [...queryKeys.system.all, "prowlarr", "indexers"] as const,
+			schemas: () => [...queryKeys.system.all, "prowlarr", "schemas"] as const,
 		},
 	},
 
 	// TMDB queries
 	tmdb: {
-		all: ['tmdb'] as const,
-		search: (query: string) => [...queryKeys.tmdb.all, 'search', query] as const,
+		all: ["tmdb"] as const,
+		search: (query: string) => [...queryKeys.tmdb.all, "search", query] as const,
 	},
 } as const;

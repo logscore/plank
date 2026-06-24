@@ -15,29 +15,29 @@
         Trash2,
         UserPlus,
         X,
-    } from '@lucide/svelte';
-    import { fade } from 'svelte/transition';
-    import { toast } from 'svelte-sonner';
-    import { invalidateAll } from '$app/navigation';
-    import { authClient } from '$lib/auth-client';
-    import Facehash from '$lib/components/facehash/Facehash.svelte';
-    import Button from '$lib/components/ui/Button.svelte';
-    import Input from '$lib/components/ui/Input.svelte';
-    import { confirmDelete, uiState } from '$lib/ui-state.svelte';
-    import type { PageData } from './$types';
+    } from "@lucide/svelte";
+    import { fade } from "svelte/transition";
+    import { toast } from "svelte-sonner";
+    import { invalidateAll } from "$app/navigation";
+    import { authClient } from "$lib/auth-client";
+    import Facehash from "$lib/components/facehash/Facehash.svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import Input from "$lib/components/ui/Input.svelte";
+    import { confirmDelete, uiState } from "$lib/ui-state.svelte";
+    import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
 
-    let currentPassword = $state('');
-    let newPassword = $state('');
-    let confirmPassword = $state('');
-    let passwordError = $state('');
-    let passwordSuccess = $state('');
+    let currentPassword = $state("");
+    let newPassword = $state("");
+    let confirmPassword = $state("");
+    let passwordError = $state("");
+    let passwordSuccess = $state("");
     let changingPassword = $state(false);
     let showPasswordForm = $state(false);
     // User edit state
     let editingUser = $state(false);
-    let editUserName = $state('');
+    let editUserName = $state("");
     let savingUser = $state(false);
     let avatarInput: HTMLInputElement | undefined = $state();
     let pendingAvatarFile = $state<File | null>(null);
@@ -45,15 +45,15 @@
 
     // Profile edit state
     let editingProfile = $state(false);
-    let editProfileName = $state('');
+    let editProfileName = $state("");
     let editProfileLogo = $state<string | null>(null);
     let pendingLogoFile = $state<File | null>(null);
     let pendingLogoPreview = $state<string | null>(null);
     let savingProfile = $state(false);
     let logoInput: HTMLInputElement | undefined = $state();
 
-    async function updateRole(memberId: string, memberName: string, newRole: 'admin' | 'member') {
-        const action = newRole === 'admin' ? 'Promote' : 'Demote';
+    async function updateRole(memberId: string, memberName: string, newRole: "admin" | "member") {
+        const action = newRole === "admin" ? "Promote" : "Demote";
 
         confirmDelete(
             `${action} Member`,
@@ -66,15 +66,15 @@
                         organizationId: data.organization.id,
                     });
                     if (res.error) {
-                        console.error('Failed to update role:', res.error);
+                        console.error("Failed to update role:", res.error);
                         toast.error(`Failed to update role: ${res.error.message}`);
                     } else {
-                        toast.success('Role updated successfully');
+                        toast.success("Role updated successfully");
                         await invalidateAll();
                     }
                 } catch (e) {
-                    console.error('Exception updating role:', e);
-                    toast.error('An unexpected error occurred');
+                    console.error("Exception updating role:", e);
+                    toast.error("An unexpected error occurred");
                 }
             }
         );
@@ -82,7 +82,7 @@
 
     async function removeMember(memberId: string, memberName: string) {
         confirmDelete(
-            'Remove Member',
+            "Remove Member",
             `Are you sure you want to remove ${memberName} from the organization?`,
             async () => {
                 const res = await authClient.organization.removeMember({
@@ -99,12 +99,12 @@
     }
 
     async function revokeInvitation(invitationId: string, email: string) {
-        confirmDelete('Revoke Invitation', `Are you sure you want to revoke the invitation for ${email}?`, async () => {
+        confirmDelete("Revoke Invitation", `Are you sure you want to revoke the invitation for ${email}?`, async () => {
             const res = await authClient.organization.cancelInvitation({
                 invitationId,
             });
             if (res.error) {
-                toast.error(res.error.message || 'There was an error revoking invitation.');
+                toast.error(res.error.message || "There was an error revoking invitation.");
             } else {
                 await invalidateAll();
             }
@@ -124,21 +124,21 @@
     }
 
     async function changePassword() {
-        passwordError = '';
-        passwordSuccess = '';
+        passwordError = "";
+        passwordSuccess = "";
 
         if (!(currentPassword && newPassword && confirmPassword)) {
-            passwordError = 'All fields are required';
+            passwordError = "All fields are required";
             return;
         }
 
         if (newPassword !== confirmPassword) {
-            passwordError = 'New passwords do not match';
+            passwordError = "New passwords do not match";
             return;
         }
 
         if (newPassword.length < 8) {
-            passwordError = 'New password must be at least 8 characters';
+            passwordError = "New password must be at least 8 characters";
             return;
         }
 
@@ -151,18 +151,18 @@
             });
 
             if (result.error) {
-                passwordError = result.error.message || 'Failed to change password';
+                passwordError = result.error.message || "Failed to change password";
             } else {
-                passwordSuccess = 'Password changed successfully';
-                currentPassword = '';
-                newPassword = '';
-                confirmPassword = '';
+                passwordSuccess = "Password changed successfully";
+                currentPassword = "";
+                newPassword = "";
+                confirmPassword = "";
                 setTimeout(() => {
                     showPasswordForm = false;
                 }, 2000);
             }
         } catch (e) {
-            passwordError = 'Failed to change password';
+            passwordError = "Failed to change password";
         } finally {
             changingPassword = false;
         }
@@ -170,21 +170,21 @@
 
     function startEditUser() {
         editingUser = true;
-        editUserName = data.user.name || '';
+        editUserName = data.user.name || "";
         pendingAvatarFile = null;
         pendingAvatarPreview = null;
     }
 
     function cancelEditUser() {
         editingUser = false;
-        editUserName = '';
+        editUserName = "";
         if (pendingAvatarPreview) {
             URL.revokeObjectURL(pendingAvatarPreview);
         }
         pendingAvatarFile = null;
         pendingAvatarPreview = null;
         if (avatarInput) {
-            avatarInput.value = '';
+            avatarInput.value = "";
         }
     }
 
@@ -209,16 +209,16 @@
         try {
             if (pendingAvatarFile) {
                 const formData = new FormData();
-                formData.append('file', pendingAvatarFile);
+                formData.append("file", pendingAvatarFile);
 
-                const avatarRes = await fetch('/api/upload/avatar', {
-                    method: 'POST',
+                const avatarRes = await fetch("/api/upload/avatar", {
+                    method: "POST",
                     body: formData,
                 });
 
                 if (!avatarRes.ok) {
                     const err = await avatarRes.json();
-                    toast.error(err.message || 'Failed to upload avatar');
+                    toast.error(err.message || "Failed to upload avatar");
                     return;
                 }
             }
@@ -227,11 +227,11 @@
                 await authClient.updateUser({ name: editUserName.trim() });
             }
 
-            toast.success('Account updated');
+            toast.success("Account updated");
             cancelEditUser();
             await invalidateAll();
         } catch {
-            toast.error('Failed to update account');
+            toast.error("Failed to update account");
         } finally {
             savingUser = false;
         }
@@ -250,7 +250,7 @@
 
     function cancelEditProfile() {
         editingProfile = false;
-        editProfileName = '';
+        editProfileName = "";
         editProfileLogo = null;
         if (pendingLogoPreview) {
             URL.revokeObjectURL(pendingLogoPreview);
@@ -268,38 +268,38 @@
         try {
             if (pendingLogoFile) {
                 const formData = new FormData();
-                formData.append('file', pendingLogoFile);
-                formData.append('organizationId', data.organization.id);
+                formData.append("file", pendingLogoFile);
+                formData.append("organizationId", data.organization.id);
 
-                const logoRes = await fetch('/api/upload/logo', {
-                    method: 'POST',
+                const logoRes = await fetch("/api/upload/logo", {
+                    method: "POST",
                     body: formData,
                 });
 
                 if (!logoRes.ok) {
                     const err = await logoRes.json();
-                    toast.error(err.message || 'Failed to upload logo');
+                    toast.error(err.message || "Failed to upload logo");
                     return;
                 }
             }
 
             const res = await fetch(`/api/profiles/${data.organization.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name: editProfileName.trim() }),
             });
 
             if (!res.ok) {
                 const err = await res.json();
-                toast.error(err.error || 'Failed to update profile');
+                toast.error(err.error || "Failed to update profile");
                 return;
             }
 
-            toast.success('Profile updated');
+            toast.success("Profile updated");
             cancelEditProfile();
             await invalidateAll();
         } catch {
-            toast.error('Failed to update profile');
+            toast.error("Failed to update profile");
         } finally {
             savingProfile = false;
         }

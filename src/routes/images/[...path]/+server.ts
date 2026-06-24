@@ -1,47 +1,47 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import { error } from '@sveltejs/kit';
-import { config } from '$lib/config';
-import type { RequestHandler } from './$types';
+import fs from "node:fs/promises";
+import path from "node:path";
+import { error } from "@sveltejs/kit";
+import { config } from "$lib/config";
+import type { RequestHandler } from "./$types";
 
 // Regex to prevent directory traversal
 const DIRECTORY_TRAVERSAL_REGEX = /^(\.\.(\/|\\|$))+/;
 
 export const GET: RequestHandler = async ({ params }) => {
 	if (!params.path) {
-		throw error(404, 'Not Found');
+		throw error(404, "Not Found");
 	}
 
 	// Prevent directory traversal
-	const safePath = path.normalize(params.path).replace(DIRECTORY_TRAVERSAL_REGEX, '');
+	const safePath = path.normalize(params.path).replace(DIRECTORY_TRAVERSAL_REGEX, "");
 	const filePath = path.join(config.paths.data, safePath);
 
 	try {
 		const stat = await fs.stat(filePath);
 		if (!stat.isFile()) {
-			throw error(404, 'Not Found');
+			throw error(404, "Not Found");
 		}
 
 		const file = await fs.readFile(filePath);
 		const ext = path.extname(filePath).toLowerCase();
 
-		let contentType = 'application/octet-stream';
+		let contentType = "application/octet-stream";
 		switch (ext) {
-			case '.jpg':
-			case '.jpeg':
-				contentType = 'image/jpeg';
+			case ".jpg":
+			case ".jpeg":
+				contentType = "image/jpeg";
 				break;
-			case '.png':
-				contentType = 'image/png';
+			case ".png":
+				contentType = "image/png";
 				break;
-			case '.webp':
-				contentType = 'image/webp';
+			case ".webp":
+				contentType = "image/webp";
 				break;
-			case '.gif':
-				contentType = 'image/gif';
+			case ".gif":
+				contentType = "image/gif";
 				break;
-			case '.svg':
-				contentType = 'image/svg+xml';
+			case ".svg":
+				contentType = "image/svg+xml";
 				break;
 			default:
 				// Keep application/octet-stream for unknown types
@@ -50,12 +50,12 @@ export const GET: RequestHandler = async ({ params }) => {
 
 		return new Response(file, {
 			headers: {
-				'Content-Type': contentType,
+				"Content-Type": contentType,
 				// Cache for a long time since images are content-addressed or immutable usually
-				'Cache-Control': 'public, max-age=31536000',
+				"Cache-Control": "public, max-age=31536000",
 			},
 		});
 	} catch (_e) {
-		throw error(404, 'Not Found');
+		throw error(404, "Not Found");
 	}
 };

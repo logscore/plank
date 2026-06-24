@@ -1,20 +1,20 @@
-import { json } from '@sveltejs/kit';
-import { and, eq, like } from 'drizzle-orm';
-import { db } from '$lib/server/db/index';
-import { media } from '$lib/server/db/schema';
-import type { RequestHandler } from './$types';
+import { json } from "@sveltejs/kit";
+import { and, eq, like } from "drizzle-orm";
+import { db } from "$lib/server/db/index";
+import { media } from "$lib/server/db/schema";
+import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
+		return json({ error: "Unauthorized" }, { status: 401 });
 	}
 
 	const organizationId = locals.session?.activeOrganizationId;
 	if (!organizationId) {
-		return json({ error: 'No active profile selected' }, { status: 400 });
+		return json({ error: "No active profile selected" }, { status: 400 });
 	}
 
-	const query = url.searchParams.get('q')?.trim() || '';
+	const query = url.searchParams.get("q")?.trim() || "";
 
 	if (query.length < 2) {
 		return json([]);
@@ -22,7 +22,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	try {
 		// Get underlying sqlite instance for raw FTS query
-		const sqlite = (db as unknown as { $client: import('better-sqlite3').Database }).$client;
+		const sqlite = (db as unknown as { $client: import("better-sqlite3").Database }).$client;
 
 		// FTS5 content table uses rowid to reference media table
 		// First try FTS search, then fall back to LIKE
@@ -99,7 +99,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		return json(results);
 	} catch (error) {
-		console.error('Search error:', error);
+		console.error("Search error:", error);
 
 		// Fallback to simple LIKE search if FTS fails
 		const fallbackResults = db

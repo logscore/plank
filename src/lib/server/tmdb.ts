@@ -1,4 +1,4 @@
-import { type AppSettings, getSettings } from '$lib/server/settings';
+import { type AppSettings, getSettings } from "$lib/server/settings";
 
 interface TMDBGenre {
 	id: number;
@@ -134,7 +134,7 @@ export interface BrowseItem {
 	overview: string | null;
 	voteAverage: number | null;
 	genres: string[];
-	mediaType: 'movie' | 'show';
+	mediaType: "movie" | "show";
 	certification: string | null;
 	// Set by the cache lookup
 	magnetLink?: string;
@@ -156,7 +156,7 @@ interface TMDBTrendingItem {
 	overview: string;
 	vote_average: number;
 	genre_ids: number[];
-	media_type?: 'movie' | 'show';
+	media_type?: "movie" | "show";
 }
 
 interface TMDBTrendingResponse {
@@ -167,52 +167,52 @@ interface TMDBTrendingResponse {
 
 // Genre ID to name mapping for movies
 const MOVIE_GENRES: Record<number, string> = {
-	28: 'Action',
-	12: 'Adventure',
-	16: 'Animation',
-	35: 'Comedy',
-	80: 'Crime',
-	99: 'Documentary',
-	18: 'Drama',
-	10751: 'Family',
-	14: 'Fantasy',
-	36: 'History',
-	27: 'Horror',
-	10402: 'Music',
-	9648: 'Mystery',
-	10749: 'Romance',
-	878: 'Science Fiction',
-	10770: 'TV Movie',
-	53: 'Thriller',
-	10752: 'War',
-	37: 'Western',
+	28: "Action",
+	12: "Adventure",
+	16: "Animation",
+	35: "Comedy",
+	80: "Crime",
+	99: "Documentary",
+	18: "Drama",
+	10751: "Family",
+	14: "Fantasy",
+	36: "History",
+	27: "Horror",
+	10402: "Music",
+	9648: "Mystery",
+	10749: "Romance",
+	878: "Science Fiction",
+	10770: "TV Movie",
+	53: "Thriller",
+	10752: "War",
+	37: "Western",
 };
 
 const TV_GENRES: Record<number, string> = {
-	10759: 'Action & Adventure',
-	16: 'Animation',
-	35: 'Comedy',
-	80: 'Crime',
-	99: 'Documentary',
-	18: 'Drama',
-	10751: 'Family',
-	10762: 'Kids',
-	9648: 'Mystery',
-	10763: 'News',
-	10764: 'Reality',
-	10765: 'Sci-Fi & Fantasy',
-	10766: 'Soap',
-	10767: 'Talk',
-	10768: 'War & Politics',
-	37: 'Western',
+	10759: "Action & Adventure",
+	16: "Animation",
+	35: "Comedy",
+	80: "Crime",
+	99: "Documentary",
+	18: "Drama",
+	10751: "Family",
+	10762: "Kids",
+	9648: "Mystery",
+	10763: "News",
+	10764: "Reality",
+	10765: "Sci-Fi & Fantasy",
+	10766: "Soap",
+	10767: "Talk",
+	10768: "War & Politics",
+	37: "Western",
 };
 
-function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: 'movie' | 'show', settings: AppSettings): BrowseItem {
+function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: "movie" | "show", settings: AppSettings): BrowseItem {
 	const type = item.media_type || defaultType;
-	const title = item.title || item.name || 'Unknown Title';
+	const title = item.title || item.name || "Unknown Title";
 	const date = item.release_date || item.first_air_date;
 	const year = date ? Number.parseInt(date.slice(0, 4), 10) : null;
-	const genres = item.genre_ids.map((id) => (type === 'movie' ? MOVIE_GENRES[id] : TV_GENRES[id])).filter(Boolean);
+	const genres = item.genre_ids.map((id) => (type === "movie" ? MOVIE_GENRES[id] : TV_GENRES[id])).filter(Boolean);
 
 	return {
 		tmdbId: item.id,
@@ -224,7 +224,7 @@ function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: 'movie' | 'sho
 		overview: item.overview ?? null,
 		voteAverage: item.vote_average ?? null,
 		genres,
-		mediaType: type === 'movie' ? type : 'show',
+		mediaType: type === "movie" ? type : "show",
 		certification: null, // Will be fetched separately
 		needsResolve: true,
 	};
@@ -234,13 +234,13 @@ function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: 'movie' | 'sho
  * Get trending content from TMDB
  */
 export async function getTrending(
-	timeWindow: 'day' | 'week' = 'day',
+	timeWindow: "day" | "week" = "day",
 	page = 1,
-	type: 'all' | 'movie' | 'show' = 'all'
+	type: "all" | "movie" | "show" = "all"
 ): Promise<{ items: BrowseItem[]; totalPages: number }> {
 	const settings = await getSettings();
 	const res = await fetch(
-		`${settings.tmdb.baseUrl}/trending/${type}/${timeWindow}?api_key=${settings.tmdb.apiKey}&page=${page}&language=${settings.tmdb.language}`
+		`${settings.tmdb.baseUrl}/trending/${type}/${timeWindow}?api_key=${settings.tmdb.apiKey}&page=${page}&language=${settings.tmdb.language}&include_adult=false`
 	);
 
 	if (!res.ok) {
@@ -252,7 +252,7 @@ export async function getTrending(
 
 	// If type is 'all', TMDB returns media_type. If specific, it doesn't always, so default.
 	const items: BrowseItem[] = data.results.map((item) =>
-		mapTmdbToBrowseItem(item, type === 'all' ? 'movie' : type, settings)
+		mapTmdbToBrowseItem(item, type === "all" ? "movie" : type, settings)
 	);
 
 	return { items, totalPages: data.total_pages };
@@ -263,11 +263,11 @@ export async function getTrending(
  */
 export async function getPopular(
 	page = 1,
-	type: 'movie' | 'show' = 'movie'
+	type: "movie" | "show" = "movie"
 ): Promise<{ items: BrowseItem[]; totalPages: number }> {
 	const settings = await getSettings();
 	const res = await fetch(
-		`${settings.tmdb.baseUrl}/${type}/popular?api_key=${settings.tmdb.apiKey}&page=${page}&language=${settings.tmdb.language}`
+		`${settings.tmdb.baseUrl}/${type}/popular?api_key=${settings.tmdb.apiKey}&page=${page}&language=${settings.tmdb.language}&include_adult=false`
 	);
 
 	if (!res.ok) {
@@ -299,7 +299,7 @@ const BROWSE_DETAILS_MAX_SIZE = 500; // Evict oldest when cache exceeds this
  */
 export async function getBrowseItemDetails(
 	tmdbId: number,
-	type: 'movie' | 'show'
+	type: "movie" | "show"
 ): Promise<{ imdbId: string | null; certification: string | null }> {
 	const cacheKey = `${type}:${tmdbId}`;
 	const now = Date.now();
@@ -313,7 +313,7 @@ export async function getBrowseItemDetails(
 	const settings = await getSettings();
 	// For movies: append_to_response=external_ids,release_dates
 	// For tv: append_to_response=external_ids,content_ratings
-	const append = type === 'movie' ? 'external_ids,release_dates' : 'external_ids,content_ratings';
+	const append = type === "movie" ? "external_ids,release_dates" : "external_ids,content_ratings";
 
 	const res = await fetch(
 		`${settings.tmdb.baseUrl}/${type}/${tmdbId}?api_key=${settings.tmdb.apiKey}&append_to_response=${append}&language=${settings.tmdb.language}`
@@ -327,8 +327,8 @@ export async function getBrowseItemDetails(
 	const imdbId = data.external_ids?.imdb_id ?? null;
 	let certification: string | null = null;
 
-	if (type === 'movie' && data.release_dates?.results) {
-		const usRelease = data.release_dates.results.find((r: { iso_3166_1: string }) => r.iso_3166_1 === 'US');
+	if (type === "movie" && data.release_dates?.results) {
+		const usRelease = data.release_dates.results.find((r: { iso_3166_1: string }) => r.iso_3166_1 === "US");
 		if (usRelease) {
 			const theatrical = usRelease.release_dates.find(
 				(r: { type: number; certification: string }) => r.type === 3 && r.certification
@@ -336,8 +336,8 @@ export async function getBrowseItemDetails(
 			const anyCert = usRelease.release_dates.find((r: { certification: string }) => r.certification);
 			certification = theatrical?.certification || anyCert?.certification || null;
 		}
-	} else if (type === 'show' && data.content_ratings?.results) {
-		const usRating = data.content_ratings.results.find((r: { iso_3166_1: string }) => r.iso_3166_1 === 'US');
+	} else if (type === "show" && data.content_ratings?.results) {
+		const usRating = data.content_ratings.results.find((r: { iso_3166_1: string }) => r.iso_3166_1 === "US");
 		certification = usRating?.rating || null;
 	}
 
@@ -360,21 +360,21 @@ export async function getBrowseItemDetails(
 async function tmdbSearch<T extends { results: unknown[] }>(
 	endpoint: string,
 	extraParams: Record<string, string> = {}
-): Promise<T['results']> {
+): Promise<T["results"]> {
 	const settings = await getSettings();
 	const params = new URLSearchParams({
 		api_key: settings.tmdb.apiKey,
 		language: settings.tmdb.language,
 		...extraParams,
 	});
-	const res = await fetch(`${settings.tmdb.baseUrl}${endpoint}?${params}`);
+	const res = await fetch(`${settings.tmdb.baseUrl}${endpoint}?${params}&include_adult=false`);
 	if (!res.ok) {
 		console.error(`[TMDB] Search ${endpoint} failed: ${res.status} ${res.statusText}`);
 		return [];
 	}
 	const data: T = await res.json();
 	if (!(data.results && Array.isArray(data.results))) {
-		console.error('[TMDB] Invalid response - no results array:', data);
+		console.error("[TMDB] Invalid response - no results array:", data);
 		return [];
 	}
 	return data.results;
@@ -387,7 +387,7 @@ export async function searchMovie(query: string, year?: number | null): Promise<
 		extra.year = String(year);
 	}
 
-	const results = await tmdbSearch<TMDBSearchResult>('/search/movie', extra);
+	const results = await tmdbSearch<TMDBSearchResult>("/search/movie", extra);
 
 	return (results as TMDBMovie[]).map((movie) => ({
 		tmdbId: movie.id,
@@ -418,11 +418,11 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 
 	if (!movie?.id) {
 		console.error(`[TMDB] Invalid movie response for ${tmdbId}:`, movie);
-		throw new Error('Invalid TMDB response');
+		throw new Error("Invalid TMDB response");
 	}
 
 	let certification: string | null = null;
-	const usRelease = movie.release_dates?.results?.find((r) => r.iso_3166_1 === 'US');
+	const usRelease = movie.release_dates?.results?.find((r) => r.iso_3166_1 === "US");
 	if (usRelease) {
 		const theatrical = usRelease.release_dates.find((r) => r.type === 3 && r.certification);
 		const anyCert = usRelease.release_dates.find((r) => r.certification);
@@ -454,7 +454,7 @@ export async function searchTVShow(query: string, year?: number | null): Promise
 		extra.first_air_date_year = String(year);
 	}
 
-	const results = await tmdbSearch<TMDBTVSearchResult>('/search/tv', extra);
+	const results = await tmdbSearch<TMDBTVSearchResult>("/search/tv", extra);
 
 	return (results as TMDBTVShow[]).map((show) => ({
 		tmdbId: show.id,
@@ -483,10 +483,10 @@ export async function getTVDetails(tmdbId: number): Promise<TMDBMetadata & { tot
 
 	if (!show?.id) {
 		console.error(`[TMDB] Invalid TV response for ${tmdbId}:`, show);
-		throw new Error('Invalid TMDB response');
+		throw new Error("Invalid TMDB response");
 	}
 
-	const usRating = show.content_ratings?.results?.find((r) => r.iso_3166_1 === 'US');
+	const usRating = show.content_ratings?.results?.find((r) => r.iso_3166_1 === "US");
 	const certification = usRating?.rating || null;
 
 	return {
@@ -659,7 +659,7 @@ export function isTVShowFilename(title: string): boolean {
 // Image Storage
 // =============================================================================
 
-import { imageStorage } from '$lib/server/storage';
+import { imageStorage } from "$lib/server/storage";
 
 export async function saveTmdbImages(
 	metadata: TMDBMetadata,
@@ -678,7 +678,7 @@ export async function saveTmdbImages(
 			// Wait, the previous mapping code uses settings.tmdb.imageBaseUrl to construct metadata.posterUrl
 			// So metadata.posterUrl IS a full URL.
 			// imageStorage.saveFromUrl expects a URL.
-			const storedPath = await imageStorage.saveFromUrl(category, id, 'poster.jpg', metadata.posterUrl);
+			const storedPath = await imageStorage.saveFromUrl(category, id, "poster.jpg", metadata.posterUrl);
 			result.posterUrl = `/images/${storedPath}`;
 		} catch (e) {
 			console.error(`Failed to save poster for ${id}:`, e);
@@ -687,7 +687,7 @@ export async function saveTmdbImages(
 
 	if (metadata.backdropUrl) {
 		try {
-			const storedPath = await imageStorage.saveFromUrl(category, id, 'backdrop.jpg', metadata.backdropUrl);
+			const storedPath = await imageStorage.saveFromUrl(category, id, "backdrop.jpg", metadata.backdropUrl);
 			result.backdropUrl = `/images/${storedPath}`;
 		} catch (e) {
 			console.error(`Failed to save backdrop for ${id}:`, e);

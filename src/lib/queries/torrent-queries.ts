@@ -6,8 +6,8 @@ export interface TorrentSearchParams {
 	maxSize?: number;
 	minSeeders?: number;
 	trustedGroups?: boolean;
-	sort?: 'relevance' | 'size' | 'seeders' | 'date';
-	order?: 'asc' | 'desc';
+	sort?: "relevance" | "size" | "seeders" | "date";
+	order?: "asc" | "desc";
 	page?: number;
 	limit?: number;
 }

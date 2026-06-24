@@ -1,31 +1,25 @@
 <script lang="ts">
-    import { Check, Copy } from '@lucide/svelte';
-    import { onMount } from 'svelte';
-    import { authClient } from '$lib/auth-client';
-    import { uiState } from '$lib/ui-state.svelte';
-    import Button from './ui/Button.svelte';
-    import Dialog from './ui/Dialog.svelte';
-    import Input from './ui/Input.svelte';
+    import { Check, Copy } from "@lucide/svelte";
+    import { authClient } from "$lib/auth-client";
+    import { uiState } from "$lib/ui-state.svelte";
+    import Button from "./ui/Button.svelte";
+    import Dialog from "./ui/Dialog.svelte";
+    import Input from "./ui/Input.svelte";
 
-    let email = $state('');
+    let email = $state("");
     let loading = $state(false);
-    let error = $state('');
-    let inviteLink = $state('');
+    let error = $state("");
+    let inviteLink = $state("");
     let copied = $state(false);
-    let activeOrganizationId = $state('');
+    let activeOrganizationId = $state("");
 
-    onMount(async () => {
-        // Fetch active organization ID
-        const session = await authClient.getSession();
-        if (session.data?.session?.activeOrganizationId) {
-            activeOrganizationId = session.data.session.activeOrganizationId;
-        } else {
-            // Try fetching organizations list if not active
-            const orgs = await authClient.organization.list();
-            if (orgs.data && orgs.data.length > 0) {
-                activeOrganizationId = orgs.data[0].id;
-            }
+    $effect(() => {
+        if (!uiState.inviteMemberDialogOpen) {
+            return;
         }
+        authClient.getSession().then((session) => {
+            activeOrganizationId = session.data?.session?.activeOrganizationId ?? "";
+        });
     });
 
     async function handleInvite(e: Event) {
@@ -35,24 +29,24 @@
         }
 
         loading = true;
-        error = '';
-        inviteLink = '';
+        error = "";
+        inviteLink = "";
 
         try {
             const result = await authClient.organization.inviteMember({
                 email,
-                role: 'member',
+                role: "member",
                 organizationId: activeOrganizationId,
             });
 
             if (result.error) {
-                error = result.error.message || 'Failed to create invitation';
+                error = result.error.message || "Failed to create invitation";
             } else if (result.data) {
                 const origin = window.location.origin;
                 inviteLink = `${origin}/accept-invitation/${result.data.id}`;
             }
         } catch (e) {
-            error = 'An error occurred';
+            error = "An error occurred";
         } finally {
             loading = false;
         }
@@ -69,9 +63,9 @@
     function close() {
         uiState.inviteMemberDialogOpen = false;
         // Reset state
-        email = '';
-        inviteLink = '';
-        error = '';
+        email = "";
+        inviteLink = "";
+        error = "";
     }
 </script>
 

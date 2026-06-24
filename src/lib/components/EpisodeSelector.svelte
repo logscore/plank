@@ -1,21 +1,21 @@
 <script lang="ts">
-    import { ChevronDown, ChevronRight, Play } from '@lucide/svelte';
-    import Button from '$lib/components/ui/Button.svelte';
-    import { canPlayEpisode } from '$lib/media-playability';
-    import type { Media, SeasonWithEpisodes } from '$lib/types';
+    import { ChevronDown, ChevronRight, Play } from "@lucide/svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import { canPlayEpisode } from "$lib/media-playability";
+    import type { Media, SeasonWithEpisodes } from "$lib/types";
 
     let {
         seasons,
         onPlayEpisode,
         onOpen,
-        buttonSize = 'lg',
-        buttonClass = '',
-        class: className = '',
+        buttonSize = "lg",
+        buttonClass = "",
+        class: className = "",
     }: {
         seasons: SeasonWithEpisodes[];
         onPlayEpisode: (episode: Media) => void;
         onOpen?: () => Promise<void>;
-        buttonSize?: 'default' | 'sm' | 'lg' | 'icon';
+        buttonSize?: "default" | "sm" | "lg" | "icon";
         buttonClass?: string;
         class?: string;
     } = $props();
@@ -54,20 +54,20 @@
     }
 
     function getEpisodeStatusLabel(episode: Media): string | null {
-        if (episode.status === 'searching') {
-            return 'Searching';
+        if (episode.status === "searching") {
+            return "Searching";
         }
-        if (episode.status === 'downloading') {
-            return 'Downloading';
+        if (episode.status === "downloading") {
+            return "Downloading";
         }
-        if (episode.status === 'not_found') {
-            return 'Not found';
+        if (episode.status === "not_found") {
+            return "Not found";
         }
-        if (episode.status === 'error') {
-            return 'Retry needed';
+        if (episode.status === "error") {
+            return "Retry needed";
         }
         if (!canPlayEpisode(episode)) {
-            return 'Not available';
+            return "Not available";
         }
         return null;
     }
@@ -81,7 +81,7 @@
 
     function formatRuntime(minutes: number | null): string {
         if (!minutes) {
-            return '';
+            return "";
         }
         if (minutes < 60) {
             return `${minutes}m`;
@@ -91,12 +91,12 @@
 
     $effect(() => {
         if (isOpen) {
-            document.addEventListener('click', handleClickOutside);
+            document.addEventListener("click", handleClickOutside);
         } else {
-            document.removeEventListener('click', handleClickOutside);
+            document.removeEventListener("click", handleClickOutside);
         }
         return () => {
-            document.removeEventListener('click', handleClickOutside);
+            document.removeEventListener("click", handleClickOutside);
         };
     });
 </script>

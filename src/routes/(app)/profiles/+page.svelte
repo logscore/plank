@@ -1,12 +1,12 @@
 <script lang="ts">
-    import { LogOut, Plus, Settings } from '@lucide/svelte';
-    import { toast } from 'svelte-sonner';
-    import { goto } from '$app/navigation';
-    import { authClient } from '$lib/auth-client';
-    import ProfileCard from '$lib/components/ProfileCard.svelte';
-    import Button from '$lib/components/ui/Button.svelte';
-    import { queryClient } from '$lib/query-client';
-    import type { PageData } from './$types';
+    import { LogOut, Plus, Settings } from "@lucide/svelte";
+    import { toast } from "svelte-sonner";
+    import { goto } from "$app/navigation";
+    import { authClient } from "$lib/auth-client";
+    import ProfileCard from "$lib/components/ProfileCard.svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import { queryClient } from "$lib/query-client";
+    import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
 
@@ -16,19 +16,19 @@
                 organizationId: profileId,
             });
             if (result.error) {
-                toast.error('Failed to select profile');
+                toast.error("Failed to select profile");
                 return;
             }
             queryClient.clear();
-            goto('/');
+            goto("/");
         } catch {
-            toast.error('Failed to select profile');
+            toast.error("Failed to select profile");
         }
     }
 
     async function handleLogout() {
         await authClient.signOut();
-        goto('/login');
+        goto("/login");
     }
 
     const accessibleProfiles = $derived(data.profiles.filter((p: (typeof data.profiles)[number]) => p.isMember));

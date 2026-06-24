@@ -5,35 +5,35 @@
  * Filters for high-quality releases from trusted groups.
  */
 
-import { error, json } from '@sveltejs/kit';
-import { findBestTorrent, parseTorrentTitle } from '$lib/server/prowlarr';
-import { getBrowseItemDetails } from '$lib/server/tmdb';
-import { cacheTorrent, getCachedTorrent } from '$lib/server/torrent-cache';
-import type { RequestHandler } from './$types';
+import { error, json } from "@sveltejs/kit";
+import { findBestTorrent, parseTorrentTitle } from "$lib/server/prowlarr";
+import { getBrowseItemDetails } from "$lib/server/tmdb";
+import { cacheTorrent, getCachedTorrent } from "$lib/server/torrent-cache";
+import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	// Auth check
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw error(401, "Unauthorized");
 	}
 
 	const body = await request.json();
 	const { imdbId, tmdbId, title } = body;
 
 	if (!(imdbId || tmdbId)) {
-		throw error(400, 'Either imdbId or tmdbId is required');
+		throw error(400, "Either imdbId or tmdbId is required");
 	}
 
 	// Get IMDB ID if only TMDB ID provided
 	let resolvedImdbId = imdbId;
 	if (!resolvedImdbId && tmdbId) {
 		// Assume movie type for resolve API (can be extended to support TV)
-		const details = await getBrowseItemDetails(tmdbId, 'movie');
+		const details = await getBrowseItemDetails(tmdbId, "movie");
 		resolvedImdbId = details.imdbId;
 	}
 
 	if (!resolvedImdbId) {
-		throw error(400, 'Could not resolve IMDB ID for this movie');
+		throw error(400, "Could not resolve IMDB ID for this movie");
 	}
 
 	// Check cache first
@@ -62,8 +62,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!torrent) {
 		return json({
 			success: false,
-			error: 'No suitable torrent found',
-			message: 'Could not find a high-quality torrent from trusted sources',
+			error: "No suitable torrent found",
+			message: "Could not find a high-quality torrent from trusted sources",
 		});
 	}
 

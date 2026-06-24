@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { Download, Loader2 } from '@lucide/svelte';
-    import { cn } from '$lib/utils';
+    import { Download, Loader2 } from "@lucide/svelte";
+    import { cn } from "$lib/utils";
 
     export interface SeasonData {
         seasonNumber: number;
@@ -39,7 +39,7 @@
     }
 
     function handleKeydown(event: KeyboardEvent) {
-        if (event.key === 'Escape') {
+        if (event.key === "Escape") {
             onClose();
         }
     }
@@ -70,15 +70,15 @@
 
     $effect(() => {
         if (open) {
-            document.addEventListener('click', handleClickOutside);
-            document.addEventListener('keydown', handleKeydown);
+            document.addEventListener("click", handleClickOutside);
+            document.addEventListener("keydown", handleKeydown);
         } else {
-            document.removeEventListener('click', handleClickOutside);
-            document.removeEventListener('keydown', handleKeydown);
+            document.removeEventListener("click", handleClickOutside);
+            document.removeEventListener("keydown", handleKeydown);
         }
         return () => {
-            document.removeEventListener('click', handleClickOutside);
-            document.removeEventListener('keydown', handleKeydown);
+            document.removeEventListener("click", handleClickOutside);
+            document.removeEventListener("keydown", handleKeydown);
         };
     });
 </script>

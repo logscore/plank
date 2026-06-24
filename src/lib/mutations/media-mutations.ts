@@ -1,7 +1,7 @@
-import type { CreateMutationOptions } from '@tanstack/svelte-query';
-import { createMutation, useQueryClient } from '@tanstack/svelte-query';
-import { queryKeys } from '$lib/query-keys';
-import type { Media, MediaType } from '$lib/types';
+import type { CreateMutationOptions } from "@tanstack/svelte-query";
+import { createMutation, useQueryClient } from "@tanstack/svelte-query";
+import { queryKeys } from "$lib/query-keys";
+import type { Media, MediaType } from "$lib/types";
 
 export interface AddMediaParams {
 	magnetLink: string;
@@ -30,10 +30,10 @@ export function createAddMediaMutation() {
 
 	const options: CreateMutationOptions<AddMediaResponse, Error, AddMediaParams, AddMediaContext> = {
 		mutationFn: async (params: AddMediaParams): Promise<AddMediaResponse> => {
-			const response = await fetch('/api/media', {
-				method: 'POST',
+			const response = await fetch("/api/media", {
+				method: "POST",
 				headers: {
-					'Content-Type': 'application/json',
+					"Content-Type": "application/json",
 				},
 				body: JSON.stringify(params),
 			});
@@ -65,7 +65,7 @@ export function createDeleteMediaMutation() {
 	const options: CreateMutationOptions<string, Error, string, DeleteMediaContext> = {
 		mutationFn: async (id: string): Promise<string> => {
 			const response = await fetch(`/api/media/${id}`, {
-				method: 'DELETE',
+				method: "DELETE",
 			});
 
 			if (!response.ok) {
@@ -81,20 +81,20 @@ export function createDeleteMediaMutation() {
 			});
 
 			// Snapshot the previous values
-			const previousMovies = queryClient.getQueryData<Media[]>(queryKeys.media.list('movie'));
-			const previousShows = queryClient.getQueryData<Media[]>(queryKeys.media.list('show'));
+			const previousMovies = queryClient.getQueryData<Media[]>(queryKeys.media.list("movie"));
+			const previousShows = queryClient.getQueryData<Media[]>(queryKeys.media.list("show"));
 
 			// Optimistically update to the new value
 			if (previousMovies) {
 				queryClient.setQueryData<Media[]>(
-					queryKeys.media.list('movie'),
+					queryKeys.media.list("movie"),
 					previousMovies.filter((media) => media.id !== id)
 				);
 			}
 
 			if (previousShows) {
 				queryClient.setQueryData<Media[]>(
-					queryKeys.media.list('show'),
+					queryKeys.media.list("show"),
 					previousShows.filter((media) => media.id !== id)
 				);
 			}
@@ -105,16 +105,16 @@ export function createDeleteMediaMutation() {
 		onError: (_err: Error, _id: string, context: DeleteMediaContext | undefined) => {
 			// Rollback to the previous values on error
 			if (context?.previousMovies) {
-				queryClient.setQueryData(queryKeys.media.list('movie'), context.previousMovies);
+				queryClient.setQueryData(queryKeys.media.list("movie"), context.previousMovies);
 			}
 			if (context?.previousShows) {
-				queryClient.setQueryData(queryKeys.media.list('show'), context.previousShows);
+				queryClient.setQueryData(queryKeys.media.list("show"), context.previousShows);
 			}
 		},
 		onSettled: (deletedId: string | undefined) => {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.media.all,
-				refetchType: 'all',
+				refetchType: "all",
 			});
 
 			if (deletedId) {
@@ -147,8 +147,8 @@ export function createDownloadSubtitleMutation() {
 	return createMutation<unknown, Error, DownloadSubtitleParams>(() => ({
 		mutationFn: async (params: DownloadSubtitleParams) => {
 			const response = await fetch(`/api/media/${params.mediaId}/subtitles/download`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					fileId: params.fileId,
 					language: params.language,
@@ -156,7 +156,7 @@ export function createDownloadSubtitleMutation() {
 			});
 			if (!response.ok) {
 				const data = await response.json().catch(() => ({}));
-				throw new Error(data.message || 'Failed to download subtitle');
+				throw new Error(data.message || "Failed to download subtitle");
 			}
 			return response.json();
 		},
@@ -180,12 +180,12 @@ export function createSetDefaultSubtitleMutation() {
 	return createMutation<unknown, Error, SetDefaultSubtitleParams>(() => ({
 		mutationFn: async (params: SetDefaultSubtitleParams) => {
 			const response = await fetch(`/api/media/${params.mediaId}/subtitles/${params.subtitleId}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ isDefault: params.isDefault }),
 			});
 			if (!response.ok) {
-				throw new Error('Failed to update subtitle');
+				throw new Error("Failed to update subtitle");
 			}
 			return response.json();
 		},
@@ -208,10 +208,10 @@ export function createDeleteSubtitleMutation() {
 	return createMutation<unknown, Error, DeleteSubtitleParams>(() => ({
 		mutationFn: async (params: DeleteSubtitleParams) => {
 			const response = await fetch(`/api/media/${params.mediaId}/subtitles/${params.subtitleId}`, {
-				method: 'DELETE',
+				method: "DELETE",
 			});
 			if (!response.ok) {
-				throw new Error('Failed to delete subtitle');
+				throw new Error("Failed to delete subtitle");
 			}
 			return response.json();
 		},
@@ -239,15 +239,15 @@ export function createSavePositionMutation() {
 	return createMutation<void, Error, SavePositionParams>(() => ({
 		mutationFn: async (params: SavePositionParams): Promise<void> => {
 			const response = await fetch(`/api/media/${params.id}/position`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					position: params.position,
 					duration: params.duration,
 				}),
 			});
 			if (!response.ok) {
-				throw new Error('Failed to save position');
+				throw new Error("Failed to save position");
 			}
 		},
 		onSuccess: () => {

@@ -1,25 +1,26 @@
-import { isTerminalProgressStatus } from '$lib/progress-status';
-import { requireMediaAccess } from '$lib/server/api-guard';
-import { getMediaProgressSnapshot } from '$lib/server/media-progress';
-import type { RequestHandler } from './$types';
+import { isTerminalProgressStatus } from "$lib/progress-status";
+import { requireMediaAccess } from "$lib/server/api-guard";
+import { getMediaProgressSnapshot } from "$lib/server/media-progress";
+import type { RequestHandler } from "./$types";
 
 /** Check if an error is an invalid state error (expected during cleanup) */
 function isControllerClosedError(e: unknown): boolean {
 	return (
 		e instanceof TypeError &&
-		typeof e === 'object' &&
+		typeof e === "object" &&
 		e !== null &&
-		'code' in e &&
-		(e as { code?: string }).code === 'ERR_INVALID_STATE'
+		"code" in e &&
+		(e as { code?: string }).code === "ERR_INVALID_STATE"
 	);
 }
 
-export const GET: RequestHandler = async ({ params, locals }) => {
+export const GET: RequestHandler = async ({ params, locals, request }) => {
 	const { organizationId, mediaItem } = requireMediaAccess(locals, params.id);
 
 	const encoder = new TextEncoder();
 	let isClosed = false;
 	let interval: ReturnType<typeof setInterval> | null = null;
+	let detachAbortListener: (() => void) | null = null;
 
 	const cleanup = () => {
 		isClosed = true;
@@ -27,10 +28,22 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			clearInterval(interval);
 			interval = null;
 		}
+		detachAbortListener?.();
+		detachAbortListener = null;
 	};
 
 	const stream = new ReadableStream({
 		start(controller) {
+			if (request.signal.aborted) {
+				cleanup();
+				try {
+					controller.close();
+				} catch {
+					// Already closed
+				}
+				return;
+			}
+
 			let isTerminal = isTerminalProgressStatus(mediaItem.status);
 
 			const closeStream = () => {
@@ -69,10 +82,18 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 					}
 				} catch (e) {
 					if (!isControllerClosedError(e)) {
-						console.error('SSE error:', e);
+						console.error("SSE error:", e);
 					}
 					closeStream();
 				}
+			};
+
+			const handleAbort = () => {
+				closeStream();
+			};
+			request.signal.addEventListener("abort", handleAbort, { once: true });
+			detachAbortListener = () => {
+				request.signal.removeEventListener("abort", handleAbort);
 			};
 
 			sendData();
@@ -91,9 +112,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 	return new Response(stream, {
 		headers: {
-			'Content-Type': 'text/event-stream',
-			'Cache-Control': 'no-cache',
-			Connection: 'keep-alive',
+			"Content-Type": "text/event-stream",
+			"Cache-Control": "no-cache",
+			Connection: "keep-alive",
 		},
 	});
 };

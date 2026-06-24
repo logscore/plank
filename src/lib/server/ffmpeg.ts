@@ -1,27 +1,27 @@
-import type { Readable } from 'node:stream';
-import { PassThrough } from 'node:stream';
-import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
-import ffmpeg from 'fluent-ffmpeg';
+import type { Readable } from "node:stream";
+import { PassThrough } from "node:stream";
+import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
+import ffmpeg from "fluent-ffmpeg";
 
 // Set ffmpeg path
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 // Supported video containers that browsers can play natively
-const NATIVE_PLAYABLE = ['.mp4', '.webm'];
+const NATIVE_PLAYABLE = [".mp4", ".webm"];
 
 // Supported containers that need transmuxing (container change, no re-encoding)
-const TRANSMUXABLE = ['.mkv', '.avi', '.mov', '.m4v'];
+const TRANSMUXABLE = [".mkv", ".avi", ".mov", ".m4v"];
 
 // All supported video formats
 export const SUPPORTED_VIDEO_FORMATS = [...NATIVE_PLAYABLE, ...TRANSMUXABLE];
 
 export function needsTransmux(fileName: string): boolean {
-	const ext = fileName.toLowerCase().slice(fileName.lastIndexOf('.'));
+	const ext = fileName.toLowerCase().slice(fileName.lastIndexOf("."));
 	return TRANSMUXABLE.includes(ext);
 }
 
 export function isSupportedFormat(fileName: string): boolean {
-	const ext = fileName.toLowerCase().slice(fileName.lastIndexOf('.'));
+	const ext = fileName.toLowerCase().slice(fileName.lastIndexOf("."));
 	return SUPPORTED_VIDEO_FORMATS.includes(ext);
 }
 
@@ -32,23 +32,23 @@ interface TransmuxOptions {
 	onError?: (err: Error) => void;
 }
 
-const BROWSER_SAFE_VIDEO_CODECS = new Set(['h264', 'vp8', 'vp9', 'av1']);
-const BROWSER_SAFE_AUDIO_CODECS = new Set(['aac', 'mp3', 'opus', 'vorbis']);
+const BROWSER_SAFE_VIDEO_CODECS = new Set(["h264", "vp8", "vp9", "av1"]);
+const BROWSER_SAFE_AUDIO_CODECS = new Set(["aac", "mp3", "opus", "vorbis"]);
 
 const INPUT_FORMAT_BY_EXTENSION: Record<string, string> = {
-	'.avi': 'avi',
-	'.m4v': 'mp4',
-	'.mkv': 'matroska',
-	'.mov': 'mov',
-	'.mp4': 'mp4',
-	'.webm': 'webm',
+	".avi": "avi",
+	".m4v": "mp4",
+	".mkv": "matroska",
+	".mov": "mov",
+	".mp4": "mp4",
+	".webm": "webm",
 };
 
 function getInputFormat(fileName?: string): string | null {
 	if (!fileName) {
 		return null;
 	}
-	const extension = fileName.toLowerCase().slice(fileName.lastIndexOf('.'));
+	const extension = fileName.toLowerCase().slice(fileName.lastIndexOf("."));
 	return INPUT_FORMAT_BY_EXTENSION[extension] ?? null;
 }
 
@@ -59,10 +59,10 @@ function isIgnorableTextDataStream(stream: {
 	tags?: { handler_name?: string };
 }): boolean {
 	return (
-		stream.codec_type === 'data' &&
-		stream.codec_name === 'bin_data' &&
-		stream.codec_tag_string === 'text' &&
-		stream.tags?.handler_name === 'SubtitleHandler'
+		stream.codec_type === "data" &&
+		stream.codec_name === "bin_data" &&
+		stream.codec_tag_string === "text" &&
+		stream.tags?.handler_name === "SubtitleHandler"
 	);
 }
 
@@ -70,29 +70,29 @@ export function createTransmuxStream(options: TransmuxOptions): Readable {
 	const { inputStream, start, fileName, onError } = options;
 	const outputStream = new PassThrough();
 	const command = ffmpeg(inputStream)
-		.outputFormat('mp4')
-		.inputOptions(['-fflags', '+genpts', '-analyzeduration', '100M', '-probesize', '100M'])
+		.outputFormat("mp4")
+		.inputOptions(["-fflags", "+genpts", "-analyzeduration", "100M", "-probesize", "100M"])
 		.outputOptions([
-			'-map_metadata',
-			'-1',
-			'-map_chapters',
-			'-1',
-			'-map',
-			'0:v:0',
-			'-map',
-			'0:a:0?',
-			'-dn',
-			'-sn',
-			'-movflags',
-			'frag_keyframe+empty_moov+default_base_moof+faststart',
-			'-c:v',
-			'copy', // Copy video stream (no re-encoding)
-			'-c:a',
-			'aac', // Transcode audio to AAC for browser compatibility
-			'-ac',
-			'2',
-			'-b:a',
-			'192k',
+			"-map_metadata",
+			"-1",
+			"-map_chapters",
+			"-1",
+			"-map",
+			"0:v:0",
+			"-map",
+			"0:a:0?",
+			"-dn",
+			"-sn",
+			"-movflags",
+			"frag_keyframe+empty_moov+default_base_moof+faststart",
+			"-c:v",
+			"copy", // Copy video stream (no re-encoding)
+			"-c:a",
+			"aac", // Transcode audio to AAC for browser compatibility
+			"-ac",
+			"2",
+			"-b:a",
+			"192k",
 		]);
 
 	const inputFormat = getInputFormat(fileName);
@@ -108,10 +108,10 @@ export function createTransmuxStream(options: TransmuxOptions): Readable {
 		// .on('start', (cmd) => {
 		// 	console.log('[Transcoder] Starting FFmpeg:', cmd);
 		// })
-		.on('error', (err: Error, _stdout, stderr) => {
-			console.error('[Transcoder] FFmpeg error:', err.message);
+		.on("error", (err: Error, _stdout, stderr) => {
+			console.error("[Transcoder] FFmpeg error:", err.message);
 			if (stderr) {
-				console.error('[Transcoder] FFmpeg stderr:', stderr);
+				console.error("[Transcoder] FFmpeg stderr:", stderr);
 			}
 			if (onError) {
 				onError(err);
@@ -134,32 +134,32 @@ export async function transmuxFile(inputPath: string, outputPath: string): Promi
 		ffmpeg(inputPath)
 			.output(outputPath)
 			.outputOptions([
-				'-map_metadata',
-				'-1',
-				'-map_chapters',
-				'-1',
-				'-map',
-				'0:v:0',
-				'-map',
-				'0:a:0?',
-				'-dn',
-				'-sn',
-				'-movflags',
-				'+faststart', // Optimize for web streaming
-				'-c:v',
-				'copy', // Copy video stream (no re-encoding)
-				'-c:a',
-				'aac', // Transcode audio to AAC for browser compatibility
-				'-ac',
-				'2',
-				'-b:a',
-				'192k',
+				"-map_metadata",
+				"-1",
+				"-map_chapters",
+				"-1",
+				"-map",
+				"0:v:0",
+				"-map",
+				"0:a:0?",
+				"-dn",
+				"-sn",
+				"-movflags",
+				"+faststart", // Optimize for web streaming
+				"-c:v",
+				"copy", // Copy video stream (no re-encoding)
+				"-c:a",
+				"aac", // Transcode audio to AAC for browser compatibility
+				"-ac",
+				"2",
+				"-b:a",
+				"192k",
 			])
-			.on('error', (err: Error) => {
-				console.error('[Transcoder] Transmux error:', err.message);
+			.on("error", (err: Error) => {
+				console.error("[Transcoder] Transmux error:", err.message);
 				reject(err);
 			})
-			.on('end', () => {
+			.on("end", () => {
 				resolve();
 			})
 			.run();
@@ -167,7 +167,7 @@ export async function transmuxFile(inputPath: string, outputPath: string): Promi
 }
 
 // Subtitle formats that cannot be converted to text-based VTT
-const BITMAP_SUBTITLE_CODECS = ['hdmv_pgs_subtitle', 'dvb_subtitle', 'dvd_subtitle'];
+const BITMAP_SUBTITLE_CODECS = ["hdmv_pgs_subtitle", "dvb_subtitle", "dvd_subtitle"];
 
 export interface SubtitleStreamInfo {
 	index: number;
@@ -187,13 +187,13 @@ export async function probeSubtitleStreams(filePath: string): Promise<SubtitleSt
 			}
 
 			const streams = metadata.streams
-				.filter((s) => s.codec_type === 'subtitle')
-				.filter((s) => !BITMAP_SUBTITLE_CODECS.includes(s.codec_name ?? ''))
+				.filter((s) => s.codec_type === "subtitle")
+				.filter((s) => !BITMAP_SUBTITLE_CODECS.includes(s.codec_name ?? ""))
 				.map((s, i) => ({
 					index: s.index,
-					language: s.tags?.language ?? 'und',
+					language: s.tags?.language ?? "und",
 					title: s.tags?.title ?? `Track ${i + 1}`,
-					codec: s.codec_name ?? 'unknown',
+					codec: s.codec_name ?? "unknown",
 					isDefault: s.disposition?.default === 1,
 					isForced: s.disposition?.forced === 1,
 				}));
@@ -206,12 +206,12 @@ export async function probeSubtitleStreams(filePath: string): Promise<SubtitleSt
 export async function extractSubtitleAsVtt(inputPath: string, streamIndex: number, outputPath: string): Promise<void> {
 	return new Promise((resolve, reject) => {
 		ffmpeg(inputPath)
-			.outputOptions(['-map', `0:${streamIndex}`, '-c:s', 'webvtt'])
+			.outputOptions(["-map", `0:${streamIndex}`, "-c:s", "webvtt"])
 			.output(outputPath)
-			.on('error', (err: Error) => {
+			.on("error", (err: Error) => {
 				reject(err);
 			})
-			.on('end', () => {
+			.on("end", () => {
 				resolve();
 			})
 			.run();
@@ -221,12 +221,12 @@ export async function extractSubtitleAsVtt(inputPath: string, streamIndex: numbe
 export async function convertSubtitleToVtt(inputPath: string, outputPath: string): Promise<void> {
 	return new Promise((resolve, reject) => {
 		ffmpeg(inputPath)
-			.outputOptions(['-c:s', 'webvtt'])
+			.outputOptions(["-c:s", "webvtt"])
 			.output(outputPath)
-			.on('error', (err: Error) => {
+			.on("error", (err: Error) => {
 				reject(err);
 			})
-			.on('end', () => {
+			.on("end", () => {
 				resolve();
 			})
 			.run();
@@ -250,10 +250,10 @@ export async function probeFile(filePath: string): Promise<{
 				return;
 			}
 
-			const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
-			const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
+			const videoStream = metadata.streams.find((s) => s.codec_type === "video");
+			const audioStream = metadata.streams.find((s) => s.codec_type === "audio");
 			const hasDataStreams = metadata.streams.some(
-				(stream) => stream.codec_type === 'data' && !isIgnorableTextDataStream(stream)
+				(stream) => stream.codec_type === "data" && !isIgnorableTextDataStream(stream)
 			);
 
 			resolve({
@@ -309,38 +309,38 @@ export async function normalizeFileForPlayback(inputPath: string, outputPath: st
 		const command = ffmpeg(inputPath)
 			.output(outputPath)
 			.outputOptions([
-				'-map_metadata',
-				'-1',
-				'-map_chapters',
-				'-1',
-				'-map',
-				'0:v:0',
-				'-map',
-				'0:a:0?',
-				'-dn',
-				'-sn',
-				'-movflags',
-				'+faststart',
-				'-c:a',
-				'aac',
-				'-ac',
-				'2',
-				'-b:a',
-				'192k',
+				"-map_metadata",
+				"-1",
+				"-map_chapters",
+				"-1",
+				"-map",
+				"0:v:0",
+				"-map",
+				"0:a:0?",
+				"-dn",
+				"-sn",
+				"-movflags",
+				"+faststart",
+				"-c:a",
+				"aac",
+				"-ac",
+				"2",
+				"-b:a",
+				"192k",
 			]);
 
 		if (compatibility.needsVideoTranscode) {
-			command.outputOptions(['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p']);
+			command.outputOptions(["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p"]);
 		} else {
-			command.outputOptions(['-c:v', 'copy']);
+			command.outputOptions(["-c:v", "copy"]);
 		}
 
 		command
-			.on('error', (err: Error) => {
-				console.error('[Transcoder] Normalize error:', err.message);
+			.on("error", (err: Error) => {
+				console.error("[Transcoder] Normalize error:", err.message);
 				reject(err);
 			})
-			.on('end', () => {
+			.on("end", () => {
 				resolve();
 			})
 			.run();

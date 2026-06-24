@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import {
 	type Download,
 	downloads as downloadsTable,
@@ -12,9 +12,9 @@ import {
 	type Subtitle,
 	seasons as seasonsTable,
 	subtitles as subtitlesTable,
-} from '$lib/server/db/schema';
-import type { MediaType } from '$lib/types';
-import { db } from './db/index';
+} from "$lib/server/db/schema";
+import type { MediaType } from "$lib/types";
+import { db } from "./db/index";
 
 function removeUndefinedFromObject<T extends Record<string, unknown>>(obj: T): Partial<T> {
 	return Object.fromEntries(Object.entries(obj).filter(([, value]) => value !== undefined)) as Partial<T>;
@@ -80,10 +80,10 @@ export const mediaDb = {
 			.get();
 	},
 
-	create(mediaItem: Omit<NewMedia, 'id' | 'addedAt' | 'createdAt'> & { type?: MediaType }): Media {
+	create(mediaItem: Omit<NewMedia, "id" | "addedAt" | "createdAt"> & { type?: MediaType }): Media {
 		const id = crypto.randomUUID();
 		const now = new Date();
-		const type = mediaItem.type ?? 'movie';
+		const type = mediaItem.type ?? "movie";
 		const newMedia: NewMedia = {
 			id,
 			userId: mediaItem.userId,
@@ -112,8 +112,8 @@ export const mediaDb = {
 			airDate: mediaItem.airDate,
 			magnetLink: mediaItem.magnetLink,
 			infohash: mediaItem.infohash,
-			status: mediaItem.status ?? (type === 'show' ? null : 'pending'),
-			progress: mediaItem.progress ?? (type === 'show' ? null : 0),
+			status: mediaItem.status ?? (type === "show" ? null : "pending"),
+			progress: mediaItem.progress ?? (type === "show" ? null : 0),
 			filePath: mediaItem.filePath,
 			fileSize: mediaItem.fileSize,
 			fileIndex: mediaItem.fileIndex,
@@ -126,7 +126,7 @@ export const mediaDb = {
 		return newMedia as Media;
 	},
 
-	update(id: string, data: Partial<Omit<NewMedia, 'id' | 'addedAt' | 'createdAt'>>) {
+	update(id: string, data: Partial<Omit<NewMedia, "id" | "addedAt" | "createdAt">>) {
 		const updates = removeUndefinedFromObject(data as Record<string, unknown>);
 		if (Object.keys(updates).length === 0) {
 			return;
@@ -137,7 +137,7 @@ export const mediaDb = {
 	updateProgress(
 		id: string,
 		progress: number,
-		status: 'pending' | 'searching' | 'downloading' | 'complete' | 'error' | 'not_found' | 'removed'
+		status: "pending" | "searching" | "downloading" | "complete" | "error" | "not_found" | "removed"
 	) {
 		db.update(mediaTable).set({ progress, status }).where(eq(mediaTable.id, id)).run();
 	},
@@ -146,7 +146,7 @@ export const mediaDb = {
 		db.update(mediaTable)
 			.set({
 				progress: 0,
-				status: 'pending',
+				status: "pending",
 				filePath: null,
 				fileSize: null,
 				fileIndex: null,
@@ -158,7 +158,7 @@ export const mediaDb = {
 
 	updateFilePath(id: string, filePath: string, fileSize?: number) {
 		db.update(mediaTable)
-			.set({ filePath, fileSize: fileSize ?? null, status: 'complete', progress: 1 })
+			.set({ filePath, fileSize: fileSize ?? null, status: "complete", progress: 1 })
 			.where(eq(mediaTable.id, id))
 			.run();
 	},
@@ -177,7 +177,7 @@ export const mediaDb = {
 	updateEpisodeProgress(
 		id: string,
 		downloadedBytes: number,
-		status: 'pending' | 'searching' | 'downloading' | 'complete' | 'error' | 'not_found' | 'removed'
+		status: "pending" | "searching" | "downloading" | "complete" | "error" | "not_found" | "removed"
 	) {
 		db.update(mediaTable).set({ downloadedBytes, status }).where(eq(mediaTable.id, id)).run();
 	},
@@ -186,7 +186,7 @@ export const mediaDb = {
 		db.update(mediaTable)
 			.set({
 				progress: 0,
-				status: 'removed',
+				status: "removed",
 				filePath: null,
 				fileSize: null,
 				fileIndex: null,
@@ -268,7 +268,7 @@ export const mediaDb = {
 		return db
 			.select()
 			.from(mediaTable)
-			.where(and(eq(mediaTable.type, 'episode'), eq(mediaTable.seasonId, seasonId)))
+			.where(and(eq(mediaTable.type, "episode"), eq(mediaTable.seasonId, seasonId)))
 			.orderBy(asc(mediaTable.displayOrder), asc(mediaTable.episodeNumber))
 			.all();
 	},
@@ -277,14 +277,14 @@ export const mediaDb = {
 		return db
 			.select()
 			.from(mediaTable)
-			.where(and(eq(mediaTable.type, 'episode'), eq(mediaTable.parentId, parentId)))
+			.where(and(eq(mediaTable.type, "episode"), eq(mediaTable.parentId, parentId)))
 			.orderBy(asc(mediaTable.seasonNumber), asc(mediaTable.displayOrder), asc(mediaTable.episodeNumber))
 			.all();
 	},
 
 	getNextEpisodeById(id: string): Media | null {
 		const mediaItem = this.getById(id);
-		if (!mediaItem || mediaItem.type !== 'episode' || !mediaItem.parentId) {
+		if (!mediaItem || mediaItem.type !== "episode" || !mediaItem.parentId) {
 			return null;
 		}
 
@@ -303,7 +303,7 @@ export const mediaDb = {
 			.from(mediaTable)
 			.where(
 				and(
-					eq(mediaTable.type, 'episode'),
+					eq(mediaTable.type, "episode"),
 					eq(mediaTable.seasonId, seasonId),
 					eq(mediaTable.episodeNumber, episodeNumber)
 				)
@@ -317,7 +317,7 @@ export const mediaDb = {
 			.from(mediaTable)
 			.where(
 				and(
-					eq(mediaTable.type, 'episode'),
+					eq(mediaTable.type, "episode"),
 					eq(mediaTable.parentId, parentId),
 					eq(mediaTable.seasonNumber, seasonNumber),
 					eq(mediaTable.episodeNumber, episodeNumber)
@@ -328,7 +328,7 @@ export const mediaDb = {
 };
 
 export const seasonsDb = {
-	create(season: Omit<NewSeason, 'id' | 'createdAt'>): Season {
+	create(season: Omit<NewSeason, "id" | "createdAt">): Season {
 		const id = crypto.randomUUID();
 		const newSeason: NewSeason = {
 			id,
@@ -365,7 +365,7 @@ export const seasonsDb = {
 			.get();
 	},
 
-	update(id: string, data: Partial<Omit<NewSeason, 'id' | 'createdAt'>>) {
+	update(id: string, data: Partial<Omit<NewSeason, "id" | "createdAt">>) {
 		const updates = removeUndefinedFromObject(data as Record<string, unknown>);
 		if (Object.keys(updates).length === 0) {
 			return;
@@ -383,7 +383,7 @@ export const seasonsDb = {
 };
 
 export const downloadsDb = {
-	create(download: Omit<NewDownload, 'id' | 'addedAt'>): Download {
+	create(download: Omit<NewDownload, "id" | "addedAt">): Download {
 		const id = crypto.randomUUID();
 		const now = new Date();
 		const newDownload: NewDownload = {
@@ -391,7 +391,7 @@ export const downloadsDb = {
 			mediaId: download.mediaId,
 			magnetLink: download.magnetLink,
 			infohash: download.infohash,
-			status: download.status || 'added',
+			status: download.status || "added",
 			progress: download.progress || 0,
 			addedAt: now,
 		};
@@ -428,7 +428,7 @@ export const downloadsDb = {
 			.get();
 	},
 
-	updateProgress(id: string, progress: number, status: 'added' | 'downloading' | 'complete' | 'error') {
+	updateProgress(id: string, progress: number, status: "added" | "downloading" | "complete" | "error") {
 		db.update(downloadsTable).set({ progress, status }).where(eq(downloadsTable.id, id)).run();
 	},
 
@@ -446,7 +446,7 @@ export const downloadsDb = {
 };
 
 export const subtitlesDb = {
-	create(subtitle: Omit<NewSubtitle, 'id' | 'createdAt'>): Subtitle {
+	create(subtitle: Omit<NewSubtitle, "id" | "createdAt">): Subtitle {
 		const id = crypto.randomUUID();
 		const newSubtitle: NewSubtitle = { id, ...subtitle };
 		db.insert(subtitlesTable).values(newSubtitle).run();

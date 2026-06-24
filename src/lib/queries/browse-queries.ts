@@ -1,9 +1,9 @@
-import { createQuery } from '@tanstack/svelte-query';
-import { queryKeys } from '$lib/query-keys';
-import type { BrowseItem, SeasonSummary } from '$lib/server/tmdb';
-import { createFetchError } from './fetch-error';
+import { createQuery } from "@tanstack/svelte-query";
+import { queryKeys } from "$lib/query-keys";
+import type { BrowseItem, SeasonSummary } from "$lib/server/tmdb";
+import { createFetchError } from "./fetch-error";
 
-export type { BrowseItem, SeasonSummary } from '$lib/server/tmdb';
+export type { BrowseItem, SeasonSummary } from "$lib/server/tmdb";
 
 export interface BrowseResponse {
 	items: BrowseItem[];
@@ -58,15 +58,15 @@ export interface BrowseDetailsResponse {
  * Called lazily after browse/search items render.
  */
 export async function fetchBrowseDetails(
-	items: { tmdbId: number; mediaType: 'movie' | 'show' }[]
+	items: { tmdbId: number; mediaType: "movie" | "show" }[]
 ): Promise<BrowseDetailsResponse> {
 	if (items.length === 0) {
 		return { details: [] };
 	}
 
-	const response = await fetch('/api/browse/details', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+	const response = await fetch("/api/browse/details", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ items }),
 	});
 
@@ -84,9 +84,9 @@ export async function fetchBrowseDetails(
 /**
  * Fetch trending content
  */
-export async function fetchTrending(filter: 'all' | 'movie' | 'show' = 'all', page = 1): Promise<BrowseResponse> {
+export async function fetchTrending(filter: "all" | "movie" | "show" = "all", page = 1): Promise<BrowseResponse> {
 	const params = new URLSearchParams({
-		type: 'trending',
+		type: "trending",
 		filter,
 		page: page.toString(),
 	});
@@ -104,8 +104,8 @@ export async function fetchTrending(filter: 'all' | 'movie' | 'show' = 'all', pa
  * Fetch browse content (trending or popular)
  */
 export async function fetchBrowse(
-	type: 'trending' | 'popular',
-	filter: 'all' | 'movie' | 'show' = 'all',
+	type: "trending" | "popular",
+	filter: "all" | "movie" | "show" = "all",
 	page = 1
 ): Promise<BrowseResponse> {
 	const params = new URLSearchParams({
@@ -131,9 +131,9 @@ export async function resolveTorrent(item: {
 	tmdbId: number;
 	title: string;
 }): Promise<ResolveResponse> {
-	const response = await fetch('/api/browse/resolve', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+	const response = await fetch("/api/browse/resolve", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({
 			imdbId: item.imdbId,
 			tmdbId: item.tmdbId,
@@ -152,7 +152,7 @@ export async function resolveTorrent(item: {
  * Fetch Prowlarr status
  */
 export async function fetchProwlarrStatus(): Promise<ProwlarrStatus> {
-	const response = await fetch('/api/prowlarr/status');
+	const response = await fetch("/api/prowlarr/status");
 
 	if (!response.ok) {
 		throw createFetchError(`Failed to fetch Prowlarr status: ${response.statusText}`, response.status);
@@ -238,9 +238,9 @@ export async function resolveSeasonTorrent(params: {
 	showTitle: string;
 	imdbId?: string;
 }): Promise<ResolveSeasonResponse> {
-	const response = await fetch('/api/browse/resolve-season', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+	const response = await fetch("/api/browse/resolve-season", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(params),
 	});
 

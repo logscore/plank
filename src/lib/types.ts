@@ -1,6 +1,6 @@
-export type MediaType = 'movie' | 'show' | 'episode';
+export type MediaType = "movie" | "show" | "episode";
 
-export type MediaStatus = 'pending' | 'searching' | 'downloading' | 'complete' | 'error' | 'not_found' | 'removed';
+export type MediaStatus = "pending" | "searching" | "downloading" | "complete" | "error" | "not_found" | "removed";
 
 export interface Media {
 	id: string;
@@ -57,7 +57,7 @@ export type SeasonWithEpisodes = Season & {
 	episodes: Media[];
 };
 
-export type SubtitleSource = 'sidecar' | 'embedded' | 'opensubtitles' | 'manual';
+export type SubtitleSource = "sidecar" | "embedded" | "opensubtitles" | "manual";
 
 export interface SubtitleTrack {
 	id: string;
@@ -92,14 +92,14 @@ export interface OpenSubtitleResult {
 	episodeNumber?: number;
 }
 
-export function isMovie(media: Media): media is Media & { type: 'movie' } {
-	return media.type === 'movie';
+export function isMovie(media: Media): media is Media & { type: "movie" } {
+	return media.type === "movie";
 }
 
-export function isShow(media: Media): media is Media & { type: 'show' } {
-	return media.type === 'show';
+export function isShow(media: Media): media is Media & { type: "show" } {
+	return media.type === "show";
 }
 
-export function isEpisode(media: Media): media is Media & { type: 'episode'; parentId: string; seasonId: string } {
-	return media.type === 'episode';
+export function isEpisode(media: Media): media is Media & { type: "episode"; parentId: string; seasonId: string } {
+	return media.type === "episode";
 }
