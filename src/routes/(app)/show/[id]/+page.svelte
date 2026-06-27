@@ -9,9 +9,9 @@
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
-    import { canPlayEpisode } from "$lib/media-playability";
     import type { Media, SeasonWithEpisodes } from "$lib/types";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
+    import { canPlayEpisode } from "$lib/utils";
 
     let media: Media | null = $state(null);
     let seasons: SeasonWithEpisodes[] = $state([]);
