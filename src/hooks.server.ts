@@ -1,9 +1,9 @@
 import { type Handle, type RequestEvent, redirect } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
 import { auth } from "$lib/server/auth";
+import { tempFolderCleanupJob } from "$lib/server/cron-jobs";
 import { db } from "$lib/server/db/index";
 import { user as userTable } from "$lib/server/db/schema";
-import { tempFolderScheduler } from "$lib/server/scheduler";
 import { recoverDownloads } from "$lib/server/torrent";
 
 // Recover incomplete downloads on server startup
@@ -12,7 +12,7 @@ recoverDownloads().catch((e) => {
 });
 
 // Start scheduled tasks
-tempFolderScheduler();
+tempFolderCleanupJob();
 
 function classifyRoute(path: string) {
 	const isAuthPage = path.startsWith("/login") || path.startsWith("/register");

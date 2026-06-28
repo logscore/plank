@@ -2,8 +2,8 @@
 // FEATURE: Metadata-first episodic torrent acquisition for queued season ingestion flows
 
 import { mediaDb, seasonsDb } from "./db";
-import { getShowLibraryDirectoryId } from "./library-paths";
 import { acquireMediaByImdb, waitForTerminalMediaState } from "./media-acquisition";
+import { getShowLibraryDirectoryId } from "./paths";
 import { getSeasonDetailsWithExternalIds, getTVDetails, saveTmdbImages } from "./tmdb";
 
 const SEASON_DOWNLOAD_CONCURRENCY = 3;

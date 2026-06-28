@@ -2,8 +2,8 @@ import { error, json } from "@sveltejs/kit";
 import { config } from "$lib/config";
 import { requireAuth } from "$lib/server/api-guard";
 import { downloadsDb, mediaDb } from "$lib/server/db";
-import { getMovieLibraryDirectoryId, getShowLibraryDirectoryId } from "$lib/server/library-paths";
 import { parseMagnet } from "$lib/server/magnet";
+import { getMovieLibraryDirectoryId, getShowLibraryDirectoryId } from "$lib/server/paths";
 import { addSeasonFromBrowse } from "$lib/server/season-sync";
 import {
 	getMovieDetails,
