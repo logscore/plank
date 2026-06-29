@@ -107,7 +107,7 @@ export function createMediaProgressQuery(id: string, options?: { enabled?: boole
 	}));
 }
 
-export async function fetchContinueWatching(): Promise<Media[]> {
+async function fetchContinueWatching(): Promise<Media[]> {
 	const response = await fetch("/api/media/continue-watching");
 	if (!response.ok) {
 		const err: FetchError = new Error("Failed to fetch continue watching");

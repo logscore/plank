@@ -171,11 +171,11 @@ const ISO1_TO_ISO2: Record<string, string> = {
 	sl: "slv",
 };
 
-function getLanguageName(code: string): string {
+export function getLanguageName(code: string): string {
 	return LANGUAGE_NAMES[code] ?? code.toUpperCase();
 }
 
-function getIso2Code(iso1Code: string): string {
+export function getIso2Code(iso1Code: string): string {
 	return ISO1_TO_ISO2[iso1Code] ?? iso1Code;
 }
 
@@ -397,15 +397,3 @@ export async function downloadSubtitle(
 		return { filePath, fileName: downloadInfo.file_name };
 	}
 }
-
-// ============================================================================
-// Available languages for the UI
-// ============================================================================
-
-export const AVAILABLE_LANGUAGES = Object.entries(LANGUAGE_NAMES).map(([code, name]) => ({
-	code,
-	name,
-	iso2: getIso2Code(code),
-}));
-
-export { getLanguageName, getIso2Code };

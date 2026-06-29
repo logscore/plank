@@ -100,7 +100,7 @@ interface TMDBEpisodeExternalIds {
 	imdb_id: string | null;
 }
 
-export interface EpisodeMetadata {
+interface EpisodeMetadata {
 	tmdbId: number | null;
 	imdbId: string | null;
 	episodeNumber: number;

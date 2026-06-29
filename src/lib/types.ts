@@ -57,18 +57,6 @@ export type SeasonWithEpisodes = Season & {
 	episodes: Media[];
 };
 
-export type SubtitleSource = "sidecar" | "embedded" | "opensubtitles" | "manual";
-
-export interface SubtitleTrack {
-	id: string;
-	mediaId: string;
-	language: string;
-	label: string;
-	source: SubtitleSource;
-	isDefault: boolean;
-	src: string;
-}
-
 export interface OpenSubtitleResult {
 	id: string;
 	fileId: number;
@@ -90,18 +78,6 @@ export interface OpenSubtitleResult {
 	featureYear: number;
 	seasonNumber?: number;
 	episodeNumber?: number;
-}
-
-export function isMovie(media: Media): media is Media & { type: "movie" } {
-	return media.type === "movie";
-}
-
-export function isShow(media: Media): media is Media & { type: "show" } {
-	return media.type === "show";
-}
-
-export function isEpisode(media: Media): media is Media & { type: "episode"; parentId: string; seasonId: string } {
-	return media.type === "episode";
 }
 
 export interface FetchError extends Error {

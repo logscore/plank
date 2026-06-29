@@ -15,7 +15,7 @@ export interface ProwlarrIndexerSchema {
 	protocol?: string;
 }
 
-export async function fetchProwlarrIndexers(): Promise<ProwlarrIndexer[]> {
+async function fetchProwlarrIndexers(): Promise<ProwlarrIndexer[]> {
 	const response = await fetch("/api/prowlarr/indexer");
 	if (!response.ok) {
 		const err: FetchError = new Error("Failed to fetch indexers");
@@ -25,7 +25,7 @@ export async function fetchProwlarrIndexers(): Promise<ProwlarrIndexer[]> {
 	return response.json();
 }
 
-export async function fetchProwlarrIndexerSchemas(): Promise<ProwlarrIndexerSchema[]> {
+async function fetchProwlarrIndexerSchemas(): Promise<ProwlarrIndexerSchema[]> {
 	const response = await fetch("/api/prowlarr/indexer/schema");
 	if (!response.ok) {
 		const err: FetchError = new Error("Failed to fetch indexer schemas");

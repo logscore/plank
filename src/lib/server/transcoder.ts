@@ -73,18 +73,6 @@ async function scanShows(): Promise<void> {
 	}
 }
 
-export async function transcodeMovieFile(mediaId: string): Promise<void> {
-	await normalizeMediaForPlayback(mediaId);
-}
-
-export async function transcodeTVEpisodes(showId: string): Promise<void> {
-	const episodes = mediaDb.getEpisodesByParentId(showId);
-	// Change to a job eventually
-	for (const episode of episodes) {
-		await normalizeMediaForPlayback(episode.id);
-	}
-}
-
 export async function finalizeMediaToLibrary(
 	sourcePath: string,
 	targetPath: string
@@ -127,7 +115,7 @@ export async function finalizeMediaToLibrary(
 	return { filePath: finalPath, fileSize: stats.size };
 }
 
-export async function normalizeMediaForPlayback(mediaId: string): Promise<string | null> {
+async function normalizeMediaForPlayback(mediaId: string): Promise<string | null> {
 	const existingJob = activeNormalizationJobs.get(mediaId);
 
 	if (existingJob) {

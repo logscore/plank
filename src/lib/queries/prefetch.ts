@@ -56,7 +56,7 @@ export function prefetchBrowse(type: "trending" | "popular", filter: "all" | "mo
  * Prefetch both browse tabs (trending and popular) for a given filter
  * Call this on page load to warm the cache for tab switching
  */
-export function prefetchBothBrowseTabs(filter: "all" | "movie" | "show" = "all") {
+function prefetchBothBrowseTabs(filter: "all" | "movie" | "show" = "all") {
 	prefetchBrowse("trending", filter);
 	prefetchBrowse("popular", filter);
 }
