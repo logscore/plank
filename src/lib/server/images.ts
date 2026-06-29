@@ -54,8 +54,6 @@ export async function saveImage(
 	}
 	const processed = await image.getBuffer(JimpMime.jpeg, { quality: OUTPUT_QUALITY });
 
-	console.debug(filePath);
-
 	await fs.writeFile(filePath, processed);
 
 	// Return a path suitable for the serving route.
@@ -137,11 +135,6 @@ export async function savePosterBackdropImages(
 
 	if (metadata.posterUrl) {
 		try {
-			// metadata.posterUrl already contains the full URL (e.g. from getMovieDetails mapping)
-			// so we can use it directly.
-			// Wait, the previous mapping code uses settings.tmdb.imageBaseUrl to construct metadata.posterUrl
-			// So metadata.posterUrl IS a full URL.
-			// imageStorage.saveFromUrl expects a URL.
 			const storedPath = await saveFromUrl(category, id, "poster.jpg", metadata.posterUrl);
 			result.posterUrl = `/images/${storedPath}`;
 		} catch (e) {

@@ -14,13 +14,6 @@ vi.mock("$lib/config", () => ({
 	},
 }));
 
-// Mock image storage
-vi.mock("$lib/server/storage", () => ({
-	imageStorage: {
-		saveFromUrl: vi.fn(),
-	},
-}));
-
 describe("TMDB Service", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();

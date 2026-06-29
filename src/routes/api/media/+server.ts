@@ -144,32 +144,6 @@ async function enrichBrowseMetadata(
 	return metadata;
 }
 
-function saveImagesAsync(metadata: MediaMetadata, mediaId: string, mediaType: MediaType): void {
-	if (!(metadata.posterUrl || metadata.backdropUrl)) {
-		return;
-	}
-
-	(async () => {
-		try {
-			const directoryId =
-				mediaType === "show"
-					? getShowLibraryDirectoryId({ id: mediaId, title: metadata.title, year: metadata.year })
-					: getMovieLibraryDirectoryId({ id: mediaId, title: metadata.title, year: metadata.year });
-			const updatedImages = await savePosterBackdropImages(
-				{ posterUrl: metadata.posterUrl, backdropUrl: metadata.backdropUrl },
-				"library",
-				directoryId
-			);
-			mediaDb.updateMetadata(mediaId, {
-				posterUrl: updatedImages.posterUrl,
-				backdropUrl: updatedImages.backdropUrl,
-			});
-		} catch (e) {
-			console.error(`[POST /api/media] Failed to save images for ${mediaId}:`, e);
-		}
-	})();
-}
-
 export const GET: RequestHandler = async ({ locals, url }) => {
 	const { organizationId } = requireAuth(locals);
 	const type = url.searchParams.get("type") as MediaType | null;
@@ -350,7 +324,26 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	});
 
 	// Save images in background
-	saveImagesAsync(metadata, mediaItem.id, mediaType);
+	if (metadata.posterUrl || metadata.backdropUrl) {
+		const directoryId =
+			mediaType === "show"
+				? getShowLibraryDirectoryId({ id: mediaItem.id, title: metadata.title, year: metadata.year })
+				: getMovieLibraryDirectoryId({ id: mediaItem.id, title: metadata.title, year: metadata.year });
+		savePosterBackdropImages(
+			{ posterUrl: metadata.posterUrl, backdropUrl: metadata.backdropUrl },
+			"library",
+			directoryId
+		)
+			.then((updatedImages) => {
+				mediaDb.updateMetadata(mediaItem.id, {
+					posterUrl: updatedImages.posterUrl,
+					backdropUrl: updatedImages.backdropUrl,
+				});
+			})
+			.catch((e) => {
+				console.error(`[POST /api/media] Failed to save images for ${mediaItem.id}:`, e);
+			});
+	}
 
 	// Start download
 	startDownload(mediaItem.id, magnetLink).catch((e) => {
