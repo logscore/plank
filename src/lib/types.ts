@@ -103,3 +103,7 @@ export function isShow(media: Media): media is Media & { type: "show" } {
 export function isEpisode(media: Media): media is Media & { type: "episode"; parentId: string; seasonId: string } {
 	return media.type === "episode";
 }
+
+export interface FetchError extends Error {
+	status?: number;
+}
