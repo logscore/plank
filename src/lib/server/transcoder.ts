@@ -5,27 +5,8 @@ import { mediaDb } from "./db";
 import { normalizeFileForPlayback, probeFile, requiresBrowserSafePlayback } from "./ffmpeg";
 
 const activeNormalizationJobs = new Map<string, Promise<string | null>>();
-const LIBRARY_SCAN_CONCURRENCY = 1;
 
 let activeLibraryScan: Promise<void> | null = null;
-
-async function runWithConcurrency<T>(
-	items: T[],
-	concurrency: number,
-	worker: (item: T) => Promise<void>
-): Promise<void> {
-	let nextIndex = 0;
-	const workerCount = Math.min(concurrency, items.length);
-	await Promise.all(
-		Array.from({ length: workerCount }, async () => {
-			while (nextIndex < items.length) {
-				const item = items[nextIndex];
-				nextIndex += 1;
-				await worker(item);
-			}
-		})
-	);
-}
 
 async function verifyFileIntegrity(filePath: string): Promise<boolean> {
 	try {
@@ -74,9 +55,10 @@ async function scanMovies(): Promise<void> {
 	const movies = mediaDb
 		.getAll()
 		.filter((media) => media.type === "movie" && media.filePath && existsSync(media.filePath));
-	await runWithConcurrency(movies, LIBRARY_SCAN_CONCURRENCY, async (media) => {
-		await normalizeMediaForPlayback(media.id);
-	});
+	// Change to a job eventually
+	for (const movie of movies) {
+		await normalizeMediaForPlayback(movie.id);
+	}
 }
 
 async function scanShows(): Promise<void> {
@@ -85,9 +67,10 @@ async function scanShows(): Promise<void> {
 		.filter((media) => media.type === "show")
 		.map((media) => media.id);
 	const episodes = showIds.flatMap((showId) => mediaDb.getEpisodesByParentId(showId));
-	await runWithConcurrency(episodes, LIBRARY_SCAN_CONCURRENCY, async (episode) => {
+	// Change to a job eventually
+	for (const episode of episodes) {
 		await normalizeMediaForPlayback(episode.id);
-	});
+	}
 }
 
 export async function transcodeMovieFile(mediaId: string): Promise<void> {
@@ -96,9 +79,10 @@ export async function transcodeMovieFile(mediaId: string): Promise<void> {
 
 export async function transcodeTVEpisodes(showId: string): Promise<void> {
 	const episodes = mediaDb.getEpisodesByParentId(showId);
-	await runWithConcurrency(episodes, LIBRARY_SCAN_CONCURRENCY, async (episode) => {
+	// Change to a job eventually
+	for (const episode of episodes) {
 		await normalizeMediaForPlayback(episode.id);
-	});
+	}
 }
 
 export async function finalizeMediaToLibrary(
