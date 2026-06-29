@@ -2,9 +2,10 @@
 // FEATURE: Metadata-first episodic torrent acquisition for queued season ingestion flows
 
 import { mediaDb, seasonsDb } from "./db";
+import { savePosterBackdropImages } from "./images";
 import { acquireMediaByImdb, waitForTerminalMediaState } from "./media-acquisition";
 import { getShowLibraryDirectoryId } from "./paths";
-import { getSeasonDetailsWithExternalIds, getTVDetails, saveTmdbImages } from "./tmdb";
+import { getSeasonDetailsWithExternalIds, getTVDetails } from "./tmdb";
 
 const SEASON_DOWNLOAD_CONCURRENCY = 3;
 const activeSeasonJobs = new Map<string, Promise<void>>();
@@ -104,19 +105,10 @@ async function saveShowImages(showId: string, metadata: ShowMetadata): Promise<v
 	}
 	try {
 		const showDirectoryId = getShowLibraryDirectoryId({ id: showId, title: metadata.title, year: metadata.year });
-		const savedImages = await saveTmdbImages(
+		const savedImages = await savePosterBackdropImages(
 			{
-				tmdbId: null,
-				title: metadata.title,
-				year: metadata.year,
 				posterUrl: metadata.posterUrl,
 				backdropUrl: metadata.backdropUrl,
-				overview: metadata.overview,
-				runtime: metadata.runtime,
-				genres: metadata.genres,
-				originalLanguage: metadata.originalLanguage,
-				certification: metadata.certification,
-				totalSeasons: metadata.totalSeasons,
 			},
 			"library",
 			showDirectoryId

@@ -1,5 +1,6 @@
+// TODO: unreviewed
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { imageStorage } from "$lib/server/storage";
 import * as tmdb from "$lib/server/tmdb";
 
 // Mock config
@@ -94,42 +95,6 @@ describe("TMDB Service", () => {
 			expect(details.runtime).toBe(120);
 			expect(details.certification).toBe("PG-13");
 			expect(details.genres).toContain("Action");
-		});
-	});
-
-	describe("saveTmdbImages", () => {
-		it("should save poster and backdrop if present", async () => {
-			const metadata: any = {
-				posterUrl: "http://url/poster.jpg",
-				backdropUrl: "http://url/backdrop.jpg",
-			};
-
-			(imageStorage.saveFromUrl as any)
-				.mockResolvedValueOnce("library/1/poster.jpg")
-				.mockResolvedValueOnce("library/1/backdrop.jpg");
-
-			const result = await tmdb.saveTmdbImages(metadata, "library", "1");
-
-			expect(imageStorage.saveFromUrl).toHaveBeenCalledTimes(2);
-			expect(result.posterUrl).toBe("/images/library/1/poster.jpg");
-			expect(result.backdropUrl).toBe("/images/library/1/backdrop.jpg");
-		});
-
-		it("should return original URLs if save fails", async () => {
-			const metadata: any = {
-				posterUrl: "http://url/poster.jpg",
-				backdropUrl: null,
-			};
-
-			(imageStorage.saveFromUrl as any).mockRejectedValue(new Error("Failed"));
-
-			// Mock console.error to avoid noise
-			const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-			const result = await tmdb.saveTmdbImages(metadata, "library", "1");
-
-			expect(result.posterUrl).toBe("http://url/poster.jpg"); // Unchanged
-			expect(consoleSpy).toHaveBeenCalled();
 		});
 	});
 

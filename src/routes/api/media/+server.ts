@@ -2,17 +2,11 @@ import { error, json } from "@sveltejs/kit";
 import { config } from "$lib/config";
 import { requireAuth } from "$lib/server/api-guard";
 import { downloadsDb, mediaDb } from "$lib/server/db";
+import { savePosterBackdropImages } from "$lib/server/images";
 import { parseMagnet } from "$lib/server/magnet";
 import { getMovieLibraryDirectoryId, getShowLibraryDirectoryId } from "$lib/server/paths";
 import { addSeasonFromBrowse } from "$lib/server/season-sync";
-import {
-	getMovieDetails,
-	getTVDetails,
-	isTVShowFilename,
-	saveTmdbImages,
-	searchMovie,
-	searchTVShow,
-} from "$lib/server/tmdb";
+import { getMovieDetails, getTVDetails, isTVShowFilename, searchMovie, searchTVShow } from "$lib/server/tmdb";
 import { startDownload } from "$lib/server/torrent";
 import type { MediaType } from "$lib/types";
 import type { RequestHandler } from "./$types";
@@ -161,7 +155,11 @@ function saveImagesAsync(metadata: MediaMetadata, mediaId: string, mediaType: Me
 				mediaType === "show"
 					? getShowLibraryDirectoryId({ id: mediaId, title: metadata.title, year: metadata.year })
 					: getMovieLibraryDirectoryId({ id: mediaId, title: metadata.title, year: metadata.year });
-			const updatedImages = await saveTmdbImages(metadata, "library", directoryId);
+			const updatedImages = await savePosterBackdropImages(
+				{ posterUrl: metadata.posterUrl, backdropUrl: metadata.backdropUrl },
+				"library",
+				directoryId
+			);
 			mediaDb.updateMetadata(mediaId, {
 				posterUrl: updatedImages.posterUrl,
 				backdropUrl: updatedImages.backdropUrl,
