@@ -8,14 +8,14 @@ import { config } from "$lib/config";
 import type { MediaType } from "$lib/types";
 import { downloadsDb, mediaDb, seasonsDb } from "./db";
 import { isSupportedFormat, SUPPORTED_VIDEO_FORMATS } from "./ffmpeg";
+import { parseMagnet } from "./magnet";
 import {
+	buildMovieFileName,
 	getEpisodeLibraryPath,
 	getMovieLibraryRoot,
 	getSeasonLibraryDirectory,
 	getShowLibraryRoot,
-} from "./library-paths";
-import { parseMagnet } from "./magnet";
-import { buildMovieFileName } from "./media-naming";
+} from "./paths";
 import { discoverSubtitles } from "./subtitles";
 import { searchMovie, searchTVShow } from "./tmdb";
 import { finalizeMediaToLibrary } from "./transcoder";

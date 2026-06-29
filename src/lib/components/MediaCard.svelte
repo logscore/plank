@@ -2,8 +2,8 @@
     import { EllipsisVertical, Info, Play, RotateCcw, Trash2 } from "@lucide/svelte";
     import { goto } from "$app/navigation";
     import EpisodeSelector from "$lib/components/EpisodeSelector.svelte";
-    import { canPlayEpisode } from "$lib/media-playability";
     import type { Media, SeasonWithEpisodes } from "$lib/types";
+    import { canPlayEpisode } from "$lib/utils";
     import Button from "./ui/Button.svelte";
     import Tv from "./ui/Tv.svelte";
 

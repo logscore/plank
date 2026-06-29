@@ -2,7 +2,7 @@ import { error, json } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
 import { db } from "$lib/server/db/index";
 import { schema } from "$lib/server/db/schema";
-import { replaceStoredImage } from "$lib/server/image-processing";
+import { replaceImage } from "$lib/server/images";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -26,7 +26,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.get();
 
 	const buffer = Buffer.from(await file.arrayBuffer());
-	const result = await replaceStoredImage(currentUser?.image, buffer, file.type, "avatars", userId);
+	const result = await replaceImage(currentUser?.image, buffer, file.type, "avatars", userId);
 
 	if ("error" in result) {
 		throw error(400, result.error);

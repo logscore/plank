@@ -4,7 +4,7 @@ import { config } from "$lib/config";
 import { hasActiveDownloads } from "./torrent";
 
 // Schedule temp folder cleanup daily at midnight
-export function tempFolderScheduler() {
+export function tempFolderCleanupJob() {
 	cron.schedule("0 0 * * *", async () => {
 		console.log("[Cron] Starting daily temp folder cleanup...");
 		try {

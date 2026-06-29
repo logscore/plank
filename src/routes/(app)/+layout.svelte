@@ -6,7 +6,7 @@
     import ConfirmationDialog from "$lib/components/ConfirmationDialog.svelte";
     import InviteMemberDialog from "$lib/components/InviteMemberDialog.svelte";
     import Layout from "$lib/components/Layout.svelte";
-    import { prefetchBrowseData } from "$lib/prefetch";
+    import { prefetchBrowseData } from "$lib/queries/prefetch";
     import "../../app.css";
 
     let { children } = $props();

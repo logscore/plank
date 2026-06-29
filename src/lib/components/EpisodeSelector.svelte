@@ -1,8 +1,8 @@
 <script lang="ts">
     import { ChevronDown, ChevronRight, Play } from "@lucide/svelte";
     import Button from "$lib/components/ui/Button.svelte";
-    import { canPlayEpisode } from "$lib/media-playability";
     import type { Media, SeasonWithEpisodes } from "$lib/types";
+    import { canPlayEpisode } from "$lib/utils";
 
     let {
         seasons,
@@ -179,7 +179,9 @@
                                             </div>
                                             {#if getEpisodeStatusLabel(episode)}
                                                 <span class="text-xs text-yellow-500"
-                                                    >{getEpisodeStatusLabel(episode)}</span
+                                                    >{getEpisodeStatusLabel(
+                                                        episode,
+                                                    )}</span
                                                 >
                                             {/if}
                                         </div>

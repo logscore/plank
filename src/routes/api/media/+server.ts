@@ -2,17 +2,11 @@ import { error, json } from "@sveltejs/kit";
 import { config } from "$lib/config";
 import { requireAuth } from "$lib/server/api-guard";
 import { downloadsDb, mediaDb } from "$lib/server/db";
-import { getMovieLibraryDirectoryId, getShowLibraryDirectoryId } from "$lib/server/library-paths";
+import { savePosterBackdropImages } from "$lib/server/images";
 import { parseMagnet } from "$lib/server/magnet";
+import { getMovieLibraryDirectoryId, getShowLibraryDirectoryId } from "$lib/server/paths";
 import { addSeasonFromBrowse } from "$lib/server/season-sync";
-import {
-	getMovieDetails,
-	getTVDetails,
-	isTVShowFilename,
-	saveTmdbImages,
-	searchMovie,
-	searchTVShow,
-} from "$lib/server/tmdb";
+import { getMovieDetails, getTVDetails, isTVShowFilename, searchMovie, searchTVShow } from "$lib/server/tmdb";
 import { startDownload } from "$lib/server/torrent";
 import type { MediaType } from "$lib/types";
 import type { RequestHandler } from "./$types";
@@ -148,28 +142,6 @@ async function enrichBrowseMetadata(
 	}
 
 	return metadata;
-}
-
-function saveImagesAsync(metadata: MediaMetadata, mediaId: string, mediaType: MediaType): void {
-	if (!(metadata.posterUrl || metadata.backdropUrl)) {
-		return;
-	}
-
-	(async () => {
-		try {
-			const directoryId =
-				mediaType === "show"
-					? getShowLibraryDirectoryId({ id: mediaId, title: metadata.title, year: metadata.year })
-					: getMovieLibraryDirectoryId({ id: mediaId, title: metadata.title, year: metadata.year });
-			const updatedImages = await saveTmdbImages(metadata, "library", directoryId);
-			mediaDb.updateMetadata(mediaId, {
-				posterUrl: updatedImages.posterUrl,
-				backdropUrl: updatedImages.backdropUrl,
-			});
-		} catch (e) {
-			console.error(`[POST /api/media] Failed to save images for ${mediaId}:`, e);
-		}
-	})();
 }
 
 export const GET: RequestHandler = async ({ locals, url }) => {
@@ -352,7 +324,26 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	});
 
 	// Save images in background
-	saveImagesAsync(metadata, mediaItem.id, mediaType);
+	if (metadata.posterUrl || metadata.backdropUrl) {
+		const directoryId =
+			mediaType === "show"
+				? getShowLibraryDirectoryId({ id: mediaItem.id, title: metadata.title, year: metadata.year })
+				: getMovieLibraryDirectoryId({ id: mediaItem.id, title: metadata.title, year: metadata.year });
+		savePosterBackdropImages(
+			{ posterUrl: metadata.posterUrl, backdropUrl: metadata.backdropUrl },
+			"library",
+			directoryId
+		)
+			.then((updatedImages) => {
+				mediaDb.updateMetadata(mediaItem.id, {
+					posterUrl: updatedImages.posterUrl,
+					backdropUrl: updatedImages.backdropUrl,
+				});
+			})
+			.catch((e) => {
+				console.error(`[POST /api/media] Failed to save images for ${mediaItem.id}:`, e);
+			});
+	}
 
 	// Start download
 	startDownload(mediaItem.id, magnetLink).catch((e) => {

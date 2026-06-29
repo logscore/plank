@@ -7,7 +7,7 @@
     "dev:reset": "bash scripts/reset-dev.sh",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-kit sync && npx svelte-check-rs --tsconfig ./tsconfig.json --ignore 'docs/**' && npx ultracite fix && npm run knip",
+    "check": "svelte-kit sync && npx svelte-check-rs --tsconfig ./tsconfig.json --ignore 'docs/**' --ignore 'site/**' && npx ultracite fix && npm run knip",
     "check:watch": "svelte-kit sync && npx svelte-check-rs --tsconfig ./tsconfig.json --watch --ignore 'docs/**' && npx ultracite fix --watch && npm run knip",
     "test": "bun x vitest run",
     "test:watch": "bun x vitest",

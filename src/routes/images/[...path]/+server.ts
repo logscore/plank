@@ -1,3 +1,5 @@
+// TODO: Add an org and auth guard
+
 import fs from "node:fs/promises";
 import path from "node:path";
 import { error } from "@sveltejs/kit";

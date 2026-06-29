@@ -9,7 +9,6 @@
     import TorrentCard from "$lib/components/TorrentCard.svelte";
     import type { SeasonData } from "$lib/components/ui/ContextMenu.svelte";
     import { createAddFromBrowseMutation } from "$lib/mutations/browse-mutations";
-    import { prefetchBrowse } from "$lib/prefetch";
     import {
         type BrowseDetailItem,
         type BrowseItem,
@@ -21,6 +20,7 @@
         resolveTorrent,
         type SeasonSummary,
     } from "$lib/queries/browse-queries";
+    import { prefetchBrowse } from "$lib/queries/prefetch";
     import { queryKeys } from "$lib/query-keys";
 
     interface Props {
