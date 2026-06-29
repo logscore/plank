@@ -73,7 +73,7 @@ describe("saveImage", () => {
 
 		expect(returned).toBe("library/123/poster.jpg");
 		expect(fs.writeFile).toHaveBeenCalledTimes(1);
-		expect(fs.writeFile).toHaveBeenCalledWith(path.join(DATA, "images/library/123/poster.jpg"), expect.any(Buffer));
+		expect(fs.writeFile).toHaveBeenCalledWith(path.join(DATA, "library/123/poster.jpg"), expect.any(Buffer));
 		expect(isJpeg(lastWritten())).toBe(true);
 	});
 
@@ -117,7 +117,7 @@ describe("saveImage", () => {
 
 		await saveImage("library", "123", "poster.jpg", await makeImage(10, 10));
 
-		expect(fs.mkdir).toHaveBeenCalledWith(path.join(DATA, "images/library/123"), { recursive: true });
+		expect(fs.mkdir).toHaveBeenCalledWith(path.join(DATA, "library/123"), { recursive: true });
 	});
 
 	it("does NOT create the directory when it already exists", async () => {
@@ -157,7 +157,7 @@ describe("saveImage", () => {
 describe("deleteImage", () => {
 	it("unlinks the resolved absolute path", async () => {
 		await deleteImage("library/123/poster.jpg");
-		expect(fs.unlink).toHaveBeenCalledWith(path.join(DATA, "images/library/123/poster.jpg"));
+		expect(fs.unlink).toHaveBeenCalledWith(path.join(DATA, "library/123/poster.jpg"));
 	});
 
 	it("swallows errors when the file is missing", async () => {
@@ -195,7 +195,7 @@ describe("replaceImage", () => {
 		const result = await replaceImage(null, png, "image/png", "avatars", "u1");
 
 		// Stored under data/avatars/u1/image.jpg
-		expect(fs.writeFile).toHaveBeenCalledWith(path.join(DATA, "images/avatars/u1/image.jpg"), expect.any(Buffer));
+		expect(fs.writeFile).toHaveBeenCalledWith(path.join(DATA, "avatars/u1/image.jpg"), expect.any(Buffer));
 		expect(await dimsOf(lastWritten())).toEqual({ width: 512, height: 512 });
 		expect(result).toEqual({ imagePath: "/images/avatars/u1/image.jpg" });
 		expect(fs.unlink).not.toHaveBeenCalled();
@@ -206,7 +206,7 @@ describe("replaceImage", () => {
 
 		await replaceImage("/images/avatars/u1/old.jpg", png, "image/png", "avatars", "u1");
 
-		expect(fs.unlink).toHaveBeenCalledWith(path.join(DATA, "images/avatars/u1/old.jpg"));
+		expect(fs.unlink).toHaveBeenCalledWith(path.join(DATA, "avatars/u1/old.jpg"));
 	});
 
 	it("returns a processing error when a valid-magic image cannot be decoded", async () => {
@@ -236,8 +236,8 @@ describe("saveTmdbImages", () => {
 
 		expect(global.fetch).toHaveBeenCalledTimes(2);
 		// Each downloaded image is processed and stored under data/<category>/...
-		expect(fs.writeFile).toHaveBeenCalledWith(path.join(DATA, "images/library/1/poster.jpg"), expect.any(Buffer));
-		expect(fs.writeFile).toHaveBeenCalledWith(path.join(DATA, "images/library/1/backdrop.jpg"), expect.any(Buffer));
+		expect(fs.writeFile).toHaveBeenCalledWith(path.join(DATA, "library/1/poster.jpg"), expect.any(Buffer));
+		expect(fs.writeFile).toHaveBeenCalledWith(path.join(DATA, "library/1/backdrop.jpg"), expect.any(Buffer));
 		expect(result.posterUrl).toBe("/images/library/1/poster.jpg");
 		expect(result.backdropUrl).toBe("/images/library/1/backdrop.jpg");
 	});

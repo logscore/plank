@@ -27,7 +27,7 @@ async function ensureDir(dir: string): Promise<void> {
 
 /**
  * Save a buffer to a file
- * @returns The relative path to the saved file (e.g., 'images/abc-123/poster.jpg')
+ * @returns The relative path to the saved file (e.g., 'library/abc-123/poster.jpg')
  */
 export async function saveImage(
 	category: string, // e.g., 'library'
@@ -43,7 +43,7 @@ export async function saveImage(
 	}
 
 	const relativeDir = path.join(category, id);
-	const absDir = path.join(config.paths.data, `/images/${relativeDir}`);
+	const absDir = path.join(config.paths.data, relativeDir);
 
 	await ensureDir(absDir);
 
@@ -78,7 +78,7 @@ async function saveFromUrl(category: string, id: string, filename: string, url: 
  * Delete a file
  */
 export async function deleteImage(relativePath: string): Promise<void> {
-	const filePath = path.join(config.paths.data, `/images/${relativePath}`);
+	const filePath = path.join(config.paths.data, relativePath);
 	try {
 		await fs.unlink(filePath);
 	} catch (e) {
