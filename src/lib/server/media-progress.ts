@@ -1,8 +1,8 @@
 // Builds consistent progress snapshots for movies and episode downloads
 // FEATURE: Live progress transport for movie and episode download monitoring
 
-import { isTerminalProgressStatus } from "$lib/progress-status";
 import type { Media } from "$lib/server/db/schema";
+import { isTerminalProgressStatus } from "$lib/utils";
 import { mediaDb } from "./db";
 import { getDownloadStatus, isDownloadActive } from "./torrent";
 

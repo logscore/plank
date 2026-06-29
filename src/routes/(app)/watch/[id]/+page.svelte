@@ -10,13 +10,13 @@
     import { browser } from "$app/environment";
     import { connectMediaProgressStream } from "$lib/client/media-progress-stream";
     import { createSavePositionMutation } from "$lib/mutations/media-mutations";
-    import { isTerminalProgressStatus } from "$lib/progress-status";
     import {
         fetchPlayPosition,
         fetchSubtitleTracks,
         type ProgressInfo,
         type SubtitleTrackResponse,
     } from "$lib/queries/media-queries";
+    import { isTerminalProgressStatus } from "$lib/utils";
     import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();

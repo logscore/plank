@@ -22,8 +22,8 @@
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
     import { createAddMediaMutation, createDeleteMediaMutation } from "$lib/mutations/media-mutations";
-    import { isTerminalProgressStatus } from "$lib/progress-status";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
+    import { isTerminalProgressStatus } from "$lib/utils";
     import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
@@ -198,7 +198,9 @@
                 headers: body ? { "Content-Type": "application/json" } : undefined,
                 body: body ? JSON.stringify(body) : undefined,
             });
-            const result = (await response.json().catch(() => null)) as { message?: string } | null;
+            const result = (await response.json().catch(() => null)) as {
+                message?: string;
+            } | null;
             if (!response.ok) {
                 throw new Error(result?.message || "Failed to retry download");
             }
@@ -364,7 +366,10 @@
                     {/if}
                     {#if data.media.runtime}
                         <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">
-                            {Math.floor(data.media.runtime / 60)}h{data.media.runtime % 60}m
+                            {Math.floor(data.media.runtime / 60)}h
+                            {data.media
+                                .runtime % 60}
+                            m
                         </span>
                     {/if}
                     {#if data.media.originalLanguage}
@@ -600,7 +605,7 @@
                 placeholder="magnet:?xt=urn:btih:... or https://..."
                 bind:value={manualSourceInput}
                 onkeydown={(event) =>
-                    event.key === 'Enter' && handleManualSourceSubmit()}
+                    event.key === "Enter" && handleManualSourceSubmit()}
             />
             <div class="flex justify-end gap-2">
                 <Button variant="ghost" onclick={closeRedownloadDialog}>Cancel</Button>
