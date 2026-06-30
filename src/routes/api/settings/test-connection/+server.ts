@@ -17,14 +17,13 @@ interface TestConnectionRequest {
 const OPEN_SUBTITLES_BASE_URL = "https://api.opensubtitles.com/api/v1";
 const OPEN_SUBTITLES_USER_AGENT = "plank-media v0.1.0";
 
-const settings = await getSettings();
-
 async function testTmdbConnection(apiKey: string | undefined): Promise<{ success: boolean; message: string }> {
 	if (!apiKey?.trim()) {
 		return { success: false, message: "API key is required" };
 	}
 
 	try {
+		const settings = await getSettings();
 		const response = await fetch(
 			`${settings.tmdb.baseUrl}/configuration?api_key=${encodeURIComponent(apiKey.trim())}`
 		);

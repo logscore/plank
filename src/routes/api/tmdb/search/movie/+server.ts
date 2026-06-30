@@ -9,8 +9,6 @@ import { error, json } from "@sveltejs/kit";
 import { getSettings } from "$lib/server/settings";
 import type { RequestHandler } from "./$types";
 
-const settings = await getSettings();
-
 export const GET: RequestHandler = async ({ url }) => {
 	const query = url.searchParams.get("query");
 	const year = url.searchParams.get("year");
@@ -18,6 +16,8 @@ export const GET: RequestHandler = async ({ url }) => {
 	if (!query) {
 		throw error(400, "Missing query parameter");
 	}
+
+	const settings = await getSettings();
 
 	if (!settings.tmdb.apiKey) {
 		throw error(500, "TMDB API key not configured");

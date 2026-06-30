@@ -93,8 +93,6 @@ interface ActiveDownload {
 	error?: string;
 }
 
-const settings = await getSettings();
-
 // Store active downloads keyed by infohash (allows multiple downloads per media)
 const activeDownloads = new Map<string, ActiveDownload>();
 
@@ -478,6 +476,8 @@ async function fetchAndUpdateMetadata(mediaId: string, fileName: string, mediaTy
 			title: parsed.title,
 			year: parsed.year || null,
 		});
+
+		const settings = await getSettings();
 
 		// Search TMDB if API key is configured
 		if (settings.tmdb.apiKey) {
