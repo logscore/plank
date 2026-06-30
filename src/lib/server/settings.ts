@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { config as envConfig } from "$lib/config";
-import { decrypt, encrypt, isEncrypted } from "$lib/server/crypto";
+import { decrypt, encrypt } from "$lib/server/crypto";
 import { db } from "$lib/server/db/index";
 import { configuration } from "$lib/server/db/schema";
 
@@ -47,36 +47,8 @@ type SettingsUpdate = Partial<{
 	opensubtitlesPassword: string;
 }>;
 
-/** Decrypt a stored value, returning empty string for nullish values */
-function decryptField(value: string | null | undefined): string {
-	if (!value) {
-		return "";
-	}
-	return decrypt(value);
-}
-
-/**
- * Migrate unencrypted values to encrypted on read.
- * If any sensitive field is stored as plaintext, re-encrypt and persist it.
- */
-async function migrateUnencryptedFields(stored: typeof configuration.$inferSelect): Promise<void> {
-	const updates: Partial<typeof configuration.$inferInsert> = {};
-	let needsMigration = false;
-
-	for (const field of ENCRYPTED_FIELDS) {
-		const value = stored[field];
-		if (value && !isEncrypted(value)) {
-			updates[field] = encrypt(value);
-			needsMigration = true;
-		}
-	}
-
-	if (needsMigration) {
-		await db.update(configuration).set(updates).where(eq(configuration.id, "default"));
-	}
-}
-
-/** In-memory cache for settings to avoid repeated DB queries + decryption */
+// In-memory cache for settings to avoid repeated DB queries + decryption
+// TODO: I worry this cache will leak the users data to other clients. Will need to look into this
 let settingsCache: AppSettings | null = null;
 let settingsCacheTime = 0;
 const SETTINGS_CACHE_TTL = 60_000; // 1 minute
@@ -93,11 +65,6 @@ export async function getSettings(): Promise<AppSettings> {
 		const stored = await db.query.configuration.findFirst({
 			where: eq(configuration.id, "default"),
 		});
-
-		// Transparently migrate any plaintext credentials to encrypted
-		if (stored) {
-			await migrateUnencryptedFields(stored);
-		}
 
 		// Default trusted groups from env config
 		const defaultTrustedGroups = envConfig.prowlarr.trustedGroups;
@@ -117,21 +84,21 @@ export async function getSettings(): Promise<AppSettings> {
 
 		const settings: AppSettings = {
 			tmdb: {
-				apiKey: decryptField(stored?.tmdbApiKey) || envConfig.tmdb.apiKey,
+				apiKey: decrypt(stored?.tmdbApiKey || "") || envConfig.tmdb.apiKey,
 				baseUrl: envConfig.tmdb.baseUrl,
 				imageBaseUrl: envConfig.tmdb.imageBaseUrl,
 				language: "en-US",
 			},
 			prowlarr: {
 				url: stored?.prowlarrUrl || envConfig.prowlarr.url,
-				apiKey: decryptField(stored?.prowlarrApiKey) || envConfig.prowlarr.apiKey,
+				apiKey: decrypt(stored?.prowlarrApiKey || "") || envConfig.prowlarr.apiKey,
 				trustedGroups,
 				minSeeders: stored?.prowlarrMinSeeders ?? envConfig.prowlarr.minSeeders,
 			},
 			opensubtitles: {
-				apiKey: decryptField(stored?.opensubtitlesApiKey) || envConfig.opensubtitles.apiKey,
-				username: decryptField(stored?.opensubtitlesUsername) || envConfig.opensubtitles.username,
-				password: decryptField(stored?.opensubtitlesPassword) || envConfig.opensubtitles.password,
+				apiKey: decrypt(stored?.opensubtitlesApiKey || "") || envConfig.opensubtitles.apiKey,
+				username: decrypt(stored?.opensubtitlesUsername || "") || envConfig.opensubtitles.username,
+				password: decrypt(stored?.opensubtitlesPassword || "") || envConfig.opensubtitles.password,
 			},
 		};
 

@@ -41,13 +41,8 @@ export function encrypt(plaintext: string): string {
  * If the value is not encrypted (no prefix), returns it as-is for migration compatibility.
  */
 export function decrypt(value: string): string {
-	if (!value) {
-		return value;
-	}
-
-	// Not encrypted — return plaintext as-is (handles migration from unencrypted DB)
-	if (!value.startsWith(ENCRYPTED_PREFIX)) {
-		return value;
+	if (value === "") {
+		return "";
 	}
 
 	const payload = value.slice(ENCRYPTED_PREFIX.length);
@@ -67,9 +62,4 @@ export function decrypt(value: string): string {
 
 	const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 	return decrypted.toString("utf8");
-}
-
-/** Check whether a value is already encrypted */
-export function isEncrypted(value: string): boolean {
-	return value.startsWith(ENCRYPTED_PREFIX);
 }
