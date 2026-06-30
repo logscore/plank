@@ -8,26 +8,47 @@ import {
 	searchProwlarr,
 	selectBestTorrent,
 } from "$lib/server/prowlarr";
-
-// Mock config
-vi.mock("$lib/config", () => ({
-	config: {
-		prowlarr: {
-			url: "http://localhost:9696",
-			apiKey: "test-api-key",
-			trustedGroups: ["YTS", "YIFY", "BONE"],
-			minSeeders: 5,
-		},
-	},
-}));
+import { updateSettings } from "$lib/server/settings";
 
 // Mock fetch
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 describe("Prowlarr Client", () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		vi.clearAllMocks();
+		global.fetch = mockFetch;
+		await updateSettings({ prowlarrUrl: "", prowlarrApiKey: "" });
+	});
+
+	describe("settings integration", () => {
+		it("uses Prowlarr settings from env when DB settings are empty", async () => {
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				json: async () => [],
+			});
+
+			await searchProwlarr("tt1234567");
+
+			const url = mockFetch.mock.calls[0][0] as string;
+			expect(url).toContain("http://localhost:9696/api/v1/search");
+			expect(url).toContain("apikey=test-api-key");
+		});
+
+		it("uses Prowlarr settings from DB over env", async () => {
+			await updateSettings({ prowlarrUrl: "http://db-prowlarr:9696", prowlarrApiKey: "db-prowlarr-api-key" });
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				json: async () => [],
+			});
+
+			await searchProwlarr("tt1234567");
+
+			const url = mockFetch.mock.calls[0][0] as string;
+			expect(url).toContain("http://db-prowlarr:9696/api/v1/search");
+			expect(url).toContain("apikey=db-prowlarr-api-key");
+			expect(url).not.toContain("test-api-key");
+		});
 	});
 
 	describe("parseProwlarrResults", () => {
