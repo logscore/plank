@@ -4,11 +4,11 @@ import { auth } from "$lib/server/auth";
 import { tempFolderCleanupJob } from "$lib/server/cron-jobs";
 import { db } from "$lib/server/db/index";
 import { user as userTable } from "$lib/server/db/schema";
-import { recoverDownloads } from "$lib/server/torrent";
+import { recoverDownloads } from "$lib/server/torrent/recovery";
 
 // Recover incomplete downloads on server startup
-recoverDownloads().catch((e) => {
-	console.error("[Startup] Failed to recover downloads:", e);
+recoverDownloads().catch((e: Error) => {
+	console.error("[Startup] Failed to recover downloads:", e.message);
 });
 
 // Start scheduled tasks

@@ -11,12 +11,18 @@ vi.mock("$lib/server/api-guard", () => ({
 	requireMediaAccess,
 }));
 
-vi.mock("$lib/server/torrent", () => ({
-	getDownloadStatus: vi.fn(),
-	getVideoStream: vi.fn(),
-	isDownloadActive: vi.fn(),
+vi.mock("$lib/server/torrent/download", () => ({
 	startDownload: vi.fn(),
+}));
+
+vi.mock("$lib/server/torrent/status", () => ({
+	getDownloadStatus: vi.fn(),
+	isDownloadActive: vi.fn(),
 	waitForVideoReady: vi.fn(),
+}));
+
+vi.mock("$lib/server/torrent/stream", () => ({
+	getVideoStream: vi.fn(),
 }));
 
 vi.mock("$lib/server/ffmpeg", () => ({
@@ -26,14 +32,15 @@ vi.mock("$lib/server/ffmpeg", () => ({
 }));
 
 import * as ffmpeg from "$lib/server/ffmpeg";
-import * as torrent from "$lib/server/torrent";
+import * as torrentDownload from "$lib/server/torrent/download";
+import * as torrentStatus from "$lib/server/torrent/status";
 import { GET, HEAD } from "../routes/api/media/[id]/stream/+server";
 
 describe("stream route", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		vi.mocked(torrent.isDownloadActive).mockReturnValue(false);
-		vi.mocked(torrent.waitForVideoReady).mockResolvedValue(false);
+		vi.mocked(torrentStatus.isDownloadActive).mockReturnValue(false);
+		vi.mocked(torrentStatus.waitForVideoReady).mockResolvedValue(false);
 		vi.mocked(ffmpeg.requiresBrowserSafePlayback).mockResolvedValue(false);
 	});
 
@@ -120,7 +127,7 @@ describe("stream route", () => {
 				status: "pending",
 			},
 		});
-		vi.mocked(torrent.getDownloadStatus).mockReturnValue({
+		vi.mocked(torrentStatus.getDownloadStatus).mockReturnValue({
 			progress: 0,
 			downloadSpeed: 0,
 			uploadSpeed: 0,
@@ -131,6 +138,9 @@ describe("stream route", () => {
 		const response = await HEAD({ params: { id: "episode-1" }, locals: {} as App.Locals } as never);
 
 		expect(response.status).toBe(202);
-		expect(vi.mocked(torrent.startDownload)).toHaveBeenCalledWith("episode-1", "magnet:?xt=urn:btih:episode123");
+		expect(vi.mocked(torrentDownload.startDownload)).toHaveBeenCalledWith(
+			"episode-1",
+			"magnet:?xt=urn:btih:episode123"
+		);
 	});
 });

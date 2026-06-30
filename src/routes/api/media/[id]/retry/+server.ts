@@ -1,9 +1,10 @@
 import { json } from "@sveltejs/kit";
 import { requireMediaAccess } from "$lib/server/api-guard";
 import { downloadsDb, mediaDb } from "$lib/server/db";
-import { parseMagnet } from "$lib/server/magnet";
 import { resolveMagnetLink } from "$lib/server/prowlarr";
-import { cancelDownload, deleteMediaFiles, startDownload } from "$lib/server/torrent";
+import { cancelDownload, startDownload } from "$lib/server/torrent/download";
+import { parseMagnet } from "$lib/server/torrent/files";
+import { deleteMediaFiles } from "$lib/server/torrent/finalize";
 import type { RequestHandler } from "./$types";
 
 async function removeExistingDownload(mediaId: string): Promise<void> {

@@ -3,13 +3,9 @@ import path from "node:path";
 import { error } from "@sveltejs/kit";
 import { requireMediaAccess } from "$lib/server/api-guard";
 import { createTransmuxStream, needsTransmux, requiresBrowserSafePlayback } from "$lib/server/ffmpeg";
-import {
-	getDownloadStatus,
-	getVideoStream,
-	isDownloadActive,
-	startDownload,
-	waitForVideoReady,
-} from "$lib/server/torrent";
+import { startDownload } from "$lib/server/torrent/download";
+import { getDownloadStatus, isDownloadActive, waitForVideoReady } from "$lib/server/torrent/status";
+import { getVideoStream } from "$lib/server/torrent/stream";
 import type { RequestHandler } from "./$types";
 
 const FILE_EXTENSION_REGEX = /\.[^.]+$/;
