@@ -5,7 +5,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     ports:
-      - "${PORT:-3300}:3000"
+      - "${PORT:-3300}:3300"
       - "6881:6881/tcp"
       - "6881:6881/udp"
     environment:
@@ -25,7 +25,7 @@ services:
       # Required for SvelteKit CSRF protection to accept requests from the host port
       - ORIGIN=${ORIGIN:-http://localhost:3300}
       # Tell Node adapter to listen on all interfaces (internal port)
-      - PORT=3000
+      - PORT=3300
       - HOST=0.0.0.0
       # Path to Prowlarr config for auto-configuration
       - PROWLARR_CONFIG_PATH=/prowlarr-config/config.xml
