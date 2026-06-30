@@ -1,6 +1,6 @@
 import { error, json, type RequestEvent } from "@sveltejs/kit";
-import { config } from "$lib/config";
 import { testProwlarrConnection } from "$lib/server/prowlarr";
+import { getSettings } from "$lib/server/settings";
 
 type ConnectionTarget = "tmdb" | "opensubtitles" | "prowlarr";
 
@@ -17,6 +17,8 @@ interface TestConnectionRequest {
 const OPEN_SUBTITLES_BASE_URL = "https://api.opensubtitles.com/api/v1";
 const OPEN_SUBTITLES_USER_AGENT = "plank-media v0.1.0";
 
+const settings = await getSettings();
+
 async function testTmdbConnection(apiKey: string | undefined): Promise<{ success: boolean; message: string }> {
 	if (!apiKey?.trim()) {
 		return { success: false, message: "API key is required" };
@@ -24,7 +26,7 @@ async function testTmdbConnection(apiKey: string | undefined): Promise<{ success
 
 	try {
 		const response = await fetch(
-			`${config.tmdb.baseUrl}/configuration?api_key=${encodeURIComponent(apiKey.trim())}`
+			`${settings.tmdb.baseUrl}/configuration?api_key=${encodeURIComponent(apiKey.trim())}`
 		);
 		if (response.ok) {
 			return { success: true, message: "Connection successful" };

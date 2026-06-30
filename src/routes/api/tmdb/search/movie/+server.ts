@@ -6,8 +6,10 @@
  */
 
 import { error, json } from "@sveltejs/kit";
-import { config } from "$lib/config";
+import { getSettings } from "$lib/server/settings";
 import type { RequestHandler } from "./$types";
+
+const settings = await getSettings();
 
 export const GET: RequestHandler = async ({ url }) => {
 	const query = url.searchParams.get("query");
@@ -17,12 +19,12 @@ export const GET: RequestHandler = async ({ url }) => {
 		throw error(400, "Missing query parameter");
 	}
 
-	if (!config.tmdb.apiKey) {
+	if (!settings.tmdb.apiKey) {
 		throw error(500, "TMDB API key not configured");
 	}
 
 	const params = new URLSearchParams({
-		api_key: config.tmdb.apiKey,
+		api_key: settings.tmdb.apiKey,
 		query,
 	});
 
@@ -31,7 +33,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 
 	try {
-		const response = await fetch(`${config.tmdb.baseUrl}/search/movie?${params}`, {
+		const response = await fetch(`${settings.tmdb.baseUrl}/search/movie?${params}`, {
 			headers: { Accept: "application/json" },
 		});
 

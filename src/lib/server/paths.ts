@@ -3,7 +3,7 @@
 // FEATURE: Shared filesystem layout for media storage, naming, and cleanup behavior
 
 import path from "node:path";
-import { config } from "$lib/config";
+import { env } from "$env/dynamic/private";
 import { mediaDb } from "./db";
 
 // --- Filename building ---
@@ -106,7 +106,7 @@ export function getMovieLibraryRoot(movie: MovieDirectoryMedia): string {
 	if (movie.filePath) {
 		return path.dirname(movie.filePath);
 	}
-	return path.join(config.paths.library, buildMovieLibraryDirectoryName(movie));
+	return path.join(PATHS.library, buildMovieLibraryDirectoryName(movie));
 }
 
 export function getMovieLibraryDirectoryId(movie: MovieDirectoryMedia): string {
@@ -114,7 +114,7 @@ export function getMovieLibraryDirectoryId(movie: MovieDirectoryMedia): string {
 }
 
 export function getShowLibraryRoot(show: ShowDirectoryMedia): string {
-	return getExistingShowLibraryRoot(show.id) ?? path.join(config.paths.library, buildShowLibraryDirectoryName(show));
+	return getExistingShowLibraryRoot(show.id) ?? path.join(PATHS.library, buildShowLibraryDirectoryName(show));
 }
 
 export function getShowLibraryDirectoryId(show: ShowDirectoryMedia): string {
@@ -135,3 +135,14 @@ export function getEpisodeLibraryPath(
 		buildEpisodeFileName(show.title, episode, sourceFileName)
 	);
 }
+
+// Paths value constants
+export const PATHS = {
+	data: env.DATA_PATH || "./data",
+	get library() {
+		return `${this.data}/library`;
+	},
+	get temp() {
+		return `${this.data}/temp`;
+	},
+};

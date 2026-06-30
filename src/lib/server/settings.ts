@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { config as envConfig } from "$lib/config";
+import { env } from "$env/dynamic/private";
 import { decrypt, encrypt } from "$lib/server/crypto";
 import { db } from "$lib/server/db/index";
 import { configuration } from "$lib/server/db/schema";
@@ -23,6 +23,28 @@ export interface AppSettings {
 		password: string;
 	};
 }
+
+const DEFAULT_CONFIG: AppSettings = {
+	tmdb: {
+		apiKey: env.TMDB_API_KEY || "",
+		baseUrl: "https://api.themoviedb.org/3",
+		imageBaseUrl: "https://image.tmdb.org/t/p",
+		language: "en-US",
+	},
+	prowlarr: {
+		url: env.PROWLARR_URL || "http://localhost:9696",
+		apiKey: env.PROWLARR_API_KEY || "",
+		// Trusted release groups for high-quality content
+		trustedGroups: ["YTS", "YIFY", ".BONE.", "x1337", "TVTEAM"],
+		// Minimum seeders for a valid torrent
+		minSeeders: 5,
+	},
+	opensubtitles: {
+		apiKey: env.OPENSUBTITLES_API_KEY || "",
+		username: env.OPENSUBTITLES_USERNAME || "",
+		password: env.OPENSUBTITLES_PASSWORD || "",
+	},
+};
 
 /** Fields stored encrypted at rest */
 const ENCRYPTED_FIELDS = [
@@ -67,7 +89,7 @@ export async function getSettings(): Promise<AppSettings> {
 		});
 
 		// Default trusted groups from env config
-		const defaultTrustedGroups = envConfig.prowlarr.trustedGroups;
+		const defaultTrustedGroups = DEFAULT_CONFIG.prowlarr.trustedGroups;
 
 		// Parse trusted groups if stored
 		let trustedGroups = defaultTrustedGroups;
@@ -84,21 +106,21 @@ export async function getSettings(): Promise<AppSettings> {
 
 		const settings: AppSettings = {
 			tmdb: {
-				apiKey: decrypt(stored?.tmdbApiKey || "") || envConfig.tmdb.apiKey,
-				baseUrl: envConfig.tmdb.baseUrl,
-				imageBaseUrl: envConfig.tmdb.imageBaseUrl,
+				apiKey: decrypt(stored?.tmdbApiKey || "") || DEFAULT_CONFIG.tmdb.apiKey,
+				baseUrl: DEFAULT_CONFIG.tmdb.baseUrl,
+				imageBaseUrl: DEFAULT_CONFIG.tmdb.imageBaseUrl,
 				language: "en-US",
 			},
 			prowlarr: {
-				url: stored?.prowlarrUrl || envConfig.prowlarr.url,
-				apiKey: decrypt(stored?.prowlarrApiKey || "") || envConfig.prowlarr.apiKey,
+				url: stored?.prowlarrUrl || DEFAULT_CONFIG.prowlarr.url,
+				apiKey: decrypt(stored?.prowlarrApiKey || "") || DEFAULT_CONFIG.prowlarr.apiKey,
 				trustedGroups,
-				minSeeders: stored?.prowlarrMinSeeders ?? envConfig.prowlarr.minSeeders,
+				minSeeders: stored?.prowlarrMinSeeders ?? DEFAULT_CONFIG.prowlarr.minSeeders,
 			},
 			opensubtitles: {
-				apiKey: decrypt(stored?.opensubtitlesApiKey || "") || envConfig.opensubtitles.apiKey,
-				username: decrypt(stored?.opensubtitlesUsername || "") || envConfig.opensubtitles.username,
-				password: decrypt(stored?.opensubtitlesPassword || "") || envConfig.opensubtitles.password,
+				apiKey: decrypt(stored?.opensubtitlesApiKey || "") || DEFAULT_CONFIG.opensubtitles.apiKey,
+				username: decrypt(stored?.opensubtitlesUsername || "") || DEFAULT_CONFIG.opensubtitles.username,
+				password: decrypt(stored?.opensubtitlesPassword || "") || DEFAULT_CONFIG.opensubtitles.password,
 			},
 		};
 
@@ -108,12 +130,9 @@ export async function getSettings(): Promise<AppSettings> {
 	} catch (e) {
 		console.error("Failed to load settings from DB, falling back to env:", e);
 		return {
-			tmdb: {
-				...envConfig.tmdb,
-				language: "en-US",
-			},
-			prowlarr: envConfig.prowlarr,
-			opensubtitles: envConfig.opensubtitles,
+			tmdb: DEFAULT_CONFIG.tmdb,
+			prowlarr: DEFAULT_CONFIG.prowlarr,
+			opensubtitles: DEFAULT_CONFIG.opensubtitles,
 		};
 	}
 }

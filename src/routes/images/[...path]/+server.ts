@@ -3,7 +3,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { error } from "@sveltejs/kit";
-import { config } from "$lib/config";
+import { PATHS } from "$lib/server/paths";
 import type { RequestHandler } from "./$types";
 
 // Regex to prevent directory traversal
@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ params }) => {
 
 	// Prevent directory traversal
 	const safePath = path.normalize(params.path).replace(DIRECTORY_TRAVERSAL_REGEX, "");
-	const filePath = path.join(config.paths.data, safePath);
+	const filePath = path.join(PATHS.data, safePath);
 
 	try {
 		const stat = await fs.stat(filePath);
