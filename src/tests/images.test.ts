@@ -165,26 +165,17 @@ describe("deleteImage", () => {
 
 describe("replaceImage", () => {
 	it("rejects an invalid image without writing or deleting", async () => {
-		const result = await replaceImage(null, Buffer.from("nope"), "image/png", "avatars", "u1");
+		const result = await replaceImage(null, Buffer.from("nope"), "avatars", "u1");
 
 		expect(result).toEqual({ error: expect.stringMatching(/Invalid image format/) });
 		expect(fs.writeFile).not.toHaveBeenCalled();
 		expect(fs.unlink).not.toHaveBeenCalled();
 	});
 
-	it("rejects a declared mime type that is not allowed", async () => {
-		const png = await makeImage(50, 50);
-
-		const result = await replaceImage(null, png, "image/webp", "avatars", "u1");
-
-		expect(result).toEqual({ error: "Invalid image type" });
-		expect(fs.writeFile).not.toHaveBeenCalled();
-	});
-
 	it("saves a new avatar (resized to 512x512) and returns the image path", async () => {
 		const png = await makeImage(300, 100);
 
-		const result = await replaceImage(null, png, "image/png", "avatars", "u1");
+		const result = await replaceImage(null, png, "avatars", "u1");
 
 		// Stored under data/avatars/u1/image.jpg
 		expect(fs.writeFile).toHaveBeenCalledWith(path.join(DATA, "avatars/u1/image.jpg"), expect.any(Buffer));
@@ -196,7 +187,7 @@ describe("replaceImage", () => {
 	it("deletes the previous image (stripping the /images/ prefix) when replacing", async () => {
 		const png = await makeImage(40, 40);
 
-		await replaceImage("/images/avatars/u1/old.jpg", png, "image/png", "avatars", "u1");
+		await replaceImage("/images/avatars/u1/old.jpg", png, "avatars", "u1");
 
 		expect(fs.unlink).toHaveBeenCalledWith(path.join(DATA, "avatars/u1/old.jpg"));
 	});
@@ -207,9 +198,9 @@ describe("replaceImage", () => {
 			Buffer.from("garbage"),
 		]);
 
-		const result = await replaceImage(null, corrupt, "image/png", "logos", "org1");
+		const result = await replaceImage(null, corrupt, "logos", "org1");
 
-		expect(result).toEqual({ error: "Failed to process image. Allowed: JPEG, PNG, GIF" });
+		expect(result).toEqual({ error: "Invalid image format. Allowed: JPEG, PNG, GIF" });
 	});
 });
 

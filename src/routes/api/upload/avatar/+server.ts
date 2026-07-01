@@ -26,7 +26,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.get();
 
 	const buffer = Buffer.from(await file.arrayBuffer());
-	const result = await replaceImage(currentUser?.image, buffer, file.type, "avatars", userId);
+	const result = await replaceImage(currentUser?.image, buffer, "avatars", userId);
 
 	if ("error" in result) {
 		throw error(400, result.error);
