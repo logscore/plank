@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Jimp, JimpMime } from "jimp";
-import { config } from "$lib/config";
+import { PATHS } from "./paths";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif"] as const;
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 mb
@@ -43,7 +43,7 @@ export async function saveImage(
 	}
 
 	const relativeDir = path.join(category, id);
-	const absDir = path.join(config.paths.data, relativeDir);
+	const absDir = path.join(PATHS.data, relativeDir);
 
 	await ensureDir(absDir);
 
@@ -78,7 +78,7 @@ async function saveFromUrl(category: string, id: string, filename: string, url: 
  * Delete a file
  */
 export async function deleteImage(relativePath: string): Promise<void> {
-	const filePath = path.join(config.paths.data, relativePath);
+	const filePath = path.join(PATHS.data, relativePath);
 	try {
 		await fs.unlink(filePath);
 	} catch (e) {

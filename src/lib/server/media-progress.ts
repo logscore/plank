@@ -4,7 +4,7 @@
 import type { Media } from "$lib/server/db/schema";
 import { isTerminalProgressStatus } from "$lib/utils";
 import { mediaDb } from "./db";
-import { getDownloadStatus, isDownloadActive } from "./torrent";
+import { getDownloadStatus, isDownloadActive } from "./torrent/status";
 
 export interface MediaProgressSnapshot {
 	status: string;

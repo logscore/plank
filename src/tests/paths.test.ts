@@ -1,6 +1,5 @@
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
-import { config } from "$lib/config";
 import { mediaDb } from "$lib/server/db";
 import { schema } from "$lib/server/db/schema";
 import {
@@ -14,6 +13,7 @@ import {
 	getSeasonLibraryDirectory,
 	getShowLibraryDirectoryId,
 	getShowLibraryRoot,
+	PATHS,
 } from "$lib/server/paths";
 import { db } from "./setup";
 
@@ -120,7 +120,7 @@ describe("movie library paths", () => {
 
 	it("computes the root under the configured library when there is no file path", () => {
 		const root = getMovieLibraryRoot({ id: "m1", title: "Alien", year: 1979, filePath: null });
-		expect(root).toBe(path.join(config.paths.library, "Alien (1979)"));
+		expect(root).toBe(path.join(PATHS.library, "Alien (1979)"));
 		expect(path.basename(root)).toBe("Alien (1979)");
 	});
 
@@ -158,14 +158,14 @@ describe("show library paths", () => {
 
 	it("computes the root under the configured library when the show has no downloaded episodes", () => {
 		const show = createShowWithEpisodes({ title: "Breaking Bad", year: 2008 });
-		expect(getShowLibraryRoot(show)).toBe(path.join(config.paths.library, "Breaking Bad (2008)"));
+		expect(getShowLibraryRoot(show)).toBe(path.join(PATHS.library, "Breaking Bad (2008)"));
 	});
 
 	it("falls back to the computed root when episodes exist but none are on disk", () => {
 		const show = createShowWithEpisodes({
 			episodes: [{ seasonNumber: 1, episodeNumber: 1, displayOrder: 0, filePath: null }],
 		});
-		expect(getShowLibraryRoot(show)).toBe(path.join(config.paths.library, "Breaking Bad (2008)"));
+		expect(getShowLibraryRoot(show)).toBe(path.join(PATHS.library, "Breaking Bad (2008)"));
 	});
 
 	it("prefers the actual on-disk root inferred from an existing episode", () => {
@@ -250,7 +250,7 @@ describe("season and episode paths", () => {
 
 	it("composes the season directory under the computed library when nothing is on disk", () => {
 		const show = createShowWithEpisodes({ title: "Fringe", year: 2008 });
-		expect(getSeasonLibraryDirectory(show, 3)).toBe(path.join(config.paths.library, "Fringe (2008)", "Season 03"));
+		expect(getSeasonLibraryDirectory(show, 3)).toBe(path.join(PATHS.library, "Fringe (2008)", "Season 03"));
 	});
 
 	it("builds the full episode path: show root + season dir + episode file name", () => {

@@ -3,7 +3,8 @@
 
 import { downloadsDb, mediaDb } from "./db";
 import { type FindBestTorrentOptions, findBestTorrent, parseTorrentTitle } from "./prowlarr";
-import { getDownloadStatus, startDownload } from "./torrent";
+import { startDownload } from "./torrent/download";
+import { getDownloadStatus } from "./torrent/status";
 import { cacheTorrent, getCachedTorrent } from "./torrent-cache";
 
 export interface AcquireMediaOptions {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decrypt, encrypt, isEncrypted } from "$lib/server/crypto";
+import { decrypt, encrypt } from "$lib/server/crypto";
 
 describe("Crypto Module", () => {
 	describe("encrypt / decrypt", () => {
@@ -49,25 +49,9 @@ describe("Crypto Module", () => {
 		});
 	});
 
-	describe("decrypt (plaintext fallback)", () => {
-		it("should return plaintext as-is if not encrypted", () => {
-			expect(decrypt("plain-api-key")).toBe("plain-api-key");
-		});
-
+	describe("decrypt invalid values", () => {
 		it("should return empty string for null-ish input", () => {
 			expect(decrypt("")).toBe("");
-		});
-	});
-
-	describe("isEncrypted", () => {
-		it("should detect encrypted values", () => {
-			const encrypted = encrypt("test");
-			expect(isEncrypted(encrypted)).toBe(true);
-		});
-
-		it("should detect plaintext values", () => {
-			expect(isEncrypted("plain-api-key")).toBe(false);
-			expect(isEncrypted("")).toBe(false);
 		});
 	});
 

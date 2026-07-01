@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import { authClient } from "$lib/auth-client";
@@ -32,7 +33,9 @@
     });
 
     // Prefetch browse data eagerly so it's ready when the user navigates to /browse
-    prefetchBrowseData();
+    onMount(() => {
+        prefetchBrowseData();
+    });
 
     async function handleLogout() {
         await authClient.signOut();

@@ -1,6 +1,6 @@
 import { error, json, type RequestEvent } from "@sveltejs/kit";
-import { config } from "$lib/config";
 import { testProwlarrConnection } from "$lib/server/prowlarr";
+import { getSettings } from "$lib/server/settings";
 
 type ConnectionTarget = "tmdb" | "opensubtitles" | "prowlarr";
 
@@ -23,8 +23,9 @@ async function testTmdbConnection(apiKey: string | undefined): Promise<{ success
 	}
 
 	try {
+		const settings = await getSettings();
 		const response = await fetch(
-			`${config.tmdb.baseUrl}/configuration?api_key=${encodeURIComponent(apiKey.trim())}`
+			`${settings.tmdb.baseUrl}/configuration?api_key=${encodeURIComponent(apiKey.trim())}`
 		);
 		if (response.ok) {
 			return { success: true, message: "Connection successful" };

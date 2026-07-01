@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { config } from "$lib/config";
 import { subtitlesDb } from "./db";
+import { PATHS } from "./paths";
 
 const SIDECAR_EXTENSIONS = [".srt", ".ass", ".ssa", ".vtt", ".sub"];
 
@@ -56,7 +56,7 @@ function parseLanguageFromFilename(fileName: string): { language: string; label:
 }
 
 function getSubtitleDir(mediaId: string): string {
-	return path.join(config.paths.library, mediaId, "subtitles");
+	return path.join(PATHS.library, mediaId, "subtitles");
 }
 
 function isSubtitleFile(fileName: string): boolean {
