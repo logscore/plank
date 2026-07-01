@@ -4,7 +4,6 @@ import path from "node:path";
 import type { Readable } from "node:stream";
 import parseTorrent from "parse-torrent";
 import ptt from "parse-torrent-title";
-import { config } from "$lib/config";
 import type { MediaType } from "$lib/types";
 import { downloadsDb, mediaDb, seasonsDb } from "./db";
 import { isSupportedFormat, SUPPORTED_VIDEO_FORMATS } from "./ffmpeg";
@@ -15,7 +14,9 @@ import {
 	getMovieLibraryRoot,
 	getSeasonLibraryDirectory,
 	getShowLibraryRoot,
+	PATHS,
 } from "./paths";
+import { getSettings } from "./settings";
 import { discoverSubtitles } from "./subtitles";
 import { searchMovie, searchTVShow } from "./tmdb";
 import { finalizeMediaToLibrary } from "./transcoder";
@@ -266,8 +267,8 @@ function findSubtitleFiles(files: TorrentFile[]): TorrentFile[] {
 }
 
 async function ensureDirectories(): Promise<void> {
-	await fs.mkdir(config.paths.temp, { recursive: true });
-	await fs.mkdir(config.paths.library, { recursive: true });
+	await fs.mkdir(PATHS.temp, { recursive: true });
+	await fs.mkdir(PATHS.library, { recursive: true });
 }
 
 /**
@@ -476,8 +477,10 @@ async function fetchAndUpdateMetadata(mediaId: string, fileName: string, mediaTy
 			year: parsed.year || null,
 		});
 
+		const settings = await getSettings();
+
 		// Search TMDB if API key is configured
-		if (config.tmdb.apiKey) {
+		if (settings.tmdb.apiKey) {
 			// console.log(
 			// 	`[${mediaId}] Searching TMDB for: "${parsed.title}" (${parsed.year || 'no year'})`
 			// );
@@ -809,7 +812,7 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 	await ensureDirectories();
 
 	// Use infohash in path to allow multiple torrents for same media
-	const downloadPath = path.join(config.paths.temp, mediaId, infohash);
+	const downloadPath = path.join(PATHS.temp, mediaId, infohash);
 	await fs.mkdir(downloadPath, { recursive: true });
 
 	const mediaItem = mediaDb.getById(mediaId);
@@ -958,7 +961,7 @@ async function moveMovieToLibrary(mediaId: string, download: ActiveDownload): Pr
 
 	const sourcePath = path.join(download.torrent.path, download.videoFile.path);
 	const mediaItem = mediaDb.getById(mediaId);
-	const destDir = mediaItem ? getMovieLibraryRoot(mediaItem) : path.join(config.paths.library, mediaId);
+	const destDir = mediaItem ? getMovieLibraryRoot(mediaItem) : path.join(PATHS.library, mediaId);
 	const fileName = mediaItem ? buildMovieFileName(mediaItem, download.videoFile.name) : download.videoFile.name;
 	const destPath = path.join(destDir, fileName);
 
@@ -1556,28 +1559,26 @@ export async function deleteMediaFiles(mediaId: string): Promise<void> {
 			await fs.rm(mediaItem.filePath, { force: true }).catch(() => undefined);
 		}
 		await fs
-			.rm(path.join(config.paths.temp, mediaId), {
+			.rm(path.join(PATHS.temp, mediaId), {
 				recursive: true,
 				force: true,
 			})
 			.catch(() => undefined);
 		return;
 	}
-	let libraryPaths = [path.join(config.paths.library, mediaId)];
+	let libraryPaths = [path.join(PATHS.library, mediaId)];
 	if (mediaItem?.type === "show") {
-		libraryPaths = Array.from(new Set([getShowLibraryRoot(mediaItem), path.join(config.paths.library, mediaId)]));
+		libraryPaths = Array.from(new Set([getShowLibraryRoot(mediaItem), path.join(PATHS.library, mediaId)]));
 	} else if (mediaItem?.type === "movie") {
 		libraryPaths = [getMovieLibraryRoot(mediaItem)];
 	}
 	const tempPaths =
 		mediaItem?.type === "show"
 			? [
-					path.join(config.paths.temp, mediaId),
-					...mediaDb
-						.getEpisodesByParentId(mediaId)
-						.map((episode) => path.join(config.paths.temp, episode.id)),
+					path.join(PATHS.temp, mediaId),
+					...mediaDb.getEpisodesByParentId(mediaId).map((episode) => path.join(PATHS.temp, episode.id)),
 				]
-			: [path.join(config.paths.temp, mediaId)];
+			: [path.join(PATHS.temp, mediaId)];
 
 	for (const libraryPath of libraryPaths) {
 		try {
@@ -1609,7 +1610,7 @@ async function finalizeFromTemp(mediaId: string, videoPath: string, fileName: st
 	if (!mediaItem) {
 		return false;
 	}
-	let destDir = path.join(config.paths.library, mediaId);
+	let destDir = path.join(PATHS.library, mediaId);
 	let destPath = path.join(destDir, fileName);
 	if (mediaItem.type === "movie") {
 		destDir = getMovieLibraryRoot(mediaItem);
@@ -1639,7 +1640,7 @@ async function finalizeFromTemp(mediaId: string, videoPath: string, fileName: st
 		mediaDb.updateProgress(mediaId, 1, "complete");
 
 		// Clean up temp directory
-		const tempDir = path.join(config.paths.temp, mediaId);
+		const tempDir = path.join(PATHS.temp, mediaId);
 		try {
 			await fs.rm(tempDir, { recursive: true, force: true });
 			// console.log(`[Recovery] [${mediaId}] Cleaned up temp directory`);
@@ -1692,7 +1693,7 @@ async function recoverSingleMedia(mediaItem: {
 	imdbId?: string | null;
 }): Promise<void> {
 	const mediaId = mediaItem.id;
-	const tempDir = path.join(config.paths.temp, mediaId);
+	const tempDir = path.join(PATHS.temp, mediaId);
 
 	// Skip if already being processed
 	if (isDownloadActive(mediaId)) {

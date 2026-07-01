@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { config } from "$lib/config";
 import type { OpenSubtitleResult } from "$lib/types";
+import { PATHS } from "./paths";
 import { getSettings } from "./settings";
 
 const BASE_URL = "https://api.opensubtitles.com/api/v1";
@@ -370,7 +370,7 @@ export async function downloadSubtitle(
 	const content = await fileResponse.text();
 
 	// Step 3: Save to disk
-	const subtitleDir = path.join(config.paths.library, mediaId, "subtitles");
+	const subtitleDir = path.join(PATHS.library, mediaId, "subtitles");
 	await fs.mkdir(subtitleDir, { recursive: true });
 
 	// Use a unique filename based on the original plus a timestamp

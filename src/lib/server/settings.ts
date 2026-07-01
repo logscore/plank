@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
-import { config as envConfig } from "$lib/config";
-import { decrypt, encrypt, isEncrypted } from "$lib/server/crypto";
+import { env } from "$env/dynamic/private";
+import { decrypt, encrypt } from "$lib/server/crypto";
 import { db } from "$lib/server/db/index";
 import { configuration } from "$lib/server/db/schema";
 
@@ -23,6 +23,28 @@ export interface AppSettings {
 		password: string;
 	};
 }
+
+const DEFAULT_CONFIG: AppSettings = {
+	tmdb: {
+		apiKey: env.TMDB_API_KEY || "",
+		baseUrl: "https://api.themoviedb.org/3",
+		imageBaseUrl: "https://image.tmdb.org/t/p",
+		language: "en-US",
+	},
+	prowlarr: {
+		url: env.PROWLARR_URL || "http://localhost:9696",
+		apiKey: env.PROWLARR_API_KEY || "",
+		// Trusted release groups for high-quality content
+		trustedGroups: ["YTS", "YIFY", ".BONE.", "x1337", "TVTEAM"],
+		// Minimum seeders for a valid torrent
+		minSeeders: 5,
+	},
+	opensubtitles: {
+		apiKey: env.OPENSUBTITLES_API_KEY || "",
+		username: env.OPENSUBTITLES_USERNAME || "",
+		password: env.OPENSUBTITLES_PASSWORD || "",
+	},
+};
 
 /** Fields stored encrypted at rest */
 const ENCRYPTED_FIELDS = [
@@ -47,36 +69,8 @@ type SettingsUpdate = Partial<{
 	opensubtitlesPassword: string;
 }>;
 
-/** Decrypt a stored value, returning empty string for nullish values */
-function decryptField(value: string | null | undefined): string {
-	if (!value) {
-		return "";
-	}
-	return decrypt(value);
-}
-
-/**
- * Migrate unencrypted values to encrypted on read.
- * If any sensitive field is stored as plaintext, re-encrypt and persist it.
- */
-async function migrateUnencryptedFields(stored: typeof configuration.$inferSelect): Promise<void> {
-	const updates: Partial<typeof configuration.$inferInsert> = {};
-	let needsMigration = false;
-
-	for (const field of ENCRYPTED_FIELDS) {
-		const value = stored[field];
-		if (value && !isEncrypted(value)) {
-			updates[field] = encrypt(value);
-			needsMigration = true;
-		}
-	}
-
-	if (needsMigration) {
-		await db.update(configuration).set(updates).where(eq(configuration.id, "default"));
-	}
-}
-
-/** In-memory cache for settings to avoid repeated DB queries + decryption */
+// In-memory cache for settings to avoid repeated DB queries + decryption
+// TODO: I worry this cache will leak the users data to other clients. Will need to look into this
 let settingsCache: AppSettings | null = null;
 let settingsCacheTime = 0;
 const SETTINGS_CACHE_TTL = 60_000; // 1 minute
@@ -94,13 +88,8 @@ export async function getSettings(): Promise<AppSettings> {
 			where: eq(configuration.id, "default"),
 		});
 
-		// Transparently migrate any plaintext credentials to encrypted
-		if (stored) {
-			await migrateUnencryptedFields(stored);
-		}
-
 		// Default trusted groups from env config
-		const defaultTrustedGroups = envConfig.prowlarr.trustedGroups;
+		const defaultTrustedGroups = DEFAULT_CONFIG.prowlarr.trustedGroups;
 
 		// Parse trusted groups if stored
 		let trustedGroups = defaultTrustedGroups;
@@ -117,21 +106,21 @@ export async function getSettings(): Promise<AppSettings> {
 
 		const settings: AppSettings = {
 			tmdb: {
-				apiKey: decryptField(stored?.tmdbApiKey) || envConfig.tmdb.apiKey,
-				baseUrl: envConfig.tmdb.baseUrl,
-				imageBaseUrl: envConfig.tmdb.imageBaseUrl,
+				apiKey: decrypt(stored?.tmdbApiKey || "") || DEFAULT_CONFIG.tmdb.apiKey,
+				baseUrl: DEFAULT_CONFIG.tmdb.baseUrl,
+				imageBaseUrl: DEFAULT_CONFIG.tmdb.imageBaseUrl,
 				language: "en-US",
 			},
 			prowlarr: {
-				url: stored?.prowlarrUrl || envConfig.prowlarr.url,
-				apiKey: decryptField(stored?.prowlarrApiKey) || envConfig.prowlarr.apiKey,
+				url: stored?.prowlarrUrl || DEFAULT_CONFIG.prowlarr.url,
+				apiKey: decrypt(stored?.prowlarrApiKey || "") || DEFAULT_CONFIG.prowlarr.apiKey,
 				trustedGroups,
-				minSeeders: stored?.prowlarrMinSeeders ?? envConfig.prowlarr.minSeeders,
+				minSeeders: stored?.prowlarrMinSeeders ?? DEFAULT_CONFIG.prowlarr.minSeeders,
 			},
 			opensubtitles: {
-				apiKey: decryptField(stored?.opensubtitlesApiKey) || envConfig.opensubtitles.apiKey,
-				username: decryptField(stored?.opensubtitlesUsername) || envConfig.opensubtitles.username,
-				password: decryptField(stored?.opensubtitlesPassword) || envConfig.opensubtitles.password,
+				apiKey: decrypt(stored?.opensubtitlesApiKey || "") || DEFAULT_CONFIG.opensubtitles.apiKey,
+				username: decrypt(stored?.opensubtitlesUsername || "") || DEFAULT_CONFIG.opensubtitles.username,
+				password: decrypt(stored?.opensubtitlesPassword || "") || DEFAULT_CONFIG.opensubtitles.password,
 			},
 		};
 
@@ -141,12 +130,9 @@ export async function getSettings(): Promise<AppSettings> {
 	} catch (e) {
 		console.error("Failed to load settings from DB, falling back to env:", e);
 		return {
-			tmdb: {
-				...envConfig.tmdb,
-				language: "en-US",
-			},
-			prowlarr: envConfig.prowlarr,
-			opensubtitles: envConfig.opensubtitles,
+			tmdb: DEFAULT_CONFIG.tmdb,
+			prowlarr: DEFAULT_CONFIG.prowlarr,
+			opensubtitles: DEFAULT_CONFIG.opensubtitles,
 		};
 	}
 }

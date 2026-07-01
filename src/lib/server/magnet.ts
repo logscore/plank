@@ -18,7 +18,7 @@ function extractInfohash(magnetLink: string): string {
 		}
 		return hash.toLowerCase();
 	}
-	// console.log(`[Magnet] No infohash found in link: ${magnetLink.substring(0, 50)}...`);
+
 	return "";
 }
 

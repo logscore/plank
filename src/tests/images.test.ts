@@ -6,14 +6,6 @@ import { deleteImage, MAX_FILE_SIZE, replaceImage, saveImage, savePosterBackdrop
 
 const DATA = "/mock/data";
 
-vi.mock("$lib/config", () => ({
-	config: {
-		paths: {
-			data: "/mock/data",
-		},
-	},
-}));
-
 vi.mock("node:fs/promises", () => ({
 	default: {
 		access: vi.fn(),

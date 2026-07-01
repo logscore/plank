@@ -1,23 +1,42 @@
 // TODO: unreviewed
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { updateSettings } from "$lib/server/settings";
 import * as tmdb from "$lib/server/tmdb";
 
-// Mock config
-vi.mock("$lib/config", () => ({
-	config: {
-		tmdb: {
-			apiKey: "test-key",
-			baseUrl: "https://api.tmdb.org/3",
-			imageBaseUrl: "https://image.tmdb.org/t/p",
-		},
-	},
-}));
-
 describe("TMDB Service", () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		vi.clearAllMocks();
 		global.fetch = vi.fn();
+		await updateSettings({ tmdbApiKey: "" });
+	});
+
+	describe("settings integration", () => {
+		it("uses TMDB API key from env when DB setting is empty", async () => {
+			(global.fetch as any).mockResolvedValue({
+				ok: true,
+				json: async () => ({ results: [] }),
+			});
+
+			await tmdb.searchMovie("Test");
+
+			const url = (global.fetch as any).mock.calls[0][0] as string;
+			expect(url).toContain("api_key=test-tmdb-api-key");
+		});
+
+		it("uses TMDB API key from DB over env", async () => {
+			await updateSettings({ tmdbApiKey: "db-tmdb-api-key" });
+			(global.fetch as any).mockResolvedValue({
+				ok: true,
+				json: async () => ({ results: [] }),
+			});
+
+			await tmdb.searchMovie("Test");
+
+			const url = (global.fetch as any).mock.calls[0][0] as string;
+			expect(url).toContain("api_key=db-tmdb-api-key");
+			expect(url).not.toContain("test-tmdb-api-key");
+		});
 	});
 
 	describe("searchMovie", () => {
