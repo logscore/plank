@@ -3,7 +3,7 @@ import path from "node:path";
 import { Jimp, JimpMime } from "jimp";
 import { config } from "$lib/config";
 
-export const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif"] as const;
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif"] as const;
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 mb
 
 const OUTPUT_SIZE = 512;

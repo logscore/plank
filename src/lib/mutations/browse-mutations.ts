@@ -3,7 +3,7 @@ import { createMutation, useQueryClient } from "@tanstack/svelte-query";
 import { queryKeys } from "$lib/query-keys";
 import type { Media } from "$lib/types";
 
-export interface AddFromBrowseMagnetParams {
+interface AddFromBrowseMagnetParams {
 	mode?: "magnet";
 	magnetLink: string;
 	title: string;
@@ -11,7 +11,7 @@ export interface AddFromBrowseMagnetParams {
 	tmdbId?: number;
 }
 
-export interface AddSeasonFromBrowseParams {
+interface AddSeasonFromBrowseParams {
 	mode: "browse-season";
 	tmdbId: number;
 	seasonNumber: number;
@@ -24,7 +24,7 @@ export interface AddSeasonFromBrowseParams {
 	certification?: string | null;
 }
 
-export interface AddSeasonFromBrowseResult {
+interface AddSeasonFromBrowseResult {
 	mode: "browse-season";
 	status: "queued";
 	showId: string;

@@ -2,6 +2,7 @@
     import { Check, Download, Ear, Globe, Loader, Search, Shield, Star } from "@lucide/svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
+    import { LANGUAGES } from "$lib/constants";
     import { createDownloadSubtitleMutation } from "$lib/mutations/media-mutations";
     import { searchOpenSubtitles } from "$lib/queries/media-queries";
     import type { OpenSubtitleResult } from "$lib/types";
@@ -28,39 +29,6 @@
     let downloadedIds = $state<Set<string>>(new Set());
 
     const downloadMutation = createDownloadSubtitleMutation();
-
-    const LANGUAGES = [
-        { code: "en", name: "English" },
-        { code: "es", name: "Spanish" },
-        { code: "fr", name: "French" },
-        { code: "de", name: "German" },
-        { code: "it", name: "Italian" },
-        { code: "pt", name: "Portuguese" },
-        { code: "ja", name: "Japanese" },
-        { code: "ko", name: "Korean" },
-        { code: "zh", name: "Chinese" },
-        // { code: 'ar', name: 'Arabic' },
-        { code: "ru", name: "Russian" },
-        // { code: 'hi', name: 'Hindi' },
-        // { code: 'pl', name: 'Polish' },
-        // { code: 'tr', name: 'Turkish' },
-        // { code: 'nl', name: 'Dutch' },
-        // { code: 'sv', name: 'Swedish' },
-        // { code: 'no', name: 'Norwegian' },
-        // { code: 'da', name: 'Danish' },
-        // { code: 'fi', name: 'Finnish' },
-        // { code: 'cs', name: 'Czech' },
-        // { code: 'ro', name: 'Romanian' },
-        // { code: 'hu', name: 'Hungarian' },
-        // { code: 'el', name: 'Greek' },
-        // { code: 'he', name: 'Hebrew' },
-        // { code: 'th', name: 'Thai' },
-        // { code: 'vi', name: 'Vietnamese' },
-        // { code: 'id', name: 'Indonesian' },
-        // { code: 'uk', name: 'Ukrainian' },
-        // { code: 'bg', name: 'Bulgarian' },
-        // { code: 'hr', name: 'Croatian' },
-    ];
 
     async function performSearch() {
         searching = true;

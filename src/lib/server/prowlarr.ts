@@ -526,32 +526,6 @@ function filterCandidates(results: IndexerResult[], trustedGroups: string[], min
 	return seederFiltered.length > 0 ? seederFiltered : candidates;
 }
 
-export async function findTorrentCandidates(
-	imdbId: string,
-	options?: FindBestTorrentOptions,
-	limit = 8
-): Promise<IndexerResult[]> {
-	const settings = await getSettings();
-	const results =
-		options?.mediaType === "episode" && options.seasonNumber && options.episodeNumber
-			? await searchEpisodeTorrent(imdbId, options)
-			: await searchProwlarr(imdbId);
-	const qualityFiltered = filterByQuality(results);
-	const episodeFiltered =
-		options?.mediaType === "episode" && options.seasonNumber && options.episodeNumber
-			? filterForEpisodeResults(
-					qualityFiltered,
-					options.seasonNumber,
-					options.episodeNumber,
-					options.showTitle,
-					options.episodeTitle
-				)
-			: qualityFiltered;
-	return filterCandidates(episodeFiltered, settings.prowlarr.trustedGroups, settings.prowlarr.minSeeders)
-		.sort((a, b) => calculateScore(b) - calculateScore(a))
-		.slice(0, limit);
-}
-
 /**
  * Search and filter Prowlarr results for high-quality torrents.
  * Returns the best matching torrent or null.
@@ -706,7 +680,7 @@ function filterForEpisodeResults(
 /**
  * Filter results to only season packs for a specific season
  */
-export function filterForSeasonPacks(results: IndexerResult[], seasonNumber: number): IndexerResult[] {
+function filterForSeasonPacks(results: IndexerResult[], seasonNumber: number): IndexerResult[] {
 	return results.filter((result) => {
 		const title = result.title;
 
@@ -910,24 +884,6 @@ async function getOrCreateFlaresolverrTag(url: string, apiKey: string): Promise<
 	const createdTag = (await createResponse.json()) as ProwlarrTag;
 	return createdTag.id;
 }
-
-export const INDEXER_PACKAGES = {
-	general: {
-		name: "General Entertainment",
-		description: "Movies & TV (1337x, YTS, The Pirate Bay)",
-		indexers: ["1337x", "YTS", "The Pirate Bay"],
-	},
-	anime: {
-		name: "Anime Fan",
-		description: "Anime (Nyaa.si, AnimeTosho, AniDex)",
-		indexers: ["Nyaa.si", "AnimeTosho", "AniDex"],
-	},
-	tv: {
-		name: "TV Show Specialists",
-		description: "TV Series (EZTV, TorrentGalaxy, TorLock)",
-		indexers: ["EZTV", "TorrentGalaxy", "TorLock"],
-	},
-};
 
 /**
  * Get all configured indexers

@@ -14,3 +14,7 @@ export function canPlayEpisode(episode: Pick<Media, "filePath" | "fileIndex" | "
 			episode.status === "downloading"
 	);
 }
+
+export function isTerminalProgressStatus(status: string | null | undefined): boolean {
+	return status === "complete" || status === "error" || status === "not_found" || status === "removed";
+}

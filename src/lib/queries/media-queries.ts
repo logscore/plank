@@ -1,9 +1,8 @@
 import { createQuery } from "@tanstack/svelte-query";
 import { queryKeys } from "$lib/query-keys";
-import type { Media, OpenSubtitleResult } from "$lib/types";
-import { createFetchError } from "./fetch-error";
+import type { FetchError, Media, OpenSubtitleResult } from "$lib/types";
 
-export type { FetchError } from "./fetch-error";
+export type { FetchError } from "$lib/types";
 
 /**
  * Fetch media list by type
@@ -13,7 +12,9 @@ export async function fetchMediaList(type: "movie" | "show" | "all"): Promise<Me
 	const response = await fetch(`/api/media${params}`);
 
 	if (!response.ok) {
-		throw createFetchError(`Failed to fetch ${type} media: ${response.statusText}`, response.status);
+		const err: FetchError = new Error(`Failed to fetch ${type} media: ${response.statusText}`);
+		err.status = response.status;
+		throw err;
 	}
 
 	return response.json();
@@ -33,7 +34,9 @@ export async function fetchMediaDetail(id: string): Promise<Media> {
 	const response = await fetch(`/api/media/${id}`);
 
 	if (!response.ok) {
-		throw createFetchError(`Failed to fetch media detail: ${response.statusText}`, response.status);
+		const err: FetchError = new Error(`Failed to fetch media detail: ${response.statusText}`);
+		err.status = response.status;
+		throw err;
 	}
 
 	return response.json();
@@ -58,7 +61,9 @@ export async function searchMedia(query: string): Promise<Media[]> {
 	const response = await fetch(`/api/media/search?q=${encodeURIComponent(query)}`);
 
 	if (!response.ok) {
-		throw createFetchError(`Failed to search media: ${response.statusText}`, response.status);
+		const err: FetchError = new Error(`Failed to search media: ${response.statusText}`);
+		err.status = response.status;
+		throw err;
 	}
 
 	return response.json();
@@ -86,7 +91,9 @@ export interface ProgressInfo {
 export async function fetchMediaProgress(id: string): Promise<ProgressInfo> {
 	const response = await fetch(`/api/media/${id}/progress`);
 	if (!response.ok) {
-		throw createFetchError(`Failed to fetch progress: ${response.statusText}`, response.status);
+		const err: FetchError = new Error(`Failed to fetch progress: ${response.statusText}`);
+		err.status = response.status;
+		throw err;
 	}
 	return response.json();
 }
@@ -100,10 +107,12 @@ export function createMediaProgressQuery(id: string, options?: { enabled?: boole
 	}));
 }
 
-export async function fetchContinueWatching(): Promise<Media[]> {
+async function fetchContinueWatching(): Promise<Media[]> {
 	const response = await fetch("/api/media/continue-watching");
 	if (!response.ok) {
-		throw createFetchError("Failed to fetch continue watching", response.status);
+		const err: FetchError = new Error("Failed to fetch continue watching");
+		err.status = response.status;
+		throw err;
 	}
 	return response.json();
 }
@@ -124,7 +133,9 @@ export interface PlayPosition {
 export async function fetchPlayPosition(id: string): Promise<PlayPosition> {
 	const response = await fetch(`/api/media/${id}/position`);
 	if (!response.ok) {
-		throw createFetchError("Failed to fetch position", response.status);
+		const err: FetchError = new Error("Failed to fetch position");
+		err.status = response.status;
+		throw err;
 	}
 	return response.json();
 }
@@ -143,7 +154,9 @@ export interface SubtitleTrackResponse {
 export async function fetchSubtitleTracks(id: string): Promise<SubtitleTrackResponse[]> {
 	const response = await fetch(`/api/media/${id}/subtitles`);
 	if (!response.ok) {
-		throw createFetchError("Failed to fetch subtitles", response.status);
+		const err: FetchError = new Error("Failed to fetch subtitles");
+		err.status = response.status;
+		throw err;
 	}
 	return response.json();
 }
@@ -176,7 +189,9 @@ export async function searchOpenSubtitles(
 	}
 	const response = await fetch(`/api/media/${mediaId}/subtitles/search?${params.toString()}`);
 	if (!response.ok) {
-		throw createFetchError("Failed to search subtitles", response.status);
+		const err: FetchError = new Error("Failed to search subtitles");
+		err.status = response.status;
+		throw err;
 	}
 	return response.json();
 }

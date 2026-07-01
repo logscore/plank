@@ -7,9 +7,9 @@ import { stringHash } from "./hash";
 
 export type Variant = "gradient" | "solid";
 export type Intensity3D = "none" | "subtle" | "medium" | "dramatic";
-export type FaceType = "round" | "cross" | "line" | "curved";
+type FaceType = "round" | "cross" | "line" | "curved";
 
-export const FACE_TYPES = ["round", "cross", "line", "curved"] as const;
+const FACE_TYPES = ["round", "cross", "line", "curved"] as const;
 
 export interface FacehashData {
 	/** The face type to render */

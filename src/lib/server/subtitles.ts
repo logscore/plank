@@ -63,7 +63,7 @@ function isSubtitleFile(fileName: string): boolean {
 	return SIDECAR_EXTENSIONS.includes(path.extname(fileName).toLowerCase());
 }
 
-export async function discoverSidecarSubtitles(mediaId: string, libraryDir: string): Promise<void> {
+async function discoverSidecarSubtitles(mediaId: string, libraryDir: string): Promise<void> {
 	let files: string[];
 	try {
 		files = await fs.readdir(libraryDir);

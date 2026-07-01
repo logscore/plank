@@ -1,6 +1,6 @@
-import { isTerminalProgressStatus } from "$lib/progress-status";
 import { requireMediaAccess } from "$lib/server/api-guard";
 import { getMediaProgressSnapshot } from "$lib/server/media-progress";
+import { isTerminalProgressStatus } from "$lib/utils";
 import type { RequestHandler } from "./$types";
 
 /** Check if an error is an invalid state error (expected during cleanup) */

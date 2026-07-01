@@ -1,7 +1,7 @@
 import { createQuery } from "@tanstack/svelte-query";
 import { queryKeys } from "$lib/query-keys";
 import type { BrowseItem, SeasonSummary } from "$lib/server/tmdb";
-import { createFetchError } from "./fetch-error";
+import type { FetchError } from "$lib/types";
 
 export type { BrowseItem, SeasonSummary } from "$lib/server/tmdb";
 
@@ -71,7 +71,9 @@ export async function fetchBrowseDetails(
 	});
 
 	if (!response.ok) {
-		throw createFetchError(`Failed to fetch browse details: ${response.statusText}`, response.status);
+		const err: FetchError = new Error(`Failed to fetch browse details: ${response.statusText}`);
+		err.status = response.status;
+		throw err;
 	}
 
 	return response.json();
@@ -94,7 +96,9 @@ export async function fetchTrending(filter: "all" | "movie" | "show" = "all", pa
 	const response = await fetch(`/api/browse?${params}`);
 
 	if (!response.ok) {
-		throw createFetchError(`Failed to fetch trending: ${response.statusText}`, response.status);
+		const err: FetchError = new Error(`Failed to fetch trending: ${response.statusText}`);
+		err.status = response.status;
+		throw err;
 	}
 
 	return response.json();
@@ -117,7 +121,9 @@ export async function fetchBrowse(
 	const response = await fetch(`/api/browse?${params}`);
 
 	if (!response.ok) {
-		throw createFetchError(`Failed to fetch ${type}: ${response.statusText}`, response.status);
+		const err: FetchError = new Error(`Failed to fetch ${type}: ${response.statusText}`);
+		err.status = response.status;
+		throw err;
 	}
 
 	return response.json();
@@ -142,7 +148,9 @@ export async function resolveTorrent(item: {
 	});
 
 	if (!response.ok) {
-		throw createFetchError(`Failed to resolve torrent: ${response.statusText}`, response.status);
+		const err: FetchError = new Error(`Failed to resolve torrent: ${response.statusText}`);
+		err.status = response.status;
+		throw err;
 	}
 
 	return response.json();
@@ -155,7 +163,9 @@ export async function fetchProwlarrStatus(): Promise<ProwlarrStatus> {
 	const response = await fetch("/api/prowlarr/status");
 
 	if (!response.ok) {
-		throw createFetchError(`Failed to fetch Prowlarr status: ${response.statusText}`, response.status);
+		const err: FetchError = new Error(`Failed to fetch Prowlarr status: ${response.statusText}`);
+		err.status = response.status;
+		throw err;
 	}
 
 	return response.json();
@@ -172,7 +182,9 @@ export async function searchTMDB(query: string): Promise<BrowseResponse> {
 	const response = await fetch(`/api/tmdb/search?q=${encodeURIComponent(query)}`);
 
 	if (!response.ok) {
-		throw createFetchError(`Failed to search TMDB: ${response.statusText}`, response.status);
+		const err: FetchError = new Error(`Failed to search TMDB: ${response.statusText}`);
+		err.status = response.status;
+		throw err;
 	}
 
 	const data = await response.json();
@@ -214,7 +226,9 @@ export async function fetchSeasons(tmdbId: number): Promise<SeasonsResponse> {
 	const response = await fetch(`/api/browse/seasons/${tmdbId}`);
 
 	if (!response.ok) {
-		throw createFetchError(`Failed to fetch seasons: ${response.statusText}`, response.status);
+		const err: FetchError = new Error(`Failed to fetch seasons: ${response.statusText}`);
+		err.status = response.status;
+		throw err;
 	}
 
 	return response.json();
@@ -245,7 +259,9 @@ export async function resolveSeasonTorrent(params: {
 	});
 
 	if (!response.ok) {
-		throw createFetchError(`Failed to resolve season torrent: ${response.statusText}`, response.status);
+		const err: FetchError = new Error(`Failed to resolve season torrent: ${response.statusText}`);
+		err.status = response.status;
+		throw err;
 	}
 
 	return response.json();

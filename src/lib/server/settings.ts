@@ -152,7 +152,7 @@ export async function getSettings(): Promise<AppSettings> {
 }
 
 /** Invalidate the settings cache (call after updateSettings) */
-export function invalidateSettingsCache(): void {
+function invalidateSettingsCache(): void {
 	settingsCache = null;
 	settingsCacheTime = 0;
 }

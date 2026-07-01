@@ -17,7 +17,7 @@
     "db:push": "drizzle-kit push",
     "lint": "biome check --write .",
     "format": "biome format --write .",
-    "knip": "knip",
+    "knip": "knip --include-entry-exports",
     "library:optimize": "tsx scripts/optimize-library.ts"
   },
   "dependencies": {
