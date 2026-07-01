@@ -158,6 +158,7 @@ async function validateImage(buffer: Buffer): Promise<{ valid: boolean; error?: 
 		};
 	}
 
+	// Read image buffer and check mimetype is valid
 	let image: Awaited<ReturnType<typeof Jimp.fromBuffer>>;
 	try {
 		image = await Jimp.fromBuffer(buffer);

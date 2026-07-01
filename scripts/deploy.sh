@@ -187,6 +187,7 @@ BETTER_AUTH_URL=$(env_value "$BETTER_AUTH_URL")
 PORT=$(env_value "$PORT")
 HOST=0.0.0.0
 ORIGIN=$(env_value "$BETTER_AUTH_URL")
+ENV BODY_SIZE_LIMIT=11M
 EOF
 
     echo -e "${GREEN}.env file created successfully!${NC}"

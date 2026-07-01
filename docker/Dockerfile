@@ -23,7 +23,9 @@ FROM node:22-bookworm AS runtime
 ENV NODE_ENV=production \
     PORT=3300 \
     HOST=0.0.0.0 \
-    DATA_PATH=/app/data
+    DATA_PATH=/app/data \
+    BODY_SIZE_LIMIT=11M
+
 
 WORKDIR /app
 
