@@ -3,11 +3,11 @@ import type { Media } from "$lib/server/db/schema";
 import type { MediaType } from "$lib/types";
 import { downloadsDb, mediaDb } from "./db";
 import { savePosterBackdropImages } from "./images";
-import { parseMagnet } from "./magnet";
 import { getMovieLibraryDirectoryId, getShowLibraryDirectoryId } from "./paths";
 import { getSettings } from "./settings";
 import { getMovieDetails, getTVDetails, isTVShowFilename, searchMovie, searchTVShow } from "./tmdb";
-import { startDownload } from "./torrent";
+import { startDownload } from "./torrent/download";
+import { parseMagnet } from "./torrent/files";
 
 interface MediaMetadata {
 	title: string;
@@ -192,8 +192,8 @@ function determineMediaType(providedType: MediaType | undefined, name: string, t
 
 /** Resume an existing download if it's in a resumable state */
 function resumeIfNeeded(mediaId: string, magnetLink: string): void {
-	startDownload(mediaId, magnetLink).catch((e) => {
-		console.error(`Failed to resume download for ${mediaId}:`, e);
+	startDownload(mediaId, magnetLink).catch((e: Error) => {
+		console.error(`Failed to resume download for ${mediaId}:`, e.message);
 		mediaDb.updateProgress(mediaId, 0, "error");
 	});
 }
@@ -313,8 +313,8 @@ export async function addMediaFromMagnet(
 				progress: 0,
 			});
 
-			startDownload(existingShow.id, magnetLink).catch((e) => {
-				console.error(`Failed to start download for ${existingShow.id}:`, e);
+			startDownload(existingShow.id, magnetLink).catch((e: Error) => {
+				console.error(`Failed to start download for ${existingShow.id}:`, e.message);
 				downloadsDb.updateProgress(download.id, 0, "error");
 			});
 
@@ -351,8 +351,8 @@ export async function addMediaFromMagnet(
 
 	saveImagesInBackground(mediaItem, metadata, mediaType);
 
-	startDownload(mediaItem.id, magnetLink).catch((e) => {
-		console.error(`Failed to start download for ${mediaItem.id}:`, e);
+	startDownload(mediaItem.id, magnetLink).catch((e: Error) => {
+		console.error(`Failed to start download for ${mediaItem.id}:`, e.message);
 		mediaDb.updateProgress(mediaItem.id, 0, "error");
 	});
 

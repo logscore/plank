@@ -9,12 +9,18 @@ vi.mock("$lib/server/api-guard", () => ({
 	requireMediaAccess,
 }));
 
-vi.mock("$lib/server/torrent", () => ({
-	getDownloadStatus: vi.fn(),
-	getVideoStream: vi.fn(),
-	isDownloadActive: vi.fn(),
+vi.mock("$lib/server/torrent/download", () => ({
 	startDownload: vi.fn(),
+}));
+
+vi.mock("$lib/server/torrent/status", () => ({
+	getDownloadStatus: vi.fn(),
+	isDownloadActive: vi.fn(),
 	waitForVideoReady: vi.fn(),
+}));
+
+vi.mock("$lib/server/torrent/stream", () => ({
+	getVideoStream: vi.fn(),
 }));
 
 vi.mock("$lib/server/ffmpeg", () => ({
@@ -24,7 +30,8 @@ vi.mock("$lib/server/ffmpeg", () => ({
 }));
 
 import * as ffmpeg from "$lib/server/ffmpeg";
-import * as torrent from "$lib/server/torrent";
+import * as torrentStatus from "$lib/server/torrent/status";
+import * as torrentStream from "$lib/server/torrent/stream";
 import { GET } from "../routes/api/media/[id]/stream/+server";
 
 describe("streaming route behavior", () => {
@@ -43,8 +50,8 @@ describe("streaming route behavior", () => {
 				status: "downloading",
 			},
 		});
-		vi.mocked(torrent.waitForVideoReady).mockResolvedValue(true);
-		vi.mocked(torrent.getVideoStream).mockResolvedValue(null);
+		vi.mocked(torrentStatus.waitForVideoReady).mockResolvedValue(true);
+		vi.mocked(torrentStream.getVideoStream).mockResolvedValue(null);
 
 		await expect(
 			GET({
@@ -66,8 +73,8 @@ describe("streaming route behavior", () => {
 				status: "downloading",
 			},
 		});
-		vi.mocked(torrent.waitForVideoReady).mockResolvedValue(true);
-		vi.mocked(torrent.getVideoStream).mockResolvedValue({
+		vi.mocked(torrentStatus.waitForVideoReady).mockResolvedValue(true);
+		vi.mocked(torrentStream.getVideoStream).mockResolvedValue({
 			stream: Readable.from(["video"]),
 			fileSize: 5,
 			fileName: "pilot.mp4",
@@ -83,7 +90,7 @@ describe("streaming route behavior", () => {
 
 		expect(response.status).toBe(200);
 		expect(response.headers.get("content-type")).toBe("video/mp4");
-		expect(vi.mocked(torrent.getVideoStream)).toHaveBeenCalledWith("episode-1");
+		expect(vi.mocked(torrentStream.getVideoStream)).toHaveBeenCalledWith("episode-1");
 	});
 
 	it("rejects completed torrent streams without a finalized library file", async () => {
@@ -97,8 +104,8 @@ describe("streaming route behavior", () => {
 				status: "downloading",
 			},
 		});
-		vi.mocked(torrent.waitForVideoReady).mockResolvedValue(true);
-		vi.mocked(torrent.getVideoStream).mockResolvedValue({
+		vi.mocked(torrentStatus.waitForVideoReady).mockResolvedValue(true);
+		vi.mocked(torrentStream.getVideoStream).mockResolvedValue({
 			stream: Readable.from(["video"]),
 			fileSize: 5,
 			fileName: "pilot.mp4",

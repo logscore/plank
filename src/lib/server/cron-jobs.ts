@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import cron from "node-cron";
 import { PATHS } from "./paths";
-import { hasActiveDownloads } from "./torrent";
+import { hasActiveDownloads } from "./torrent/client";
 
 // Schedule temp folder cleanup daily at midnight
 export function tempFolderCleanupJob() {
