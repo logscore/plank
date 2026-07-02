@@ -204,21 +204,6 @@ export interface SeasonsResponse {
 	seasons: SeasonSummary[];
 }
 
-export interface ResolveSeasonResponse {
-	success: boolean;
-	error?: string;
-	message?: string;
-	torrent?: {
-		magnetLink: string;
-		infohash: string;
-		title: string;
-		quality?: string;
-		releaseGroup?: string;
-		size?: number;
-		seeders?: number;
-	};
-}
-
 /**
  * Fetch seasons for a TV show
  */
@@ -241,28 +226,4 @@ export function createSeasonsQuery(tmdbId: number, options?: { enabled?: boolean
 		enabled: options?.enabled,
 		staleTime: 1000 * 60 * 60, // 1 hour
 	}));
-}
-
-/**
- * Resolve season torrent from TMDB ID and season number via Prowlarr
- */
-export async function resolveSeasonTorrent(params: {
-	tmdbId: number;
-	seasonNumber: number;
-	showTitle: string;
-	imdbId?: string;
-}): Promise<ResolveSeasonResponse> {
-	const response = await fetch("/api/browse/resolve-season", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(params),
-	});
-
-	if (!response.ok) {
-		const err: FetchError = new Error(`Failed to resolve season torrent: ${response.statusText}`);
-		err.status = response.status;
-		throw err;
-	}
-
-	return response.json();
 }

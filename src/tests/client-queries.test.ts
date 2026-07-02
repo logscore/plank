@@ -162,26 +162,6 @@ describe("Client Queries", () => {
 			expect(fetchMock).toHaveBeenCalledWith("/api/prowlarr/status");
 		});
 
-		it("resolveSeasonTorrent should call resolve-season endpoint", async () => {
-			fetchMock.mockResolvedValue({
-				ok: true,
-				json: async () => ({ success: true }),
-			});
-
-			const params = {
-				tmdbId: 123,
-				seasonNumber: 1,
-				showTitle: "Show",
-			};
-
-			await import("$lib/queries/browse-queries").then((m) => m.resolveSeasonTorrent(params));
-			expect(fetchMock).toHaveBeenCalledWith("/api/browse/resolve-season", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(params),
-			});
-		});
-
 		it("searchTMDB should call TMDB search endpoint", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
@@ -382,19 +362,6 @@ describe("Client Queries", () => {
 
 			const { fetchSeasons } = await import("$lib/queries/browse-queries");
 			await expect(fetchSeasons(123)).rejects.toThrow("Failed to fetch seasons");
-		});
-
-		it("resolveSeasonTorrent should throw error when response is not ok", async () => {
-			fetchMock.mockResolvedValue({
-				ok: false,
-				status: 500,
-				statusText: "Error",
-			});
-
-			const { resolveSeasonTorrent } = await import("$lib/queries/browse-queries");
-			await expect(resolveSeasonTorrent({ tmdbId: 1, seasonNumber: 1, showTitle: "T" })).rejects.toThrow(
-				"Failed to resolve season torrent"
-			);
 		});
 	});
 });

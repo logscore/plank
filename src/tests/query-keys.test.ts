@@ -43,7 +43,6 @@ describe("Query Keys", () => {
 
 		it("should generate resolve keys", () => {
 			expect(queryKeys.browse.resolve(123)).toEqual(["browse", "resolve", 123]);
-			expect(queryKeys.browse.resolveSeason(123, 1)).toEqual(["browse", "resolve", "season", 123, 1]);
 		});
 
 		it("should generate seasons keys", () => {
