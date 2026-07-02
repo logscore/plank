@@ -165,7 +165,7 @@ async function upsertShow(
 	return { showId: show.id, metadata };
 }
 
-export async function syncSeasonMetadata(showId: string, tmdbId: number, seasonNumber: number) {
+async function syncSeasonMetadata(showId: string, tmdbId: number, seasonNumber: number) {
 	const show = mediaDb.getById(showId);
 	if (!(show && show.type === "show")) {
 		throw new Error("Show not found");
