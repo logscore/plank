@@ -1,7 +1,7 @@
-import { betterAuth } from "better-auth";
+import { APIError, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
-import { eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import { env } from "$env/dynamic/private";
 import { db } from "./db/index";
 import { schema } from "./db/schema";
@@ -24,15 +24,6 @@ export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 	},
-	user: {
-		additionalFields: {
-			role: {
-				type: "string",
-				defaultValue: "user",
-				input: false,
-			},
-		},
-	},
 	session: {
 		expiresIn: 60 * 60 * 24 * 7, // 7 days
 		updateAge: 60 * 60 * 24, // 1 day
@@ -41,13 +32,30 @@ export const auth = betterAuth({
 		user: {
 			create: {
 				before: async (user) => {
-					// First user to register becomes admin
 					const existingUsers = db.select({ id: schema.user.id }).from(schema.user).limit(1).all();
+					if (existingUsers.length === 0) {
+						return { data: user };
+					}
+
+					const invitation = db
+						.select({ id: schema.invitation.id })
+						.from(schema.invitation)
+						.where(
+							and(
+								eq(schema.invitation.email, user.email),
+								eq(schema.invitation.status, "pending"),
+								gt(schema.invitation.expiresAt, new Date())
+							)
+						)
+						.limit(1)
+						.get();
+
+					if (!invitation) {
+						throw new APIError("FORBIDDEN", { message: "Signup requires a pending invitation" });
+					}
+
 					return {
-						data: {
-							...user,
-							role: existingUsers.length === 0 ? "admin" : "user",
-						},
+						data: user,
 					};
 				},
 			},
@@ -56,13 +64,19 @@ export const auth = betterAuth({
 	plugins: [
 		organization({
 			allowUserToCreateOrganization: async (user) => {
-				// Only the global admin can create profiles (organizations)
-				const dbUser = db
-					.select({ role: schema.user.role })
-					.from(schema.user)
-					.where(eq(schema.user.id, user.id))
+				const existingOrg = db.select({ id: schema.organization.id }).from(schema.organization).limit(1).get();
+				if (!existingOrg) {
+					return true;
+				}
+
+				const ownerMembership = db
+					.select({ id: schema.member.id })
+					.from(schema.member)
+					.where(and(eq(schema.member.userId, user.id), eq(schema.member.role, "owner")))
+					.limit(1)
 					.get();
-				return dbUser?.role === "admin";
+
+				return Boolean(ownerMembership);
 			},
 		}),
 	],

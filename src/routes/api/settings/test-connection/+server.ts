@@ -1,4 +1,5 @@
-import { error, json, type RequestEvent } from "@sveltejs/kit";
+import { json, type RequestEvent } from "@sveltejs/kit";
+import { auth } from "$lib/server/auth";
 import { testProwlarrConnection } from "$lib/server/prowlarr";
 import { getSettings } from "$lib/server/settings";
 
@@ -78,7 +79,18 @@ async function testOpenSubtitlesConnection(
 
 export const POST = async (event: RequestEvent) => {
 	if (!event.locals.user) {
-		throw error(401, "Unauthorized");
+		return json({ success: false, message: "Unauthorized" }, { status: 401 });
+	}
+	if (!event.locals.session?.activeOrganizationId) {
+		return json({ success: false, message: "Active profile required" }, { status: 403 });
+	}
+
+	const permission = await auth.api.getActiveMemberRole({
+		headers: event.request.headers,
+		query: { organizationId: event.locals.session.activeOrganizationId },
+	});
+	if (!permission || permission.role !== "owner") {
+		return json({ success: false, message: "Only owners can test settings" }, { status: 403 });
 	}
 
 	const body = (await event.request.json()) as TestConnectionRequest;
@@ -105,5 +117,5 @@ export const POST = async (event: RequestEvent) => {
 		});
 	}
 
-	throw error(400, "Invalid target");
+	return json({ success: false, message: "Invalid target" }, { status: 400 });
 };

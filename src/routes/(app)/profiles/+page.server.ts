@@ -9,13 +9,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(302, "/login");
 	}
 
-	const isAdmin = locals.user.role === "admin";
-
 	// Get ALL organizations (profiles)
 	const allOrgs = db.select().from(schema.organization).all();
 
-	// Admin with no profiles should go to onboarding
-	if (allOrgs.length === 0 && isAdmin) {
+	if (allOrgs.length === 0) {
 		throw redirect(302, "/onboarding");
 	}
 
@@ -23,6 +20,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const userMembers = db.select().from(schema.member).where(eq(schema.member.userId, locals.user.id)).all();
 
 	const memberOrgIds = new Set(userMembers.map((m) => m.organizationId));
+	const canManageProfiles = userMembers.some((m) => m.role === "owner");
 
 	// Get member counts per org
 	const memberCounts = db
@@ -40,7 +38,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		id: org.id,
 		name: org.name,
 		slug: org.slug,
-		color: org.color,
 		logo: org.logo,
 		isMember: memberOrgIds.has(org.id),
 		memberCount: countMap.get(org.id) ?? 0,
@@ -48,6 +45,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		profiles,
-		isAdmin,
+		canManageProfiles,
 	};
 };

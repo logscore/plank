@@ -11,31 +11,12 @@ export const user = sqliteTable("user", {
 	email: text("email").notNull().unique(),
 	emailVerified: integer("email_verified", { mode: "boolean" }).default(false).notNull(),
 	image: text("image"),
-	role: text("role", { enum: ["admin", "user"] })
-		.default("user")
-		.notNull(),
 	createdAt: integer("created_at", { mode: "timestamp_ms" })
 		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 		.notNull(),
 	updatedAt: integer("updated_at", { mode: "timestamp_ms" })
 		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-		.$onUpdate(() => new Date())
-		.notNull(),
-});
-
-export const organization = sqliteTable("organization", {
-	id: text("id").primaryKey(),
-	name: text("name").notNull(),
-	slug: text("slug").notNull().unique(),
-	logo: text("logo"),
-	color: text("color").default("#6366F1").notNull(),
-	metadata: text("metadata"), // JSON
-	createdAt: integer("created_at", { mode: "timestamp_ms" })
-		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-		.notNull(),
-	updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-		.$onUpdate(() => new Date())
+		.$onUpdate(() => /* @__PURE__ */ new Date())
 		.notNull(),
 });
 
@@ -49,21 +30,16 @@ export const session = sqliteTable(
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 			.notNull(),
 		updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-			.$onUpdate(() => new Date())
+			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
 		ipAddress: text("ip_address"),
 		userAgent: text("user_agent"),
 		userId: text("user_id")
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
-		activeOrganizationId: text("active_organization_id").references(() => organization.id, {
-			onDelete: "set null",
-		}),
+		activeOrganizationId: text("active_organization_id"),
 	},
-	(table) => [
-		index("session_userId_idx").on(table.userId),
-		index("session_active_organization_idx").on(table.activeOrganizationId),
-	]
+	(table) => [index("session_userId_idx").on(table.userId)]
 );
 
 export const account = sqliteTable(
@@ -90,7 +66,7 @@ export const account = sqliteTable(
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 			.notNull(),
 		updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-			.$onUpdate(() => new Date())
+			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
 	},
 	(table) => [index("account_userId_idx").on(table.userId)]
@@ -108,50 +84,67 @@ export const verification = sqliteTable(
 			.notNull(),
 		updatedAt: integer("updated_at", { mode: "timestamp_ms" })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-			.$onUpdate(() => new Date())
+			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
 	},
 	(table) => [index("verification_identifier_idx").on(table.identifier)]
+);
+
+export const organization = sqliteTable(
+	"organization",
+	{
+		id: text("id").primaryKey(),
+		name: text("name").notNull(),
+		slug: text("slug").notNull().unique(),
+		logo: text("logo"),
+		createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+		metadata: text("metadata"),
+	},
+	(table) => [uniqueIndex("organization_slug_uidx").on(table.slug)]
 );
 
 export const member = sqliteTable(
 	"member",
 	{
 		id: text("id").primaryKey(),
-		userId: text("user_id")
-			.notNull()
-			.references(() => user.id, { onDelete: "cascade" }),
 		organizationId: text("organization_id")
 			.notNull()
 			.references(() => organization.id, { onDelete: "cascade" }),
-		role: text("role").notNull().default("member"),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		role: text("role").default("member").notNull(),
+		createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+	},
+	(table) => [
+		index("member_organizationId_idx").on(table.organizationId),
+		index("member_userId_idx").on(table.userId),
+	]
+);
+
+export const invitation = sqliteTable(
+	"invitation",
+	{
+		id: text("id").primaryKey(),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+		email: text("email").notNull(),
+		role: text("role"),
+		status: text("status").default("pending").notNull(),
+		expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
 		createdAt: integer("created_at", { mode: "timestamp_ms" })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 			.notNull(),
+		inviterId: text("inviter_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
 	},
-	(table) => [uniqueIndex("member_user_organization_unique").on(table.userId, table.organizationId)]
+	(table) => [
+		index("invitation_organizationId_idx").on(table.organizationId),
+		index("invitation_email_idx").on(table.email),
+	]
 );
-
-export const invitation = sqliteTable("invitation", {
-	id: text("id").primaryKey(),
-	email: text("email").notNull(),
-	inviterId: text("inviter_id")
-		.notNull()
-		.references(() => user.id, { onDelete: "cascade" }),
-	organizationId: text("organization_id")
-		.notNull()
-		.references(() => organization.id, { onDelete: "cascade" }),
-	role: text("role").notNull().default("member"),
-	status: text("status").notNull().default("pending"),
-	expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
-	createdAt: integer("created_at", { mode: "timestamp_ms" })
-		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-		.notNull(),
-	updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-		.$onUpdate(() => new Date())
-		.notNull(),
-});
 
 // ============================================================================
 // Application tables

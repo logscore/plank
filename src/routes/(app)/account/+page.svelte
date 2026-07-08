@@ -283,15 +283,13 @@
                 }
             }
 
-            const res = await fetch(`/api/profiles/${data.organization.id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: editProfileName.trim() }),
+            const res = await authClient.organization.update({
+                organizationId: data.organization.id,
+                data: { name: editProfileName.trim() },
             });
 
-            if (!res.ok) {
-                const err = await res.json();
-                toast.error(err.error || "Failed to update profile");
+            if (res.error) {
+                toast.error(res.error.message || "Failed to update profile");
                 return;
             }
 

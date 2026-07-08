@@ -39,7 +39,6 @@ beforeAll(() => {
       email TEXT NOT NULL UNIQUE,
       email_verified INTEGER DEFAULT 0 NOT NULL,
       image TEXT,
-      role TEXT DEFAULT 'user' NOT NULL,
       created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
       updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
     );

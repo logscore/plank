@@ -1,9 +1,8 @@
 import { type Handle, type RequestEvent, redirect } from "@sveltejs/kit";
-import { eq } from "drizzle-orm";
 import { auth } from "$lib/server/auth";
 import { tempFolderCleanupJob } from "$lib/server/cron-jobs";
 import { db } from "$lib/server/db/index";
-import { user as userTable } from "$lib/server/db/schema";
+import { schema } from "$lib/server/db/schema";
 import { recoverDownloads } from "$lib/server/torrent/recovery";
 
 // Recover incomplete downloads on server startup
@@ -38,11 +37,6 @@ function classifyRoute(path: string) {
 	};
 }
 
-function getUserRole(userId: string): string {
-	const dbUser = db.select({ role: userTable.role }).from(userTable).where(eq(userTable.id, userId)).get();
-	return dbUser?.role ?? "user";
-}
-
 async function enforceProfileSelection(event: RequestEvent, activeOrgId: string | null | undefined) {
 	if (activeOrgId) {
 		return;
@@ -54,8 +48,8 @@ async function enforceProfileSelection(event: RequestEvent, activeOrgId: string 
 	const memberOrgs = orgs || [];
 
 	if (memberOrgs.length === 0) {
-		const isAdmin = event.locals.user?.role === "admin";
-		throw redirect(302, isAdmin ? "/onboarding" : "/profiles");
+		const existingOrg = db.select({ id: schema.organization.id }).from(schema.organization).limit(1).get();
+		throw redirect(302, existingOrg ? "/profiles" : "/onboarding");
 	}
 
 	if (memberOrgs.length === 1) {
@@ -80,12 +74,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		headers: event.request.headers,
 	});
 
-	if (session?.user) {
-		const role = getUserRole(session.user.id);
-		event.locals.user = { ...session.user, role };
-	} else {
-		event.locals.user = null;
-	}
+	event.locals.user = session?.user ?? null;
 	event.locals.session = session?.session
 		? {
 				id: session.session.id,
@@ -113,7 +102,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
-	if (routes.isOnboardingRoute && event.locals.user?.role !== "admin") {
+	if (
+		routes.isOnboardingRoute &&
+		db.select({ id: schema.organization.id }).from(schema.organization).limit(1).get()
+	) {
 		throw redirect(302, "/profiles");
 	}
 

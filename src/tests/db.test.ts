@@ -14,6 +14,7 @@ const testOrg = {
 	id: "org-1",
 	name: "Test Org",
 	slug: "test-org",
+	createdAt: new Date(),
 };
 
 function createMovie() {

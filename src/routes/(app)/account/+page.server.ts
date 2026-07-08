@@ -1,10 +1,7 @@
 import { redirect } from "@sveltejs/kit";
 import type { Invitation } from "better-auth/plugins";
-import { eq } from "drizzle-orm";
 import { auth } from "$lib/server/auth";
 import { mediaDb } from "$lib/server/db";
-import { db } from "$lib/server/db/index";
-import { schema } from "$lib/server/db/schema";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals, request }) => {
@@ -18,21 +15,18 @@ export const load: PageServerLoad = async ({ locals, request }) => {
 		throw redirect(302, "/profiles");
 	}
 
-	// Fetch the organization directly
-	const organization = db.select().from(schema.organization).where(eq(schema.organization.id, organizationId)).get();
+	const organization = await auth.api
+		.getFullOrganization({
+			headers: request.headers,
+			query: { organizationId },
+		})
+		.catch(() => null);
 
 	if (!organization) {
 		throw redirect(302, "/profiles");
 	}
 
-	// Get Members (via Better Auth API)
-	const membersResult = await auth.api.listMembers({
-		headers: request.headers,
-		query: {
-			organizationId,
-		},
-	});
-	const membersList = membersResult.members || [];
+	const membersList = organization.members || [];
 
 	// Determine role from members list
 	const currentMember = membersList.find((m) => m.userId === locals.user?.id);

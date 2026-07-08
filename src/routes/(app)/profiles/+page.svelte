@@ -36,16 +36,14 @@
 </script>
 
 <div class="min-h-screen flex flex-col items-center justify-center px-4">
-    {#if !hasProfiles && !data.isAdmin}
-        <!-- Non-admin with no profiles: waiting state -->
+    {#if !hasProfiles && !data.canManageProfiles}
+        <!-- User with no profile memberships: waiting state -->
         <div class="text-center max-w-md">
             <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-6">
                 <Settings class="w-10 h-10 text-muted-foreground" />
             </div>
             <h1 class="text-2xl font-bold mb-3">Waiting for Access</h1>
-            <p class="text-muted-foreground mb-8">
-                An admin needs to invite you to a profile before you can start watching.
-            </p>
+            <p class="text-muted-foreground mb-8">You need an invitation to a profile before you can start watching.</p>
             <Button variant="outline" onclick={handleLogout}>
                 <LogOut class="w-4 h-4 mr-2" />
                 Sign Out
@@ -70,7 +68,7 @@
             {/each}
         </div>
 
-        {#if data.isAdmin}
+        {#if data.canManageProfiles}
             <div class="flex gap-4">
                 <Button variant="outline" onclick={() => goto("/profiles/manage")}>
                     <Plus class="w-4 h-4 mr-2" />
