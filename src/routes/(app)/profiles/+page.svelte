@@ -56,7 +56,7 @@
         </div>
 
         <div
-            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 md:gap-8 mb-12 overflow-scroll p-4 max-h-100"
+            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 md:gap-8 mb-12 overflow-auto p-4 max-h-100"
         >
             {#each data.profiles as profile}
                 <ProfileCard
