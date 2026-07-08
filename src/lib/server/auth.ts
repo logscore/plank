@@ -1,10 +1,10 @@
 import { APIError, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
 import { env } from "$env/dynamic/private";
 import { db } from "./db/index";
-import { schema } from "./db/schema";
+import { member, schema } from "./db/schema";
 
 export const auth = betterAuth({
 	secret: env.BETTER_AUTH_SECRET,
@@ -77,6 +77,21 @@ export const auth = betterAuth({
 					.get();
 
 				return Boolean(ownerMembership);
+			},
+			organizationHooks: {
+				beforeDeleteOrganization: async ({ organization }) => {
+					// If its the last organization, reject the request
+					const organizationCount =
+						db.select({ count: sql<number>`count(*)` }).from(schema.organization).get()?.count ?? 0;
+					if (organizationCount <= 1) {
+						throw new APIError("FORBIDDEN", { message: "Cannot delete the last organization" });
+					}
+
+					// Deletes member from the organization by removing them from the member table
+					db.delete(member)
+						.where(and(eq(member.organizationId, organization.id)))
+						.run();
+				},
 			},
 		}),
 	],
