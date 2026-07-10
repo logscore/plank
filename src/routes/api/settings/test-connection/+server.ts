@@ -1,7 +1,8 @@
-import { json, type RequestEvent } from "@sveltejs/kit";
+import { json } from "@sveltejs/kit";
 import { auth } from "$lib/server/auth";
 import { testProwlarrConnection } from "$lib/server/prowlarr";
 import { getSettings } from "$lib/server/settings";
+import type { RequestHandler } from "./$types";
 
 type ConnectionTarget = "tmdb" | "opensubtitles" | "prowlarr";
 
@@ -77,23 +78,21 @@ async function testOpenSubtitlesConnection(
 	}
 }
 
-export const POST = async (event: RequestEvent) => {
-	if (!event.locals.user) {
-		return json({ success: false, message: "Unauthorized" }, { status: 401 });
-	}
-	if (!event.locals.session?.activeOrganizationId) {
+export const POST: RequestHandler = async ({ request, locals }) => {
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
 		return json({ success: false, message: "Active profile required" }, { status: 403 });
 	}
 
 	const permission = await auth.api.getActiveMemberRole({
-		headers: event.request.headers,
-		query: { organizationId: event.locals.session.activeOrganizationId },
+		headers: request.headers,
+		query: { organizationId },
 	});
-	if (!permission || permission.role !== "owner") {
+	if (permission?.role !== "owner") {
 		return json({ success: false, message: "Only owners can test settings" }, { status: 403 });
 	}
 
-	const body = (await event.request.json()) as TestConnectionRequest;
+	const body = (await request.json()) as TestConnectionRequest;
 
 	if (body.target === "tmdb") {
 		return json(await testTmdbConnection(body.tmdbApiKey));

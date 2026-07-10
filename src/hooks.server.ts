@@ -70,21 +70,15 @@ async function enforceProfileSelection(event: RequestEvent, activeOrgId: string 
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const session = await auth.api.getSession({
-		headers: event.request.headers,
-	});
-
+	const session = await auth.api.getSession({ headers: event.request.headers });
 	event.locals.user = session?.user ?? null;
-	event.locals.session = session?.session
-		? {
-				id: session.session.id,
-				userId: session.session.userId,
-				expiresAt: session.session.expiresAt,
-				activeOrganizationId: session.session.activeOrganizationId ?? null,
-			}
-		: null;
+	event.locals.session = session?.session ?? null;
 
 	const routes = classifyRoute(event.url.pathname);
+
+	if (routes.isApiRoute && !routes.isAuthRoute && !event.locals.user) {
+		return new Response("Unauthorized", { status: 401 });
+	}
 
 	if (routes.isAppRoute && !event.locals.user) {
 		throw redirect(302, "/login");
@@ -92,10 +86,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	if (routes.isAuthPage && event.locals.user) {
 		throw redirect(302, "/profiles");
-	}
-
-	if (routes.isApiRoute && !routes.isAuthRoute && !event.locals.user) {
-		return new Response("Unauthorized", { status: 401 });
 	}
 
 	if (routes.isProfilesRoute || routes.isAcceptInvitation) {
@@ -109,8 +99,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 		throw redirect(302, "/profiles");
 	}
 
-	if (routes.isAppRoute && event.locals.user && !routes.isOnboardingRoute) {
-		await enforceProfileSelection(event, session?.session?.activeOrganizationId);
+	if (routes.isAppRoute && !routes.isOnboardingRoute) {
+		await enforceProfileSelection(event, event.locals.session?.activeOrganizationId);
 	}
 
 	return resolve(event);

@@ -36,11 +36,6 @@ interface BrowseSeasonRequest {
 	certification?: string | null;
 }
 
-export interface AddMediaFromMagnetContext {
-	userId: string;
-	organizationId: string;
-}
-
 export interface AddMediaFromMagnetParams {
 	magnetLink: string;
 	type?: MediaType;
@@ -275,13 +270,13 @@ function saveImagesInBackground(mediaItem: Media, metadata: MediaMetadata, media
 }
 
 export async function addMediaFromMagnet(
-	context: AddMediaFromMagnetContext,
+	userId: string,
+	organizationId: string,
 	params: AddMediaFromMagnetParams
 ): Promise<{
 	body: Media | (Media & { _seasonAdded: true });
 	status: 200 | 201;
 }> {
-	const { userId, organizationId } = context;
 	const magnetLink = typeof params.magnetLink === "string" ? params.magnetLink : null;
 	const providedType = params.type;
 

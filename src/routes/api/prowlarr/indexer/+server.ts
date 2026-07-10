@@ -3,22 +3,20 @@ import { auth } from "$lib/server/auth";
 import { addProwlarrIndexer, deleteProwlarrIndexer, getProwlarrIndexers } from "$lib/server/prowlarr";
 import type { RequestHandler } from "./$types";
 
-async function canManageIndexers(headers: Headers, locals: App.Locals) {
-	if (!locals.session?.activeOrganizationId) {
+async function canManageIndexers(locals: App.Locals, request: Request) {
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
 		return false;
 	}
 	const permission = await auth.api.getActiveMemberRole({
-		headers,
-		query: { organizationId: locals.session.activeOrganizationId },
+		headers: request.headers,
+		query: { organizationId },
 	});
 	return permission?.role === "owner";
 }
 
 export const GET: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user) {
-		return json({ error: "Unauthorized" }, { status: 401 });
-	}
-	if (!(await canManageIndexers(request.headers, locals))) {
+	if (!(await canManageIndexers(locals, request))) {
 		return json({ error: "Only owners can manage indexers" }, { status: 403 });
 	}
 
@@ -27,10 +25,7 @@ export const GET: RequestHandler = async ({ request, locals }) => {
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user) {
-		return json({ error: "Unauthorized" }, { status: 401 });
-	}
-	if (!(await canManageIndexers(request.headers, locals))) {
+	if (!(await canManageIndexers(locals, request))) {
 		return json({ error: "Only owners can manage indexers" }, { status: 403 });
 	}
 
@@ -44,10 +39,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 };
 
 export const DELETE: RequestHandler = async ({ request, url, locals }) => {
-	if (!locals.user) {
-		return json({ error: "Unauthorized" }, { status: 401 });
-	}
-	if (!(await canManageIndexers(request.headers, locals))) {
+	if (!(await canManageIndexers(locals, request))) {
 		return json({ error: "Only owners can manage indexers" }, { status: 403 });
 	}
 

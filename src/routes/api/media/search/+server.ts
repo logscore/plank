@@ -5,13 +5,9 @@ import { media } from "$lib/server/db/schema";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-	if (!locals.user) {
-		throw error(401, "Unauthorized");
-	}
-
 	const organizationId = locals.session?.activeOrganizationId;
 	if (!organizationId) {
-		throw error(400, "No active profile selected");
+		throw error(403, "Active profile required");
 	}
 
 	const query = url.searchParams.get("q");

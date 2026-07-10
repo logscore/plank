@@ -14,19 +14,17 @@ function parseTrustedGroups(value: string | undefined): string[] {
 }
 
 export const load: PageServerLoad = async ({ locals, request }) => {
-	if (!locals.user) {
-		throw redirect(302, "/login");
-	}
-	if (!locals.session?.activeOrganizationId) {
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
 		throw redirect(302, "/profiles");
 	}
 
 	const permission = await auth.api.getActiveMemberRole({
 		headers: request.headers,
-		query: { organizationId: locals.session.activeOrganizationId },
+		query: { organizationId },
 	});
 
-	if (!permission || permission.role !== "owner") {
+	if (permission?.role !== "owner") {
 		throw redirect(302, "/");
 	}
 
@@ -37,20 +35,19 @@ export const load: PageServerLoad = async ({ locals, request }) => {
 	};
 };
 
+// TODO: Extract this to the api.
 export const actions: Actions = {
-	default: async ({ request, locals }) => {
-		if (!locals.user) {
-			return fail(401, { success: false, error: "Unauthorized" });
-		}
-		if (!locals.session?.activeOrganizationId) {
+	default: async ({ locals, request }) => {
+		const organizationId = locals.session?.activeOrganizationId;
+		if (!organizationId) {
 			return fail(403, { success: false, error: "Active profile required" });
 		}
 
 		const permission = await auth.api.getActiveMemberRole({
 			headers: request.headers,
-			query: { organizationId: locals.session.activeOrganizationId },
+			query: { organizationId },
 		});
-		if (!permission || permission.role !== "owner") {
+		if (permission?.role !== "owner") {
 			return fail(403, { success: false, error: "Only owners can update settings" });
 		}
 

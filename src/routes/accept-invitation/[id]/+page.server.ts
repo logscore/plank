@@ -2,13 +2,13 @@ import { redirect } from "@sveltejs/kit";
 import { auth } from "$lib/server/auth";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ params, locals, url, request }) => {
-	const invitationId = params.id;
-
+export const load: PageServerLoad = async ({ params, url, request, locals }) => {
 	if (!locals.user) {
 		// Redirect to login with return URL
 		throw redirect(302, `/login?redirectTo=${encodeURIComponent(url.pathname)}`);
 	}
+
+	const invitationId = params.id;
 
 	try {
 		// Accept invitation

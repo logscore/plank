@@ -1,14 +1,14 @@
 import fs from "node:fs/promises";
 import { error, json } from "@sveltejs/kit";
-import { requireAuth, requireMediaAccess } from "$lib/server/api-guard";
+import { requireMediaAccess } from "$lib/server/api-guard";
 import { subtitlesDb } from "$lib/server/db";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-	requireAuth(locals);
+	requireMediaAccess(locals, params.id);
 
 	const subtitle = subtitlesDb.getById(params.subtitleId);
-	if (!subtitle?.filePath) {
+	if (!subtitle || subtitle.mediaId !== params.id || !subtitle.filePath) {
 		throw error(404, "Subtitle not found");
 	}
 
@@ -31,7 +31,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	requireMediaAccess(locals, params.id);
 
 	const subtitle = subtitlesDb.getById(params.subtitleId);
-	if (!subtitle) {
+	if (!subtitle || subtitle.mediaId !== params.id) {
 		throw error(404, "Subtitle not found");
 	}
 
@@ -45,7 +45,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	requireMediaAccess(locals, params.id);
 
 	const subtitle = subtitlesDb.getById(params.subtitleId);
-	if (!subtitle) {
+	if (!subtitle || subtitle.mediaId !== params.id) {
 		throw error(404, "Subtitle not found");
 	}
 

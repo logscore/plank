@@ -22,11 +22,6 @@ export interface AddSeasonFromBrowseParams {
 	certification?: string | null;
 }
 
-export interface AddSeasonFromBrowseContext {
-	userId: string;
-	organizationId: string;
-}
-
 export interface AddSeasonFromBrowseResult {
 	mode: "browse-season";
 	status: "queued";
@@ -123,11 +118,12 @@ async function saveShowImages(showId: string, metadata: ShowMetadata): Promise<v
 }
 
 async function upsertShow(
-	context: AddSeasonFromBrowseContext,
+	userId: string,
+	organizationId: string,
 	params: AddSeasonFromBrowseParams
 ): Promise<{ showId: string; metadata: ShowMetadata }> {
 	const metadata = await resolveShowMetadata(params);
-	const existingShow = mediaDb.getByTmdbId(params.tmdbId, context.organizationId, "show");
+	const existingShow = mediaDb.getByTmdbId(params.tmdbId, organizationId, "show");
 	if (existingShow) {
 		mediaDb.updateMetadata(existingShow.id, {
 			title: metadata.title,
@@ -146,8 +142,8 @@ async function upsertShow(
 		return { showId: existingShow.id, metadata };
 	}
 	const show = mediaDb.create({
-		userId: context.userId,
-		organizationId: context.organizationId,
+		userId,
+		organizationId,
 		type: "show",
 		title: metadata.title,
 		year: metadata.year,
@@ -299,10 +295,11 @@ function queueSeasonDownloads(showId: string, seasonId: string, seasonNumber: nu
 }
 
 export async function addSeasonFromBrowse(
-	context: AddSeasonFromBrowseContext,
+	userId: string,
+	organizationId: string,
 	params: AddSeasonFromBrowseParams
 ): Promise<AddSeasonFromBrowseResult> {
-	const { showId } = await upsertShow(context, params);
+	const { showId } = await upsertShow(userId, organizationId, params);
 	const { season, episodes } = await syncSeasonMetadata(showId, params.tmdbId, params.seasonNumber);
 	queueSeasonDownloads(showId, season.id, season.seasonNumber);
 	return {
