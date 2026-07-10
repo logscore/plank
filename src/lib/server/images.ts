@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Jimp, JimpMime } from "jimp";
+import { nanoid } from "nanoid";
 import { PATHS } from "./paths";
 
 type AllowedType = (typeof ALLOWED_TYPES)[number];
@@ -11,7 +12,7 @@ export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 mb
 const OUTPUT_SIZE = 512;
 const OUTPUT_QUALITY = 90;
 
-const IMAGES_PREFIX = /^\/images\//;
+const IMAGES_PREFIX = /^\/api\/images\//;
 
 async function ensureDir(dir: string): Promise<void> {
 	try {
@@ -99,7 +100,7 @@ export async function replaceImage(
 
 	let relativePath: string;
 	try {
-		relativePath = await saveImage(category, id, "image.jpg", buffer);
+		relativePath = await saveImage(category, id, `${nanoid(10)}.jpg`, buffer);
 	} catch {
 		return { error: "Failed to process image. Allowed: JPEG, PNG, GIF" };
 	}
@@ -112,7 +113,7 @@ export async function replaceImage(
 		}
 	}
 
-	return { imagePath: `/images/${relativePath}` };
+	return { imagePath: `/api/images/${relativePath}` };
 }
 
 export async function savePosterBackdropImages(
@@ -131,7 +132,7 @@ export async function savePosterBackdropImages(
 	if (metadata.posterUrl) {
 		try {
 			const storedPath = await saveFromUrl(category, id, "poster.jpg", metadata.posterUrl);
-			result.posterUrl = `/images/${storedPath}`;
+			result.posterUrl = `/api/images/${storedPath}`;
 		} catch (e) {
 			console.error(`Failed to save poster for ${id}:`, e);
 		}
@@ -140,7 +141,7 @@ export async function savePosterBackdropImages(
 	if (metadata.backdropUrl) {
 		try {
 			const storedPath = await saveFromUrl(category, id, "backdrop.jpg", metadata.backdropUrl);
-			result.backdropUrl = `/images/${storedPath}`;
+			result.backdropUrl = `/api/images/${storedPath}`;
 		} catch (e) {
 			console.error(`Failed to save backdrop for ${id}:`, e);
 		}
