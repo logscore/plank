@@ -1,22 +1,28 @@
 import { redirect } from "@sveltejs/kit";
 import { eq, sql } from "drizzle-orm";
+import { auth } from "$lib/server/auth";
 import { db } from "$lib/server/db/index";
 import { schema } from "$lib/server/db/schema";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, request }) => {
 	if (!locals.user) {
 		throw redirect(302, "/login");
 	}
 
-	const userMembers = db.select().from(schema.member).where(eq(schema.member.userId, locals.user.id)).all();
+	const userMembers = db
+		.select({ role: schema.member.role })
+		.from(schema.member)
+		.where(eq(schema.member.userId, locals.user.id))
+		.all();
 	if (!userMembers.some((m) => m.role === "owner")) {
 		throw redirect(302, "/profiles");
 	}
-	const roleByOrgId = new Map(userMembers.map((m) => [m.organizationId, m.role]));
 
-	// Get ALL organizations with member counts
-	const allOrgs = db.select().from(schema.organization).all();
+	// We can use listOrganizations here because only owners can access this page, so it'll
+	// always return all orgs in the app, ulike in /profiles which would only return that
+	// users orgs so we do the db query.
+	const allOrgs = await auth.api.listOrganizations({ headers: request.headers });
 
 	const memberCounts = db
 		.select({
@@ -32,11 +38,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const profiles = allOrgs.map((org) => ({
 		id: org.id,
 		name: org.name,
-		slug: org.slug,
 		logo: org.logo,
 		memberCount: countMap.get(org.id) ?? 0,
-		canUpdate: roleByOrgId.get(org.id) === "owner" || roleByOrgId.get(org.id) === "admin",
-		canDelete: roleByOrgId.get(org.id) === "owner",
 	}));
 
 	return { profiles };
