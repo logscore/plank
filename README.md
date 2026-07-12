@@ -105,7 +105,7 @@ Update your `.env` file with these essential variables:
 
 ```bash
 # Database
-DATABASE_URL=./plank.db
+DATABASE_URL=./data/plank.db
 
 # Where the files are saved when downloaded
 DATA_PATH=./data
@@ -277,7 +277,7 @@ node build
 
 | Variable                 | Description                                                                         | Default                 |
 | ------------------------ | ----------------------------------------------------------------------------------- | ----------------------- |
-| `DATABASE_URL`           | Path to SQLite database                                                             | `./plank.db`            |
+| `DATABASE_URL`           | Path to SQLite database                                                             | `./data/plank.db`       |
 | `DATA_PATH`              | Where downloaded files are saved                                                    | `./data`                |
 | `TMDB_API_KEY`           | TMDB API key for metadata ([get one here](https://www.themoviedb.org/settings/api)) | -                       |
 | `PROWLARR_URL`           | Prowlarr API URL                                                                    | `http://localhost:9696` |
