@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { mediaDb, seasonsDb } from "../db";
+import { sanitizeFilename } from "../images";
 import {
 	buildMovieFileName,
 	getEpisodeLibraryPath,
@@ -132,8 +133,10 @@ async function moveMovieToLibrary(mediaId: string, download: ActiveDownload): Pr
 
 	const sourcePath = path.join(download.torrent.path, download.videoFile.path);
 	const mediaItem = mediaDb.getById(mediaId);
-	const destDir = mediaItem ? getMovieLibraryRoot(mediaItem) : path.join(PATHS.library, mediaId);
-	const fileName = mediaItem ? buildMovieFileName(mediaItem, download.videoFile.name) : download.videoFile.name;
+	const destDir = mediaItem ? getMovieLibraryRoot(mediaItem) : path.join(PATHS.library, sanitizeFilename(mediaId));
+	const fileName = mediaItem
+		? buildMovieFileName(mediaItem, download.videoFile.name)
+		: sanitizeFilename(download.videoFile.name);
 	const destPath = path.join(destDir, fileName);
 
 	await fs.mkdir(destDir, { recursive: true });
@@ -142,7 +145,7 @@ async function moveMovieToLibrary(mediaId: string, download: ActiveDownload): Pr
 	for (const subFile of download.subtitleFiles) {
 		try {
 			const subSource = path.join(download.torrent.path, subFile.path);
-			const subDest = path.join(destDir, subFile.name);
+			const subDest = path.join(destDir, sanitizeFilename(subFile.name));
 			await fs.copyFile(subSource, subDest);
 		} catch (subErr) {
 			console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
@@ -236,7 +239,7 @@ async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): 
 	for (const subFile of download.subtitleFiles) {
 		try {
 			const subSource = path.join(download.torrent.path, subFile.path);
-			const subDest = path.join(seasonDir, subFile.name);
+			const subDest = path.join(seasonDir, sanitizeFilename(subFile.name));
 			await fs.copyFile(subSource, subDest);
 		} catch (subErr) {
 			console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
@@ -282,7 +285,7 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 	for (const subFile of download.subtitleFiles) {
 		try {
 			const subSource = path.join(download.torrent.path, subFile.path);
-			const subDest = path.join(baseDir, subFile.name);
+			const subDest = path.join(baseDir, sanitizeFilename(subFile.name));
 			await fs.copyFile(subSource, subDest);
 		} catch (subErr) {
 			console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
@@ -299,7 +302,7 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 			const sourcePath = path.join(download.torrent.path, videoFile.path);
 			const destPath = episode
 				? getEpisodeLibraryPath(show, episode, videoFile.name)
-				: path.join(seasonDir, videoFile.name);
+				: path.join(seasonDir, sanitizeFilename(videoFile.name));
 
 			const finalized = await finalizeMediaToLibrary(sourcePath, destPath);
 			await updateEpisodeFileInfo(mediaId, download, videoFile, finalized.filePath, finalized.fileSize);
@@ -322,26 +325,29 @@ export async function moveToLibrary(mediaId: string, download: ActiveDownload): 
 
 export async function deleteMediaFiles(mediaId: string): Promise<void> {
 	const mediaItem = mediaDb.getById(mediaId);
+	const safeMediaId = sanitizeFilename(mediaId);
 	if (mediaItem?.type === "episode") {
 		if (mediaItem.filePath) {
 			await fs.rm(mediaItem.filePath, { force: true }).catch(() => undefined);
 		}
-		await fs.rm(path.join(PATHS.temp, mediaId), { recursive: true, force: true }).catch(() => undefined);
+		await fs.rm(path.join(PATHS.temp, safeMediaId), { recursive: true, force: true }).catch(() => undefined);
 		return;
 	}
-	let libraryPaths = [path.join(PATHS.library, mediaId)];
+	let libraryPaths = [path.join(PATHS.library, safeMediaId)];
 	if (mediaItem?.type === "show") {
-		libraryPaths = Array.from(new Set([getShowLibraryRoot(mediaItem), path.join(PATHS.library, mediaId)]));
+		libraryPaths = Array.from(new Set([getShowLibraryRoot(mediaItem), path.join(PATHS.library, safeMediaId)]));
 	} else if (mediaItem?.type === "movie") {
 		libraryPaths = [getMovieLibraryRoot(mediaItem)];
 	}
 	const tempPaths =
 		mediaItem?.type === "show"
 			? [
-					path.join(PATHS.temp, mediaId),
-					...mediaDb.getEpisodesByParentId(mediaId).map((episode) => path.join(PATHS.temp, episode.id)),
+					path.join(PATHS.temp, safeMediaId),
+					...mediaDb
+						.getEpisodesByParentId(mediaId)
+						.map((episode) => path.join(PATHS.temp, sanitizeFilename(episode.id))),
 				]
-			: [path.join(PATHS.temp, mediaId)];
+			: [path.join(PATHS.temp, safeMediaId)];
 
 	for (const libraryPath of libraryPaths) {
 		try {

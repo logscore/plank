@@ -1,12 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { OpenSubtitleResult } from "$lib/types";
+import { sanitizeFilename } from "./images";
 import { PATHS } from "./paths";
 import { getSettings } from "./settings";
 
 const BASE_URL = "https://api.opensubtitles.com/api/v1";
 const USER_AGENT = "plank-media v0.1.0";
-const SAFE_FILENAME_REGEX = /[^a-zA-Z0-9._-]/g;
 const IMDB_PREFIX_REGEX = /^tt/;
 
 // ============================================================================
@@ -370,12 +370,12 @@ export async function downloadSubtitle(
 	const content = await fileResponse.text();
 
 	// Step 3: Save to disk
-	const subtitleDir = path.join(PATHS.library, mediaId, "subtitles");
+	const subtitleDir = path.join(PATHS.library, sanitizeFilename(mediaId), "subtitles");
 	await fs.mkdir(subtitleDir, { recursive: true });
 
 	// Use a unique filename based on the original plus a timestamp
 	const baseName = path.basename(downloadInfo.file_name, path.extname(downloadInfo.file_name));
-	const safeName = baseName.replace(SAFE_FILENAME_REGEX, "_");
+	const safeName = sanitizeFilename(baseName);
 	const fileName = `${safeName}_${Date.now()}.srt`;
 	const filePath = path.join(subtitleDir, fileName);
 

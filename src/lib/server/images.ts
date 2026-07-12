@@ -13,6 +13,21 @@ const OUTPUT_SIZE = 512;
 const OUTPUT_QUALITY = 90;
 
 const IMAGES_PREFIX = /^\/api\/images\//;
+const INVALID_FILENAME_CHARACTERS = /[<>:"/\\|?*]/g;
+const PATH_SEPARATOR = /[\\/]/;
+const TRAILING_DOTS_AND_SPACES = /[. ]+$/;
+
+export function sanitizeFilename(value: string): string {
+	const withoutControlCharacters = Array.from(value)
+		.filter((character) => character.charCodeAt(0) >= 32)
+		.join("");
+	return (
+		withoutControlCharacters
+			.replace(INVALID_FILENAME_CHARACTERS, "_")
+			.trim()
+			.replace(TRAILING_DOTS_AND_SPACES, "") || "_"
+	);
+}
 
 async function ensureDir(dir: string): Promise<void> {
 	try {
@@ -39,12 +54,15 @@ export async function saveImage(
 		throw new Error(validation.error ?? "Invalid image");
 	}
 
-	const relativeDir = path.join(category, id);
+	const safeCategory = sanitizeFilename(category);
+	const safeId = sanitizeFilename(id);
+	const safeFilename = sanitizeFilename(filename);
+	const relativeDir = path.join(safeCategory, safeId);
 	const absDir = path.join(PATHS.data, relativeDir);
 
 	await ensureDir(absDir);
 
-	const filePath = path.join(absDir, filename);
+	const filePath = path.join(absDir, safeFilename);
 	const image = await Jimp.read(buffer);
 	if (category === "logos" || category === "avatars") {
 		image.cover({ w: OUTPUT_SIZE, h: OUTPUT_SIZE });
@@ -56,7 +74,7 @@ export async function saveImage(
 	// Return a path suitable for the serving route.
 	// Assuming we serve from /images/[...path], and we store inside data/
 	// We can return the relative path inside 'data'
-	return path.join(relativeDir, filename);
+	return path.join(relativeDir, safeFilename);
 }
 
 /**
@@ -75,7 +93,8 @@ async function saveFromUrl(category: string, id: string, filename: string, url: 
  * Delete a file
  */
 export async function deleteImage(relativePath: string): Promise<void> {
-	const filePath = path.join(PATHS.data, relativePath);
+	const safePath = relativePath.split(PATH_SEPARATOR).map(sanitizeFilename).join(path.sep);
+	const filePath = path.join(PATHS.data, safePath);
 	try {
 		await fs.unlink(filePath);
 	} catch (e) {

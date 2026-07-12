@@ -3,7 +3,14 @@ import path from "node:path";
 import { Jimp, JimpMime } from "jimp";
 import { nanoid } from "nanoid";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { deleteImage, MAX_FILE_SIZE, replaceImage, saveImage, savePosterBackdropImages } from "$lib/server/images";
+import {
+	deleteImage,
+	MAX_FILE_SIZE,
+	replaceImage,
+	sanitizeFilename,
+	saveImage,
+	savePosterBackdropImages,
+} from "$lib/server/images";
 
 const DATA = "/mock/data";
 
@@ -63,6 +70,17 @@ beforeEach(() => {
 	global.fetch = vi.fn();
 });
 
+describe("sanitizeFilename", () => {
+	it.each([
+		["../../etc/passwd", ".._.._etc_passwd"],
+		["poster:final?.jpg", "poster_final_.jpg"],
+		["..", "_"],
+		["", "_"],
+	])("sanitizes %j", (input, expected) => {
+		expect(sanitizeFilename(input)).toBe(expected);
+	});
+});
+
 describe("saveImage", () => {
 	const smallId = nanoid(10);
 
@@ -120,6 +138,16 @@ describe("saveImage", () => {
 		expect(fs.mkdir).toHaveBeenCalledWith(path.join(DATA, "library/123"), { recursive: true });
 	});
 
+	it("sanitizes every destination path component", async () => {
+		const returned = await saveImage("../library", "..", "../../poster.jpg", await makeImage(10, 10));
+
+		expect(returned).toBe(path.join(".._library", "_", ".._.._poster.jpg"));
+		expect(fs.writeFile).toHaveBeenCalledWith(
+			path.join(DATA, ".._library", "_", ".._.._poster.jpg"),
+			expect.any(Buffer)
+		);
+	});
+
 	it("does NOT create the directory when it already exists", async () => {
 		vi.mocked(fs.access).mockResolvedValue(undefined);
 
@@ -168,6 +196,12 @@ describe("deleteImage", () => {
 		expect(warn).toHaveBeenCalled();
 
 		warn.mockRestore();
+	});
+
+	it("does not allow traversal outside the data directory", async () => {
+		await deleteImage("../../secret.jpg");
+
+		expect(fs.unlink).toHaveBeenCalledWith(path.join(DATA, "_", "_", "secret.jpg"));
 	});
 });
 
