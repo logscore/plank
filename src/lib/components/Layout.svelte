@@ -3,6 +3,7 @@
     import type { Snippet } from "svelte";
     import { fade, fly } from "svelte/transition";
     import { page } from "$app/state";
+    import { authClient } from "$lib/auth-client";
     import { uiState } from "$lib/ui-state.svelte";
     import { cn } from "$lib/utils";
     import Facehash from "./facehash/Facehash.svelte";
@@ -14,6 +15,12 @@
         children: Snippet;
         logout: () => void;
     } = $props();
+
+    let memberRole = $state<"member" | "admin" | "owner" | undefined>();
+
+    authClient.organization.getActiveMemberRole().then((org) => {
+        memberRole = org.data?.role;
+    });
 
     let showAccountMenu = $state(false);
 
@@ -48,7 +55,7 @@
 >
     <!-- Account Button - Bottom Right Corner -->
     {#if !hideNav}
-        <div class="fixed bottom-8 right-8 z-50 account-menu" transition:fly={{ y: 20, duration: 300 }}>
+        <div class="fixed bottom-8 right-2 sm:right-8 z-50 account-menu" transition:fly={{ y: 20, duration: 300 }}>
             <div class="p-1.5 rounded-full border border-white/10 bg-black/80 backdrop-blur-xl shadow-2xl">
                 <button
                     onclick={() => (showAccountMenu = !showAccountMenu)}
@@ -98,15 +105,17 @@
                             <User class="w-4 h-4" />
                             View Account
                         </a>
-                        <a
-                            href="/settings"
-                            class="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-3"
-                            role="menuitem"
-                            onclick={() => (showAccountMenu = false)}
-                        >
-                            <Settings class="w-4 h-4" />
-                            Settings
-                        </a>
+                        {#if memberRole == "owner"}
+                            <a
+                                href="/settings"
+                                class="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-3"
+                                role="menuitem"
+                                onclick={() => (showAccountMenu = false)}
+                            >
+                                <Settings class="w-4 h-4" />
+                                Settings
+                            </a>
+                        {/if}
                         <button
                             onclick={() => {
                                 showAccountMenu = false;

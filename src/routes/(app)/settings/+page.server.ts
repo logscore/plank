@@ -1,4 +1,5 @@
-import { error, fail, redirect } from "@sveltejs/kit";
+import { fail, redirect } from "@sveltejs/kit";
+import { auth } from "$lib/server/auth";
 import { getSettings, updateSettings } from "$lib/server/settings";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -12,9 +13,19 @@ function parseTrustedGroups(value: string | undefined): string[] {
 		.filter((group) => group.length > 0);
 }
 
-export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) {
-		throw redirect(302, "/login");
+export const load: PageServerLoad = async ({ locals, request }) => {
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
+		throw redirect(302, "/profiles");
+	}
+
+	const permission = await auth.api.getActiveMemberRole({
+		headers: request.headers,
+		query: { organizationId },
+	});
+
+	if (permission?.role !== "owner") {
+		throw redirect(302, "/");
 	}
 
 	const settings = await getSettings();
@@ -24,10 +35,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 	};
 };
 
+// TODO: Extract this to the api.
 export const actions: Actions = {
-	default: async ({ request, locals }) => {
-		if (!locals.user) {
-			throw error(401, "Unauthorized");
+	default: async ({ locals, request }) => {
+		const organizationId = locals.session?.activeOrganizationId;
+		if (!organizationId) {
+			return fail(403, { success: false, error: "Active profile required" });
+		}
+
+		const permission = await auth.api.getActiveMemberRole({
+			headers: request.headers,
+			query: { organizationId },
+		});
+		if (permission?.role !== "owner") {
+			return fail(403, { success: false, error: "Only owners can update settings" });
 		}
 
 		const formData = await request.formData();

@@ -12,7 +12,6 @@ import { cacheTorrent, getCachedTorrent } from "$lib/server/torrent-cache";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	// Auth check
 	if (!locals.user) {
 		throw error(401, "Unauthorized");
 	}

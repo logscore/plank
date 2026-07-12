@@ -74,6 +74,7 @@ const testOrg = {
 	id: "paths-org",
 	name: "Paths Org",
 	slug: "paths-org",
+	createdAt: new Date(),
 };
 
 interface EpisodeSeed {

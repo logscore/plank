@@ -14,6 +14,7 @@ const testOrg = {
 	id: "media-org",
 	name: "Media Org",
 	slug: "media-org",
+	createdAt: new Date(),
 };
 
 beforeEach(() => {

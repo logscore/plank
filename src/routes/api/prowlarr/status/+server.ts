@@ -10,7 +10,6 @@ import { getSettings } from "$lib/server/settings";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ locals }) => {
-	// Auth check
 	if (!locals.user) {
 		return json({ error: "Unauthorized" }, { status: 401 });
 	}

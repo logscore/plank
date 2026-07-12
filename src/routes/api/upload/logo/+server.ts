@@ -1,5 +1,6 @@
-import { error, json } from "@sveltejs/kit";
-import { and, eq } from "drizzle-orm";
+import { json } from "@sveltejs/kit";
+import { eq } from "drizzle-orm";
+import { auth } from "$lib/server/auth";
 import { db } from "$lib/server/db/index";
 import { schema } from "$lib/server/db/schema";
 import { replaceImage } from "$lib/server/images";
@@ -7,7 +8,7 @@ import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
-		throw error(401, "Unauthorized");
+		return json({ error: "Unauthorized", message: "Unauthorized" }, { status: 401 });
 	}
 
 	const formData = await request.formData();
@@ -15,21 +16,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const organizationId = formData.get("organizationId");
 
 	if (!(file && file instanceof File)) {
-		throw error(400, "No file provided");
+		return json({ error: "No file provided", message: "No file provided" }, { status: 400 });
 	}
 
 	if (!organizationId || typeof organizationId !== "string") {
-		throw error(400, "Organization ID required");
+		return json({ error: "Organization ID required", message: "Organization ID required" }, { status: 400 });
 	}
 
-	const membership = db
-		.select({ role: schema.member.role })
-		.from(schema.member)
-		.where(and(eq(schema.member.userId, locals.user.id), eq(schema.member.organizationId, organizationId)))
-		.get();
+	const permission = await auth.api.hasPermission({
+		headers: request.headers,
+		body: {
+			organizationId,
+			permissions: { organization: ["update"] },
+		},
+	});
 
-	if (!membership || (membership.role !== "owner" && membership.role !== "admin")) {
-		throw error(403, "Only owners and admins can update organization logo");
+	if (!permission.success) {
+		return json(
+			{
+				error: "Only owners and admins can update organization logo",
+				message: "Only owners and admins can update organization logo",
+			},
+			{ status: 403 }
+		);
 	}
 
 	const currentOrg = db
@@ -42,13 +51,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const result = await replaceImage(currentOrg?.logo, buffer, "logos", organizationId);
 
 	if ("error" in result) {
-		throw error(400, result.error);
+		return json({ error: result.error, message: result.error }, { status: 400 });
 	}
 
-	db.update(schema.organization)
-		.set({ logo: result.imagePath })
-		.where(eq(schema.organization.id, organizationId))
-		.run();
+	await auth.api.updateOrganization({
+		headers: request.headers,
+		body: {
+			organizationId,
+			data: { logo: result.imagePath },
+		},
+	});
 
 	return json({ success: true, logo: result.imagePath });
 };

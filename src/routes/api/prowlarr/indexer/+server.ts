@@ -1,10 +1,23 @@
 import { json } from "@sveltejs/kit";
+import { auth } from "$lib/server/auth";
 import { addProwlarrIndexer, deleteProwlarrIndexer, getProwlarrIndexers } from "$lib/server/prowlarr";
 import type { RequestHandler } from "./$types";
 
-export const GET: RequestHandler = async ({ locals }) => {
-	if (!locals.user) {
-		return json({ error: "Unauthorized" }, { status: 401 });
+async function canManageIndexers(locals: App.Locals, request: Request) {
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId) {
+		return false;
+	}
+	const permission = await auth.api.getActiveMemberRole({
+		headers: request.headers,
+		query: { organizationId },
+	});
+	return permission?.role === "owner";
+}
+
+export const GET: RequestHandler = async ({ request, locals }) => {
+	if (!(await canManageIndexers(locals, request))) {
+		return json({ error: "Only owners can manage indexers" }, { status: 403 });
 	}
 
 	const indexers = await getProwlarrIndexers();
@@ -12,8 +25,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user) {
-		return json({ error: "Unauthorized" }, { status: 401 });
+	if (!(await canManageIndexers(locals, request))) {
+		return json({ error: "Only owners can manage indexers" }, { status: 403 });
 	}
 
 	const data = await request.json();
@@ -25,9 +38,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	return json({ error: "Failed to add indexer" }, { status: 500 });
 };
 
-export const DELETE: RequestHandler = async ({ url, locals }) => {
-	if (!locals.user) {
-		return json({ error: "Unauthorized" }, { status: 401 });
+export const DELETE: RequestHandler = async ({ request, url, locals }) => {
+	if (!(await canManageIndexers(locals, request))) {
+		return json({ error: "Only owners can manage indexers" }, { status: 403 });
 	}
 
 	const id = url.searchParams.get("id");

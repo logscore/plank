@@ -9,7 +9,6 @@ import { getTVSeasons } from "$lib/server/tmdb";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-	// Auth check
 	if (!locals.user) {
 		throw error(401, "Unauthorized");
 	}

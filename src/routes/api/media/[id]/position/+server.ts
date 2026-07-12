@@ -27,22 +27,13 @@ export const PUT: RequestHandler = async ({ params, locals, request }) => {
 };
 
 export const POST: RequestHandler = async ({ params, locals, request }) => {
-	if (!locals.user) {
-		return new Response(null, { status: 401 });
-	}
-	if (!locals.session?.activeOrganizationId) {
-		return new Response(null, { status: 400 });
-	}
+	requireMediaAccess(locals, params.id);
 	const contentType = request.headers.get("content-type") ?? "";
 	const body = contentType.includes("text/plain")
 		? (JSON.parse(await request.text()) as { position: number; duration?: number })
 		: ((await request.json()) as { position: number; duration?: number });
 	if (typeof body.position !== "number" || body.position < 0) {
 		return new Response(null, { status: 400 });
-	}
-	const mediaItem = mediaDb.get(params.id, locals.session.activeOrganizationId);
-	if (!mediaItem) {
-		return new Response(null, { status: 404 });
 	}
 	savePosition(params.id, body.position, body.duration);
 	return new Response(null, { status: 204 });

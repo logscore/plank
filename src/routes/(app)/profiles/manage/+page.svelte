@@ -117,15 +117,13 @@
                 }
             }
 
-            const res = await fetch(`/api/profiles/${editingId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: editName.trim() }),
+            const res = await authClient.organization.update({
+                organizationId: editingId,
+                data: { name: editName.trim() },
             });
 
-            if (!res.ok) {
-                const data = await res.json();
-                toast.error(data.error || "Failed to update profile");
+            if (res.error) {
+                toast.error(res.error.message || "Failed to update profile");
                 return;
             }
 
@@ -144,12 +142,11 @@
             "Delete Profile",
             `Are you sure you want to delete "${profile.name}"? All media in this profile will be lost.`,
             async () => {
-                const res = await fetch(`/api/profiles/${profile.id}`, {
-                    method: "DELETE",
+                const res = await authClient.organization.delete({
+                    organizationId: profile.id,
                 });
-                if (!res.ok) {
-                    const data = await res.json();
-                    toast.error(data.error || "Failed to delete profile");
+                if (res.error) {
+                    toast.error(res.error.message || "Failed to delete profile");
                     return;
                 }
                 toast.success("Profile deleted");
@@ -309,35 +306,42 @@
                                     <p class="font-medium">{profile.name}</p>
                                     <div class="flex items-center gap-1 text-xs text-muted-foreground">
                                         <Users class="w-3 h-3" />
-                                        <span
-                                            >{profile.memberCount} member
-                                            {profile.memberCount !== 1
-                                                ? "s"
-                                                : ""}</span
+                                        <span>
+                                            {profile.memberCount}
+                                            {profile.memberCount === 1
+                                                ? "member"
+                                                : "members"}</span
                                         >
                                     </div>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-1">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    class="h-8 w-8 text-muted-foreground hover:text-primary"
-                                    onclick={() => startEdit(profile)}
-                                    title="Edit Profile"
-                                >
-                                    <Pencil class="w-4 h-4" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    class="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                    onclick={() => deleteProfile(profile)}
-                                    title="Delete Profile"
-                                >
-                                    <Trash2 class="w-4 h-4" />
-                                </Button>
-                            </div>
+                            {#if profile.canUpdate || profile.canDelete}
+                                <div class="flex items-center gap-1">
+                                    {#if profile.canUpdate}
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            class="h-8 w-8 text-muted-foreground hover:text-primary"
+                                            onclick={() => startEdit(profile)}
+                                            title="Edit Profile"
+                                        >
+                                            <Pencil class="w-4 h-4" />
+                                        </Button>
+                                    {/if}
+                                    {#if profile.canDelete}
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            class="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                            onclick={() =>
+                                                deleteProfile(profile)}
+                                            title="Delete Profile"
+                                        >
+                                            <Trash2 class="w-4 h-4" />
+                                        </Button>
+                                    {/if}
+                                </div>
+                            {/if}
                         {/if}
                     </div>
                 {/each}

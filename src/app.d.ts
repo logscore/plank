@@ -1,23 +1,12 @@
 /// <reference types="@sveltejs/kit" />
 
+import type { auth } from "$lib/server/auth";
+
 declare global {
 	namespace App {
 		interface Locals {
-			user: {
-				id: string;
-				email: string;
-				name: string | null;
-				role: string;
-				image?: string | null;
-			} | null;
-			session: {
-				id: string;
-				userId: string;
-				expiresAt: Date;
-				activeOrganizationId?: string | null;
-			} | null;
+			user: typeof auth.$Infer.Session.user | null;
+			session: typeof auth.$Infer.Session.session | null;
 		}
 	}
 }
-
-export {};

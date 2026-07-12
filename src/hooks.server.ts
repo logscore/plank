@@ -1,9 +1,8 @@
 import { type Handle, type RequestEvent, redirect } from "@sveltejs/kit";
-import { eq } from "drizzle-orm";
 import { auth } from "$lib/server/auth";
 import { tempFolderCleanupJob } from "$lib/server/cron-jobs";
 import { db } from "$lib/server/db/index";
-import { user as userTable } from "$lib/server/db/schema";
+import { schema } from "$lib/server/db/schema";
 import { recoverDownloads } from "$lib/server/torrent/recovery";
 
 // Recover incomplete downloads on server startup
@@ -38,11 +37,6 @@ function classifyRoute(path: string) {
 	};
 }
 
-function getUserRole(userId: string): string {
-	const dbUser = db.select({ role: userTable.role }).from(userTable).where(eq(userTable.id, userId)).get();
-	return dbUser?.role ?? "user";
-}
-
 async function enforceProfileSelection(event: RequestEvent, activeOrgId: string | null | undefined) {
 	if (activeOrgId) {
 		return;
@@ -54,8 +48,8 @@ async function enforceProfileSelection(event: RequestEvent, activeOrgId: string 
 	const memberOrgs = orgs || [];
 
 	if (memberOrgs.length === 0) {
-		const isAdmin = event.locals.user?.role === "admin";
-		throw redirect(302, isAdmin ? "/onboarding" : "/profiles");
+		const existingOrg = db.select({ id: schema.organization.id }).from(schema.organization).limit(1).get();
+		throw redirect(302, existingOrg ? "/profiles" : "/onboarding");
 	}
 
 	if (memberOrgs.length === 1) {
@@ -76,26 +70,15 @@ async function enforceProfileSelection(event: RequestEvent, activeOrgId: string 
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const session = await auth.api.getSession({
-		headers: event.request.headers,
-	});
-
-	if (session?.user) {
-		const role = getUserRole(session.user.id);
-		event.locals.user = { ...session.user, role };
-	} else {
-		event.locals.user = null;
-	}
-	event.locals.session = session?.session
-		? {
-				id: session.session.id,
-				userId: session.session.userId,
-				expiresAt: session.session.expiresAt,
-				activeOrganizationId: session.session.activeOrganizationId ?? null,
-			}
-		: null;
+	const session = await auth.api.getSession({ headers: event.request.headers });
+	event.locals.user = session?.user ?? null;
+	event.locals.session = session?.session ?? null;
 
 	const routes = classifyRoute(event.url.pathname);
+
+	if (routes.isApiRoute && !routes.isAuthRoute && !event.locals.user) {
+		return new Response("Unauthorized", { status: 401 });
+	}
 
 	if (routes.isAppRoute && !event.locals.user) {
 		throw redirect(302, "/login");
@@ -105,20 +88,19 @@ export const handle: Handle = async ({ event, resolve }) => {
 		throw redirect(302, "/profiles");
 	}
 
-	if (routes.isApiRoute && !routes.isAuthRoute && !event.locals.user) {
-		return new Response("Unauthorized", { status: 401 });
-	}
-
 	if (routes.isProfilesRoute || routes.isAcceptInvitation) {
 		return resolve(event);
 	}
 
-	if (routes.isOnboardingRoute && event.locals.user?.role !== "admin") {
+	if (
+		routes.isOnboardingRoute &&
+		db.select({ id: schema.organization.id }).from(schema.organization).limit(1).get()
+	) {
 		throw redirect(302, "/profiles");
 	}
 
-	if (routes.isAppRoute && event.locals.user && !routes.isOnboardingRoute) {
-		await enforceProfileSelection(event, session?.session?.activeOrganizationId);
+	if (routes.isAppRoute && !routes.isOnboardingRoute) {
+		await enforceProfileSelection(event, event.locals.session?.activeOrganizationId);
 	}
 
 	return resolve(event);
