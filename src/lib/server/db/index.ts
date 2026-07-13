@@ -4,7 +4,7 @@ import { schema } from "./schema";
 
 // Ensure database directory exists
 const dbPath = process.env.DATABASE_URL;
-if (dbPath) {
+if (!dbPath) {
 	throw new Error("DATABASE_URL is not defined");
 }
 const sqlite = new Database(dbPath);
