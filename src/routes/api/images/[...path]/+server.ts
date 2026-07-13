@@ -54,7 +54,7 @@ export const GET: RequestHandler = async ({ params }) => {
 			headers: {
 				"Content-Type": contentType,
 				// Cache for a long time since images are content-addressed or immutable usually
-				"Cache-Control": "public, max-age=31536000",
+				"Cache-Control": "private, max-age=31536000, immutable.",
 			},
 		});
 	} catch (_e) {

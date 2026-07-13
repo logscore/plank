@@ -1,5 +1,5 @@
 import { redirect } from "@sveltejs/kit";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "$lib/server/db/index";
 import { schema } from "$lib/server/db/schema";
 import type { PageServerLoad } from "./$types";
@@ -9,38 +9,26 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(302, "/login");
 	}
 
-	// Get ALL organizations (profiles)
-	const allOrgs = db.select().from(schema.organization).all();
-
-	if (allOrgs.length === 0) {
-		throw redirect(302, "/onboarding");
-	}
-
 	// Get this user's memberships
 	const userMembers = db.select().from(schema.member).where(eq(schema.member.userId, locals.user.id)).all();
 
 	const memberOrgIds = new Set(userMembers.map((m) => m.organizationId));
 	const canManageProfiles = userMembers.some((m) => m.role === "owner");
 
-	// Get member counts per org
-	const memberCounts = db
-		.select({
-			organizationId: schema.member.organizationId,
-			count: sql<number>`count(*)`,
-		})
-		.from(schema.member)
-		.groupBy(schema.member.organizationId)
+	const allOrgs = db
+		.select({ id: schema.organization.id, name: schema.organization.name, logo: schema.organization.logo })
+		.from(schema.organization)
 		.all();
 
-	const countMap = new Map(memberCounts.map((mc) => [mc.organizationId, mc.count]));
+	if (allOrgs.length === 0) {
+		throw redirect(302, "/onboarding");
+	}
 
 	const profiles = allOrgs.map((org) => ({
-		id: org.id,
+		id: memberOrgIds.has(org.id) ? org.id : null,
 		name: org.name,
-		slug: org.slug,
-		logo: org.logo,
+		logo: memberOrgIds.has(org.id) ? org.logo : null,
 		isMember: memberOrgIds.has(org.id),
-		memberCount: countMap.get(org.id) ?? 0,
 	}));
 
 	return {

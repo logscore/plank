@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Jimp, JimpMime } from "jimp";
+import { nanoid } from "nanoid";
 import { PATHS } from "./paths";
 
 type AllowedType = (typeof ALLOWED_TYPES)[number];
@@ -11,7 +12,22 @@ export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 mb
 const OUTPUT_SIZE = 512;
 const OUTPUT_QUALITY = 90;
 
-const IMAGES_PREFIX = /^\/images\//;
+const IMAGES_PREFIX = /^\/api\/images\//;
+const INVALID_FILENAME_CHARACTERS = /[<>:"/\\|?*]/g;
+const PATH_SEPARATOR = /[\\/]/;
+const TRAILING_DOTS_AND_SPACES = /[. ]+$/;
+
+export function sanitizeFilename(value: string): string {
+	const withoutControlCharacters = Array.from(value)
+		.filter((character) => character.charCodeAt(0) >= 32)
+		.join("");
+	return (
+		withoutControlCharacters
+			.replace(INVALID_FILENAME_CHARACTERS, "_")
+			.trim()
+			.replace(TRAILING_DOTS_AND_SPACES, "") || "_"
+	);
+}
 
 async function ensureDir(dir: string): Promise<void> {
 	try {
@@ -38,12 +54,15 @@ export async function saveImage(
 		throw new Error(validation.error ?? "Invalid image");
 	}
 
-	const relativeDir = path.join(category, id);
+	const safeCategory = sanitizeFilename(category);
+	const safeId = sanitizeFilename(id);
+	const safeFilename = sanitizeFilename(filename);
+	const relativeDir = path.join(safeCategory, safeId);
 	const absDir = path.join(PATHS.data, relativeDir);
 
 	await ensureDir(absDir);
 
-	const filePath = path.join(absDir, filename);
+	const filePath = path.join(absDir, safeFilename);
 	const image = await Jimp.read(buffer);
 	if (category === "logos" || category === "avatars") {
 		image.cover({ w: OUTPUT_SIZE, h: OUTPUT_SIZE });
@@ -55,7 +74,7 @@ export async function saveImage(
 	// Return a path suitable for the serving route.
 	// Assuming we serve from /images/[...path], and we store inside data/
 	// We can return the relative path inside 'data'
-	return path.join(relativeDir, filename);
+	return path.join(relativeDir, safeFilename);
 }
 
 /**
@@ -74,7 +93,8 @@ async function saveFromUrl(category: string, id: string, filename: string, url: 
  * Delete a file
  */
 export async function deleteImage(relativePath: string): Promise<void> {
-	const filePath = path.join(PATHS.data, relativePath);
+	const safePath = relativePath.split(PATH_SEPARATOR).map(sanitizeFilename).join(path.sep);
+	const filePath = path.join(PATHS.data, safePath);
 	try {
 		await fs.unlink(filePath);
 	} catch (e) {
@@ -99,7 +119,7 @@ export async function replaceImage(
 
 	let relativePath: string;
 	try {
-		relativePath = await saveImage(category, id, "image.jpg", buffer);
+		relativePath = await saveImage(category, id, `${nanoid(10)}.jpg`, buffer);
 	} catch {
 		return { error: "Failed to process image. Allowed: JPEG, PNG, GIF" };
 	}
@@ -112,7 +132,7 @@ export async function replaceImage(
 		}
 	}
 
-	return { imagePath: `/images/${relativePath}` };
+	return { imagePath: `/api/images/${relativePath}` };
 }
 
 export async function savePosterBackdropImages(
@@ -131,7 +151,7 @@ export async function savePosterBackdropImages(
 	if (metadata.posterUrl) {
 		try {
 			const storedPath = await saveFromUrl(category, id, "poster.jpg", metadata.posterUrl);
-			result.posterUrl = `/images/${storedPath}`;
+			result.posterUrl = `/api/images/${storedPath}`;
 		} catch (e) {
 			console.error(`Failed to save poster for ${id}:`, e);
 		}
@@ -140,7 +160,7 @@ export async function savePosterBackdropImages(
 	if (metadata.backdropUrl) {
 		try {
 			const storedPath = await saveFromUrl(category, id, "backdrop.jpg", metadata.backdropUrl);
-			result.backdropUrl = `/images/${storedPath}`;
+			result.backdropUrl = `/api/images/${storedPath}`;
 		} catch (e) {
 			console.error(`Failed to save backdrop for ${id}:`, e);
 		}

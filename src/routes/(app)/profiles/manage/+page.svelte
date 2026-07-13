@@ -315,33 +315,26 @@
                                     </div>
                                 </div>
                             </div>
-                            {#if profile.canUpdate || profile.canDelete}
-                                <div class="flex items-center gap-1">
-                                    {#if profile.canUpdate}
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            class="h-8 w-8 text-muted-foreground hover:text-primary"
-                                            onclick={() => startEdit(profile)}
-                                            title="Edit Profile"
-                                        >
-                                            <Pencil class="w-4 h-4" />
-                                        </Button>
-                                    {/if}
-                                    {#if profile.canDelete}
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            class="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                            onclick={() =>
-                                                deleteProfile(profile)}
-                                            title="Delete Profile"
-                                        >
-                                            <Trash2 class="w-4 h-4" />
-                                        </Button>
-                                    {/if}
-                                </div>
-                            {/if}
+                            <div class="flex items-center gap-1">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-8 w-8 text-muted-foreground hover:text-primary"
+                                    onclick={() => startEdit(profile)}
+                                    title="Edit Profile"
+                                >
+                                    <Pencil class="w-4 h-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                    onclick={() => deleteProfile(profile)}
+                                    title="Delete Profile"
+                                >
+                                    <Trash2 class="w-4 h-4" />
+                                </Button>
+                            </div>
                         {/if}
                     </div>
                 {/each}

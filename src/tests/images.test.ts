@@ -1,8 +1,16 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Jimp, JimpMime } from "jimp";
+import { nanoid } from "nanoid";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { deleteImage, MAX_FILE_SIZE, replaceImage, saveImage, savePosterBackdropImages } from "$lib/server/images";
+import {
+	deleteImage,
+	MAX_FILE_SIZE,
+	replaceImage,
+	sanitizeFilename,
+	saveImage,
+	savePosterBackdropImages,
+} from "$lib/server/images";
 
 const DATA = "/mock/data";
 
@@ -15,6 +23,11 @@ vi.mock("node:fs/promises", () => ({
 		stat: vi.fn(),
 		readFile: vi.fn(),
 	},
+}));
+
+// Override nanoid so we get deterministic file names
+vi.mock("nanoid", () => ({
+	nanoid: () => "test-image-id",
 }));
 
 // --- fixtures / helpers -----------------------------------------------------
@@ -57,7 +70,20 @@ beforeEach(() => {
 	global.fetch = vi.fn();
 });
 
+describe("sanitizeFilename", () => {
+	it.each([
+		["../../etc/passwd", ".._.._etc_passwd"],
+		["poster:final?.jpg", "poster_final_.jpg"],
+		["..", "_"],
+		["", "_"],
+	])("sanitizes %j", (input, expected) => {
+		expect(sanitizeFilename(input)).toBe(expected);
+	});
+});
+
 describe("saveImage", () => {
+	const smallId = nanoid(10);
+
 	it("writes a processed JPEG to the correct path and returns the data-relative path", async () => {
 		const png = await makeImage(100, 200);
 
@@ -70,12 +96,12 @@ describe("saveImage", () => {
 	});
 
 	it("always re-encodes output to JPEG, even for PNG input", async () => {
-		await saveImage("library", "id", "image.jpg", await makeImage(64, 64, JimpMime.png));
+		await saveImage("library", "id", `${smallId}.jpg`, await makeImage(64, 64, JimpMime.png));
 		expect(isJpeg(lastWritten())).toBe(true);
 	});
 
 	it("converts GIF input to JPEG output", async () => {
-		await saveImage("library", "id", "image.jpg", await makeImage(64, 64, JimpMime.gif));
+		await saveImage("library", "id", `${smallId}.jpg`, await makeImage(64, 64, JimpMime.gif));
 		expect(isJpeg(lastWritten())).toBe(true);
 	});
 
@@ -85,22 +111,22 @@ describe("saveImage", () => {
 		"backdrops",
 		"series",
 	])("does NOT resize category '%s' (preserves original dimensions)", async (category) => {
-		await saveImage(category, "id", "image.jpg", await makeImage(100, 200));
+		await saveImage(category, "id", `${smallId}.jpg`, await makeImage(100, 200));
 		expect(await dimsOf(lastWritten())).toEqual({ width: 100, height: 200 });
 	});
 
 	it.each(["logos", "avatars"])("resizes category '%s' to 512x512 (cover)", async (category) => {
 		// Non-square input to prove cover crops to an exact square.
-		await saveImage(category, "id", "image.jpg", await makeImage(300, 100));
+		await saveImage(category, "id", `${smallId}.jpg`, await makeImage(300, 100));
 		expect(await dimsOf(lastWritten())).toEqual({ width: 512, height: 512 });
 	});
 
 	it("accepts an ArrayBuffer and converts it to a Buffer", async () => {
 		const ab = await makeImageArrayBuffer(120, 120);
 
-		const returned = await saveImage("library", "ab", "image.jpg", ab);
+		const returned = await saveImage("library", "ab", `${smallId}.jpg`, ab);
 
-		expect(returned).toBe("library/ab/image.jpg");
+		expect(returned).toBe(`library/ab/${smallId}.jpg`);
 		expect(isJpeg(lastWritten())).toBe(true);
 	});
 
@@ -110,6 +136,16 @@ describe("saveImage", () => {
 		await saveImage("library", "123", "poster.jpg", await makeImage(10, 10));
 
 		expect(fs.mkdir).toHaveBeenCalledWith(path.join(DATA, "library/123"), { recursive: true });
+	});
+
+	it("sanitizes every destination path component", async () => {
+		const returned = await saveImage("../library", "..", "../../poster.jpg", await makeImage(10, 10));
+
+		expect(returned).toBe(path.join(".._library", "_", ".._.._poster.jpg"));
+		expect(fs.writeFile).toHaveBeenCalledWith(
+			path.join(DATA, ".._library", "_", ".._.._poster.jpg"),
+			expect.any(Buffer)
+		);
 	});
 
 	it("does NOT create the directory when it already exists", async () => {
@@ -161,9 +197,17 @@ describe("deleteImage", () => {
 
 		warn.mockRestore();
 	});
+
+	it("does not allow traversal outside the data directory", async () => {
+		await deleteImage("../../secret.jpg");
+
+		expect(fs.unlink).toHaveBeenCalledWith(path.join(DATA, "_", "_", "secret.jpg"));
+	});
 });
 
 describe("replaceImage", () => {
+	const smallId = nanoid(10);
+
 	it("rejects an invalid image without writing or deleting", async () => {
 		const result = await replaceImage(null, Buffer.from("nope"), "avatars", "u1");
 
@@ -177,17 +221,17 @@ describe("replaceImage", () => {
 
 		const result = await replaceImage(null, png, "avatars", "u1");
 
-		// Stored under data/avatars/u1/image.jpg
-		expect(fs.writeFile).toHaveBeenCalledWith(path.join(DATA, "avatars/u1/image.jpg"), expect.any(Buffer));
+		// Stored under data/avatars/u1/<nanoid>.jpg
+		expect(fs.writeFile).toHaveBeenCalledWith(path.join(DATA, `avatars/u1/${smallId}.jpg`), expect.any(Buffer));
 		expect(await dimsOf(lastWritten())).toEqual({ width: 512, height: 512 });
-		expect(result).toEqual({ imagePath: "/images/avatars/u1/image.jpg" });
+		expect(result).toEqual({ imagePath: `/api/images/avatars/u1/${smallId}.jpg` });
 		expect(fs.unlink).not.toHaveBeenCalled();
 	});
 
 	it("deletes the previous image (stripping the /images/ prefix) when replacing", async () => {
 		const png = await makeImage(40, 40);
 
-		await replaceImage("/images/avatars/u1/old.jpg", png, "avatars", "u1");
+		await replaceImage("/api/images/avatars/u1/old.jpg", png, "avatars", "u1");
 
 		expect(fs.unlink).toHaveBeenCalledWith(path.join(DATA, "avatars/u1/old.jpg"));
 	});
@@ -221,8 +265,8 @@ describe("saveTmdbImages", () => {
 		// Each downloaded image is processed and stored under data/<category>/...
 		expect(fs.writeFile).toHaveBeenCalledWith(path.join(DATA, "library/1/poster.jpg"), expect.any(Buffer));
 		expect(fs.writeFile).toHaveBeenCalledWith(path.join(DATA, "library/1/backdrop.jpg"), expect.any(Buffer));
-		expect(result.posterUrl).toBe("/images/library/1/poster.jpg");
-		expect(result.backdropUrl).toBe("/images/library/1/backdrop.jpg");
+		expect(result.posterUrl).toBe("/api/images/library/1/poster.jpg");
+		expect(result.backdropUrl).toBe("/api/images/library/1/backdrop.jpg");
 	});
 
 	it("keeps the original url and logs when downloaded content is not a valid image", async () => {
@@ -255,7 +299,7 @@ describe("saveTmdbImages", () => {
 		);
 
 		expect(global.fetch).toHaveBeenCalledTimes(1);
-		expect(result.posterUrl).toBe("/images/library/1/poster.jpg");
+		expect(result.posterUrl).toBe("/api/images/library/1/poster.jpg");
 		expect(result.backdropUrl).toBeNull();
 	});
 
@@ -289,7 +333,7 @@ describe("saveTmdbImages", () => {
 			"1"
 		);
 
-		expect(result.posterUrl).toBe("/images/library/1/poster.jpg");
+		expect(result.posterUrl).toBe("/api/images/library/1/poster.jpg");
 		expect(result.backdropUrl).toBe("http://tmdb/backdrop.jpg"); // unchanged on failure
 		expect(errorSpy).toHaveBeenCalledTimes(1);
 
