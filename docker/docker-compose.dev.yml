@@ -42,8 +42,8 @@ services:
           target: /app
           initial_sync: true
           ignore:
-            - node_modules/
-            - data/
+            - node_modules/**
+            - data/**
         - action: rebuild
           path: ../package.json
         - action: rebuild

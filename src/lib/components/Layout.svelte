@@ -3,7 +3,6 @@
     import type { Snippet } from "svelte";
     import { fade, fly } from "svelte/transition";
     import { page } from "$app/state";
-    import { authClient } from "$lib/auth-client";
     import { uiState } from "$lib/ui-state.svelte";
     import { cn } from "$lib/utils";
     import Facehash from "./facehash/Facehash.svelte";
@@ -15,12 +14,6 @@
         children: Snippet;
         logout: () => void;
     } = $props();
-
-    let memberRole = $state<"member" | "admin" | "owner" | undefined>();
-
-    authClient.organization.getActiveMemberRole().then((org) => {
-        memberRole = org.data?.role;
-    });
 
     let showAccountMenu = $state(false);
 
@@ -105,7 +98,7 @@
                             <User class="w-4 h-4" />
                             View Account
                         </a>
-                        {#if memberRole == "owner"}
+                        {#if page.data.role === "owner"}
                             <a
                                 href="/settings"
                                 class="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-3"
