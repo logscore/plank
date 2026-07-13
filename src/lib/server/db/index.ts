@@ -4,9 +4,10 @@ import { schema } from "./schema";
 
 // Ensure database directory exists
 const dbPath = process.env.DATABASE_URL;
-if (!dbPath) {
-	throw new Error("DATABASE_URL is not defined");
-}
+// TODO: Fix this check so it doesnt throw at build time, but also so we dont have to add a fake variable for the build
+// if (!dbPath) {
+// 	throw new Error("DATABASE_URL is not defined");
+// }
 const sqlite = new Database(dbPath);
 sqlite.pragma("journal_mode = WAL");
 
