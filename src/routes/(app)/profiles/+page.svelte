@@ -20,7 +20,7 @@
                 return;
             }
             queryClient.clear();
-            goto("/");
+            goto("/", { invalidateAll: true });
         } catch {
             toast.error("Failed to select profile");
         }

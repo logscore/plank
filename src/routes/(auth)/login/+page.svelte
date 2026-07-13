@@ -25,7 +25,7 @@
                 error = result.error.message || "Invalid credentials";
             } else {
                 const redirectTo = page.url.searchParams.get("redirectTo");
-                goto(redirectTo || "/profiles");
+                goto(redirectTo || "/profiles", { invalidateAll: true });
             }
         } catch (e) {
             error = "An error occurred. Please try again.";
@@ -91,7 +91,7 @@
         </div>
 
         <Button type="submit" disabled={loading} class="w-full" size="lg">
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? "Signing in..." : "Sign In"}
         </Button>
     </form>
 
