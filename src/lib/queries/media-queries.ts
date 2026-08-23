@@ -1,6 +1,6 @@
 import { createQuery } from "@tanstack/svelte-query";
 import { queryKeys } from "$lib/query-keys";
-import type { FetchError, Media, OpenSubtitleResult } from "$lib/types";
+import type { FetchError, Media, OpenSubtitleResult, SeasonWithEpisodes } from "$lib/types";
 
 export type { FetchError } from "$lib/types";
 
@@ -47,6 +47,24 @@ export function createMediaDetailQuery(id: string) {
 		queryKey: queryKeys.media.detail(id),
 		queryFn: () => fetchMediaDetail(id),
 		enabled: !!id,
+	}));
+}
+
+export async function fetchMediaSeasons(id: string): Promise<SeasonWithEpisodes[]> {
+	const response = await fetch(`/api/media/${id}/seasons`);
+	if (!response.ok) {
+		const err: FetchError = new Error("Failed to fetch seasons");
+		err.status = response.status;
+		throw err;
+	}
+	return response.json();
+}
+
+export function createMediaSeasonsQuery(id: () => string, enabled: () => boolean) {
+	return createQuery(() => ({
+		queryKey: queryKeys.media.seasons(id()),
+		queryFn: () => fetchMediaSeasons(id()),
+		enabled: enabled(),
 	}));
 }
 

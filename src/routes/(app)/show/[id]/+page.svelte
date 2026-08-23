@@ -9,6 +9,7 @@
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
+    import { createDeleteMediaMutation, createRetryMediaMutation } from "$lib/mutations/media-mutations";
     import type { Media, SeasonWithEpisodes } from "$lib/types";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
     import { canPlayEpisode } from "$lib/utils";
@@ -31,6 +32,8 @@
     let subtitleDialogSeasonNumber = $state<number | undefined>(undefined);
     let subtitleDialogEpisodeNumber = $state<number | null>(null);
     let subtitleDialogTitle = $state("");
+    const deleteMediaMutation = createDeleteMediaMutation();
+    const retryMediaMutation = createRetryMediaMutation();
 
     function openSubtitlesForEpisode(episode: Media) {
         subtitleDialogMediaId = episode.id;
@@ -133,17 +136,11 @@
         retryingEpisodeIds = new Set(retryingEpisodeIds).add(episode.id);
         retryDialogError = "";
         try {
-            const response = await fetch(`/api/media/${episode.id}/retry`, {
-                method: "POST",
-                headers: body ? { "Content-Type": "application/json" } : undefined,
-                body: body ? JSON.stringify(body) : undefined,
+            await retryMediaMutation.mutateAsync({
+                id: episode.id,
+                mode: body?.mode,
+                magnetLink: body?.magnetLink,
             });
-            const result = (await response.json().catch(() => null)) as {
-                message?: string;
-            } | null;
-            if (!response.ok) {
-                throw new Error(result?.message || "Episode action failed");
-            }
             await invalidate(`/api/media/${media.id}`);
             return true;
         } catch (error) {
@@ -247,25 +244,17 @@
         replaceState(nextUrl, page.state);
     }
 
-    async function handleDelete() {
-        if (!media) {
-            return;
-        }
-
+    function handleDelete() {
         confirmDelete(
             "Delete Show",
             "Are you sure you want to delete this show? This action cannot be undone.",
             async () => {
                 deleting = true;
                 try {
-                    const res = await fetch(`/api/media/${media?.id}`, {
-                        method: "DELETE",
-                    });
-                    if (res.ok) {
-                        goto("/");
-                    }
-                } catch (e) {
-                    console.error("Failed to delete show:", e);
+                    await deleteMediaMutation.mutateAsync(media.id);
+                    await goto("/");
+                } catch (error) {
+                    console.error("Failed to delete show:", error);
                 } finally {
                     deleting = false;
                 }

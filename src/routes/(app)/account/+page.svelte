@@ -23,10 +23,13 @@
     import Facehash from "$lib/components/facehash/Facehash.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Input from "$lib/components/ui/Input.svelte";
+    import { createUploadAvatarMutation, createUploadOrganizationLogoMutation } from "$lib/mutations/profile-mutations";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
     import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
+    const uploadAvatarMutation = createUploadAvatarMutation();
+    const uploadLogoMutation = createUploadOrganizationLogoMutation();
 
     let currentPassword = $state("");
     let newPassword = $state("");
@@ -209,19 +212,7 @@
         savingUser = true;
         try {
             if (pendingAvatarFile) {
-                const formData = new FormData();
-                formData.append("file", pendingAvatarFile);
-
-                const avatarRes = await fetch("/api/upload/avatar", {
-                    method: "POST",
-                    body: formData,
-                });
-
-                if (!avatarRes.ok) {
-                    const err = await avatarRes.json();
-                    toast.error(err.message || "Failed to upload avatar");
-                    return;
-                }
+                await uploadAvatarMutation.mutateAsync(pendingAvatarFile);
             }
 
             if (editUserName.trim() !== data.user.name) {
@@ -231,8 +222,8 @@
             toast.success("Account updated");
             cancelEditUser();
             await invalidateAll();
-        } catch {
-            toast.error("Failed to update account");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to update account");
         } finally {
             savingUser = false;
         }
@@ -268,20 +259,10 @@
         savingProfile = true;
         try {
             if (pendingLogoFile) {
-                const formData = new FormData();
-                formData.append("file", pendingLogoFile);
-                formData.append("organizationId", data.organization.id);
-
-                const logoRes = await fetch("/api/upload/logo", {
-                    method: "POST",
-                    body: formData,
+                await uploadLogoMutation.mutateAsync({
+                    organizationId: data.organization.id,
+                    file: pendingLogoFile,
                 });
-
-                if (!logoRes.ok) {
-                    const err = await logoRes.json();
-                    toast.error(err.message || "Failed to upload logo");
-                    return;
-                }
             }
 
             const res = await authClient.organization.update({
@@ -297,8 +278,8 @@
             toast.success("Profile updated");
             cancelEditProfile();
             await invalidateAll();
-        } catch {
-            toast.error("Failed to update profile");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to update profile");
         } finally {
             savingProfile = false;
         }

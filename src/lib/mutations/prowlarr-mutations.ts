@@ -47,3 +47,31 @@ export function createDeleteProwlarrIndexerMutation() {
 		},
 	}));
 }
+
+export interface TestProwlarrConnectionInput {
+	url?: string;
+	apiKey?: string;
+}
+
+export interface ProwlarrConnectionResult {
+	success: boolean;
+	message?: string;
+	error?: string;
+}
+
+export function createTestProwlarrConnectionMutation() {
+	return createMutation<ProwlarrConnectionResult, Error, TestProwlarrConnectionInput>(() => ({
+		mutationFn: async (input) => {
+			const response = await fetch("/api/prowlarr/test", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(input),
+			});
+			const result = (await response.json().catch(() => null)) as ProwlarrConnectionResult | null;
+			if (!response.ok) {
+				throw new Error(result?.message || result?.error || `Connection test failed (${response.status})`);
+			}
+			return result ?? { success: false, message: "Connection test returned no data" };
+		},
+	}));
+}

@@ -21,7 +21,11 @@
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
-    import { createAddMediaMutation, createDeleteMediaMutation } from "$lib/mutations/media-mutations";
+    import {
+        createAddMediaMutation,
+        createDeleteMediaMutation,
+        createRetryMediaMutation,
+    } from "$lib/mutations/media-mutations";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
     import { isTerminalProgressStatus } from "$lib/utils";
     import type { PageData } from "./$types";
@@ -37,6 +41,7 @@
     // Mutations
     const addMediaMutation = createAddMediaMutation();
     const deleteMediaMutation = createDeleteMediaMutation();
+    const retryMediaMutation = createRetryMediaMutation();
 
     // Add Media Dialog state
     let magnetInput = $state("");
@@ -193,17 +198,11 @@
         retrying = true;
         retryError = "";
         try {
-            const response = await fetch(`/api/media/${data.media.id}/retry`, {
-                method: "POST",
-                headers: body ? { "Content-Type": "application/json" } : undefined,
-                body: body ? JSON.stringify(body) : undefined,
+            await retryMediaMutation.mutateAsync({
+                id: data.media.id,
+                mode: body?.mode,
+                magnetLink: body?.magnetLink,
             });
-            const result = (await response.json().catch(() => null)) as {
-                message?: string;
-            } | null;
-            if (!response.ok) {
-                throw new Error(result?.message || "Failed to retry download");
-            }
             if (body?.mode === "replace" && body.magnetLink) {
                 data = {
                     ...data,
@@ -221,9 +220,9 @@
             stopStream();
             startStream();
             return true;
-        } catch (e) {
-            console.error("Failed to retry download:", e);
-            retryError = e instanceof Error ? e.message : "Failed to retry download";
+        } catch (error) {
+            console.error("Failed to retry download:", error);
+            retryError = error instanceof Error ? error.message : "Failed to retry download";
             return false;
         } finally {
             retrying = false;

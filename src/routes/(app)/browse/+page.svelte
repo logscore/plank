@@ -3,7 +3,6 @@
     import { createInfiniteQuery, createQuery, useQueryClient } from "@tanstack/svelte-query";
     import { toast } from "svelte-sonner";
     import { goto } from "$app/navigation";
-    import { env } from "$env/dynamic/public";
     import CardSkeleton from "$lib/components/CardSkeleton.svelte";
     import ProwlarrSetup from "$lib/components/ProwlarrSetup.svelte";
     import TorrentCard from "$lib/components/TorrentCard.svelte";
@@ -461,7 +460,7 @@
             </div>
         {:else if prowlarrQuery.isSuccess && (!prowlarrQuery.data.configured || prowlarrQuery.data.needsSetup)}
             <!-- Setup Instructions -->
-            <ProwlarrSetup prowlarrUrl={env.PUBLIC_PROWLARR_URL!} hasApiKey={prowlarrQuery.data.configured} />
+            <ProwlarrSetup hasApiKey={prowlarrQuery.data.configured} />
         {:else if isLoading}
             <!-- Browse data loading -->
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">

@@ -9,6 +9,7 @@ export const queryKeys = {
 		continueWatching: () => [...queryKeys.media.all, "continue-watching"] as const,
 		position: (id: string) => [...queryKeys.media.all, "position", id] as const,
 		subtitles: (id: string) => [...queryKeys.media.all, "subtitles", id] as const,
+		seasons: (id: string) => [...queryKeys.media.all, "seasons", id] as const,
 		progress: (id: string) => [...queryKeys.media.all, "progress", id] as const,
 	},
 

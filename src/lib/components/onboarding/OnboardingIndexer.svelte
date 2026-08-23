@@ -5,6 +5,7 @@
     import {
         createAddProwlarrIndexerMutation,
         createDeleteProwlarrIndexerMutation,
+        createTestProwlarrConnectionMutation,
     } from "$lib/mutations/prowlarr-mutations";
     import {
         createProwlarrIndexerSchemasQuery,
@@ -21,7 +22,6 @@
     }>();
 
     // State
-    let testingConnection = $state(false);
     let connectionStatus = $state<"connected" | "failed" | "unchecked">("unchecked");
 
     let advancedOpen = $state(false);
@@ -29,6 +29,7 @@
 
     const addIndexerMutation = createAddProwlarrIndexerMutation();
     const deleteIndexerMutation = createDeleteProwlarrIndexerMutation();
+    const testConnectionMutation = createTestProwlarrConnectionMutation();
 
     let indexersQuery = $derived(createProwlarrIndexersQuery(() => connectionStatus === "connected"));
     let schemasQuery = $derived(createProwlarrIndexerSchemasQuery(() => connectionStatus === "connected"));
@@ -95,29 +96,15 @@
     }
 
     async function testConnection() {
-        testingConnection = true;
         connectionStatus = "unchecked";
-
         try {
-            const res = await fetch("/api/prowlarr/test", {
-                method: "POST",
-                body: JSON.stringify({
-                    url: prowlarrUrl,
-                    apiKey: prowlarrApiKey,
-                }),
-                headers: { "Content-Type": "application/json" },
+            const result = await testConnectionMutation.mutateAsync({
+                url: prowlarrUrl,
+                apiKey: prowlarrApiKey,
             });
-            const data = await res.json();
-
-            if (data.success) {
-                connectionStatus = "connected";
-            } else {
-                connectionStatus = "failed";
-            }
-        } catch (e) {
+            connectionStatus = result.success ? "connected" : "failed";
+        } catch {
             connectionStatus = "failed";
-        } finally {
-            testingConnection = false;
         }
     }
 
@@ -189,7 +176,7 @@
         <div class="text-xs text-destructive text-center bg-destructive/10 p-2 rounded">
             Cannot connect to Prowlarr. Check configuration.
         </div>
-    {:else if connectionStatus === "unchecked" || testingConnection}
+    {:else if connectionStatus === "unchecked" || testConnectionMutation.isPending}
         <div class="flex items-center justify-center py-4">
             <Loader class="w-5 h-5 animate-spin text-muted-foreground" />
         </div>

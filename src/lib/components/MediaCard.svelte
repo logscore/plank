@@ -2,7 +2,9 @@
     import { EllipsisVertical, Info, Play, RotateCcw, Trash2 } from "@lucide/svelte";
     import { goto } from "$app/navigation";
     import EpisodeSelector from "$lib/components/EpisodeSelector.svelte";
-    import type { Media, SeasonWithEpisodes } from "$lib/types";
+    import { createRetryMediaMutation } from "$lib/mutations/media-mutations";
+    import { createMediaSeasonsQuery } from "$lib/queries/media-queries";
+    import type { Media } from "$lib/types";
     import { canPlayEpisode } from "$lib/utils";
     import Button from "./ui/Button.svelte";
     import Tv from "./ui/Tv.svelte";
@@ -13,23 +15,20 @@
     }>();
 
     let showMenu = $state(false);
-    let retrying = $state(false);
     let isMobileActive = $state(false);
     let rootEl: HTMLElement | undefined = $state();
-    let seasons = $state<SeasonWithEpisodes[]>([]);
+
+    let shouldLoadSeasons = $state(false);
+    const retryMutation = createRetryMediaMutation();
+    const seasonsQuery = createMediaSeasonsQuery(
+        () => media.id,
+        () => shouldLoadSeasons
+    );
+    const seasons = $derived(seasonsQuery.data ?? []);
+    const retrying = $derived(retryMutation.isPending);
 
     async function loadEpisodes() {
-        if (seasons.length > 0) {
-            return;
-        }
-        try {
-            const res = await fetch(`/api/media/${media.id}/seasons`);
-            if (res.ok) {
-                seasons = await res.json();
-            }
-        } catch (err) {
-            console.error("Failed to load episodes:", err);
-        }
+        shouldLoadSeasons = true;
     }
 
     function handlePlayEpisode(episode: Media) {
@@ -52,19 +51,10 @@
     async function handleRetry(e: Event) {
         e.preventDefault();
         e.stopPropagation();
-        retrying = true;
         try {
-            const res = await fetch(`/api/media/${media.id}/retry`, {
-                method: "POST",
-            });
-            if (res.ok) {
-                // Status will update via polling/SSE; for now reload
-                window.location.reload();
-            }
-        } catch (err) {
-            console.error("Failed to retry download:", err);
-        } finally {
-            retrying = false;
+            await retryMutation.mutateAsync({ id: media.id });
+        } catch (error) {
+            console.error("Failed to retry download:", error);
         }
     }
 

@@ -2,8 +2,7 @@
     import IndexerManager from "$lib/components/IndexerManager.svelte";
 
     // Props
-    let { prowlarrUrl, hasApiKey } = $props<{
-        prowlarrUrl: string;
+    let { hasApiKey } = $props<{
         hasApiKey: boolean;
     }>();
 </script>
@@ -15,7 +14,7 @@
     </div>
 
     {#if hasApiKey}
-        <IndexerManager {prowlarrUrl} useStoredConfig />
+        <IndexerManager />
     {:else}
         <div class="bg-muted/30 p-8 rounded-xl text-center border border-dashed">
             <h3 class="font-semibold mb-2 text-balance">Configuration Required</h3>

@@ -5,6 +5,11 @@
     import IndexerManager from "$lib/components/IndexerManager.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Input from "$lib/components/ui/Input.svelte";
+    import {
+        type ConnectionTarget,
+        createTestSettingsConnectionMutation,
+        type TestSettingsConnectionInput,
+    } from "$lib/mutations/settings-mutations";
     import type { ActionData, PageData } from "./$types";
 
     interface SectionLink {
@@ -14,6 +19,7 @@
     }
 
     let { data, form } = $props<{ data: PageData; form?: ActionData }>();
+    const testConnectionMutation = createTestSettingsConnectionMutation();
 
     let formElement = $state<HTMLFormElement | null>(null);
     let saving = $state(false);
@@ -51,7 +57,7 @@
         return "text-muted-foreground";
     }
 
-    function buildTestConnectionRequestBody(target: "tmdb" | "opensubtitles" | "prowlarr"): Record<string, string> {
+    function buildTestConnectionRequestBody(target: ConnectionTarget): TestSettingsConnectionInput {
         if (!formElement) {
             return { target };
         }
@@ -68,7 +74,7 @@
     }
 
     function applyConnectionResult(
-        target: "tmdb" | "opensubtitles" | "prowlarr",
+        target: ConnectionTarget,
         success: boolean,
         message: string,
         showToast: boolean
@@ -85,7 +91,7 @@
         toast.error(message);
     }
 
-    async function testConnection(target: "tmdb" | "opensubtitles" | "prowlarr", showToast = true): Promise<void> {
+    async function testConnection(target: ConnectionTarget, showToast = true): Promise<void> {
         if (!formElement) {
             return;
         }
@@ -94,15 +100,10 @@
         connectionMessages[target] = "";
 
         try {
-            const response = await fetch("/api/settings/test-connection", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(buildTestConnectionRequestBody(target)),
-            });
-            const result = (await response.json()) as { success: boolean; message: string };
+            const result = await testConnectionMutation.mutateAsync(buildTestConnectionRequestBody(target));
             applyConnectionResult(target, result.success, result.message, showToast);
-        } catch (err) {
-            const message = err instanceof Error ? err.message : "Connection failed";
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Connection failed";
             applyConnectionResult(target, false, message, showToast);
         }
     }
@@ -454,7 +455,7 @@
                             />
                         </summary>
                         <div class="border-t border-border p-4">
-                            <IndexerManager {prowlarrUrl} {prowlarrApiKey} />
+                            <IndexerManager />
                         </div>
                     </details>
                 </div>

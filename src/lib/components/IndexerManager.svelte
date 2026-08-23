@@ -3,48 +3,18 @@
     import { onMount } from "svelte";
     import { toast } from "svelte-sonner";
     import Button from "$lib/components/ui/Button.svelte";
+    import {
+        createAddProwlarrIndexerMutation,
+        createDeleteProwlarrIndexerMutation,
+        createTestProwlarrConnectionMutation,
+    } from "$lib/mutations/prowlarr-mutations";
+    import {
+        createProwlarrIndexerSchemasQuery,
+        createProwlarrIndexersQuery,
+        type ProwlarrIndexerSchema,
+    } from "$lib/queries/prowlarr-queries";
     import { confirmDelete } from "$lib/ui-state.svelte";
 
-    // Props
-    let {
-        prowlarrUrl = "",
-        prowlarrApiKey = "",
-        useStoredConfig = false,
-    } = $props<{
-        prowlarrUrl?: string;
-        prowlarrApiKey?: string;
-        useStoredConfig?: boolean;
-    }>();
-
-    // Types
-    interface Indexer {
-        id: number;
-        name: string;
-        protocol: string;
-    }
-
-    interface IndexerSchema {
-        name: string;
-        implementation: string;
-        protocol?: string;
-    }
-
-    // State
-    let connection = $state<{ status: "checking" } | { status: "connected" } | { status: "failed"; message: string }>({
-        status: "checking",
-    });
-
-    let indexers = $state<Indexer[]>([]);
-    let schemas = $state<IndexerSchema[]>([]);
-    let loadingIndexers = $state(false);
-
-    let advancedOpen = $state(false);
-    let selectedImplementation = $state("");
-
-    // Derived sorted schemas (don't mutate state in template)
-    let sortedSchemas = $derived([...schemas].sort((a, b) => a.name.localeCompare(b.name)));
-
-    // Constants
     const PACKAGES = [
         {
             id: "general",
@@ -69,68 +39,37 @@
         },
     ];
 
-    // Actions
+    let connection = $state<{ status: "checking" } | { status: "connected" } | { status: "failed"; message: string }>({
+        status: "checking",
+    });
+    let advancedOpen = $state(false);
+    let selectedImplementation = $state("");
+
+    const addIndexerMutation = createAddProwlarrIndexerMutation();
+    const deleteIndexerMutation = createDeleteProwlarrIndexerMutation();
+    const testConnectionMutation = createTestProwlarrConnectionMutation();
+    const indexersQuery = createProwlarrIndexersQuery(() => connection.status === "connected");
+    const schemasQuery = createProwlarrIndexerSchemasQuery(() => connection.status === "connected");
+
+    const indexers = $derived(indexersQuery.data ?? []);
+    const schemas = $derived(schemasQuery.data ?? []);
+    const sortedSchemas = $derived([...schemas].sort((a, b) => a.name.localeCompare(b.name)));
+    const loadingIndexers = $derived(
+        connection.status === "connected" && (indexersQuery.isPending || schemasQuery.isPending)
+    );
+
     async function testConnection() {
         connection = { status: "checking" };
-
-        let config: { url?: string; apiKey?: string } = {};
-        if (!useStoredConfig) {
-            const url = prowlarrUrl.trim();
-            const apiKey = prowlarrApiKey.trim();
-
-            if (!(url && apiKey)) {
-                connection = {
-                    status: "failed",
-                    message: "Prowlarr URL and API key are required.",
-                };
-                return;
-            }
-
-            try {
-                const parsedUrl = new URL(url);
-                if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-                    connection = {
-                        status: "failed",
-                        message: "Prowlarr URL must be a valid HTTP or HTTPS URL.",
-                    };
-                    return;
-                }
-            } catch {
-                connection = {
-                    status: "failed",
-                    message: "Prowlarr URL must be a valid HTTP or HTTPS URL.",
-                };
-                return;
-            }
-
-            let normalizedUrl = url;
-            while (normalizedUrl.endsWith("/")) {
-                normalizedUrl = normalizedUrl.slice(0, -1);
-            }
-            config = { url: normalizedUrl, apiKey };
-        }
-
         try {
-            const res = await fetch("/api/prowlarr/test", {
-                method: "POST",
-                body: JSON.stringify(config),
-                headers: { "Content-Type": "application/json" },
-            });
-            const data = (await res.json().catch(() => null)) as {
-                success?: boolean;
-                message?: string;
-                error?: string;
-            } | null;
-
-            if (res.ok && data?.success === true) {
+            const result = await testConnectionMutation.mutateAsync({});
+            if (result.success) {
                 connection = { status: "connected" };
-                await loadIndexers();
-            } else {
-                connection = {
-                    status: "failed",
-                    message: data?.message || data?.error || `Connection test failed (${res.status}).`,
-                };
+                return;
             }
+            connection = {
+                status: "failed",
+                message: result.message || result.error || "Connection test failed.",
+            };
         } catch (error) {
             connection = {
                 status: "failed",
@@ -139,104 +78,55 @@
         }
     }
 
-    async function loadIndexers() {
-        loadingIndexers = true;
-        try {
-            const [idxRes, schemaRes] = await Promise.all([
-                fetch("/api/prowlarr/indexer"),
-                fetch("/api/prowlarr/indexer/schema"),
-            ]);
-
-            if (idxRes.ok) {
-                indexers = await idxRes.json();
-            }
-            if (schemaRes.ok) {
-                schemas = await schemaRes.json();
-            }
-        } catch (e) {
-            console.error("Failed to load indexers", e);
-        } finally {
-            loadingIndexers = false;
-        }
-    }
-
-    async function addIndexer(schema: IndexerSchema) {
+    async function addIndexer(schema: ProwlarrIndexerSchema) {
         const toastId = toast.loading(`Adding ${schema.name}...`);
         try {
-            const res = await fetch("/api/prowlarr/indexer", {
-                method: "POST",
-                body: JSON.stringify(schema),
-                headers: { "Content-Type": "application/json" },
-            });
-
-            if (res.ok) {
-                toast.success(`${schema.name} added`, { id: toastId });
-                loadIndexers();
-            } else {
-                toast.error(`Failed to add ${schema.name}`, { id: toastId });
-            }
-        } catch (e) {
-            toast.error("Network error", { id: toastId });
+            await addIndexerMutation.mutateAsync(schema);
+            toast.success(`${schema.name} added`, { id: toastId });
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : `Failed to add ${schema.name}`, { id: toastId });
         }
     }
 
-    async function deleteIndexer(id: number, name: string) {
+    function deleteIndexer(id: number, name: string) {
         confirmDelete(`Remove ${name}?`, "Are you sure you want to remove this indexer?", async () => {
             try {
-                const res = await fetch(`/api/prowlarr/indexer?id=${id}`, {
-                    method: "DELETE",
-                });
-                if (res.ok) {
-                    toast.success("Indexer removed");
-                    loadIndexers();
-                } else {
-                    toast.error("Failed to remove indexer");
-                }
-            } catch (e) {
-                toast.error("Network error");
+                await deleteIndexerMutation.mutateAsync(id);
+                toast.success("Indexer removed");
+            } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Failed to remove indexer");
             }
         });
     }
 
-    async function applyPackage(pkg: (typeof PACKAGES)[0]) {
+    async function applyPackage(pkg: (typeof PACKAGES)[number]) {
         const toastId = toast.loading(`Configuring ${pkg.name}...`);
         let addedCount = 0;
         let skippedCount = 0;
 
         for (const indexerName of pkg.indexers) {
-            // Check if already exists
-            if (indexers.some((i) => i.name === indexerName)) {
+            if (indexers.some((indexer) => indexer.name === indexerName)) {
                 continue;
             }
-
-            // Find schema
-            const schema = schemas.find((s) => s.name === indexerName);
+            const schema = schemas.find((candidate) => candidate.name === indexerName);
             if (!schema) {
-                console.warn(`Schema for ${indexerName} not found`);
                 skippedCount++;
                 continue;
             }
-
-            // Add
             try {
-                const res = await fetch("/api/prowlarr/indexer", {
-                    method: "POST",
-                    body: JSON.stringify(schema),
-                    headers: { "Content-Type": "application/json" },
-                });
-                if (res.ok) {
-                    addedCount++;
-                } else {
-                    skippedCount++;
-                }
+                await addIndexerMutation.mutateAsync(schema);
+                addedCount++;
             } catch {
                 skippedCount++;
             }
         }
 
-        loadIndexers();
         const summary = skippedCount > 0 ? `${addedCount} added, ${skippedCount} skipped` : `${addedCount} added`;
         toast.success(`Package applied: ${summary}`, { id: toastId });
+    }
+
+    async function refreshIndexers() {
+        await Promise.all([indexersQuery.refetch(), schemasQuery.refetch()]);
     }
 
     onMount(() => {
@@ -271,7 +161,7 @@
         <div class="rounded-lg border bg-card">
             <div class="p-4 border-b flex justify-between items-center">
                 <h3 class="font-semibold">Configured Indexers ({indexers.length})</h3>
-                <Button variant="ghost" size="sm" type="button" onclick={loadIndexers} disabled={loadingIndexers}>
+                <Button variant="ghost" size="sm" type="button" onclick={refreshIndexers} disabled={loadingIndexers}>
                     <RefreshCw class="w-4 h-4 {loadingIndexers ? 'animate-spin' : ''}" />
                 </Button>
             </div>
@@ -362,20 +252,20 @@
     {:else}
         <div class="rounded-lg border border-destructive/50 bg-card p-6" role="alert">
             <h3 class="font-semibold text-balance">Prowlarr connection failed</h3>
-            <p class="mt-2 text-sm text-muted-foreground text-pretty">{connection.message}</p>
+            <p class="mt-2 text-sm text-muted-foreground text-pretty">
+                There is an issue with your prowlarr configuration. Review your settings and try again.
+            </p>
             <div class="mt-4 flex flex-wrap gap-3">
                 <Button type="button" variant="outline" onclick={testConnection}>
                     <RefreshCw class="mr-2 size-4" aria-hidden="true" />
                     Retry
                 </Button>
-                {#if useStoredConfig}
-                    <a
-                        href="/settings#prowlarr"
-                        class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                    >
-                        Review settings
-                    </a>
-                {/if}
+                <a
+                    href="/settings#prowlarr"
+                    class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                    Review settings
+                </a>
             </div>
         </div>
     {/if}

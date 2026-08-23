@@ -13,7 +13,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const formData = await request.formData();
 	const file = formData.get("file");
-	const organizationId = locals.session?.activeOrganizationId;
+	const organizationId = formData.get("organizationId")?.toString();
 
 	if (!(file && file instanceof File)) {
 		return json({ error: "No file provided", message: "No file provided" }, { status: 400 });

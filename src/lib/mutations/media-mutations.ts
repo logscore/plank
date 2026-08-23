@@ -137,6 +137,45 @@ export function createDeleteMediaMutation() {
 	return createMutation<string, Error, string, DeleteMediaContext>(() => options);
 }
 
+export interface RetryMediaInput {
+	id: string;
+	mode?: "same" | "replace" | "remove";
+	magnetLink?: string;
+}
+
+export interface RetryMediaResult {
+	success?: boolean;
+	message?: string;
+}
+
+export function createRetryMediaMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation<RetryMediaResult, Error, RetryMediaInput>(() => ({
+		mutationFn: async ({ id, mode, magnetLink }) => {
+			const hasBody = mode !== undefined || magnetLink !== undefined;
+			const response = await fetch(`/api/media/${id}/retry`, {
+				method: "POST",
+				headers: hasBody ? { "Content-Type": "application/json" } : undefined,
+				body: hasBody ? JSON.stringify({ mode, magnetLink }) : undefined,
+			});
+			const result = (await response.json().catch(() => null)) as RetryMediaResult | null;
+			if (!response.ok) {
+				throw new Error(result?.message || "Media action failed");
+			}
+			return result ?? {};
+		},
+		onSuccess: async (_result, input) => {
+			await Promise.all([
+				invalidate("/api/media"),
+				invalidate(`/api/media/${input.id}`),
+				queryClient.invalidateQueries({ queryKey: queryKeys.media.detail(input.id) }),
+				queryClient.invalidateQueries({ queryKey: queryKeys.media.progress(input.id) }),
+			]);
+		},
+	}));
+}
+
 // =============================================================================
 // Subtitle mutations
 // =============================================================================

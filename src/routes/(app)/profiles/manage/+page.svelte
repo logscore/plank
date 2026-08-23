@@ -7,10 +7,12 @@
     import Facehash from "$lib/components/facehash/Facehash.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Input from "$lib/components/ui/Input.svelte";
+    import { createUploadOrganizationLogoMutation } from "$lib/mutations/profile-mutations";
     import { confirmDelete } from "$lib/ui-state.svelte";
     import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
+    const uploadLogoMutation = createUploadOrganizationLogoMutation();
 
     // Create form state
     let newName = $state("");
@@ -101,20 +103,10 @@
         saving = true;
         try {
             if (pendingLogoFile) {
-                const formData = new FormData();
-                formData.append("file", pendingLogoFile);
-                formData.append("organizationId", editingId);
-
-                const logoRes = await fetch("/api/upload/logo", {
-                    method: "POST",
-                    body: formData,
+                await uploadLogoMutation.mutateAsync({
+                    organizationId: editingId,
+                    file: pendingLogoFile,
                 });
-
-                if (!logoRes.ok) {
-                    const err = await logoRes.json();
-                    toast.error(err.message || "Failed to upload logo");
-                    return;
-                }
             }
 
             const res = await authClient.organization.update({
@@ -130,8 +122,8 @@
             toast.success("Profile updated");
             cancelEdit();
             await invalidateAll();
-        } catch {
-            toast.error("Failed to update profile");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to update profile");
         } finally {
             saving = false;
         }
