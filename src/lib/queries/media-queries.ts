@@ -107,24 +107,6 @@ export function createMediaProgressQuery(id: string, options?: { enabled?: boole
 	}));
 }
 
-async function fetchContinueWatching(): Promise<Media[]> {
-	const response = await fetch("/api/media/continue-watching");
-	if (!response.ok) {
-		const err: FetchError = new Error("Failed to fetch continue watching");
-		err.status = response.status;
-		throw err;
-	}
-	return response.json();
-}
-
-export function createContinueWatchingQuery() {
-	return createQuery(() => ({
-		queryKey: queryKeys.media.continueWatching(),
-		queryFn: fetchContinueWatching,
-		staleTime: 30 * 1000,
-	}));
-}
-
 export interface PlayPosition {
 	position: number;
 	duration: number | null;

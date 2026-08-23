@@ -1,5 +1,6 @@
 import type { CreateMutationOptions } from "@tanstack/svelte-query";
 import { createMutation, useQueryClient } from "@tanstack/svelte-query";
+import { invalidate } from "$app/navigation";
 import { queryKeys } from "$lib/query-keys";
 import type { Media, MediaType } from "$lib/types";
 
@@ -45,11 +46,13 @@ export function createAddMediaMutation() {
 
 			return response.json();
 		},
-		onSuccess: () => {
-			// Invalidate media list queries to trigger refetch
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.media.lists(),
-			});
+		onSuccess: async () => {
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: queryKeys.media.lists(),
+				}),
+				invalidate("/api/media"),
+			]);
 		},
 	};
 
@@ -111,11 +114,14 @@ export function createDeleteMediaMutation() {
 				queryClient.setQueryData(queryKeys.media.list("show"), context.previousShows);
 			}
 		},
-		onSettled: (deletedId: string | undefined) => {
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.media.all,
-				refetchType: "all",
-			});
+		onSettled: async (deletedId: string | undefined) => {
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: queryKeys.media.all,
+					refetchType: "all",
+				}),
+				invalidate("/api/media"),
+			]);
 
 			if (deletedId) {
 				queryClient.removeQueries({

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { ArrowLeft, Calendar, Database, EllipsisVertical, Film, Play, RotateCcw, Trash2 } from "@lucide/svelte";
-    import { goto, replaceState } from "$app/navigation";
+    import { goto, invalidate, replaceState } from "$app/navigation";
     import { page } from "$app/state";
     import DeleteConfirmationModal from "$lib/components/DeleteConfirmationModal.svelte";
     import EpisodeSelector from "$lib/components/EpisodeSelector.svelte";
@@ -12,10 +12,11 @@
     import type { Media, SeasonWithEpisodes } from "$lib/types";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
     import { canPlayEpisode } from "$lib/utils";
+    import type { PageData } from "./$types";
 
-    let media: Media | null = $state(null);
-    let seasons: SeasonWithEpisodes[] = $state([]);
-    let loading = $state(true);
+    let { data } = $props<{ data: PageData }>();
+    const media: Media = $derived(data.media);
+    const seasons: SeasonWithEpisodes[] = $derived(data.seasons);
     let selectedSeason = $state<number | null>(null);
     let deleting = $state(false);
     let retryingEpisodeIds = $state<Set<string>>(new Set());
@@ -37,47 +38,6 @@
         subtitleDialogEpisodeNumber = episode.episodeNumber;
         subtitleDialogTitle = `${media?.title} - S${String(currentSeason?.seasonNumber ?? 0).padStart(2, "0")}E${String(episode.episodeNumber).padStart(2, "0")}`;
         openSubtitlesDialogOpen = true;
-    }
-
-    async function loadShow(showSpinner = true) {
-        if (showSpinner) {
-            loading = true;
-        }
-        try {
-            const [mediaRes, seasonsRes] = await Promise.all([
-                fetch(`/api/media/${page.params.id}`),
-                fetch(`/api/media/${page.params.id}/seasons`),
-            ]);
-
-            if (mediaRes.ok) {
-                media = await mediaRes.json();
-            }
-            if (seasonsRes.ok) {
-                const nextSeasons = (await seasonsRes.json()) as SeasonWithEpisodes[];
-                const requestedSeason = getSelectedSeasonFromUrl();
-                seasons = nextSeasons;
-
-                if (nextSeasons.length === 0) {
-                    selectedSeason = null;
-                } else if (
-                    requestedSeason !== null &&
-                    nextSeasons.some((season) => season.seasonNumber === requestedSeason)
-                ) {
-                    selectedSeason = requestedSeason;
-                } else if (
-                    selectedSeason === null ||
-                    !nextSeasons.some((season) => season.seasonNumber === selectedSeason)
-                ) {
-                    selectedSeason = nextSeasons[0].seasonNumber;
-                }
-            }
-        } catch (e) {
-            console.error("Failed to load show:", e);
-        } finally {
-            if (showSpinner) {
-                loading = false;
-            }
-        }
     }
 
     function handlePlayEpisode(episode: Media) {
@@ -184,7 +144,7 @@
             if (!response.ok) {
                 throw new Error(result?.message || "Episode action failed");
             }
-            await loadShow(false);
+            await invalidate(`/api/media/${media.id}`);
             return true;
         } catch (error) {
             console.error("Failed to run episode retry action:", error);
@@ -371,7 +331,18 @@
     });
 
     $effect(() => {
-        loadShow();
+        const requestedSeason = getSelectedSeasonFromUrl();
+        if (seasons.length === 0) {
+            selectedSeason = null;
+            return;
+        }
+        if (requestedSeason !== null && seasons.some((season) => season.seasonNumber === requestedSeason)) {
+            selectedSeason = requestedSeason;
+            return;
+        }
+        if (selectedSeason === null || !seasons.some((season) => season.seasonNumber === selectedSeason)) {
+            selectedSeason = seasons[0].seasonNumber;
+        }
     });
 
     $effect(() => {
@@ -382,7 +353,7 @@
             return;
         }
         const interval = window.setInterval(() => {
-            loadShow(false);
+            invalidate(`/api/media/${media.id}`);
         }, 5000);
         return () => {
             window.clearInterval(interval);
@@ -396,11 +367,7 @@
     <title>{media?.title ?? "Show"} | Plank</title>
 </svelte:head>
 
-{#if loading}
-    <div class="flex items-center justify-center min-h-screen">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
-{:else if media}
+{#if media}
     <!-- Hero Section -->
     <div class="min-h-screen bg-background pb-12">
         <!-- Hero Section with Backdrop -->

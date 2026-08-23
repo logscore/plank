@@ -1,42 +1,20 @@
 <script lang="ts">
     import { Film, Tv } from "@lucide/svelte";
-    import { createQuery } from "@tanstack/svelte-query";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import ContinueWatchingCard from "$lib/components/ContinueWatchingCard.svelte";
     import MediaCard from "$lib/components/MediaCard.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import { createDeleteMediaMutation } from "$lib/mutations/media-mutations";
-    import { createContinueWatchingQuery, fetchMediaList } from "$lib/queries/media-queries";
-    import { queryKeys } from "$lib/query-keys";
     import { confirmDelete } from "$lib/ui-state.svelte";
+    import type { PageData } from "./$types";
 
-    // Query hooks for movies and TV shows
-    const moviesQuery = createQuery(() => ({
-        queryKey: queryKeys.media.list("movie"),
-        queryFn: () => fetchMediaList("movie"),
-        staleTime: 2 * 60 * 1000, // 2 minutes
-    }));
+    let { data } = $props<{ data: PageData }>();
 
-    const showsQuery = createQuery(() => ({
-        queryKey: queryKeys.media.list("show"),
-        queryFn: () => fetchMediaList("show"),
-        staleTime: 2 * 60 * 1000, // 2 minutes
-    }));
-
-    // Continue watching
-    const continueWatchingQuery = createContinueWatchingQuery();
-    const continueWatching = $derived(continueWatchingQuery.data ?? []);
-
-    // Mutation hooks
     const deleteMutation = createDeleteMediaMutation();
-
-    // Reactive derived values from queries
-    // In TanStack Svelte Query v6 with Svelte 5, the query returns a reactive object directly
-    const movies = $derived(moviesQuery.data ?? []);
-    const shows = $derived(showsQuery.data ?? []);
-    const loading = $derived(moviesQuery.isLoading || showsQuery.isLoading);
-    const queryError = $derived(moviesQuery.error || showsQuery.error);
+    const movies = $derived(data.movies);
+    const shows = $derived(data.shows);
+    const continueWatching = $derived(data.continueWatching);
 
     // UI State
     const activeTab = $derived((page.url.searchParams.get("type") as "movies" | "shows") || "movies");
@@ -122,23 +100,7 @@
 
     <!-- Content -->
     <div class="container max-w-7xl mx-auto px-4 py-8">
-        {#if loading}
-            <div class="flex items-center justify-center p-20">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-        {:else if queryError}
-            <div class="flex flex-col items-center justify-center p-20 text-center space-y-4">
-                <p class="text-destructive">Failed to load library: {queryError.message}</p>
-                <Button
-                    onclick={() => {
-                        moviesQuery.refetch();
-                        showsQuery.refetch();
-                    }}
-                >
-                    Retry
-                </Button>
-            </div>
-        {:else if activeTab === "movies"}
+        {#if activeTab === "movies"}
             {#if movies.length === 0}
                 <div class="flex flex-col items-center justify-center p-20 text-center space-y-4">
                     <div class="p-6 rounded-full bg-accent/30">
