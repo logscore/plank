@@ -6,9 +6,14 @@
     import { confirmDelete } from "$lib/ui-state.svelte";
 
     // Props
-    let { prowlarrUrl, prowlarrApiKey } = $props<{
-        prowlarrUrl: string;
-        prowlarrApiKey: string;
+    let {
+        prowlarrUrl = "",
+        prowlarrApiKey = "",
+        useStoredConfig = false,
+    } = $props<{
+        prowlarrUrl?: string;
+        prowlarrApiKey?: string;
+        useStoredConfig?: boolean;
     }>();
 
     // Types
@@ -25,7 +30,9 @@
     }
 
     // State
-    let connectionStatus = $state<"connected" | "failed" | "unchecked">("unchecked");
+    let connection = $state<{ status: "checking" } | { status: "connected" } | { status: "failed"; message: string }>({
+        status: "checking",
+    });
 
     let indexers = $state<Indexer[]>([]);
     let schemas = $state<IndexerSchema[]>([]);
@@ -64,27 +71,71 @@
 
     // Actions
     async function testConnection() {
-        connectionStatus = "unchecked";
+        connection = { status: "checking" };
+
+        let config: { url?: string; apiKey?: string } = {};
+        if (!useStoredConfig) {
+            const url = prowlarrUrl.trim();
+            const apiKey = prowlarrApiKey.trim();
+
+            if (!(url && apiKey)) {
+                connection = {
+                    status: "failed",
+                    message: "Prowlarr URL and API key are required.",
+                };
+                return;
+            }
+
+            try {
+                const parsedUrl = new URL(url);
+                if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+                    connection = {
+                        status: "failed",
+                        message: "Prowlarr URL must be a valid HTTP or HTTPS URL.",
+                    };
+                    return;
+                }
+            } catch {
+                connection = {
+                    status: "failed",
+                    message: "Prowlarr URL must be a valid HTTP or HTTPS URL.",
+                };
+                return;
+            }
+
+            let normalizedUrl = url;
+            while (normalizedUrl.endsWith("/")) {
+                normalizedUrl = normalizedUrl.slice(0, -1);
+            }
+            config = { url: normalizedUrl, apiKey };
+        }
 
         try {
             const res = await fetch("/api/prowlarr/test", {
                 method: "POST",
-                body: JSON.stringify({
-                    url: prowlarrUrl,
-                    apiKey: prowlarrApiKey,
-                }),
+                body: JSON.stringify(config),
                 headers: { "Content-Type": "application/json" },
             });
-            const data = await res.json();
+            const data = (await res.json().catch(() => null)) as {
+                success?: boolean;
+                message?: string;
+                error?: string;
+            } | null;
 
-            if (data.success) {
-                connectionStatus = "connected";
-                loadIndexers();
+            if (res.ok && data?.success === true) {
+                connection = { status: "connected" };
+                await loadIndexers();
             } else {
-                connectionStatus = "failed";
+                connection = {
+                    status: "failed",
+                    message: data?.message || data?.error || `Connection test failed (${res.status}).`,
+                };
             }
-        } catch (e) {
-            connectionStatus = "failed";
+        } catch (error) {
+            connection = {
+                status: "failed",
+                message: error instanceof Error ? error.message : "Unable to reach Prowlarr.",
+            };
         }
     }
 
@@ -189,17 +240,12 @@
     }
 
     onMount(() => {
-        if (prowlarrUrl && prowlarrApiKey) {
-            testConnection();
-        } else if (prowlarrUrl && prowlarrApiKey === "") {
-            // Case where API key is managed by server (empty string passed)
-            testConnection();
-        }
+        testConnection();
     });
 </script>
 
 <div class="space-y-6">
-    {#if connectionStatus === "connected"}
+    {#if connection.status === "connected"}
         <!-- Quick Setup -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             {#each PACKAGES as pkg}
@@ -303,6 +349,34 @@
                     </div>
                 </div>
             {/if}
+        </div>
+    {:else if connection.status === "checking"}
+        <div
+            class="flex items-center justify-center gap-3 rounded-lg border bg-card p-8 text-sm text-muted-foreground"
+            role="status"
+            aria-live="polite"
+        >
+            <RefreshCw class="size-4 animate-spin" aria-hidden="true" />
+            Checking Prowlarr configuration...
+        </div>
+    {:else}
+        <div class="rounded-lg border border-destructive/50 bg-card p-6" role="alert">
+            <h3 class="font-semibold text-balance">Prowlarr connection failed</h3>
+            <p class="mt-2 text-sm text-muted-foreground text-pretty">{connection.message}</p>
+            <div class="mt-4 flex flex-wrap gap-3">
+                <Button type="button" variant="outline" onclick={testConnection}>
+                    <RefreshCw class="mr-2 size-4" aria-hidden="true" />
+                    Retry
+                </Button>
+                {#if useStoredConfig}
+                    <a
+                        href="/settings#prowlarr"
+                        class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                    >
+                        Review settings
+                    </a>
+                {/if}
+            </div>
         </div>
     {/if}
 </div>
