@@ -10,5 +10,8 @@ const dbPath = process.env.DATABASE_URL;
 // }
 const sqlite = new Database(dbPath);
 sqlite.pragma("journal_mode = WAL");
+// Let SQLite checkpoint after 1000 WAL pages and truncate the file after each successful reset.
+sqlite.pragma("wal_autocheckpoint = 1000");
+sqlite.pragma("journal_size_limit = 0");
 
 export const db = drizzle(sqlite, { schema });
