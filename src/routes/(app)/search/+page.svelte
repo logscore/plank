@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Clock, Film, LoaderCircle, Search } from "@lucide/svelte";
+    import { Clock, Film, LoaderCircle, Search, SearchIcon } from "@lucide/svelte";
     import { onDestroy, untrack } from "svelte";
     import { goto } from "$app/navigation";
     import CardSkeleton from "$lib/components/CardSkeleton.svelte";
@@ -43,6 +43,9 @@
     let loadingMore = $state(false);
     let loadMoreController: AbortController | null = null;
     let loadMoreTrigger: HTMLDivElement | null = $state(null);
+
+    // The query the current results belong to. Empty means nothing was searched yet.
+    const searchedQuery = $derived(data.request.query.trim());
 
     let historyOpen = $state(false);
     const historyMatches = $derived.by(() => {
@@ -492,29 +495,28 @@
             </div>
         {:else}
             {#if getResponseItemCount(response) === 0}
-                <div
-                    class="mx-auto flex max-w-xl flex-col items-center justify-center rounded-3xl border border-dashed border-white/15 bg-white/3 px-6 py-16 text-center"
-                >
+                <div class="mx-auto flex max-w-xl flex-col items-center justify-center px-6 py-16 text-center">
                     <div class="rounded-full bg-white/5 p-4">
-                        <Film class="h-8 w-8 text-muted-foreground" />
+                        <SearchIcon class="h-8 w-8 text-muted-foreground" />
                     </div>
-                    <h2 class="mt-4 text-lg font-semibold text-white">
-                        {query ? "No matching titles on this page" : "No titles match these filters on this page"}
-                    </h2>
-                    <p class="mt-1 text-sm text-muted-foreground">
-                        {response.nextPage === null
-                            ? "Change the search text or clear one or more filters."
-                            : "Continue to the next page or change the filters."}
-                    </p>
-                    {#if response.nextPage !== null}
-                        <Button
-                            variant="secondary"
-                            class="mt-5 min-w-36 rounded-xl"
-                            disabled={loadingMore}
-                            onclick={loadMore}
-                        >
-                            {loadingMore ? "Loading..." : "Load the next page"}
-                        </Button>
+                    {#if searchedQuery === ""}
+                        <h2 class="mt-4 text-lg font-semibold text-white">Search for a movie or show</h2>
+                        <p class="mt-1 text-sm text-muted-foreground">Type a title and press Enter.</p>
+                    {:else}
+                        <h2 class="mt-4 text-lg font-semibold text-white">No matching titles on this page</h2>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Change the search query or clear one or more filters.
+                        </p>
+                        {#if response.nextPage !== null}
+                            <Button
+                                variant="secondary"
+                                class="mt-5 min-w-36 rounded-xl"
+                                disabled={loadingMore}
+                                onclick={loadMore}
+                            >
+                                {loadingMore ? "Loading..." : "Load the next page"}
+                            </Button>
+                        {/if}
                     {/if}
                 </div>
             {:else}

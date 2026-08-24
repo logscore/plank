@@ -135,14 +135,12 @@
         </div>
 
         {#if response.items.length === 0}
-            <div
-                class="flex flex-col items-center justify-center rounded-3xl border border-dashed border-white/15 bg-white/3 px-6 py-16 text-center"
-            >
+            <div class="flex flex-col items-center justify-centerpx-6 py-16 text-center">
                 <div class="rounded-full bg-white/5 p-5">
                     <Film class="h-9 w-9 text-muted-foreground" />
                 </div>
-                <h3 class="mt-4 text-lg font-semibold text-white">No titles match these filters</h3>
-                <p class="mt-1 max-w-sm text-sm text-muted-foreground">Clear a filter or add a title from Search.</p>
+                <h3 class="mt-4 text-lg font-semibold text-white">No titles found</h3>
+                <p class="mt-1 max-w-sm text-sm text-muted-foreground">Clear a filter or add a title in browse.</p>
             </div>
         {:else}
             <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">

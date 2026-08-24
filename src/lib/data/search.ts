@@ -128,6 +128,17 @@ function seasonsFromJson(
 	);
 }
 
+export function emptyCatalogSearchResponse(scope: SearchScope): CatalogSearchResponse {
+	switch (scope) {
+		case "catalog":
+			return { scope: "catalog", items: [], nextPage: null };
+		case "library":
+			return { scope: "library", items: [], seasonsByMediaId: {}, nextPage: null };
+		default:
+			return { scope: "all", libraryItems: [], catalogItems: [], seasonsByMediaId: {}, nextPage: null };
+	}
+}
+
 export function toCatalogSearchJson(response: CatalogSearchResponse): CatalogSearchJsonResponse {
 	if (response.scope === "catalog") {
 		return response;
