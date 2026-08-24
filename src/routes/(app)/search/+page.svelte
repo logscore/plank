@@ -2,6 +2,7 @@
     import { Clock, Film, LoaderCircle, Search } from "@lucide/svelte";
     import { onDestroy, untrack } from "svelte";
     import { goto } from "$app/navigation";
+    import CardSkeleton from "$lib/components/CardSkeleton.svelte";
     import CatalogFilterButton from "$lib/components/CatalogFilterButton.svelte";
     import MediaCard from "$lib/components/MediaCard.svelte";
     import TorrentCard from "$lib/components/TorrentCard.svelte";
@@ -41,6 +42,7 @@
     let searching = $state(false);
     let loadingMore = $state(false);
     let loadMoreController: AbortController | null = null;
+    let loadMoreTrigger: HTMLDivElement | null = $state(null);
 
     let historyOpen = $state(false);
     const historyMatches = $derived.by(() => {
@@ -148,6 +150,23 @@
         searchHistory.record(entry);
         await performSearch();
     }
+
+    // Infinite scroll: fetch the next page when the sentinel nears the viewport.
+    $effect(() => {
+        if (!loadMoreTrigger) {
+            return;
+        }
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    loadMore();
+                }
+            },
+            { rootMargin: "300px" }
+        );
+        observer.observe(loadMoreTrigger);
+        return () => observer.disconnect();
+    });
 
     async function applyFilters(nextFilters: CatalogFilters) {
         await performSearch(nextFilters);
@@ -487,6 +506,16 @@
                             ? "Change the search text or clear one or more filters."
                             : "Continue to the next page or change the filters."}
                     </p>
+                    {#if response.nextPage !== null}
+                        <Button
+                            variant="secondary"
+                            class="mt-5 min-w-36 rounded-xl"
+                            disabled={loadingMore}
+                            onclick={loadMore}
+                        >
+                            {loadingMore ? "Loading..." : "Load the next page"}
+                        </Button>
+                    {/if}
                 </div>
             {:else}
                 <div class="mb-4 flex items-center justify-between gap-4">
@@ -502,20 +531,19 @@
                     {:else}
                         {@render renderCatalogResults(response.items)}
                     {/if}
-                </div>
-            {/if}
 
-            {#if response.nextPage !== null}
-                <div class="mt-10 flex justify-center">
-                    <Button variant="secondary" class="min-w-36 rounded-xl" disabled={loadingMore} onclick={loadMore}>
-                        {#if loadingMore}
-                            <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-                            Loading...
-                        {:else}
-                            Load more
-                        {/if}
-                    </Button>
+                    {#if loadingMore}
+                        {#each { length: 5 } as _}
+                            <CardSkeleton />
+                        {/each}
+                    {/if}
                 </div>
+
+                {#if response.nextPage !== null}
+                    <div bind:this={loadMoreTrigger} class="flex justify-center py-12">
+                        <span class="block h-6"></span>
+                    </div>
+                {/if}
             {/if}
         {/if}
     </section>
