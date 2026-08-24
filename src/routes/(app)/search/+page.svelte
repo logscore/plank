@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Film, LoaderCircle, Search } from "@lucide/svelte";
+    import { Clock, Film, LoaderCircle, Search } from "@lucide/svelte";
     import { onDestroy, untrack } from "svelte";
     import { goto } from "$app/navigation";
     import CatalogFilterButton from "$lib/components/CatalogFilterButton.svelte";
@@ -24,6 +24,7 @@
         type SearchScope,
         serializeCatalogSearch,
     } from "$lib/data/search";
+    import { searchHistory } from "$lib/search-history.svelte";
     import type { CatalogSeason, Media, SeasonWithEpisodes } from "$lib/types";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
     import type { PageData } from "./$types";
@@ -34,10 +35,20 @@
         untrack(() => ({ ...data.request.filters, genres: [...data.request.filters.genres] }))
     );
     let response = $state<CatalogSearchResponse>(untrack(() => data.response));
+    // The query this page last sent to the server. It keeps an in-flight search
+    // from overwriting characters typed while the results were loading.
+    let syncedQuery = untrack(() => data.request.query);
     let searching = $state(false);
     let loadingMore = $state(false);
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let loadMoreController: AbortController | null = null;
+
+    let historyOpen = $state(false);
+    const historyMatches = $derived.by(() => {
+        const needle = query.trim().toLowerCase();
+        return searchHistory.entries.filter(
+            (entry) => entry.toLowerCase() !== needle && entry.toLowerCase().includes(needle)
+        );
+    });
 
     let magnetInput = $state("");
     let error = $state("");
@@ -52,7 +63,11 @@
     const addToLibraryMutation = createAddFromBrowseMutation();
 
     $effect(() => {
-        query = data.request.query;
+        const incomingQuery = data.request.query;
+        if (incomingQuery !== syncedQuery) {
+            syncedQuery = incomingQuery;
+            query = incomingQuery;
+        }
         filters = { ...data.request.filters, genres: [...data.request.filters.genres] };
         response = data.response;
     });
@@ -76,16 +91,13 @@
     }
 
     async function performSearch(nextFilters: CatalogFilters = filters) {
-        if (debounceTimer) {
-            clearTimeout(debounceTimer);
-            debounceTimer = null;
-        }
         loadMoreController?.abort();
         loadMoreController = null;
         loadingMore = false;
         filters = { ...nextFilters, genres: [...nextFilters.genres] };
+        syncedQuery = query.trim();
         const params = serializeCatalogSearch({
-            query: query.trim(),
+            query: syncedQuery,
             page: 1,
             filters,
         });
@@ -103,13 +115,38 @@
         }
     }
 
-    function handleInput() {
-        if (debounceTimer) {
-            clearTimeout(debounceTimer);
+    async function handleSearchKeydown(event: KeyboardEvent) {
+        if (event.key === "Escape") {
+            historyOpen = false;
+            return;
         }
-        debounceTimer = setTimeout(async () => {
+        if (event.key === "Enter") {
+            historyOpen = false;
+            searchHistory.record(query);
             await performSearch();
-        }, 400);
+        }
+    }
+
+    function handleSearchFocusOut(event: FocusEvent) {
+        const container = event.currentTarget as HTMLElement;
+        const next = event.relatedTarget as Node | null;
+        if (next && container.contains(next)) {
+            return;
+        }
+        historyOpen = false;
+    }
+
+    // Buttons do not take focus on mousedown in every browser, so block the
+    // default to keep the input focused and let the click land before focusout.
+    function keepSearchFocus(event: MouseEvent) {
+        event.preventDefault();
+    }
+
+    async function selectHistoryEntry(entry: string) {
+        historyOpen = false;
+        query = entry;
+        searchHistory.record(entry);
+        await performSearch();
     }
 
     async function applyFilters(nextFilters: CatalogFilters) {
@@ -342,9 +379,6 @@
     }
 
     onDestroy(() => {
-        if (debounceTimer) {
-            clearTimeout(debounceTimer);
-        }
         loadMoreController?.abort();
     });
 </script>
@@ -380,25 +414,54 @@
         <h1 class="text-2xl font-semibold tracking-tight text-white">Search</h1>
         <p class="mt-1 text-sm text-muted-foreground">Find movies, TV shows, or something already in your library.</p>
         <div class="mt-5 flex items-center gap-2" role="search">
-            <label class="relative min-w-0 flex-1">
-                <span class="sr-only">Search titles</span>
-                <Search
-                    class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground"
-                />
-                <input
-                    type="search"
-                    bind:value={query}
-                    oninput={handleInput}
-                    placeholder={getSearchPlaceholder(filters.scope)}
-                    autocomplete="off"
-                    class="h-13 w-full rounded-2xl border border-white/10 bg-white/4 pl-12 pr-4 text-base text-white outline-none transition-colors placeholder:text-muted-foreground hover:bg-white/6 focus:border-white/20 focus:bg-white/6 focus:ring-2 focus:ring-primary/25"
-                >
-                {#if searching}
-                    <LoaderCircle
-                        class="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground"
+            <div class="relative min-w-0 flex-1" onfocusout={handleSearchFocusOut}>
+                <label class="relative block">
+                    <span class="sr-only">Search titles</span>
+                    <Search
+                        class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground"
                     />
+                    <input
+                        type="search"
+                        bind:value={query}
+                        oninput={() => (historyOpen = true)}
+                        onfocus={() => (historyOpen = true)}
+                        onkeydown={handleSearchKeydown}
+                        placeholder={getSearchPlaceholder(filters.scope)}
+                        autocomplete="off"
+                        class="h-13 w-full rounded-2xl border border-white/10 bg-white/4 pl-12 pr-4 text-base text-white outline-none transition-colors placeholder:text-muted-foreground hover:bg-white/6 focus:border-white/20 focus:bg-white/6 focus:ring-2 focus:ring-primary/25"
+                    >
+                    {#if searching}
+                        <LoaderCircle
+                            class="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground"
+                        />
+                    {/if}
+                </label>
+                {#if historyOpen && historyMatches.length > 0}
+                    <div
+                        class="absolute inset-x-0 top-full z-70 mt-2 overflow-hidden rounded-2xl border border-white/10 bg-black/97 p-1 shadow-2xl backdrop-blur-2xl"
+                    >
+                        {#each historyMatches as entry (entry)}
+                            <button
+                                type="button"
+                                class="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm text-white hover:bg-white/8"
+                                onmousedown={keepSearchFocus}
+                                onclick={() => selectHistoryEntry(entry)}
+                            >
+                                <Clock class="h-4 w-4 shrink-0 text-muted-foreground" />
+                                <span class="truncate">{entry}</span>
+                            </button>
+                        {/each}
+                        <button
+                            type="button"
+                            class="mt-1 w-full rounded-xl border-t border-white/10 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-white/8 hover:text-white"
+                            onmousedown={keepSearchFocus}
+                            onclick={() => searchHistory.clear()}
+                        >
+                            Clear recent searches
+                        </button>
+                    </div>
                 {/if}
-            </label>
+            </div>
             <CatalogFilterButton {filters} showSource onApply={applyFilters} class="h-13 shrink-0 rounded-2xl" />
         </div>
     </header>
