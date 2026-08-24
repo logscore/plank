@@ -1,7 +1,9 @@
 <script lang="ts">
     import { Film, LogOut, Play, Plus, Search, Settings, User, Users } from "@lucide/svelte";
+    import { DropdownMenu, Tooltip } from "bits-ui";
     import type { Snippet } from "svelte";
     import { fade, fly } from "svelte/transition";
+    import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import { uiState } from "$lib/ui-state.svelte";
     import { cn } from "$lib/utils";
@@ -14,8 +16,6 @@
         children: Snippet;
         logout: () => void;
     } = $props();
-
-    let showAccountMenu = $state(false);
 
     const navItems = [
         { href: "/", icon: Film, label: "Library" },
@@ -30,15 +30,7 @@
             page.url.pathname.startsWith("/profiles/") ||
             page.url.pathname.startsWith("/onboarding")
     );
-
-    function handleClickOutside(e: MouseEvent) {
-        if (showAccountMenu && !(e.target as HTMLElement).closest(".account-menu")) {
-            showAccountMenu = false;
-        }
-    }
 </script>
-
-<svelte:document onclick={handleClickOutside} />
 
 <div
     class={cn(
@@ -48,81 +40,78 @@
 >
     <!-- Account Button - Bottom Right Corner -->
     {#if !hideNav}
-        <div class="fixed bottom-8 right-2 sm:right-8 z-50 account-menu" transition:fly={{ y: 20, duration: 300 }}>
-            <div class="p-1.5 rounded-full border border-white/10 bg-black/80 backdrop-blur-xl shadow-2xl">
-                <button
-                    onclick={() => (showAccountMenu = !showAccountMenu)}
-                    class="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 hover:bg-white/10 cursor-pointer"
-                    aria-label="Account"
-                >
-                    {#if page.data.user?.image}
-                        <img
-                            src={page.data.user.image}
-                            alt={page.data.user.name || "User"}
-                            class="w-12.5 h-12.5 rounded-full object-cover"
-                        >
-                    {:else}
-                        <Facehash
-                            class="rounded-full flex items-center justify-center"
-                            name={page.data.user?.name || ""}
-                            variant="solid"
-                            size={50}
-                            intensity3d="dramatic"
-                        />
-                    {/if}
-                </button>
-            </div>
-
-            <!-- Context Menu -->
-            {#if showAccountMenu}
-                <div
-                    class="absolute bottom-full right-0 mb-4 w-48 rounded-md shadow-lg bg-black/95 border border-white/10 ring-1 ring-black ring-opacity-5 backdrop-blur-md overflow-hidden z-50"
-                    transition:fly={{ y: 10, duration: 150 }}
-                >
-                    <div class="py-1" role="menu">
-                        <a
-                            href="/profiles"
-                            class="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-3"
-                            role="menuitem"
-                            onclick={() => (showAccountMenu = false)}
-                        >
-                            <Users class="w-4 h-4" />
-                            Switch Profile
-                        </a>
-                        <a
-                            href="/account"
-                            class="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-3"
-                            role="menuitem"
-                            onclick={() => (showAccountMenu = false)}
-                        >
-                            <User class="w-4 h-4" />
-                            View Account
-                        </a>
-                        {#if page.data.role === "owner"}
-                            <a
-                                href="/settings"
-                                class="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-3"
-                                role="menuitem"
-                                onclick={() => (showAccountMenu = false)}
+        <div class="fixed right-2 bottom-8 z-50 sm:right-8" transition:fly={{ y: 20, duration: 300 }}>
+            <DropdownMenu.Root>
+                <div class="rounded-full border border-white/10 bg-black/80 p-1.5 shadow-2xl backdrop-blur-xl">
+                    <DropdownMenu.Trigger
+                        class="flex h-12 w-12 items-center justify-center rounded-full transition-all duration-300 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label="Account"
+                    >
+                        {#if page.data.user?.image}
+                            <img
+                                src={page.data.user.image}
+                                alt={page.data.user.name || "User"}
+                                class="h-12.5 w-12.5 rounded-full object-cover"
                             >
-                                <Settings class="w-4 h-4" />
-                                Settings
-                            </a>
+                        {:else}
+                            <Facehash
+                                class="flex items-center justify-center rounded-full"
+                                name={page.data.user?.name || ""}
+                                variant="solid"
+                                size={50}
+                                intensity3d="dramatic"
+                            />
                         {/if}
-                        <button
-                            onclick={() => {
-                                showAccountMenu = false;
-                                logout();
-                            }}
-                            class="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-white/10 flex items-center gap-3"
-                            role="menuitem"
-                        >
-                            <LogOut class="w-4 h-4" />
-                            Sign Out
-                        </button>
-                    </div>
+                    </DropdownMenu.Trigger>
                 </div>
-            {/if}
+
+                <DropdownMenu.Portal>
+                    <DropdownMenu.Content
+                        side="top"
+                        align="end"
+                        sideOffset={16}
+                        class="z-50 w-52 overflow-hidden rounded-xl border border-white/10 bg-black/95 p-1.5 text-gray-200 shadow-2xl backdrop-blur-xl focus:outline-none"
+                    >
+                        <DropdownMenu.Item
+                            onSelect={() => {
+                                void goto("/profiles");
+                            }}
+                            class="flex h-10 cursor-default select-none items-center gap-3 rounded-lg px-3 text-sm outline-none data-highlighted:bg-white/10"
+                        >
+                            <Users class="h-4 w-4" />
+                            Switch Profile
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item
+                            onSelect={() => {
+                                void goto("/account");
+                            }}
+                            class="flex h-10 cursor-default select-none items-center gap-3 rounded-lg px-3 text-sm outline-none data-highlighted:bg-white/10"
+                        >
+                            <User class="h-4 w-4" />
+                            View Account
+                        </DropdownMenu.Item>
+                        {#if page.data.role === "owner"}
+                            <DropdownMenu.Item
+                                onSelect={() => {
+                                    void goto("/settings");
+                                }}
+                                class="flex h-10 cursor-default select-none items-center gap-3 rounded-lg px-3 text-sm outline-none data-highlighted:bg-white/10"
+                            >
+                                <Settings class="h-4 w-4" />
+                                Settings
+                            </DropdownMenu.Item>
+                        {/if}
+                        <DropdownMenu.Separator class="my-1 h-px bg-white/10" />
+                        <DropdownMenu.Item
+                            onSelect={logout}
+                            class="flex h-10 cursor-default select-none items-center gap-3 rounded-lg px-3 text-sm text-red-400 outline-none data-highlighted:bg-red-500/10"
+                        >
+                            <LogOut class="h-4 w-4" />
+                            Sign Out
+                        </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+            </DropdownMenu.Root>
         </div>
     {/if}
 
@@ -137,57 +126,70 @@
     <!-- Bottom Floating Pill Navigation (Hidden on Player and Profiles) -->
     {#if !hideNav}
         <div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50" transition:fly={{ y: 20, duration: 300 }}>
-            <nav
-                class="flex items-center gap-1 p-1.5 rounded-full border border-white/10 bg-black/80 backdrop-blur-xl shadow-2xl"
-            >
-                {#each navItems as item}
-                    {@const isActive = page.url.pathname === item.href}
-                    <div class="group relative">
-                        <a
-                            href={item.href}
-                            class={cn(
-                                "flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 relative hover:bg-white/10",
-                                isActive
-                                    ? "text-white bg-white/10"
-                                    : "text-zinc-400 hover:text-white",
-                            )}
-                            aria-label={item.label}
+            <Tooltip.Provider delayDuration={300}>
+                <nav
+                    class="flex items-center gap-1 p-1.5 rounded-full border border-white/10 bg-black/80 backdrop-blur-xl shadow-2xl"
+                >
+                    {#each navItems as item}
+                        {@const isActive = page.url.pathname === item.href}
+                        <Tooltip.Root>
+                            <Tooltip.Trigger>
+                                {#snippet child({ props })}
+                                    <a
+                                        {...props}
+                                        href={item.href}
+                                        class={cn(
+                                            "flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 relative hover:bg-white/10",
+                                            isActive
+                                                ? "text-white bg-white/10"
+                                                : "text-zinc-400 hover:text-white",
+                                        )}
+                                        aria-label={item.label}
+                                    >
+                                        <item.icon class="w-5 h-5 relative z-10" />
+                                        {#if isActive}
+                                            <div
+                                                class="absolute bottom-2 w-1 h-1 bg-primary rounded-full"
+                                                transition:fade
+                                            ></div>
+                                        {/if}
+                                    </a>
+                                {/snippet}
+                            </Tooltip.Trigger>
+                            <Tooltip.Portal>
+                                <Tooltip.Content
+                                    side="top"
+                                    sideOffset={8}
+                                    class="z-60 rounded-lg border border-white/10 bg-zinc-950 px-2.5 py-1.5 text-xs text-white shadow-xl"
+                                >
+                                    {item.label}
+                                </Tooltip.Content>
+                            </Tooltip.Portal>
+                        </Tooltip.Root>
+                    {/each}
+
+                    <div class="w-px h-8 bg-white/10 mx-1"></div>
+
+                    <Tooltip.Root>
+                        <Tooltip.Trigger
+                            onclick={() => uiState.toggleAddMediaDialog()}
+                            class="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label="Add Media"
                         >
-                            <item.icon class="w-5 h-5 relative z-10" />
-                            {#if isActive}
-                                <div class="absolute bottom-2 w-1 h-1 bg-primary rounded-full" transition:fade></div>
-                            {/if}
-                        </a>
-
-                        <!-- Tooltip -->
-                        <div
-                            class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-900 border border-white/10 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap"
-                        >
-                            {item.label}
-                        </div>
-                    </div>
-                {/each}
-
-                <!-- Divider -->
-                <div class="w-px h-8 bg-white/10 mx-1"></div>
-
-                <!-- Add Media -->
-                <div class="group relative">
-                    <button
-                        onclick={() => uiState.toggleAddMediaDialog()}
-                        class="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
-                        aria-label="Add Media"
-                    >
-                        <Plus class="w-6 h-6" />
-                    </button>
-                    <!-- Tooltip -->
-                    <div
-                        class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-900 border border-white/10 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap"
-                    >
-                        Add Media
-                    </div>
-                </div>
-            </nav>
+                            <Plus class="w-6 h-6" />
+                        </Tooltip.Trigger>
+                        <Tooltip.Portal>
+                            <Tooltip.Content
+                                side="top"
+                                sideOffset={8}
+                                class="z-60 rounded-lg border border-white/10 bg-zinc-950 px-2.5 py-1.5 text-xs text-white shadow-xl"
+                            >
+                                Add Media
+                            </Tooltip.Content>
+                        </Tooltip.Portal>
+                    </Tooltip.Root>
+                </nav>
+            </Tooltip.Provider>
         </div>
     {/if}
 </div>

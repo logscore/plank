@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, like, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, like, lte, or, type SQL, sql } from "drizzle-orm";
+import { type CatalogFilters, getCatalogGenreLabels } from "$lib/data/search";
 import {
 	type Download,
 	downloads as downloadsTable,
@@ -20,6 +21,38 @@ function removeUndefinedFromObject<T extends Record<string, unknown>>(obj: T): P
 	return Object.fromEntries(Object.entries(obj).filter(([, value]) => value !== undefined)) as Partial<T>;
 }
 
+function getCatalogMediaConditions(organizationId: string, query: string, filters: CatalogFilters): SQL[] {
+	const conditions: SQL[] = [
+		eq(mediaTable.organizationId, organizationId),
+		sql`${mediaTable.type} IN ('movie', 'show')`,
+	];
+	if (query) {
+		conditions.push(sql`instr(lower(${mediaTable.title}), lower(${query})) > 0`);
+	}
+	if (filters.media !== "all") {
+		conditions.push(eq(mediaTable.type, filters.media));
+	}
+	if (filters.rating > 0) {
+		conditions.push(gte(mediaTable.voteAverage, filters.rating));
+	}
+	if (filters.yearFrom !== null) {
+		conditions.push(gte(mediaTable.year, filters.yearFrom));
+	}
+	if (filters.yearTo !== null) {
+		conditions.push(lte(mediaTable.year, filters.yearTo));
+	}
+	const genreConditions = getCatalogGenreLabels(filters.genres).map((genre) =>
+		like(mediaTable.genres, `%"${genre}"%`)
+	);
+	if (genreConditions.length > 0) {
+		const genreFilter = or(...genreConditions);
+		if (genreFilter) {
+			conditions.push(genreFilter);
+		}
+	}
+	return conditions;
+}
+
 export const mediaDb = {
 	list(organizationId: string, type?: MediaType): Media[] {
 		const conditions = [eq(mediaTable.organizationId, organizationId)];
@@ -33,16 +66,61 @@ export const mediaDb = {
 			.orderBy(desc(mediaTable.addedAt))
 			.all();
 	},
-	search(organizationId: string, query: string, type?: "movie" | "show"): Media[] {
-		const conditions = [eq(mediaTable.organizationId, organizationId), like(mediaTable.title, `%${query}%`)];
-		if (type) {
-			conditions.push(eq(mediaTable.type, type));
-		}
-		return db
+	search(organizationId: string, query: string, filters: CatalogFilters, limit = 21, offset = 0): Media[] {
+		const conditions = getCatalogMediaConditions(organizationId, query, filters);
+
+		const boundedLimit = Math.min(100, Math.max(1, limit));
+		const boundedOffset = Math.max(0, offset);
+		const selection = db
 			.select()
 			.from(mediaTable)
-			.where(and(...conditions))
-			.orderBy(desc(mediaTable.addedAt))
+			.where(and(...conditions));
+		switch (filters.sort) {
+			case "rating":
+			case "popular":
+				return selection
+					.orderBy(desc(mediaTable.voteAverage), desc(mediaTable.addedAt))
+					.limit(boundedLimit)
+					.offset(boundedOffset)
+					.all();
+			case "newest":
+				return selection
+					.orderBy(desc(mediaTable.year), desc(mediaTable.addedAt))
+					.limit(boundedLimit)
+					.offset(boundedOffset)
+					.all();
+			case "oldest":
+				return selection
+					.orderBy(sql`${mediaTable.year} IS NULL`, asc(mediaTable.year), desc(mediaTable.addedAt))
+					.limit(boundedLimit)
+					.offset(boundedOffset)
+					.all();
+			default:
+				return selection
+					.orderBy(
+						sql`CASE
+							WHEN lower(${mediaTable.title}) = lower(${query}) THEN 0
+							WHEN instr(lower(${mediaTable.title}), lower(${query})) = 1 THEN 1
+							ELSE 2
+						END`,
+						desc(mediaTable.addedAt)
+					)
+					.limit(boundedLimit)
+					.offset(boundedOffset)
+					.all();
+		}
+	},
+	searchIdentities(organizationId: string, query: string, filters: CatalogFilters) {
+		return db
+			.select({
+				type: mediaTable.type,
+				title: mediaTable.title,
+				year: mediaTable.year,
+				tmdbId: mediaTable.tmdbId,
+				imdbId: mediaTable.imdbId,
+			})
+			.from(mediaTable)
+			.where(and(...getCatalogMediaConditions(organizationId, query, filters)))
 			.all();
 	},
 
@@ -104,6 +182,7 @@ export const mediaDb = {
 			title: mediaItem.title,
 			overview: mediaItem.overview,
 			year: mediaItem.year,
+			voteAverage: mediaItem.voteAverage,
 			tmdbId: mediaItem.tmdbId,
 			imdbId: mediaItem.imdbId,
 			runtime: mediaItem.runtime,
@@ -256,6 +335,7 @@ export const mediaDb = {
 		metadata: {
 			title?: string;
 			year?: number | null;
+			voteAverage?: number | null;
 			posterUrl?: string | null;
 			backdropUrl?: string | null;
 			overview?: string | null;

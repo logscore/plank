@@ -12,6 +12,7 @@ import { parseMagnet } from "./torrent/files";
 interface MediaMetadata {
 	title: string;
 	year: number | null;
+	voteAverage: number | null;
 	posterUrl: string | null;
 	backdropUrl: string | null;
 	overview: string | null;
@@ -69,6 +70,7 @@ function createDefaultMetadata(title: string, year: number | null | undefined, t
 	return {
 		title: title || "Unknown",
 		year: year || null,
+		voteAverage: null,
 		posterUrl: null,
 		backdropUrl: null,
 		overview: null,
@@ -135,6 +137,7 @@ async function enrichBrowseMetadata(
 	const metadata: MediaMetadata = {
 		title,
 		year,
+		voteAverage: null,
 		posterUrl,
 		backdropUrl,
 		overview,
@@ -151,6 +154,7 @@ async function enrichBrowseMetadata(
 	if (settings.tmdb.apiKey) {
 		try {
 			const details = mediaType === "show" ? await getTVDetails(tmdbId) : await getMovieDetails(tmdbId);
+			metadata.voteAverage = details.voteAverage ?? null;
 			metadata.runtime = details.runtime ?? null;
 			metadata.originalLanguage = details.originalLanguage ?? null;
 			metadata.totalSeasons = details.totalSeasons ?? null;
@@ -323,6 +327,7 @@ export async function addMediaFromMagnet(
 		type: mediaType,
 		title: metadata.title,
 		year: metadata.year,
+		voteAverage: metadata.voteAverage,
 		posterUrl: metadata.posterUrl,
 		backdropUrl: metadata.backdropUrl,
 		overview: metadata.overview,

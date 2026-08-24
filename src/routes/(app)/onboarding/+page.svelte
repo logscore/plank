@@ -94,10 +94,11 @@
     }
 </script>
 
-<div class="flex items-center justify-center min-h-[80vh]">
-    <div class="w-full max-w-md bg-card/50 backdrop-blur-xl rounded-xl p-8 border border-white/10 shadow-2xl">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold tracking-tight">
+<div class="flex min-h-[80vh] items-center justify-center px-4 py-10">
+    <div class="w-full max-w-md rounded-3xl border border-white/10 bg-card/60 p-8 shadow-2xl backdrop-blur-xl">
+        <div class="mb-8 text-center">
+            <p class="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary">Setup</p>
+            <h1 class="text-3xl font-semibold tracking-tight">
                 {#if step === 1}
                     Create Your First Profile
                 {:else if step === 2}

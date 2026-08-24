@@ -5,6 +5,7 @@
     import "vidstack/player/layouts";
     import "vidstack/player/ui";
     import { ArrowLeft, Download, EllipsisVertical, Play, Users, X } from "@lucide/svelte";
+    import { DropdownMenu } from "bits-ui";
     import { onDestroy, onMount } from "svelte";
     import type { MediaPlayerElement } from "vidstack/elements";
     import { browser } from "$app/environment";
@@ -165,12 +166,6 @@
         showMenu = false;
     }
 
-    function handleGlobalClick(e: MouseEvent) {
-        if (showMenu && !(e.target as HTMLElement).closest("#player-menu")) {
-            showMenu = false;
-        }
-    }
-
     // Play position: save current time
     function savePosition(currentTime: number, duration?: number) {
         const id = data.media.id;
@@ -317,15 +312,12 @@
     });
 
     onMount(() => {
-        document.addEventListener("click", handleGlobalClick);
         startProgressStream();
     });
 
     onDestroy(() => {
         stopLiveProgressStream();
         if (browser) {
-            document.removeEventListener("click", handleGlobalClick);
-
             // Save final position via sendBeacon on page leave
             const id = data.media.id;
             if (!blockStalePositionSave && id && playerEl) {
@@ -362,37 +354,32 @@
             <ArrowLeft class="w-6 h-6" />
         </button>
 
-        <!-- Menu Button -->
-        <div class="relative" id="player-menu">
-            <button
-                onclick={(e) => {
-                    e.stopPropagation();
-                    showMenu = !showMenu;
-                }}
-                class="bg-black/50 hover:bg-black/70 text-white rounded-full p-3 backdrop-blur-sm transition-all hover:scale-105"
+        <DropdownMenu.Root bind:open={showMenu}>
+            <DropdownMenu.Trigger
+                class="rounded-full bg-black/50 p-3 text-white backdrop-blur-sm transition-all hover:scale-105 hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Player options"
             >
-                <EllipsisVertical class="w-6 h-6" />
-            </button>
-
-            {#if showMenu}
-                <div
-                    class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-black/90 border border-white/10 ring-1 ring-black ring-opacity-5 backdrop-blur-md overflow-hidden"
+                <EllipsisVertical class="h-6 w-6" />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                    side="bottom"
+                    align="end"
+                    sideOffset={8}
+                    class="z-60 w-48 overflow-hidden rounded-xl border border-white/10 bg-black/95 p-1.5 text-gray-200 shadow-2xl backdrop-blur-xl focus:outline-none"
                 >
-                    <div class="py-1" role="menu" aria-orientation="vertical">
-                        <button
-                            onclick={toggleStats}
-                            class="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-white/10 flex items-center justify-between"
-                            role="menuitem"
-                        >
-                            <span>Show Stats</span>
-                            {#if showStats}
-                                <div class="w-2 h-2 rounded-full bg-primary"></div>
-                            {/if}
-                        </button>
-                    </div>
-                </div>
-            {/if}
-        </div>
+                    <DropdownMenu.Item
+                        onSelect={toggleStats}
+                        class="flex h-10 cursor-default select-none items-center justify-between rounded-lg px-3 text-sm outline-none data-highlighted:bg-white/10"
+                    >
+                        <span>Show Stats</span>
+                        {#if showStats}
+                            <span class="h-2 w-2 rounded-full bg-primary"></span>
+                        {/if}
+                    </DropdownMenu.Item>
+                </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+        </DropdownMenu.Root>
     </div>
 
     <!-- Video Player -->

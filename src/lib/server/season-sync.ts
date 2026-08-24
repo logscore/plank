@@ -34,6 +34,7 @@ export interface AddSeasonFromBrowseResult {
 interface ShowMetadata {
 	title: string;
 	year: number | null;
+	voteAverage: number | null;
 	posterUrl: string | null;
 	backdropUrl: string | null;
 	overview: string | null;
@@ -68,6 +69,7 @@ async function resolveShowMetadata(params: AddSeasonFromBrowseParams): Promise<S
 		return {
 			title: params.title || details.title,
 			year: params.year ?? details.year ?? null,
+			voteAverage: details.voteAverage ?? null,
 			posterUrl: params.posterUrl ?? details.posterUrl,
 			backdropUrl: params.backdropUrl ?? details.backdropUrl,
 			overview: params.overview ?? details.overview,
@@ -82,6 +84,7 @@ async function resolveShowMetadata(params: AddSeasonFromBrowseParams): Promise<S
 		return {
 			title: params.title,
 			year: params.year ?? null,
+			voteAverage: null,
 			posterUrl: params.posterUrl ?? null,
 			backdropUrl: params.backdropUrl ?? null,
 			overview: params.overview ?? null,
@@ -128,6 +131,7 @@ async function upsertShow(
 		mediaDb.updateMetadata(existingShow.id, {
 			title: metadata.title,
 			year: metadata.year,
+			voteAverage: metadata.voteAverage,
 			posterUrl: metadata.posterUrl,
 			backdropUrl: metadata.backdropUrl,
 			overview: metadata.overview,
@@ -147,6 +151,7 @@ async function upsertShow(
 		type: "show",
 		title: metadata.title,
 		year: metadata.year,
+		voteAverage: metadata.voteAverage,
 		posterUrl: metadata.posterUrl,
 		backdropUrl: metadata.backdropUrl,
 		overview: metadata.overview,

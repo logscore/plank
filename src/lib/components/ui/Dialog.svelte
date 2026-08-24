@@ -1,5 +1,6 @@
 <script lang="ts">
     import { X } from "@lucide/svelte";
+    import { Dialog } from "bits-ui";
     import type { Snippet } from "svelte";
 
     let {
@@ -8,46 +9,33 @@
         title,
         description,
         class: className,
+        closeOnOutsideClick = true,
     }: {
         open?: boolean;
         children?: Snippet;
         title?: string;
         description?: string;
         class?: string;
+        closeOnOutsideClick?: boolean;
     } = $props();
-
-    function close() {
-        open = false;
-    }
-
-    function handleKeydown(e: KeyboardEvent) {
-        if (e.key === "Escape") {
-            close();
-        }
-    }
 </script>
 
-{#if open}
-    <div
-        class="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
-        onclick={close}
-        onkeydown={handleKeydown}
-        role="button"
-        tabindex="-1"
-    >
-        <div
-            class="fixed left-[50%] top-[50%] z-50 grid w-[90%] {className || 'max-w-lg'} translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg"
-            onclick={(e) => e.stopPropagation()}
-            onkeydown={(e) => e.stopPropagation()}
-            role="dialog"
-            tabindex="-1"
+<Dialog.Root bind:open>
+    <Dialog.Portal>
+        <Dialog.Overlay class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm" />
+        <Dialog.Content
+            interactOutsideBehavior={closeOnOutsideClick ? "close" : "ignore"}
+            class="fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950 p-6 text-foreground shadow-2xl focus:outline-none {className ||
+                'max-w-lg'}"
         >
-            <div class="flex flex-col space-y-1.5 text-center sm:text-left">
+            <div class="flex flex-col space-y-1.5 pr-8 text-left">
                 {#if title}
-                    <h2 class="text-lg font-semibold leading-none tracking-tight">{title}</h2>
+                    <Dialog.Title class="text-xl font-semibold leading-none tracking-tight">{title}</Dialog.Title>
                 {/if}
                 {#if description}
-                    <p class="text-sm text-muted-foreground">{description}</p>
+                    <Dialog.Description class="text-sm leading-relaxed text-muted-foreground">
+                        {description}
+                    </Dialog.Description>
                 {/if}
             </div>
 
@@ -55,13 +43,12 @@
                 {@render children()}
             {/if}
 
-            <button
-                class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
-                onclick={close}
+            <Dialog.Close
+                class="absolute top-4 right-4 inline-flex size-8 items-center justify-center rounded-sm text-muted-foreground transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
                 <X class="h-4 w-4" />
                 <span class="sr-only">Close</span>
-            </button>
-        </div>
-    </div>
-{/if}
+            </Dialog.Close>
+        </Dialog.Content>
+    </Dialog.Portal>
+</Dialog.Root>

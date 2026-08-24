@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { DEFAULT_CATALOG_FILTERS } from "$lib/data/search";
 import { downloadsDb, mediaDb, seasonsDb, subtitlesDb } from "$lib/server/db";
 import { schema } from "$lib/server/db/schema";
 import { db } from "./setup";
@@ -98,6 +99,125 @@ describe("mediaDb", () => {
 		expect(updated?.status).toBe("complete");
 		expect(updated?.playPosition).toBe(42);
 		expect(updated?.playDuration).toBe(60);
+	});
+
+	it("filters library titles by media, rating, year, and genre", () => {
+		const actionMovie = mediaDb.create({
+			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "Action Movie",
+			year: 2020,
+			voteAverage: 8,
+			genres: JSON.stringify(["Action"]),
+		});
+		mediaDb.create({
+			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "Drama Movie",
+			year: 2010,
+			voteAverage: 9,
+			genres: JSON.stringify(["Drama"]),
+		});
+		mediaDb.create({
+			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "show",
+			title: "Action Show",
+			year: 2021,
+			voteAverage: 9,
+			genres: JSON.stringify(["Action"]),
+		});
+
+		const results = mediaDb.search(testOrg.id, "", {
+			...DEFAULT_CATALOG_FILTERS,
+			scope: "library",
+			media: "movie",
+			rating: 7.5,
+			yearFrom: 2015,
+			genres: ["action"],
+		});
+
+		expect(results.map((item) => item.id)).toEqual([actionMovie.id]);
+	});
+
+	it("filters the library by rating with the default sort", () => {
+		mediaDb.create({
+			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "Below Threshold",
+			voteAverage: 6.9,
+		});
+		const included = mediaDb.create({
+			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "At Threshold",
+			voteAverage: 7,
+		});
+
+		const results = mediaDb.search(testOrg.id, "", {
+			...DEFAULT_CATALOG_FILTERS,
+			scope: "library",
+			rating: 7,
+		});
+
+		expect(results.map((item) => item.id)).toEqual([included.id]);
+	});
+
+	it("treats title wildcard characters as text", () => {
+		const literalMatch = mediaDb.create({
+			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "100% Fun",
+		});
+		mediaDb.create({
+			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "1000 Fun",
+		});
+
+		const results = mediaDb.search(testOrg.id, "%", {
+			...DEFAULT_CATALOG_FILTERS,
+			scope: "library",
+		});
+
+		expect(results.map((item) => item.id)).toEqual([literalMatch.id]);
+	});
+
+	it("sorts unknown years after known years", () => {
+		const unknown = mediaDb.create({
+			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "Unknown",
+		});
+		const recent = mediaDb.create({
+			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "Recent",
+			year: 2020,
+		});
+		const old = mediaDb.create({
+			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "Old",
+			year: 1980,
+		});
+
+		const results = mediaDb.search(testOrg.id, "", {
+			...DEFAULT_CATALOG_FILTERS,
+			scope: "library",
+			sort: "oldest",
+		});
+
+		expect(results.map((item) => item.id)).toEqual([old.id, recent.id, unknown.id]);
 	});
 });
 

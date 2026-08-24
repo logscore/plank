@@ -1,8 +1,10 @@
 <script lang="ts">
-    import { ChevronDown, ChevronUp, Plus, RefreshCw, Trash2 } from "@lucide/svelte";
+    import { ChevronDown, Plus, RefreshCw, Trash2 } from "@lucide/svelte";
+    import { Collapsible } from "bits-ui";
     import { onMount } from "svelte";
     import { toast } from "svelte-sonner";
     import Button from "$lib/components/ui/Button.svelte";
+    import SelectField from "$lib/components/ui/SelectField.svelte";
     import {
         createAddProwlarrIndexerMutation,
         createDeleteProwlarrIndexerMutation,
@@ -52,6 +54,12 @@
     const indexers = $derived(indexersQuery.data ?? []);
     const schemas = $derived(schemasQuery.data ?? []);
     const sortedSchemas = $derived([...schemas].sort((a, b) => a.name.localeCompare(b.name)));
+    const schemaOptions = $derived(
+        sortedSchemas.map((schema) => ({
+            value: schema.name,
+            label: `${schema.name} (${schema.protocol || "torrent"})`,
+        }))
+    );
     const loadingIndexers = $derived(
         connection.status === "connected" && (indexersQuery.isPending || schemasQuery.isPending)
     );
@@ -194,50 +202,41 @@
         </div>
 
         <!-- Advanced Manual Add -->
-        <div class="border rounded-lg bg-card">
-            <button
-                type="button"
-                class="w-full flex items-center justify-between p-4 font-medium text-sm hover:bg-muted/50 transition-colors cursor-pointer"
-                onclick={() => {
-                    advancedOpen = !advancedOpen;
-                }}
+        <Collapsible.Root bind:open={advancedOpen} class="rounded-lg border bg-card">
+            <Collapsible.Trigger
+                class="group flex w-full items-center justify-between p-4 text-sm font-medium transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
                 <span>Advanced: Add Indexer Manually</span>
-                {#if advancedOpen}
-                    <ChevronUp class="w-4 h-4" />
-                {:else}
-                    <ChevronDown class="w-4 h-4" />
-                {/if}
-            </button>
-
-            {#if advancedOpen}
-                <div class="p-4 border-t bg-muted/20">
+                <ChevronDown class="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+            </Collapsible.Trigger>
+            <Collapsible.Content>
+                <div class="border-t bg-muted/20 p-4">
                     <div class="flex gap-2">
-                        <select
+                        <SelectField
                             bind:value={selectedImplementation}
-                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        >
-                            <option value="">Select an indexer to add...</option>
-                            {#each sortedSchemas as schema}
-                                <option value={schema.name}>{schema.name} ({schema.protocol || "torrent"})</option>
-                            {/each}
-                        </select>
+                            items={schemaOptions}
+                            placeholder="Select an indexer to add..."
+                            ariaLabel="Indexer implementation"
+                            class="w-full"
+                        />
                         <Button
                             type="button"
                             disabled={!selectedImplementation}
                             onclick={() => {
                                 const schema = schemas.find(
-                                    (s) => s.name === selectedImplementation,
+                                    (entry) => entry.name === selectedImplementation,
                                 );
-                                if (schema) addIndexer(schema);
+                                if (schema) {
+                                    addIndexer(schema);
+                                }
                             }}
                         >
                             Add
                         </Button>
                     </div>
                 </div>
-            {/if}
-        </div>
+            </Collapsible.Content>
+        </Collapsible.Root>
     {:else if connection.status === "checking"}
         <div
             class="flex items-center justify-center gap-3 rounded-lg border bg-card p-8 text-sm text-muted-foreground"

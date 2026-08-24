@@ -1,11 +1,14 @@
 <script lang="ts">
     import { Flame, Trophy } from "@lucide/svelte";
+    import { Tabs } from "bits-ui";
+    import { untrack } from "svelte";
     import { toast } from "svelte-sonner";
     import { goto } from "$app/navigation";
     import CardSkeleton from "$lib/components/CardSkeleton.svelte";
+    import CatalogFilterButton from "$lib/components/CatalogFilterButton.svelte";
     import ProwlarrSetup from "$lib/components/ProwlarrSetup.svelte";
     import TorrentCard from "$lib/components/TorrentCard.svelte";
-    import type { SeasonData } from "$lib/components/ui/ContextMenu.svelte";
+    import Button from "$lib/components/ui/Button.svelte";
     import {
         type BrowseDetailItem,
         type BrowseItem,
@@ -18,32 +21,48 @@
         type SeasonSummary,
     } from "$lib/data/browse";
     import { createProwlarrStatusQuery } from "$lib/data/prowlarr";
+    import { type CatalogFilters, serializeCatalogSearch } from "$lib/data/search";
+    import type { CatalogSeason } from "$lib/types";
+    import type { PageData } from "./$types";
 
-    interface Props {
-        data: {
-            type: "trending" | "popular";
-            filter: "all" | "movie" | "show";
-        };
+    let { data } = $props<{ data: PageData }>();
+    const addToLibraryMutation = createAddFromBrowseMutation();
+    const activeTab = $derived(data.type);
+    let filters = $state<CatalogFilters>(
+        untrack(() => ({ ...data.request.filters, genres: [...data.request.filters.genres] }))
+    );
+
+    $effect(() => {
+        filters = { ...data.request.filters, genres: [...data.request.filters.genres] };
+    });
+
+    async function navigate(type: "trending" | "popular", nextFilters: CatalogFilters) {
+        const params = serializeCatalogSearch({
+            query: "",
+            page: 1,
+            filters: { ...nextFilters, scope: "catalog" },
+        });
+        params.set("type", type);
+        await goto(`/browse?${params}`, { noScroll: true });
     }
 
-    let { data }: Props = $props();
+    async function setBrowseType(value: string) {
+        if (value === "trending" || value === "popular") {
+            await navigate(value, filters);
+        }
+    }
 
-    // Mutations
-    const addToLibraryMutation = createAddFromBrowseMutation();
-
-    // Derive params from URL (available immediately, not streamed)
-    const activeTab = $derived(data.type);
-    const activeFilter = $derived(data.filter || "all");
+    async function applyFilters(nextFilters: CatalogFilters) {
+        await navigate(activeTab, nextFilters);
+    }
 
     const prowlarrQuery = createProwlarrStatusQuery();
-
     const prowlarrReady = $derived(
         prowlarrQuery.isSuccess && prowlarrQuery.data?.configured && !prowlarrQuery.data?.needsSetup
     );
-
     const browseQuery = createBrowseInfiniteQuery(
         () => activeTab,
-        () => activeFilter,
+        () => filters,
         () => Boolean(prowlarrReady)
     );
 
@@ -102,7 +121,7 @@
 
     // Merge enrichment data into display items
     const displayItems = $derived.by(() => {
-        const ctx = `${activeTab}-${activeFilter}`;
+        const ctx = `${activeTab}-${serializeCatalogSearch({ query: "", page: 1, filters })}`;
 
         return rawItems.map((item) => {
             const detail = enrichmentMap.get(item.tmdbId);
@@ -127,7 +146,7 @@
     // TV show seasons state - keyed by TMDB ID
     // We keep a local reactive cache for the UI to bind to (passed to TorrentCard)
     // The data fetching uses QueryClient for network caching
-    let seasonsCache = $state<Map<number, SeasonData[]>>(new Map());
+    let seasonsCache = $state<Map<number, CatalogSeason[]>>(new Map());
     let seasonsLoading = $state<Set<number>>(new Set());
 
     // Load more trigger element
@@ -161,7 +180,7 @@
     // Prefetch the other tab for instant tab switching
     $effect(() => {
         const otherTab = activeTab === "trending" ? "popular" : "trending";
-        prefetchBrowse(otherTab, activeFilter);
+        prefetchBrowse(otherTab, filters);
     });
 
     // Get magnet link through the shared query cache
@@ -275,7 +294,7 @@
     // ==========================================================================
 
     // Get seasons for a TV show through the shared query cache
-    async function getSeasons(item: BrowseItem): Promise<SeasonData[]> {
+    async function getSeasons(item: BrowseItem): Promise<CatalogSeason[]> {
         // Return local cached seasons if available (fast path)
         const cached = seasonsCache.get(item.tmdbId);
         if (cached) {
@@ -287,8 +306,7 @@
         try {
             const response = await fetchSeasonsCached(item.tmdbId);
 
-            // Convert SeasonSummary to SeasonData format for the ContextMenu
-            const seasonData: SeasonData[] = response.seasons.map((s: SeasonSummary) => ({
+            const seasonData: CatalogSeason[] = response.seasons.map((s: SeasonSummary) => ({
                 seasonNumber: s.seasonNumber,
                 name: s.name,
                 episodeCount: s.episodeCount,
@@ -317,7 +335,7 @@
     }
 
     // Get seasons for a specific item (from cache)
-    function getSeasonsForItem(tmdbId: number): SeasonData[] {
+    function getSeasonsForItem(tmdbId: number): CatalogSeason[] {
         return seasonsCache.get(tmdbId) ?? [];
     }
 
@@ -354,71 +372,41 @@
     }
 </script>
 
-<div class="min-h-screen pb-20 bg-background">
-    <!-- Header -->
-    <div
-        class="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 supports-backdrop-filter:bg-background/60"
-    >
-        <div class="container max-w-7xl mx-auto px-4">
-            <!-- Top Bar with Search -->
-            <div class="flex items-center justify-between py-3 h-15">
-                <h1 class="text-2xl font-semibold tracking-tight">Browse</h1>
+<div class="mx-auto min-h-screen max-w-7xl px-4 pb-28 pt-8 sm:pt-12">
+    <header class="mb-6">
+        <div class="flex items-end justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Browse</h1>
             </div>
-
-            <!-- Tab Navigation & Filter -->
-            <div class="flex items-center justify-between py-2">
-                <div class="flex items-center space-x-2 overflow-x-auto no-scrollbar">
-                    <a
-                        href="/browse?type=trending&filter={activeFilter}"
-                        data-sveltekit-noscroll
-                        onmouseenter={() =>
-                            prefetchBrowse("trending", activeFilter)}
-                        onfocus={() => prefetchBrowse("trending", activeFilter)}
-                        class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 {activeTab ===
-                        'trending'
-                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                            : 'hover:bg-accent hover:text-accent-foreground'}"
-                    >
-                        <Flame class="w-4 h-4 mr-2" />
-                        Trending
-                    </a>
-                    <a
-                        href="/browse?type=popular&filter={activeFilter}"
-                        data-sveltekit-noscroll
-                        onmouseenter={() =>
-                            prefetchBrowse("popular", activeFilter)}
-                        onfocus={() => prefetchBrowse("popular", activeFilter)}
-                        class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 {activeTab ===
-                        'popular'
-                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                            : 'hover:bg-accent hover:text-accent-foreground'}"
-                    >
-                        <Trophy class="w-4 h-4 mr-2" />
-                        Popular
-                    </a>
-                </div>
-
-                <!-- Filter Dropdown -->
-                <select
-                    value={activeFilter}
-                    onchange={(e) => {
-                        const val = e.currentTarget.value;
-                        goto(`/browse?type=${activeTab}&filter=${val}`, {
-                            noScroll: true,
-                        });
-                    }}
-                    class="h-9 w-30 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                >
-                    <option value="all">All</option>
-                    <option value="movie">Movies</option>
-                    <option value="tv">TV Shows</option>
-                </select>
-            </div>
+            <CatalogFilterButton {filters} onApply={applyFilters} class="shrink-0" />
         </div>
-    </div>
+
+        <Tabs.Root value={activeTab} onValueChange={setBrowseType} class="mt-7">
+            <Tabs.List class="flex items-center gap-2 overflow-x-auto no-scrollbar" aria-label="Browse list">
+                <Tabs.Trigger
+                    value="trending"
+                    onpointerenter={() => prefetchBrowse("trending", filters)}
+                    onfocus={() => prefetchBrowse("trending", filters)}
+                    class="inline-flex h-10 items-center justify-center rounded-full border border-white/8 px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/6 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=active]:border-white/15 data-[state=active]:bg-white/10 data-[state=active]:text-white"
+                >
+                    <Flame class="mr-2 h-4 w-4" />
+                    Trending
+                </Tabs.Trigger>
+                <Tabs.Trigger
+                    value="popular"
+                    onpointerenter={() => prefetchBrowse("popular", filters)}
+                    onfocus={() => prefetchBrowse("popular", filters)}
+                    class="inline-flex h-10 items-center justify-center rounded-full border border-white/8 px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/6 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=active]:border-white/15 data-[state=active]:bg-white/10 data-[state=active]:text-white"
+                >
+                    <Trophy class="mr-2 h-4 w-4" />
+                    Popular
+                </Tabs.Trigger>
+            </Tabs.List>
+        </Tabs.Root>
+    </header>
 
     <!-- Content -->
-    <div class="container max-w-7xl mx-auto px-4 py-8">
+    <div class="py-8">
         {#if prowlarrQuery.isLoading}
             <!-- Prowlarr status loading -->
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -443,6 +431,16 @@
                 <h2 class="text-lg font-medium text-foreground mb-1">No content found</h2>
                 <p class="text-muted-foreground">Check your indexer and Prowlarr configuration.</p>
             </div>
+            {#if hasMore}
+                <Button
+                    variant="secondary"
+                    class="mt-5 rounded-xl"
+                    disabled={isFetchingMore}
+                    onclick={() => browseQuery.fetchNextPage()}
+                >
+                    {isFetchingMore ? "Loading..." : "Load the next page"}
+                </Button>
+            {/if}
         {:else}
             <!-- Movie Grid -->
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">

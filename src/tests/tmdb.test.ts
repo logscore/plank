@@ -110,6 +110,71 @@ describe("TMDB Service", () => {
 		});
 	});
 
+	describe("catalog search", () => {
+		it("sends discover filters and rejects adult results", async () => {
+			const fetchMock = vi.mocked(global.fetch);
+			fetchMock.mockResolvedValue(
+				Response.json({
+					page: 2,
+					total_pages: 4,
+					total_results: 3,
+					results: [
+						{
+							id: 1,
+							title: "Adult",
+							adult: true,
+							release_date: "2010-01-01",
+							genre_ids: [28],
+							vote_average: 9,
+							popularity: 100,
+						},
+						{
+							id: 2,
+							title: "Low rated",
+							adult: false,
+							release_date: "2012-01-01",
+							genre_ids: [28],
+							vote_average: 6,
+							popularity: 90,
+						},
+						{
+							id: 3,
+							title: "Visible",
+							adult: false,
+							release_date: "2015-01-01",
+							genre_ids: [28],
+							vote_average: 8,
+							popularity: 80,
+						},
+					],
+				})
+			);
+
+			const result = await tmdb.searchTmdbCatalog({
+				query: "",
+				page: 2,
+				filters: {
+					scope: "catalog",
+					media: "movie",
+					rating: 7,
+					yearFrom: 2000,
+					yearTo: 2020,
+					genres: ["action"],
+					sort: "rating",
+				},
+			});
+
+			const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
+			expect(url.pathname).toBe("/3/discover/movie");
+			expect(url.searchParams.get("include_adult")).toBe("false");
+			expect(url.searchParams.get("vote_average.gte")).toBe("7");
+			expect(url.searchParams.get("primary_release_date.gte")).toBe("2000-01-01");
+			expect(url.searchParams.get("primary_release_date.lte")).toBe("2020-12-31");
+			expect(url.searchParams.get("with_genres")).toBe("28");
+			expect(result.items.map((item) => item.title)).toEqual(["Visible"]);
+			expect(result.totalPages).toBe(4);
+		});
+	});
 	describe("isTVShowFilename", () => {
 		it("should identify TV show patterns", () => {
 			expect(tmdb.isTVShowFilename("Show.S01E01.mkv")).toBe(true);

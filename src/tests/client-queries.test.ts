@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchBrowse, fetchSeasons, resolveTorrent } from "$lib/data/browse";
 import { searchOpenSubtitles } from "$lib/data/media";
 import { fetchProwlarrStatus } from "$lib/data/prowlarr";
+import { DEFAULT_CATALOG_FILTERS } from "$lib/data/search";
 
 vi.mock("$app/navigation", () => ({ invalidate: vi.fn() }));
 
@@ -40,11 +41,13 @@ describe("client data", () => {
 	it("fetches the selected browse page", async () => {
 		fetchMock.mockResolvedValue(mockJsonResponse({ items: [], page: 2, totalPages: 2 }));
 
-		await fetchBrowse("trending", "movie", 2);
+		await fetchBrowse("trending", { ...DEFAULT_CATALOG_FILTERS, media: "movie" }, 2);
 
-		expect(fetchMock).toHaveBeenCalledWith(
-			expect.stringContaining("/api/browse?type=trending&filter=movie&page=2")
-		);
+		const url = new URL(vi.mocked(fetchMock).mock.calls[0][0] as string, "http://localhost");
+		expect(url.pathname).toBe("/api/browse");
+		expect(url.searchParams.get("type")).toBe("trending");
+		expect(url.searchParams.get("media")).toBe("movie");
+		expect(url.searchParams.get("page")).toBe("2");
 	});
 
 	it("resolves a torrent with JSON input", async () => {
@@ -86,7 +89,11 @@ describe("client data", () => {
 	});
 
 	it.each([
-		["browse", () => fetchBrowse("popular", "movie", 1), "Failed to fetch popular"],
+		[
+			"browse",
+			() => fetchBrowse("popular", { ...DEFAULT_CATALOG_FILTERS, media: "movie" }, 1),
+			"Failed to fetch popular",
+		],
 		[
 			"torrent resolution",
 			() => resolveTorrent({ imdbId: "tt", tmdbId: 1, title: "T" }),

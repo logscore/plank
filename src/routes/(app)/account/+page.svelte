@@ -298,17 +298,19 @@
     }
 </script>
 
-<div class="container mx-auto px-4 py-8 max-w-4xl">
+<div class="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
     <!-- Header -->
-    <div class="flex items-center gap-4 mb-8">
-        <Button variant="ghost" class="p-2" onclick={() => window.history.back()}>
-            <ArrowLeft class="w-5 h-5" />
+    <div class="mb-8 flex items-center gap-4">
+        <Button variant="ghost" class="size-10 rounded-full p-2" onclick={() => window.history.back()}>
+            <ArrowLeft class="h-5 w-5" />
         </Button>
-        <h1 class="text-3xl font-bold">Account</h1>
+        <div>
+            <h1 class="mt-1 text-3xl font-semibold tracking-tight">Account</h1>
+        </div>
     </div>
 
     <!-- User Info Card -->
-    <div class="rounded-xl border border-border bg-card p-6 mb-6">
+    <div class="mb-6 rounded-2xl border border-white/10 bg-card/60 p-6">
         <div class="flex items-center gap-4 mb-2">
             {#if editingUser}
                 <!-- Edit mode -->
@@ -439,7 +441,7 @@
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-2 gap-4 mb-6">
-        <div class="rounded-xl border border-border bg-card p-4">
+        <div class="rounded-2xl border border-white/10 bg-card/60 p-4">
             <div class="flex items-center gap-3 mb-2">
                 <Film class="w-5 h-5 text-primary" />
                 <span class="text-sm text-muted-foreground">Total Media</span>
@@ -447,7 +449,7 @@
             <div class="text-2xl font-bold">{data.stats.total}</div>
         </div>
 
-        <div class="rounded-xl border border-border bg-card p-4">
+        <div class="rounded-2xl border border-white/10 bg-card/60 p-4">
             <div class="flex items-center gap-3 mb-2">
                 <HardDrive class="w-5 h-5 text-orange-500" />
                 <span class="text-sm text-muted-foreground">Storage Used</span>
@@ -458,7 +460,7 @@
 
     <!-- Profile -->
     {#if data.organization}
-        <div class="rounded-xl border border-border bg-card p-6 mb-6">
+        <div class="mb-6 rounded-2xl border border-white/10 bg-card/60 p-6">
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-3">
                     {#if editingProfile && (data.userRole === "owner" || data.userRole === "admin")}
@@ -725,7 +727,7 @@
     {/if}
 
     <!-- Change Password -->
-    <div class="rounded-xl border border-border bg-card p-6">
+    <div class="rounded-2xl border border-white/10 bg-card/60 p-6">
         <div class="flex items-center gap-3 mb-6">
             <Key class="w-5 h-5 text-primary" />
             <h3 class="text-lg font-semibold">Security</h3>
