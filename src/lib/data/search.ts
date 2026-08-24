@@ -49,6 +49,121 @@ export type CatalogSearchResponse =
 			nextPage: number | null;
 	  };
 
+type JsonMedia = Omit<Media, "addedAt" | "createdAt" | "lastPlayedAt"> & {
+	addedAt: string;
+	createdAt: string;
+	lastPlayedAt: string | null;
+};
+
+type JsonSeasonWithEpisodes = Omit<SeasonWithEpisodes, "createdAt" | "episodes"> & {
+	createdAt: string;
+	episodes: JsonMedia[];
+};
+
+export type CatalogSearchJsonResponse =
+	| {
+			scope: "all";
+			libraryItems: JsonMedia[];
+			catalogItems: BrowseItem[];
+			seasonsByMediaId: Record<string, JsonSeasonWithEpisodes[]>;
+			nextPage: number | null;
+	  }
+	| {
+			scope: "library";
+			items: JsonMedia[];
+			seasonsByMediaId: Record<string, JsonSeasonWithEpisodes[]>;
+			nextPage: number | null;
+	  }
+	| {
+			scope: "catalog";
+			items: BrowseItem[];
+			nextPage: number | null;
+	  };
+
+function mediaToJson(media: Media): JsonMedia {
+	return {
+		...media,
+		addedAt: media.addedAt.toISOString(),
+		createdAt: media.createdAt.toISOString(),
+		lastPlayedAt: media.lastPlayedAt?.toISOString() ?? null,
+	};
+}
+
+function mediaFromJson(media: JsonMedia): Media {
+	return {
+		...media,
+		addedAt: new Date(media.addedAt),
+		createdAt: new Date(media.createdAt),
+		lastPlayedAt: media.lastPlayedAt === null ? null : new Date(media.lastPlayedAt),
+	};
+}
+
+function seasonsToJson(
+	seasonsByMediaId: Record<string, SeasonWithEpisodes[]>
+): Record<string, JsonSeasonWithEpisodes[]> {
+	return Object.fromEntries(
+		Object.entries(seasonsByMediaId).map(([mediaId, seasons]) => [
+			mediaId,
+			seasons.map((season) => ({
+				...season,
+				createdAt: season.createdAt.toISOString(),
+				episodes: season.episodes.map(mediaToJson),
+			})),
+		])
+	);
+}
+
+function seasonsFromJson(
+	seasonsByMediaId: Record<string, JsonSeasonWithEpisodes[]>
+): Record<string, SeasonWithEpisodes[]> {
+	return Object.fromEntries(
+		Object.entries(seasonsByMediaId).map(([mediaId, seasons]) => [
+			mediaId,
+			seasons.map((season) => ({
+				...season,
+				createdAt: new Date(season.createdAt),
+				episodes: season.episodes.map(mediaFromJson),
+			})),
+		])
+	);
+}
+
+export function toCatalogSearchJson(response: CatalogSearchResponse): CatalogSearchJsonResponse {
+	if (response.scope === "catalog") {
+		return response;
+	}
+	if (response.scope === "library") {
+		return {
+			...response,
+			items: response.items.map(mediaToJson),
+			seasonsByMediaId: seasonsToJson(response.seasonsByMediaId),
+		};
+	}
+	return {
+		...response,
+		libraryItems: response.libraryItems.map(mediaToJson),
+		seasonsByMediaId: seasonsToJson(response.seasonsByMediaId),
+	};
+}
+
+export function fromCatalogSearchJson(response: CatalogSearchJsonResponse): CatalogSearchResponse {
+	if (response.scope === "catalog") {
+		return response;
+	}
+	if (response.scope === "library") {
+		return {
+			...response,
+			items: response.items.map(mediaFromJson),
+			seasonsByMediaId: seasonsFromJson(response.seasonsByMediaId),
+		};
+	}
+	return {
+		...response,
+		libraryItems: response.libraryItems.map(mediaFromJson),
+		seasonsByMediaId: seasonsFromJson(response.seasonsByMediaId),
+	};
+}
+
 export const CATALOG_GENRES: CatalogGenre[] = [
 	{ key: "action", label: "Action", movieId: 28, showId: 10_759, aliases: ["Action & Adventure"] },
 	{ key: "adventure", label: "Adventure", movieId: 12, showId: 10_759, aliases: ["Action & Adventure"] },
@@ -73,7 +188,7 @@ export const CATALOG_GENRES: CatalogGenre[] = [
 ];
 
 export const DEFAULT_CATALOG_FILTERS: CatalogFilters = {
-	scope: "catalog",
+	scope: "all",
 	media: "all",
 	rating: 0,
 	yearFrom: null,
@@ -95,7 +210,6 @@ const VALID_GENRES: Record<string, true> = Object.fromEntries(
 	CATALOG_GENRES.map((genre) => [genre.key, true] as const)
 );
 const MIN_RELEASE_YEAR = 1874;
-const MAX_RELEASE_YEAR = new Date().getFullYear() + 2;
 const MAX_PAGE = 500;
 
 function parseEnum<T extends string>(value: string | null, allowed: Record<T, true>, fallback: T): T {
@@ -113,12 +227,12 @@ function parseRating(value: string | null): number {
 	return Math.round(Math.min(10, Math.max(0, parsed)) * 2) / 2;
 }
 
-function parseYear(value: string | null): number | null {
+function parseYear(value: string | null, currentYear: number): number | null {
 	if (!value) {
 		return null;
 	}
 	const parsed = Number(value);
-	if (!Number.isInteger(parsed) || parsed < MIN_RELEASE_YEAR || parsed > MAX_RELEASE_YEAR) {
+	if (!Number.isInteger(parsed) || parsed < MIN_RELEASE_YEAR || parsed > currentYear + 2) {
 		return null;
 	}
 	return parsed;
@@ -135,9 +249,12 @@ function parsePage(value: string | null): number {
 	return Math.min(MAX_PAGE, Math.max(1, parsed));
 }
 
-export function parseCatalogSearchParams(searchParams: URLSearchParams): CatalogSearchRequest {
-	let yearFrom = parseYear(searchParams.get("yearFrom"));
-	let yearTo = parseYear(searchParams.get("yearTo"));
+export function parseCatalogSearchParams(
+	searchParams: URLSearchParams,
+	currentYear = new Date().getFullYear()
+): CatalogSearchRequest {
+	let yearFrom = parseYear(searchParams.get("yearFrom"), currentYear);
+	let yearTo = parseYear(searchParams.get("yearTo"), currentYear);
 	if (yearFrom !== null && yearTo !== null && yearFrom > yearTo) {
 		[yearFrom, yearTo] = [yearTo, yearFrom];
 	}

@@ -90,6 +90,13 @@ export interface TMDBMetadata {
 	totalSeasons?: number | null;
 }
 
+export class AdultContentError extends Error {
+	constructor() {
+		super("Adult content is not available");
+		this.name = "AdultContentError";
+	}
+}
+
 export interface SeasonMetadata {
 	seasonNumber: number;
 	name: string | null;
@@ -152,7 +159,7 @@ export interface TmdbCatalogSearchResult {
 }
 
 // =============================================================================
-// Trending & Popular Movies
+// Trending Movies and Shows
 // =============================================================================
 
 interface TMDBTrendingItem {
@@ -165,10 +172,10 @@ interface TMDBTrendingItem {
 	backdrop_path: string | null;
 	overview: string;
 	vote_average: number;
-	genre_ids: number[];
+	genre_ids?: number[];
 	popularity?: number;
 	adult?: boolean;
-	media_type?: "movie" | "tv" | "show";
+	media_type?: "movie" | "tv" | "show" | "person";
 }
 
 interface TMDBTrendingResponse {
@@ -230,7 +237,9 @@ function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: "movie" | "sho
 	const title = item.title || item.name || "Unknown Title";
 	const date = item.release_date || item.first_air_date;
 	const year = date ? Number.parseInt(date.slice(0, 4), 10) : null;
-	const genres = item.genre_ids.map((id) => (type === "movie" ? MOVIE_GENRES[id] : TV_GENRES[id])).filter(Boolean);
+	const genres = (item.genre_ids ?? [])
+		.map((id) => (type === "movie" ? MOVIE_GENRES[id] : TV_GENRES[id]))
+		.filter(Boolean);
 
 	return {
 		tmdbId: item.id,
@@ -269,34 +278,15 @@ export async function getTrending(
 
 	const data: TMDBTrendingResponse = await res.json();
 	const items = data.results
-		.filter((item) => item.adult !== true)
+		.filter(
+			(item) =>
+				item.adult !== true &&
+				(type !== "all" ||
+					item.media_type === "movie" ||
+					item.media_type === "tv" ||
+					item.media_type === "show")
+		)
 		.map((item) => mapTmdbToBrowseItem(item, type === "all" ? "movie" : type, settings));
-
-	return { items, totalPages: data.total_pages };
-}
-
-/**
- * Get popular content from TMDB
- */
-export async function getPopular(
-	page = 1,
-	type: "movie" | "show" = "movie"
-): Promise<{ items: BrowseItem[]; totalPages: number }> {
-	const settings = await getSettings();
-	const tmdbType = type === "show" ? "tv" : type;
-	const res = await fetch(
-		`${settings.tmdb.baseUrl}/${tmdbType}/popular?api_key=${settings.tmdb.apiKey}&page=${page}&language=${settings.tmdb.language}&include_adult=false`
-	);
-
-	if (!res.ok) {
-		console.error(`[TMDB] Popular ${type} failed: ${res.status}`);
-		return { items: [], totalPages: 0 };
-	}
-
-	const data: TMDBTrendingResponse = await res.json();
-	const items = data.results
-		.filter((item) => item.adult !== true)
-		.map((item) => mapTmdbToBrowseItem(item, type, settings));
 
 	return { items, totalPages: data.total_pages };
 }
@@ -344,7 +334,7 @@ export async function getBrowseItemDetails(
 
 	const data = await res.json();
 	if (data.adult === true) {
-		return { imdbId: null, certification: null };
+		throw new AdultContentError();
 	}
 	const imdbId = data.external_ids?.imdb_id ?? null;
 	let certification: string | null = null;
@@ -447,7 +437,7 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 		throw new Error("Invalid TMDB response");
 	}
 	if (movie.adult === true) {
-		throw new Error("Adult content is not available");
+		throw new AdultContentError();
 	}
 
 	let certification: string | null = null;
@@ -588,7 +578,7 @@ function matchesCatalogFilters(item: TMDBTrendingItem, request: CatalogSearchReq
 	if (request.filters.yearTo !== null && (year === null || year > request.filters.yearTo)) {
 		return false;
 	}
-	return genreIds.length === 0 || item.genre_ids.some((id) => genreIds.includes(id));
+	return genreIds.length === 0 || (item.genre_ids ?? []).some((id) => genreIds.includes(id));
 }
 
 async function searchCatalogBranch(
@@ -698,7 +688,7 @@ export async function getTVDetails(tmdbId: number): Promise<TMDBMetadata & { tot
 		throw new Error("Invalid TMDB response");
 	}
 	if (show.adult === true) {
-		throw new Error("Adult content is not available");
+		throw new AdultContentError();
 	}
 
 	const usRating = show.content_ratings?.results?.find((r) => r.iso_3166_1 === "US");

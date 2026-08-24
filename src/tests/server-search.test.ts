@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type CatalogSearchRequest, DEFAULT_CATALOG_FILTERS } from "$lib/data/search";
+import {
+	type CatalogSearchRequest,
+	DEFAULT_CATALOG_FILTERS,
+	fromCatalogSearchJson,
+	toCatalogSearchJson,
+} from "$lib/data/search";
 import { mediaDb } from "$lib/server/db";
 import { schema } from "$lib/server/db/schema";
 import { searchCatalog } from "$lib/server/search";
@@ -90,5 +95,15 @@ describe("unified search", () => {
 			catalogItems: [{ tmdbId: 438_631, title: "Dune" }],
 			nextPage: null,
 		});
+		if (response.scope !== "all") {
+			throw new Error("Expected an all-source response");
+		}
+		const jsonResponse = toCatalogSearchJson(response);
+		if (jsonResponse.scope !== "all") {
+			throw new Error("Expected an all-source JSON response");
+		}
+		expect(typeof jsonResponse.libraryItems[0]?.addedAt).toBe("string");
+		const restored = fromCatalogSearchJson(jsonResponse);
+		expect(restored.scope === "all" && restored.libraryItems[0]?.addedAt).toBeInstanceOf(Date);
 	});
 });

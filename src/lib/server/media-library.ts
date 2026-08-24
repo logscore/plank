@@ -5,7 +5,7 @@ import { downloadsDb, mediaDb } from "./db";
 import { savePosterBackdropImages } from "./images";
 import { getMovieLibraryDirectoryId, getShowLibraryDirectoryId } from "./paths";
 import { getSettings } from "./settings";
-import { getMovieDetails, getTVDetails, isTVShowFilename, searchMovie, searchTVShow } from "./tmdb";
+import { AdultContentError, getMovieDetails, getTVDetails, isTVShowFilename, searchMovie, searchTVShow } from "./tmdb";
 import { startDownload } from "./torrent/download";
 import { parseMagnet } from "./torrent/files";
 
@@ -83,6 +83,12 @@ function createDefaultMetadata(title: string, year: number | null | undefined, t
 	};
 }
 
+function rethrowAdultContent(cause: unknown): void {
+	if (cause instanceof AdultContentError) {
+		error(400, cause.message);
+	}
+}
+
 async function fetchTmdbMetadata(
 	title: string,
 	year: number | undefined,
@@ -97,24 +103,26 @@ async function fetchTmdbMetadata(
 	}
 
 	try {
-		const results = mediaType === "show" ? await searchTVShow(title, year) : await searchMovie(title, year);
-
-		if (results.length === 0) {
-			return metadata;
+		if (tmdbId) {
+			const details = mediaType === "show" ? await getTVDetails(tmdbId) : await getMovieDetails(tmdbId);
+			return { ...metadata, ...details };
 		}
 
-		const basicResult = tmdbId ? (results.find((r) => r.tmdbId === tmdbId) ?? results[0]) : results[0];
-
+		const results = mediaType === "show" ? await searchTVShow(title, year) : await searchMovie(title, year);
+		const basicResult = results[0];
+		if (!basicResult) {
+			return metadata;
+		}
 		if (basicResult.tmdbId === null) {
 			return { ...metadata, ...basicResult };
 		}
 
 		const details =
 			mediaType === "show" ? await getTVDetails(basicResult.tmdbId) : await getMovieDetails(basicResult.tmdbId);
-
 		return { ...metadata, ...details };
-	} catch (e) {
-		console.error("[TMDB] Search failed:", e);
+	} catch (cause) {
+		rethrowAdultContent(cause);
+		console.error("[TMDB] Search failed:", cause);
 		return metadata;
 	}
 }
@@ -165,8 +173,9 @@ async function enrichBrowseMetadata(
 			if (!metadata.certification) {
 				metadata.certification = details.certification ?? null;
 			}
-		} catch (e) {
-			console.error(`[TMDB] Failed to enrich browse metadata for ${tmdbId}:`, e);
+		} catch (cause) {
+			rethrowAdultContent(cause);
+			console.error(`[TMDB] Failed to enrich browse metadata for ${tmdbId}:`, cause);
 		}
 	}
 

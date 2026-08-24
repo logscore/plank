@@ -12,7 +12,7 @@
     let { media, seasons, onDelete } = $props<{
         media: Media;
         seasons: SeasonWithEpisodes[];
-        onDelete: (id: string, e: Event) => void;
+        onDelete: (id: string) => void;
     }>();
 
     let isMobileActive = $state(false);
@@ -29,7 +29,7 @@
     }
 
     function handleDelete() {
-        onDelete(media.id, new Event("select"));
+        onDelete(media.id);
     }
 
     async function handleRetry(e: Event) {
@@ -87,7 +87,7 @@
     onkeydown={handleKeydown}
     role="button"
     tabindex="0"
-    class="group relative aspect-2/3 rounded-lg border border-border/50 bg-card shadow-lg outline-none transition-all duration-500 hover:z-20 hover:scale-[1.02] hover:border-red-500"
+    class="group relative aspect-2/3 rounded-lg border border-border/50 bg-card shadow-lg outline-none transition-[border-color,box-shadow] duration-300 hover:z-20 hover:border-red-500 hover:shadow-xl"
 >
     <div class="absolute inset-0 overflow-hidden rounded-lg">
         {#if media.type === "show"}

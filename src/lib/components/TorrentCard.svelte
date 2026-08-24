@@ -1,6 +1,7 @@
 <script lang="ts">
     import { ChevronDown, Download, Loader2, Play, Plus } from "@lucide/svelte";
     import { DropdownMenu } from "bits-ui";
+    import { onDestroy } from "svelte";
     import type { BrowseItem } from "$lib/server/tmdb";
     import type { CatalogSeason } from "$lib/types";
     import { cn } from "$lib/utils";
@@ -118,7 +119,6 @@
     }
 
     function handleSeasonMenuOpen(open: boolean) {
-        seasonMenuOpen = open;
         const shouldFetchSeasons = open && !(hasSeasonsLoaded || seasonsLoading) && onPrefetchSeasons;
         if (shouldFetchSeasons) {
             onPrefetchSeasons(item);
@@ -182,6 +182,17 @@
             }, 500); // Wait for completion animation
         }
     });
+    onDestroy(() => {
+        if (prefetchTimeout) {
+            clearTimeout(prefetchTimeout);
+        }
+        if (seasonsPrefetchTimeout) {
+            clearTimeout(seasonsPrefetchTimeout);
+        }
+        if (seasonTorrentPrefetchTimeout) {
+            clearTimeout(seasonTorrentPrefetchTimeout);
+        }
+    });
 </script>
 
 <div
@@ -194,7 +205,7 @@
     role="button"
     tabindex="0"
     class={cn(
-        "group relative aspect-2/3 cursor-pointer rounded-lg border border-border/50 bg-card shadow-lg outline-none transition-all duration-300 hover:z-20 hover:scale-[1.02] hover:border-primary/50",
+        "group relative aspect-2/3 cursor-pointer rounded-lg border border-border/50 bg-card shadow-lg outline-none transition-[border-color,box-shadow] duration-300 hover:z-20 hover:border-primary/50 hover:shadow-xl",
         className,
     )}
 >

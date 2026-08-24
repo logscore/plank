@@ -157,6 +157,12 @@ describe("mediaDb", () => {
 			title: "At Threshold",
 			voteAverage: 7,
 		});
+		const unrated = mediaDb.create({
+			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "Legacy Unrated",
+		});
 
 		const results = mediaDb.search(testOrg.id, "", {
 			...DEFAULT_CATALOG_FILTERS,
@@ -164,7 +170,7 @@ describe("mediaDb", () => {
 			rating: 7,
 		});
 
-		expect(results.map((item) => item.id)).toEqual([included.id]);
+		expect(results.map((item) => item.id).toSorted()).toEqual([included.id, unrated.id].toSorted());
 	});
 
 	it("treats title wildcard characters as text", () => {

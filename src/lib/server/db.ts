@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, like, lte, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, like, lte, or, type SQL, sql } from "drizzle-orm";
 import { type CatalogFilters, getCatalogGenreLabels } from "$lib/data/search";
 import {
 	type Download,
@@ -33,7 +33,10 @@ function getCatalogMediaConditions(organizationId: string, query: string, filter
 		conditions.push(eq(mediaTable.type, filters.media));
 	}
 	if (filters.rating > 0) {
-		conditions.push(gte(mediaTable.voteAverage, filters.rating));
+		const ratingFilter = or(isNull(mediaTable.voteAverage), gte(mediaTable.voteAverage, filters.rating));
+		if (ratingFilter) {
+			conditions.push(ratingFilter);
+		}
 	}
 	if (filters.yearFrom !== null) {
 		conditions.push(gte(mediaTable.year, filters.yearFrom));
@@ -110,7 +113,38 @@ export const mediaDb = {
 					.all();
 		}
 	},
-	searchIdentities(organizationId: string, query: string, filters: CatalogFilters) {
+	searchIdentities(
+		organizationId: string,
+		query: string,
+		filters: CatalogFilters,
+		candidates: Array<{
+			mediaType: "movie" | "show";
+			tmdbId: number;
+			imdbId: string | null;
+			title: string;
+			year: number | null;
+		}>
+	) {
+		if (candidates.length === 0) {
+			return [];
+		}
+		const candidateConditions = candidates.map((item) => {
+			const imdbMatch = item.imdbId === null ? sql`0` : eq(mediaTable.imdbId, item.imdbId);
+			const yearMatch = item.year === null ? isNull(mediaTable.year) : eq(mediaTable.year, item.year);
+			return sql`(
+				(${mediaTable.type} = ${item.mediaType} AND ${mediaTable.tmdbId} = ${item.tmdbId})
+				OR ${imdbMatch}
+				OR (
+					${mediaTable.type} = ${item.mediaType}
+					AND lower(${mediaTable.title}) = lower(${item.title})
+					AND ${yearMatch}
+				)
+			)`;
+		});
+		const candidateFilter = or(...candidateConditions);
+		if (!candidateFilter) {
+			return [];
+		}
 		return db
 			.select({
 				type: mediaTable.type,
@@ -120,7 +154,9 @@ export const mediaDb = {
 				imdbId: mediaTable.imdbId,
 			})
 			.from(mediaTable)
-			.where(and(...getCatalogMediaConditions(organizationId, query, filters)))
+			.where(and(...getCatalogMediaConditions(organizationId, query, filters), candidateFilter))
+			.groupBy(mediaTable.type, mediaTable.title, mediaTable.year, mediaTable.tmdbId, mediaTable.imdbId)
+			.limit(candidates.length * 3)
 			.all();
 	},
 

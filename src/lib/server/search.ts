@@ -68,13 +68,12 @@ export async function searchCatalog(
 		return library;
 	}
 
-	const catalogPromise = searchTmdbCatalog(request);
-	const identities = mediaDb.searchIdentities(organizationId, request.query, request.filters);
+	const catalog = await searchTmdbCatalog(request);
+	const identities = mediaDb.searchIdentities(organizationId, request.query, request.filters, catalog.items);
 	const libraryKeys = new Set<string>();
 	for (const identity of identities) {
 		addLibraryIdentityKeys(libraryKeys, identity);
 	}
-	const catalog = await catalogPromise;
 	const catalogItems = catalog.items.filter((item) => !isInLibrary(libraryKeys, item));
 	const hasNextPage = library.nextPage !== null || catalog.totalPages > request.page;
 

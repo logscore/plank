@@ -1,6 +1,7 @@
 <script lang="ts">
     import { SlidersHorizontal } from "@lucide/svelte";
     import { Dialog, Popover } from "bits-ui";
+    import { MediaQuery } from "svelte/reactivity";
     import CatalogFilterPanel from "$lib/components/CatalogFilterPanel.svelte";
     import { type CatalogFilters, DEFAULT_CATALOG_FILTERS } from "$lib/data/search";
     import { cn } from "$lib/utils";
@@ -17,8 +18,8 @@
         showSource?: boolean;
     } = $props();
 
-    let desktopOpen = $state(false);
-    let mobileOpen = $state(false);
+    const desktop = new MediaQuery("min-width: 640px");
+    let open = $state(false);
     const activeCount = $derived(
         Number(showSource && filters.scope !== "all") +
             Number(filters.media !== DEFAULT_CATALOG_FILTERS.media) +
@@ -35,56 +36,48 @@
     );
 
     function apply(filtersToApply: CatalogFilters) {
-        desktopOpen = false;
-        mobileOpen = false;
+        open = false;
         onApply(filtersToApply);
     }
 
     function close() {
-        desktopOpen = false;
-        mobileOpen = false;
+        open = false;
     }
 </script>
 
-<div class="hidden sm:block">
-    <Popover.Root bind:open={desktopOpen}>
-        <Popover.Trigger class={triggerClass} aria-label="Filter titles">
-            <SlidersHorizontal class="h-4 w-4" />
-            Filters
-            {#if activeCount > 0}
-                <span
-                    class="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[11px] leading-none text-primary-foreground"
-                >
-                    {activeCount}
-                </span>
-            {/if}
-        </Popover.Trigger>
+{#snippet trigger()}
+    <SlidersHorizontal class="h-4 w-4" />
+    Filters
+    {#if activeCount > 0}
+        <span
+            class="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[11px] leading-none text-primary-foreground"
+        >
+            {activeCount}
+        </span>
+    {/if}
+{/snippet}
+
+{#snippet panel()}
+    <CatalogFilterPanel {filters} {showSource} onApply={apply} onCancel={close} />
+{/snippet}
+
+{#if desktop.current}
+    <Popover.Root bind:open>
+        <Popover.Trigger class={triggerClass} aria-label="Filter titles">{@render trigger()}</Popover.Trigger>
         <Popover.Portal>
             <Popover.Content
                 side="bottom"
                 align="end"
                 sideOffset={10}
-                class="z-70 w-[26rem] overflow-hidden rounded-2xl border border-white/10 bg-black/97 text-foreground shadow-2xl backdrop-blur-2xl focus:outline-none"
+                class="z-70 w-104 overflow-hidden rounded-2xl border border-white/10 bg-black/97 text-foreground shadow-2xl backdrop-blur-2xl focus:outline-none"
             >
-                <CatalogFilterPanel {filters} {showSource} onApply={apply} onCancel={close} />
+                {@render panel()}
             </Popover.Content>
         </Popover.Portal>
     </Popover.Root>
-</div>
-
-<div class="sm:hidden">
-    <Dialog.Root bind:open={mobileOpen}>
-        <Dialog.Trigger class={triggerClass} aria-label="Filter titles">
-            <SlidersHorizontal class="h-4 w-4" />
-            Filters
-            {#if activeCount > 0}
-                <span
-                    class="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[11px] leading-none text-primary-foreground"
-                >
-                    {activeCount}
-                </span>
-            {/if}
-        </Dialog.Trigger>
+{:else}
+    <Dialog.Root bind:open>
+        <Dialog.Trigger class={triggerClass} aria-label="Filter titles">{@render trigger()}</Dialog.Trigger>
         <Dialog.Portal>
             <Dialog.Overlay class="fixed inset-0 z-70 bg-black/75 backdrop-blur-sm" />
             <Dialog.Content
@@ -97,8 +90,8 @@
                         : "Filter by media type, rating, release year, genre, and sort order."}
                 </Dialog.Description>
                 <div class="mx-auto mt-2.5 h-1 w-10 rounded-full bg-white/20"></div>
-                <CatalogFilterPanel {filters} {showSource} onApply={apply} onCancel={close} />
+                {@render panel()}
             </Dialog.Content>
         </Dialog.Portal>
     </Dialog.Root>
-</div>
+{/if}

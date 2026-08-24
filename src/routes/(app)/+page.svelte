@@ -7,7 +7,13 @@
     import MediaCard from "$lib/components/MediaCard.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import { createDeleteMediaMutation } from "$lib/data/media";
-    import { type CatalogFilters, type CatalogSearchResponse, serializeCatalogSearch } from "$lib/data/search";
+    import {
+        type CatalogFilters,
+        type CatalogSearchJsonResponse,
+        type CatalogSearchResponse,
+        fromCatalogSearchJson,
+        serializeCatalogSearch,
+    } from "$lib/data/search";
     import { confirmDelete } from "$lib/ui-state.svelte";
     import type { PageData } from "./$types";
 
@@ -63,7 +69,8 @@
             if (!apiResponse.ok) {
                 throw new Error(`Library request failed with ${apiResponse.status}`);
             }
-            const nextResponse: CatalogSearchResponse = await apiResponse.json();
+            const jsonResponse: CatalogSearchJsonResponse = await apiResponse.json();
+            const nextResponse = fromCatalogSearchJson(jsonResponse);
             if (nextResponse.scope !== "library") {
                 throw new Error("Library request returned catalog results");
             }
@@ -83,9 +90,7 @@
         }
     }
 
-    function deleteMedia(id: string, event: Event) {
-        event.preventDefault();
-        event.stopPropagation();
+    function deleteMedia(id: string) {
         confirmDelete(
             "Delete Media",
             "Are you sure you want to remove this? This action cannot be undone.",

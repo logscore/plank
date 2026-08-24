@@ -313,7 +313,7 @@ describe("TMDB Service", () => {
 		});
 	});
 
-	describe("Trending & Popular", () => {
+	describe("Trending", () => {
 		it("getTrending should parse results", async () => {
 			const mockResponse = {
 				results: [
@@ -331,6 +331,12 @@ describe("TMDB Service", () => {
 						genre_ids: [35],
 						poster_path: "/p.jpg",
 					},
+					{
+						id: 3,
+						name: "Person",
+						media_type: "person",
+						poster_path: "/person.jpg",
+					},
 				],
 				page: 1,
 				total_pages: 10,
@@ -347,30 +353,6 @@ describe("TMDB Service", () => {
 			expect(result.items[0].mediaType).toBe("movie");
 			expect(result.items[1].mediaType).toBe("show");
 			expect(result.totalPages).toBe(10);
-		});
-
-		it("getPopular should parse results", async () => {
-			const mockResponse = {
-				results: [
-					{
-						id: 1,
-						title: "Movie",
-						genre_ids: [28],
-					},
-				],
-				page: 1,
-				total_pages: 5,
-			};
-
-			(global.fetch as any).mockResolvedValue({
-				ok: true,
-				json: async () => mockResponse,
-			});
-
-			const result = await tmdb.getPopular(1, "movie");
-
-			expect(result.items).toHaveLength(1);
-			expect(result.items[0].mediaType).toBe("movie");
 		});
 	});
 

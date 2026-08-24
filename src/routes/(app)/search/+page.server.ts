@@ -8,14 +8,7 @@ export const load: PageServerLoad = async ({ depends, locals, url }) => {
 	depends("/api/media");
 	depends("/api/search");
 
-	const parsedRequest = parseCatalogSearchParams(url.searchParams);
-	const request = {
-		...parsedRequest,
-		filters: {
-			...parsedRequest.filters,
-			scope: url.searchParams.has("scope") ? parsedRequest.filters.scope : ("all" as const),
-		},
-	};
+	const request = parseCatalogSearchParams(url.searchParams);
 	return {
 		request,
 		response: await searchCatalog(organizationId, request),

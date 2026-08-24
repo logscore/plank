@@ -18,7 +18,9 @@
     import { createAddMediaMutation, createDeleteMediaMutation } from "$lib/data/media";
     import {
         type CatalogFilters,
+        type CatalogSearchJsonResponse,
         type CatalogSearchResponse,
+        fromCatalogSearchJson,
         type SearchScope,
         serializeCatalogSearch,
     } from "$lib/data/search";
@@ -133,7 +135,8 @@
             if (!apiResponse.ok) {
                 throw new Error(`Search request failed with ${apiResponse.status}`);
             }
-            const nextResponse: CatalogSearchResponse = await apiResponse.json();
+            const jsonResponse: CatalogSearchJsonResponse = await apiResponse.json();
+            const nextResponse = fromCatalogSearchJson(jsonResponse);
             if (response.scope === "all" && nextResponse.scope === "all") {
                 const seenLibrary = new Set(response.libraryItems.map((item) => item.id));
                 const seenCatalog = new Set(response.catalogItems.map((item) => `${item.mediaType}:${item.tmdbId}`));
@@ -183,9 +186,7 @@
         }
     }
 
-    async function deleteMedia(id: string, event: Event) {
-        event.preventDefault();
-        event.stopPropagation();
+    function deleteMedia(id: string) {
         confirmDelete(
             "Delete Media",
             "Are you sure you want to remove this item? This action cannot be undone.",
@@ -407,33 +408,39 @@
             <div class="flex items-center justify-center p-16">
                 <LoaderCircle class="h-8 w-8 animate-spin text-primary" />
             </div>
-        {:else if getResponseItemCount(response) === 0}
-            <div
-                class="mx-auto flex max-w-xl flex-col items-center justify-center rounded-3xl border border-dashed border-white/15 bg-white/3 px-6 py-16 text-center"
-            >
-                <div class="rounded-full bg-white/5 p-4">
-                    <Film class="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h2 class="mt-4 text-lg font-semibold text-white">
-                    {query ? "No matching titles" : "No titles match these filters"}
-                </h2>
-                <p class="mt-1 text-sm text-muted-foreground">Change the search text or clear one or more filters.</p>
-            </div>
         {:else}
-            <div class="mb-4 flex items-center justify-between gap-4">
-                <span class="text-xs text-muted-foreground">{getResponseItemCount(response)} results</span>
-            </div>
+            {#if getResponseItemCount(response) === 0}
+                <div
+                    class="mx-auto flex max-w-xl flex-col items-center justify-center rounded-3xl border border-dashed border-white/15 bg-white/3 px-6 py-16 text-center"
+                >
+                    <div class="rounded-full bg-white/5 p-4">
+                        <Film class="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <h2 class="mt-4 text-lg font-semibold text-white">
+                        {query ? "No matching titles on this page" : "No titles match these filters on this page"}
+                    </h2>
+                    <p class="mt-1 text-sm text-muted-foreground">
+                        {response.nextPage === null
+                            ? "Change the search text or clear one or more filters."
+                            : "Continue to the next page or change the filters."}
+                    </p>
+                </div>
+            {:else}
+                <div class="mb-4 flex items-center justify-between gap-4">
+                    <span class="text-xs text-muted-foreground">{getResponseItemCount(response)} results</span>
+                </div>
 
-            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                {#if response.scope === "all"}
-                    {@render renderLibraryResults(response.libraryItems, response.seasonsByMediaId)}
-                    {@render renderCatalogResults(response.catalogItems)}
-                {:else if response.scope === "library"}
-                    {@render renderLibraryResults(response.items, response.seasonsByMediaId)}
-                {:else}
-                    {@render renderCatalogResults(response.items)}
-                {/if}
-            </div>
+                <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                    {#if response.scope === "all"}
+                        {@render renderLibraryResults(response.libraryItems, response.seasonsByMediaId)}
+                        {@render renderCatalogResults(response.catalogItems)}
+                    {:else if response.scope === "library"}
+                        {@render renderLibraryResults(response.items, response.seasonsByMediaId)}
+                    {:else}
+                        {@render renderCatalogResults(response.items)}
+                    {/if}
+                </div>
+            {/if}
 
             {#if response.nextPage !== null}
                 <div class="mt-10 flex justify-center">

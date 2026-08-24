@@ -1,6 +1,5 @@
 <script lang="ts">
-    import { Flame, Trophy } from "@lucide/svelte";
-    import { Tabs } from "bits-ui";
+    import { Trophy } from "@lucide/svelte";
     import { untrack } from "svelte";
     import { toast } from "svelte-sonner";
     import { goto } from "$app/navigation";
@@ -16,7 +15,6 @@
         createBrowseInfiniteQuery,
         fetchBrowseDetailsCached,
         fetchSeasonsCached,
-        prefetchBrowse,
         resolveTorrentCached,
         type SeasonSummary,
     } from "$lib/data/browse";
@@ -27,7 +25,6 @@
 
     let { data } = $props<{ data: PageData }>();
     const addToLibraryMutation = createAddFromBrowseMutation();
-    const activeTab = $derived(data.type);
     let filters = $state<CatalogFilters>(
         untrack(() => ({ ...data.request.filters, genres: [...data.request.filters.genres] }))
     );
@@ -36,24 +33,14 @@
         filters = { ...data.request.filters, genres: [...data.request.filters.genres] };
     });
 
-    async function navigate(type: "trending" | "popular", nextFilters: CatalogFilters) {
+    async function applyFilters(nextFilters: CatalogFilters) {
         const params = serializeCatalogSearch({
             query: "",
             page: 1,
             filters: { ...nextFilters, scope: "catalog" },
         });
-        params.set("type", type);
+        params.delete("scope");
         await goto(`/browse?${params}`, { noScroll: true });
-    }
-
-    async function setBrowseType(value: string) {
-        if (value === "trending" || value === "popular") {
-            await navigate(value, filters);
-        }
-    }
-
-    async function applyFilters(nextFilters: CatalogFilters) {
-        await navigate(activeTab, nextFilters);
     }
 
     const prowlarrQuery = createProwlarrStatusQuery();
@@ -61,7 +48,6 @@
         prowlarrQuery.isSuccess && prowlarrQuery.data?.configured && !prowlarrQuery.data?.needsSetup
     );
     const browseQuery = createBrowseInfiniteQuery(
-        () => activeTab,
         () => filters,
         () => Boolean(prowlarrReady)
     );
@@ -121,7 +107,7 @@
 
     // Merge enrichment data into display items
     const displayItems = $derived.by(() => {
-        const ctx = `${activeTab}-${serializeCatalogSearch({ query: "", page: 1, filters })}`;
+        const ctx = String(serializeCatalogSearch({ query: "", page: 1, filters }));
 
         return rawItems.map((item) => {
             const detail = enrichmentMap.get(item.tmdbId);
@@ -175,12 +161,6 @@
         observer.observe(loadMoreTrigger);
 
         return () => observer.disconnect();
-    });
-
-    // Prefetch the other tab for instant tab switching
-    $effect(() => {
-        const otherTab = activeTab === "trending" ? "popular" : "trending";
-        prefetchBrowse(otherTab, filters);
     });
 
     // Get magnet link through the shared query cache
@@ -380,29 +360,6 @@
             </div>
             <CatalogFilterButton {filters} onApply={applyFilters} class="shrink-0" />
         </div>
-
-        <Tabs.Root value={activeTab} onValueChange={setBrowseType} class="mt-7">
-            <Tabs.List class="flex items-center gap-2 overflow-x-auto no-scrollbar" aria-label="Browse list">
-                <Tabs.Trigger
-                    value="trending"
-                    onpointerenter={() => prefetchBrowse("trending", filters)}
-                    onfocus={() => prefetchBrowse("trending", filters)}
-                    class="inline-flex h-10 items-center justify-center rounded-full border border-white/8 px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/6 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=active]:border-white/15 data-[state=active]:bg-white/10 data-[state=active]:text-white"
-                >
-                    <Flame class="mr-2 h-4 w-4" />
-                    Trending
-                </Tabs.Trigger>
-                <Tabs.Trigger
-                    value="popular"
-                    onpointerenter={() => prefetchBrowse("popular", filters)}
-                    onfocus={() => prefetchBrowse("popular", filters)}
-                    class="inline-flex h-10 items-center justify-center rounded-full border border-white/8 px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/6 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=active]:border-white/15 data-[state=active]:bg-white/10 data-[state=active]:text-white"
-                >
-                    <Trophy class="mr-2 h-4 w-4" />
-                    Popular
-                </Tabs.Trigger>
-            </Tabs.List>
-        </Tabs.Root>
     </header>
 
     <!-- Content -->

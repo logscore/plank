@@ -29,7 +29,7 @@ describe("catalog search parameters", () => {
 		expect(request.query).toHaveLength(200);
 		expect(request.page).toBe(1);
 		expect(request.filters).toEqual({
-			scope: "catalog",
+			scope: "all",
 			media: "show",
 			rating: 8,
 			yearFrom: 1999,
@@ -56,6 +56,22 @@ describe("catalog search parameters", () => {
 		};
 
 		expect(parseCatalogSearchParams(serializeCatalogSearch(request))).toEqual(request);
+	});
+
+	it("preserves an explicit catalog source", () => {
+		const params = serializeCatalogSearch({
+			query: "",
+			page: 1,
+			filters: { ...DEFAULT_CATALOG_FILTERS, scope: "catalog" },
+		});
+
+		expect(params.get("scope")).toBe("catalog");
+		expect(parseCatalogSearchParams(params).filters.scope).toBe("catalog");
+	});
+
+	it("uses the current year when validating release dates", () => {
+		const request = parseCatalogSearchParams(new URLSearchParams({ yearFrom: "2032" }), 2030);
+		expect(request.filters.yearFrom).toBe(2032);
 	});
 
 	it("maps shared genres to TMDB ids and stored labels", () => {

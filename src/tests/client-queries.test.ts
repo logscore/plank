@@ -41,11 +41,11 @@ describe("client data", () => {
 	it("fetches the selected browse page", async () => {
 		fetchMock.mockResolvedValue(mockJsonResponse({ items: [], page: 2, totalPages: 2 }));
 
-		await fetchBrowse("trending", { ...DEFAULT_CATALOG_FILTERS, media: "movie" }, 2);
+		await fetchBrowse({ ...DEFAULT_CATALOG_FILTERS, media: "movie" }, 2);
 
 		const url = new URL(vi.mocked(fetchMock).mock.calls[0][0] as string, "http://localhost");
 		expect(url.pathname).toBe("/api/browse");
-		expect(url.searchParams.get("type")).toBe("trending");
+		expect(url.searchParams.get("type")).toBeNull();
 		expect(url.searchParams.get("media")).toBe("movie");
 		expect(url.searchParams.get("page")).toBe("2");
 	});
@@ -91,8 +91,8 @@ describe("client data", () => {
 	it.each([
 		[
 			"browse",
-			() => fetchBrowse("popular", { ...DEFAULT_CATALOG_FILTERS, media: "movie" }, 1),
-			"Failed to fetch popular",
+			() => fetchBrowse({ ...DEFAULT_CATALOG_FILTERS, media: "movie" }, 1),
+			"Failed to fetch browse titles",
 		],
 		[
 			"torrent resolution",

@@ -30,6 +30,7 @@
     let genres = $state<string[]>([]);
     let sort = $state(DEFAULT_CATALOG_FILTERS.sort);
     let genreSearch = $state("");
+    let genreAnchor: HTMLDivElement | undefined = $state();
 
     const sourceOptions = [
         { value: "all", label: "All" },
@@ -193,7 +194,7 @@
                 bind:value={rating}
                 min={0}
                 max={10}
-                step={0.5}
+                step={1}
                 class="relative flex h-6 w-full touch-none select-none items-center"
             >
                 <span class="relative h-1.5 w-full grow overflow-hidden rounded-full bg-white/10">
@@ -234,27 +235,52 @@
             </div>
         </fieldset>
 
-        <fieldset class="space-y-2.5">
+        <fieldset class="min-w-0 space-y-2.5">
             <legend class="text-sm font-medium text-white">Genres</legend>
             <Combobox.Root
                 type="multiple"
                 items={availableGenres.map((genre) => ({ value: genre.key, label: genre.label }))}
-                bind:value={genres}
+                value={genres}
+                onValueChange={(nextGenres) => {
+                    genres = nextGenres;
+                    genreSearch = "";
+                }}
                 onOpenChangeComplete={(open) => {
                     if (!open) {
                         genreSearch = "";
                     }
                 }}
             >
-                <div class="relative">
-                    <Combobox.Input
-                        oninput={(event) => {
-                            genreSearch = event.currentTarget.value;
-                        }}
-                        class="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 pr-10 text-sm text-white outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
-                        placeholder={genres.length > 0 ? `${genres.length} selected` : "Search genres"}
-                        aria-label="Search genres"
-                    />
+                <div bind:this={genreAnchor} class="relative w-full min-w-0">
+                    <div
+                        class="flex min-h-10 w-full min-w-0 flex-wrap items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 py-1.5 pl-2 pr-10 focus-within:ring-2 focus-within:ring-ring"
+                    >
+                        {#each genres as key (key)}
+                            {@const genre = CATALOG_GENRES.find((entry) => entry.key === key)}
+                            {#if genre}
+                                <button
+                                    type="button"
+                                    class="inline-flex h-7 items-center rounded-lg border border-white/10 bg-white/8 px-2 text-xs text-white transition-colors hover:bg-white/12"
+                                    onclick={(event) => {
+                                        event.stopPropagation();
+                                        genres = genres.filter((value) => value !== key);
+                                    }}
+                                    aria-label={`Remove ${genre.label} filter`}
+                                >
+                                    {genre.label}
+                                    <span class="ml-1 text-muted-foreground" aria-hidden="true">×</span>
+                                </button>
+                            {/if}
+                        {/each}
+                        <Combobox.Input
+                            oninput={(event) => {
+                                genreSearch = event.currentTarget.value;
+                            }}
+                            class="h-7 min-w-24 flex-1 bg-transparent px-1 text-sm text-white outline-none placeholder:text-muted-foreground"
+                            placeholder={genres.length > 0 ? "" : "Search genres"}
+                            aria-label="Search genres"
+                        />
+                    </div>
                     <Combobox.Trigger
                         class="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-white/10 hover:text-white"
                         aria-label="Show genres"
@@ -265,13 +291,14 @@
                 <Combobox.Portal>
                     <Combobox.Content
                         sideOffset={6}
-                        class="z-90 max-h-64 min-w-[var(--bits-combobox-anchor-width)] overflow-y-auto rounded-xl border border-white/10 bg-black/98 p-1.5 text-white shadow-2xl focus:outline-none"
+                        customAnchor={genreAnchor}
+                        class="z-90 max-h-64 w-[var(--bits-combobox-anchor-width)] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-white/10 bg-black/98 p-1.5 text-white shadow-2xl focus:outline-none"
                     >
                         <Combobox.Viewport>
                             {#each filteredGenres as genre (genre.key)}
                                 <Combobox.Item
                                     value={genre.key}
-                                    label={genre.label}
+                                    label=""
                                     class="flex h-9 cursor-default select-none items-center rounded-lg px-3 text-sm outline-none data-highlighted:bg-white/10"
                                 >
                                     {#snippet children({ selected })}
@@ -288,25 +315,6 @@
                     </Combobox.Content>
                 </Combobox.Portal>
             </Combobox.Root>
-            {#if genres.length > 0}
-                <div class="flex flex-wrap gap-1.5">
-                    {#each genres as key (key)}
-                        {@const genre = CATALOG_GENRES.find((entry) => entry.key === key)}
-                        {#if genre}
-                            <button
-                                type="button"
-                                class="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-white/10 hover:text-white"
-                                onclick={() => {
-                                    genres = genres.filter((value) => value !== key);
-                                }}
-                                aria-label={`Remove ${genre.label} filter`}
-                            >
-                                {genre.label} ×
-                            </button>
-                        {/if}
-                    {/each}
-                </div>
-            {/if}
         </fieldset>
 
         <fieldset class="space-y-2.5">

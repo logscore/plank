@@ -40,7 +40,7 @@
     <Select.Portal>
         <Select.Content
             sideOffset={8}
-            class="z-60 max-h-[var(--bits-select-content-available-height)] min-w-[var(--bits-select-anchor-width)] overflow-y-auto rounded-xl border border-white/10 bg-black/95 p-1.5 text-foreground shadow-2xl backdrop-blur-xl focus:outline-none"
+            class="z-90 max-h-[var(--bits-select-content-available-height)] min-w-[var(--bits-select-anchor-width)] overflow-y-auto rounded-xl border border-white/10 bg-black/95 p-1.5 text-foreground shadow-2xl backdrop-blur-xl focus:outline-none"
         >
             <Select.Viewport>
                 {#each items as item (item.value)}

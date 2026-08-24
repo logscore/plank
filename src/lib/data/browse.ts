@@ -8,15 +8,13 @@ import { prefetchProwlarrStatus } from "./prowlarr";
 
 export type { BrowseItem, SeasonSummary } from "$lib/server/tmdb";
 
-export type BrowseType = "trending" | "popular";
-
 const BROWSE_STALE_TIME_MS = 30 * 60 * 1000;
 const RESOLVE_STALE_TIME_MS = 24 * 60 * 60 * 1000;
 const SEASONS_STALE_TIME_MS = 60 * 60 * 1000;
 const IMAGE_PRELOAD_COUNT = 18;
 
 const browseKeys = {
-	infinite: (type: BrowseType, filters: CatalogFilters) => ["browse", "infinite", type, filters] as const,
+	infinite: (filters: CatalogFilters) => ["browse", "infinite", filters] as const,
 	details: (tmdbIds: number[]) => ["browse", "details", ...tmdbIds.toSorted()] as const,
 	resolve: (tmdbId: number) => ["browse", "resolve", tmdbId] as const,
 	seasons: (tmdbId: number) => ["browse", "seasons", tmdbId] as const,
@@ -77,14 +75,14 @@ function fetchBrowseDetails(items: { tmdbId: number; mediaType: "movie" | "show"
 	});
 }
 
-export function fetchBrowse(type: BrowseType, filters: CatalogFilters, page = 1): Promise<BrowseResponse> {
+export function fetchBrowse(filters: CatalogFilters, page = 1): Promise<BrowseResponse> {
 	const params = serializeCatalogSearch({
 		query: "",
 		page,
 		filters: { ...filters, scope: "catalog" },
 	});
-	params.set("type", type);
-	return apiRequest(`/api/browse?${params}`, `Failed to fetch ${type}`);
+	params.delete("scope");
+	return apiRequest(`/api/browse?${params}`, "Failed to fetch browse titles");
 }
 
 export function resolveTorrent(item: ResolveInput): Promise<ResolveResponse> {
@@ -98,14 +96,10 @@ export function fetchSeasons(tmdbId: number): Promise<SeasonsResponse> {
 	return apiRequest(`/api/browse/seasons/${tmdbId}`, "Failed to fetch seasons");
 }
 
-export function createBrowseInfiniteQuery(
-	type: () => BrowseType,
-	filters: () => CatalogFilters,
-	enabled: () => boolean
-) {
+export function createBrowseInfiniteQuery(filters: () => CatalogFilters, enabled: () => boolean) {
 	return createInfiniteQuery(() => ({
-		queryKey: browseKeys.infinite(type(), filters()),
-		queryFn: ({ pageParam }) => fetchBrowse(type(), filters(), pageParam),
+		queryKey: browseKeys.infinite(filters()),
+		queryFn: ({ pageParam }) => fetchBrowse(filters(), pageParam),
 		initialPageParam: 1,
 		getNextPageParam: (lastPage: BrowseResponse) =>
 			lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined,
@@ -158,16 +152,16 @@ function preloadImages(items: { posterUrl: string | null }[]): void {
 	}
 }
 
-export function prefetchBrowse(type: BrowseType, filters: CatalogFilters = DEFAULT_CATALOG_FILTERS): void {
+function prefetchBrowse(filters: CatalogFilters = DEFAULT_CATALOG_FILTERS): void {
 	queryClient
 		.prefetchInfiniteQuery({
-			queryKey: browseKeys.infinite(type, filters),
-			queryFn: ({ pageParam }) => fetchBrowse(type, filters, pageParam),
+			queryKey: browseKeys.infinite(filters),
+			queryFn: ({ pageParam }) => fetchBrowse(filters, pageParam),
 			initialPageParam: 1,
 			staleTime: BROWSE_STALE_TIME_MS,
 		})
 		.then(() => {
-			const data = queryClient.getQueryData<{ pages: BrowseResponse[] }>(browseKeys.infinite(type, filters));
+			const data = queryClient.getQueryData<{ pages: BrowseResponse[] }>(browseKeys.infinite(filters));
 			const firstPage = data?.pages[0];
 			if (firstPage) {
 				preloadImages(firstPage.items);
@@ -177,8 +171,7 @@ export function prefetchBrowse(type: BrowseType, filters: CatalogFilters = DEFAU
 
 export function prefetchBrowseData(): void {
 	prefetchProwlarrStatus();
-	prefetchBrowse("trending");
-	prefetchBrowse("popular");
+	prefetchBrowse();
 }
 
 interface AddFromBrowseMagnetParams {
