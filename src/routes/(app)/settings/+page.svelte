@@ -9,7 +9,7 @@
         type ConnectionTarget,
         createTestSettingsConnectionMutation,
         type TestSettingsConnectionInput,
-    } from "$lib/mutations/settings-mutations";
+    } from "$lib/data/settings";
     import type { ActionData, PageData } from "./$types";
 
     interface SectionLink {

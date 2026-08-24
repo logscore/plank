@@ -21,11 +21,7 @@
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
-    import {
-        createAddMediaMutation,
-        createDeleteMediaMutation,
-        createRetryMediaMutation,
-    } from "$lib/mutations/media-mutations";
+    import { createAddMediaMutation, createDeleteMediaMutation, createRetryMediaMutation } from "$lib/data/media";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
     import { isTerminalProgressStatus } from "$lib/utils";
     import type { PageData } from "./$types";

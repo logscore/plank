@@ -1,26 +1,23 @@
 <script lang="ts">
     import { Flame, Trophy } from "@lucide/svelte";
-    import { createInfiniteQuery, createQuery, useQueryClient } from "@tanstack/svelte-query";
     import { toast } from "svelte-sonner";
     import { goto } from "$app/navigation";
     import CardSkeleton from "$lib/components/CardSkeleton.svelte";
     import ProwlarrSetup from "$lib/components/ProwlarrSetup.svelte";
     import TorrentCard from "$lib/components/TorrentCard.svelte";
     import type { SeasonData } from "$lib/components/ui/ContextMenu.svelte";
-    import { createAddFromBrowseMutation } from "$lib/mutations/browse-mutations";
     import {
         type BrowseDetailItem,
         type BrowseItem,
-        type BrowseResponse,
-        fetchBrowse,
-        fetchBrowseDetails,
-        fetchProwlarrStatus,
-        fetchSeasons,
-        resolveTorrent,
+        createAddFromBrowseMutation,
+        createBrowseInfiniteQuery,
+        fetchBrowseDetailsCached,
+        fetchSeasonsCached,
+        prefetchBrowse,
+        resolveTorrentCached,
         type SeasonSummary,
-    } from "$lib/queries/browse-queries";
-    import { prefetchBrowse } from "$lib/queries/prefetch";
-    import { queryKeys } from "$lib/query-keys";
+    } from "$lib/data/browse";
+    import { createProwlarrStatusQuery } from "$lib/data/prowlarr";
 
     interface Props {
         data: {
@@ -34,35 +31,21 @@
     // Mutations
     const addToLibraryMutation = createAddFromBrowseMutation();
 
-    // Query client for caching
-    const queryClient = useQueryClient();
-
     // Derive params from URL (available immediately, not streamed)
     const activeTab = $derived(data.type);
     const activeFilter = $derived(data.filter || "all");
 
-    // Prowlarr status via TanStack Query (long staleTime - rarely changes)
-    const prowlarrQuery = createQuery(() => ({
-        queryKey: queryKeys.system.prowlarr.status(),
-        queryFn: fetchProwlarrStatus,
-        staleTime: 60 * 60 * 1000, // 1 hour
-    }));
+    const prowlarrQuery = createProwlarrStatusQuery();
 
     const prowlarrReady = $derived(
         prowlarrQuery.isSuccess && prowlarrQuery.data?.configured && !prowlarrQuery.data?.needsSetup
     );
 
-    // Infinite query for browse data
-    const browseQuery = createInfiniteQuery(() => ({
-        queryKey: queryKeys.browse.infinite(activeTab, activeFilter),
-        queryFn: ({ pageParam }) => fetchBrowse(activeTab, activeFilter, pageParam),
-        initialPageParam: 1,
-        getNextPageParam: (lastPage: BrowseResponse) => {
-            return lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined;
-        },
-        enabled: prowlarrReady,
-        staleTime: 30 * 60 * 1000, // 30 minutes
-    }));
+    const browseQuery = createBrowseInfiniteQuery(
+        () => activeTab,
+        () => activeFilter,
+        () => Boolean(prowlarrReady)
+    );
 
     // ==========================================================================
     // Lazy Detail Enrichment
@@ -108,19 +91,13 @@
             tmdbId: item.tmdbId,
             mediaType: item.mediaType,
         }));
-        queryClient
-            .fetchQuery({
-                queryKey: queryKeys.browse.details(batch.map((b) => b.tmdbId)),
-                queryFn: () => fetchBrowseDetails(batch),
-                staleTime: 30 * 60 * 1000, // 30 minutes
-            })
-            .then((response) => {
-                const updated = new Map(enrichmentMap);
-                for (const detail of response.details) {
-                    updated.set(detail.tmdbId, detail);
-                }
-                enrichmentMap = updated;
-            });
+        fetchBrowseDetailsCached(batch).then((response) => {
+            const updated = new Map(enrichmentMap);
+            for (const detail of response.details) {
+                updated.set(detail.tmdbId, detail);
+            }
+            enrichmentMap = updated;
+        });
     });
 
     // Merge enrichment data into display items
@@ -187,7 +164,7 @@
         prefetchBrowse(otherTab, activeFilter);
     });
 
-    // Get magnet link - uses QueryClient for caching
+    // Get magnet link through the shared query cache
     async function getMagnetLink(item: BrowseItem): Promise<string | null> {
         if (item.magnetLink) {
             return item.magnetLink;
@@ -196,15 +173,10 @@
         resolvingItems = new Set(resolvingItems).add(item.tmdbId);
 
         try {
-            const result = await queryClient.fetchQuery({
-                queryKey: queryKeys.browse.resolve(item.tmdbId),
-                queryFn: () =>
-                    resolveTorrent({
-                        imdbId: item.imdbId,
-                        tmdbId: item.tmdbId,
-                        title: item.title,
-                    }),
-                staleTime: 1000 * 60 * 60 * 24, // 24 hours
+            const result = await resolveTorrentCached({
+                imdbId: item.imdbId,
+                tmdbId: item.tmdbId,
+                title: item.title,
             });
 
             if (!(result.success && result.torrent)) {
@@ -294,7 +266,7 @@
 
     // Prefetch magnet link on hover - runs getMagnetLink in the background
     function handlePrefetch(item: BrowseItem) {
-        // Fire and forget - queryClient handles deduplication
+        // Fire and forget; the shared cache handles deduplication
         getMagnetLink(item);
     }
 
@@ -302,7 +274,7 @@
     // TV Show Season Handling
     // ==========================================================================
 
-    // Get seasons for a TV show - handles caching and deduplication
+    // Get seasons for a TV show through the shared query cache
     async function getSeasons(item: BrowseItem): Promise<SeasonData[]> {
         // Return local cached seasons if available (fast path)
         const cached = seasonsCache.get(item.tmdbId);
@@ -313,11 +285,7 @@
         seasonsLoading = new Set(seasonsLoading).add(item.tmdbId);
 
         try {
-            const response = await queryClient.fetchQuery({
-                queryKey: queryKeys.browse.seasons(item.tmdbId),
-                queryFn: () => fetchSeasons(item.tmdbId),
-                staleTime: 1000 * 60 * 60, // 1 hour
-            });
+            const response = await fetchSeasonsCached(item.tmdbId);
 
             // Convert SeasonSummary to SeasonData format for the ContextMenu
             const seasonData: SeasonData[] = response.seasons.map((s: SeasonSummary) => ({

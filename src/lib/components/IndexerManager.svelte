@@ -6,13 +6,11 @@
     import {
         createAddProwlarrIndexerMutation,
         createDeleteProwlarrIndexerMutation,
-        createTestProwlarrConnectionMutation,
-    } from "$lib/mutations/prowlarr-mutations";
-    import {
         createProwlarrIndexerSchemasQuery,
         createProwlarrIndexersQuery,
+        createTestProwlarrConnectionMutation,
         type ProwlarrIndexerSchema,
-    } from "$lib/queries/prowlarr-queries";
+    } from "$lib/data/prowlarr";
     import { confirmDelete } from "$lib/ui-state.svelte";
 
     const PACKAGES = [

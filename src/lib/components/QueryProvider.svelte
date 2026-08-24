@@ -3,7 +3,7 @@
     import { SvelteQueryDevtools } from "@tanstack/svelte-query-devtools";
     import type { Snippet } from "svelte";
     import { dev } from "$app/environment";
-    import { queryClient } from "$lib/query-client";
+    import { queryClient } from "$lib/data/client";
 
     interface Props {
         children: Snippet;

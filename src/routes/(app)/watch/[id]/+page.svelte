@@ -9,7 +9,7 @@
     import type { MediaPlayerElement } from "vidstack/elements";
     import { browser } from "$app/environment";
     import { connectMediaProgressStream } from "$lib/client/media-progress-stream";
-    import { createSavePositionMutation } from "$lib/mutations/media-mutations";
+    import { createSavePositionMutation } from "$lib/data/media";
     import type { ProgressInfo } from "$lib/types";
     import { isTerminalProgressStatus } from "$lib/utils";
     import type { PageData } from "./$types";

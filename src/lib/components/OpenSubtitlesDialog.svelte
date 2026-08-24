@@ -3,8 +3,7 @@
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import { LANGUAGES } from "$lib/constants";
-    import { createDownloadSubtitleMutation } from "$lib/mutations/media-mutations";
-    import { searchOpenSubtitles } from "$lib/queries/media-queries";
+    import { createDownloadSubtitleMutation, searchOpenSubtitles } from "$lib/data/media";
     import type { OpenSubtitleResult } from "$lib/types";
 
     let {

@@ -9,7 +9,7 @@
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
-    import { createDeleteMediaMutation, createRetryMediaMutation } from "$lib/mutations/media-mutations";
+    import { createDeleteMediaMutation, createRetryMediaMutation } from "$lib/data/media";
     import type { Media, SeasonWithEpisodes } from "$lib/types";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
     import { canPlayEpisode } from "$lib/utils";

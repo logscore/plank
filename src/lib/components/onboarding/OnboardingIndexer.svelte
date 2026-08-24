@@ -5,14 +5,12 @@
     import {
         createAddProwlarrIndexerMutation,
         createDeleteProwlarrIndexerMutation,
-        createTestProwlarrConnectionMutation,
-    } from "$lib/mutations/prowlarr-mutations";
-    import {
         createProwlarrIndexerSchemasQuery,
         createProwlarrIndexersQuery,
+        createTestProwlarrConnectionMutation,
         type ProwlarrIndexer,
         type ProwlarrIndexerSchema,
-    } from "$lib/queries/prowlarr-queries";
+    } from "$lib/data/prowlarr";
     import { cn } from "$lib/utils";
 
     // Props

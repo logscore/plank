@@ -1,4 +1,5 @@
 import { createMutation } from "@tanstack/svelte-query";
+import { apiRequest } from "./client";
 
 export type ConnectionTarget = "tmdb" | "opensubtitles" | "prowlarr";
 
@@ -20,15 +21,11 @@ export interface SettingsConnectionResult {
 export function createTestSettingsConnectionMutation() {
 	return createMutation<SettingsConnectionResult, Error, TestSettingsConnectionInput>(() => ({
 		mutationFn: async (input) => {
-			const response = await fetch("/api/settings/test-connection", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(input),
-			});
-			const result = (await response.json().catch(() => null)) as SettingsConnectionResult | null;
-			if (!response.ok) {
-				throw new Error(result?.message || `Connection test failed (${response.status})`);
-			}
+			const result = await apiRequest<SettingsConnectionResult | undefined>(
+				"/api/settings/test-connection",
+				"Connection test failed",
+				{ method: "POST", json: input }
+			);
 			return result ?? { success: false, message: "Connection test returned no data" };
 		},
 	}));

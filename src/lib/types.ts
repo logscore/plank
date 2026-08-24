@@ -99,7 +99,3 @@ export interface OpenSubtitleResult {
 	seasonNumber?: number;
 	episodeNumber?: number;
 }
-
-export interface FetchError extends Error {
-	status?: number;
-}

@@ -1,7 +1,7 @@
 <script lang="ts">
     import { Check, ChevronDown, ClosedCaption, Plus, Trash2 } from "@lucide/svelte";
     import Button from "$lib/components/ui/Button.svelte";
-    import { createDeleteSubtitleMutation, createSetDefaultSubtitleMutation } from "$lib/mutations/media-mutations";
+    import { createDeleteSubtitleMutation, createSetDefaultSubtitleMutation } from "$lib/data/media";
     import type { SubtitleTrackResponse } from "$lib/types";
 
     let {

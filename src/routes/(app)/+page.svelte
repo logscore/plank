@@ -5,7 +5,7 @@
     import ContinueWatchingCard from "$lib/components/ContinueWatchingCard.svelte";
     import MediaCard from "$lib/components/MediaCard.svelte";
     import Button from "$lib/components/ui/Button.svelte";
-    import { createDeleteMediaMutation } from "$lib/mutations/media-mutations";
+    import { createDeleteMediaMutation } from "$lib/data/media";
     import { confirmDelete } from "$lib/ui-state.svelte";
     import type { PageData } from "./$types";
 

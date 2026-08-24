@@ -1,6 +1,5 @@
 <script lang="ts">
     import { ChevronDown, Film, Globe, LibraryBig, LoaderCircle, Search } from "@lucide/svelte";
-    import { useQueryClient } from "@tanstack/svelte-query";
     import { goto } from "$app/navigation";
     import DeleteConfirmationModal from "$lib/components/DeleteConfirmationModal.svelte";
     import MediaCard from "$lib/components/MediaCard.svelte";
@@ -9,10 +8,14 @@
     import type { SeasonData } from "$lib/components/ui/ContextMenu.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
-    import { createAddFromBrowseMutation } from "$lib/mutations/browse-mutations";
-    import { createAddMediaMutation, createDeleteMediaMutation } from "$lib/mutations/media-mutations";
-    import { type BrowseItem, fetchSeasons, resolveTorrent, type SeasonSummary } from "$lib/queries/browse-queries";
-    import { queryKeys } from "$lib/query-keys";
+    import {
+        type BrowseItem,
+        createAddFromBrowseMutation,
+        fetchSeasonsCached,
+        resolveTorrentCached,
+        type SeasonSummary,
+    } from "$lib/data/browse";
+    import { createAddMediaMutation, createDeleteMediaMutation } from "$lib/data/media";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
     import type { PageData } from "./$types";
 
@@ -39,8 +42,7 @@
     let resolvingItems = $state<Set<number>>(new Set());
     let addingItems = $state<Set<number>>(new Set());
 
-    // Query Client & Mutations
-    const queryClient = useQueryClient();
+    // Mutations
     const addMediaMutation = createAddMediaMutation();
     const deleteMediaMutation = createDeleteMediaMutation();
     const addToLibraryMutation = createAddFromBrowseMutation();
@@ -132,15 +134,10 @@
         resolvingItems = new Set(resolvingItems).add(item.tmdbId);
 
         try {
-            const result = await queryClient.fetchQuery({
-                queryKey: queryKeys.browse.resolve(item.tmdbId),
-                queryFn: () =>
-                    resolveTorrent({
-                        imdbId: item.imdbId,
-                        tmdbId: item.tmdbId,
-                        title: item.title,
-                    }),
-                staleTime: 1000 * 60 * 60 * 24, // 24 hours
+            const result = await resolveTorrentCached({
+                imdbId: item.imdbId,
+                tmdbId: item.tmdbId,
+                title: item.title,
             });
 
             if (!(result.success && result.torrent)) {
@@ -231,7 +228,7 @@
     // TV Show Season Data Prefetching (TMDB)
     // ==========================================================================
 
-    // Get seasons for a TV show - handles caching and deduplication
+    // Get seasons for a TV show through the shared query cache
     async function getSeasons(item: BrowseItem): Promise<SeasonData[]> {
         // Return cached seasons if available
         const cached = seasonsCache.get(item.tmdbId);
@@ -242,11 +239,7 @@
         seasonsLoading = new Set(seasonsLoading).add(item.tmdbId);
 
         try {
-            const response = await queryClient.fetchQuery({
-                queryKey: queryKeys.browse.seasons(item.tmdbId),
-                queryFn: () => fetchSeasons(item.tmdbId),
-                staleTime: 1000 * 60 * 60, // 1 hour
-            });
+            const response = await fetchSeasonsCached(item.tmdbId);
 
             // Convert SeasonSummary to SeasonData format for the ContextMenu
             const seasonData: SeasonData[] = response.seasons.map((s: SeasonSummary) => ({

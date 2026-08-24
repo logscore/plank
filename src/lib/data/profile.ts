@@ -1,4 +1,5 @@
 import { createMutation } from "@tanstack/svelte-query";
+import { apiRequest } from "./client";
 
 interface UploadResult {
 	success: boolean;
@@ -6,21 +7,13 @@ interface UploadResult {
 	logo?: string;
 }
 
-async function uploadImage(path: string, file: File, organizationId?: string): Promise<UploadResult> {
+function uploadImage(path: string, file: File, organizationId?: string): Promise<UploadResult> {
 	const formData = new FormData();
 	formData.append("file", file);
 	if (organizationId) {
 		formData.append("organizationId", organizationId);
 	}
-
-	const response = await fetch(path, { method: "POST", body: formData });
-	const result = (await response.json().catch(() => null)) as
-		| (UploadResult & { error?: string; message?: string })
-		| null;
-	if (!response.ok) {
-		throw new Error(result?.message || result?.error || "Image upload failed");
-	}
-	return result ?? { success: true };
+	return apiRequest(path, "Image upload failed", { method: "POST", body: formData });
 }
 
 export function createUploadAvatarMutation() {

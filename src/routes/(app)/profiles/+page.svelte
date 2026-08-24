@@ -5,7 +5,7 @@
     import { authClient } from "$lib/auth-client";
     import ProfileCard from "$lib/components/ProfileCard.svelte";
     import Button from "$lib/components/ui/Button.svelte";
-    import { queryClient } from "$lib/query-client";
+    import { queryClient } from "$lib/data/client";
     import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();

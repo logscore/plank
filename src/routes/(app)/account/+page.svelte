@@ -23,7 +23,7 @@
     import Facehash from "$lib/components/facehash/Facehash.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Input from "$lib/components/ui/Input.svelte";
-    import { createUploadAvatarMutation, createUploadOrganizationLogoMutation } from "$lib/mutations/profile-mutations";
+    import { createUploadAvatarMutation, createUploadOrganizationLogoMutation } from "$lib/data/profile";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
     import type { PageData } from "./$types";
 

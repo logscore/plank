@@ -4,7 +4,7 @@
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
-    import { createAddMediaMutation } from "$lib/mutations/media-mutations";
+    import { createAddMediaMutation } from "$lib/data/media";
     import type { MediaType } from "$lib/types";
     import { uiState } from "$lib/ui-state.svelte";
 

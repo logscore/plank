@@ -7,7 +7,7 @@
     import Facehash from "$lib/components/facehash/Facehash.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Input from "$lib/components/ui/Input.svelte";
-    import { createUploadOrganizationLogoMutation } from "$lib/mutations/profile-mutations";
+    import { createUploadOrganizationLogoMutation } from "$lib/data/profile";
     import { confirmDelete } from "$lib/ui-state.svelte";
     import type { PageData } from "./$types";
 
