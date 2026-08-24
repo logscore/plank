@@ -1,7 +1,5 @@
-import type { CreateMutationOptions } from "@tanstack/svelte-query";
-import { createMutation, useQueryClient } from "@tanstack/svelte-query";
+import { createMutation } from "@tanstack/svelte-query";
 import { invalidate } from "$app/navigation";
-import { queryKeys } from "$lib/query-keys";
 import type { Media, MediaType } from "$lib/types";
 
 export interface AddMediaParams {
@@ -16,20 +14,11 @@ export interface AddMediaResponse extends Media {
 	_seasonAdded?: boolean;
 }
 
-type AddMediaContext = undefined;
-
-interface DeleteMediaContext {
-	previousMovies?: Media[];
-	previousShows?: Media[];
-}
-
 /**
  * Create a mutation for adding media to the library
  */
 export function createAddMediaMutation() {
-	const queryClient = useQueryClient();
-
-	const options: CreateMutationOptions<AddMediaResponse, Error, AddMediaParams, AddMediaContext> = {
+	return createMutation<AddMediaResponse, Error, AddMediaParams>(() => ({
 		mutationFn: async (params: AddMediaParams): Promise<AddMediaResponse> => {
 			const response = await fetch("/api/media", {
 				method: "POST",
@@ -47,25 +36,16 @@ export function createAddMediaMutation() {
 			return response.json();
 		},
 		onSuccess: async () => {
-			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: queryKeys.media.lists(),
-				}),
-				invalidate("/api/media"),
-			]);
+			await invalidate("/api/media");
 		},
-	};
-
-	return createMutation<AddMediaResponse, Error, AddMediaParams, AddMediaContext>(() => options);
+	}));
 }
 
 /**
  * Create a mutation for deleting media from the library
  */
 export function createDeleteMediaMutation() {
-	const queryClient = useQueryClient();
-
-	const options: CreateMutationOptions<string, Error, string, DeleteMediaContext> = {
+	return createMutation<string, Error, string>(() => ({
 		mutationFn: async (id: string): Promise<string> => {
 			const response = await fetch(`/api/media/${id}`, {
 				method: "DELETE",
@@ -77,64 +57,10 @@ export function createDeleteMediaMutation() {
 
 			return id;
 		},
-		onMutate: async (id: string): Promise<DeleteMediaContext> => {
-			// Cancel any outgoing refetches
-			await queryClient.cancelQueries({
-				queryKey: queryKeys.media.lists(),
-			});
-
-			// Snapshot the previous values
-			const previousMovies = queryClient.getQueryData<Media[]>(queryKeys.media.list("movie"));
-			const previousShows = queryClient.getQueryData<Media[]>(queryKeys.media.list("show"));
-
-			// Optimistically update to the new value
-			if (previousMovies) {
-				queryClient.setQueryData<Media[]>(
-					queryKeys.media.list("movie"),
-					previousMovies.filter((media) => media.id !== id)
-				);
-			}
-
-			if (previousShows) {
-				queryClient.setQueryData<Media[]>(
-					queryKeys.media.list("show"),
-					previousShows.filter((media) => media.id !== id)
-				);
-			}
-
-			// Return a context with the previous values
-			return { previousMovies, previousShows };
+		onSuccess: async () => {
+			await invalidate("/api/media");
 		},
-		onError: (_err: Error, _id: string, context: DeleteMediaContext | undefined) => {
-			// Rollback to the previous values on error
-			if (context?.previousMovies) {
-				queryClient.setQueryData(queryKeys.media.list("movie"), context.previousMovies);
-			}
-			if (context?.previousShows) {
-				queryClient.setQueryData(queryKeys.media.list("show"), context.previousShows);
-			}
-		},
-		onSettled: async (deletedId: string | undefined) => {
-			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: queryKeys.media.all,
-					refetchType: "all",
-				}),
-				invalidate("/api/media"),
-			]);
-
-			if (deletedId) {
-				queryClient.removeQueries({
-					queryKey: queryKeys.media.detail(deletedId),
-				});
-				queryClient.removeQueries({
-					queryKey: queryKeys.media.position(deletedId),
-				});
-			}
-		},
-	};
-
-	return createMutation<string, Error, string, DeleteMediaContext>(() => options);
+	}));
 }
 
 export interface RetryMediaInput {
@@ -149,8 +75,6 @@ export interface RetryMediaResult {
 }
 
 export function createRetryMediaMutation() {
-	const queryClient = useQueryClient();
-
 	return createMutation<RetryMediaResult, Error, RetryMediaInput>(() => ({
 		mutationFn: async ({ id, mode, magnetLink }) => {
 			const hasBody = mode !== undefined || magnetLink !== undefined;
@@ -166,12 +90,7 @@ export function createRetryMediaMutation() {
 			return result ?? {};
 		},
 		onSuccess: async (_result, input) => {
-			await Promise.all([
-				invalidate("/api/media"),
-				invalidate(`/api/media/${input.id}`),
-				queryClient.invalidateQueries({ queryKey: queryKeys.media.detail(input.id) }),
-				queryClient.invalidateQueries({ queryKey: queryKeys.media.progress(input.id) }),
-			]);
+			await Promise.all([invalidate("/api/media"), invalidate(`/api/media/${input.id}`)]);
 		},
 	}));
 }
@@ -187,8 +106,6 @@ export interface DownloadSubtitleParams {
 }
 
 export function createDownloadSubtitleMutation() {
-	const queryClient = useQueryClient();
-
 	return createMutation<unknown, Error, DownloadSubtitleParams>(() => ({
 		mutationFn: async (params: DownloadSubtitleParams) => {
 			const response = await fetch(`/api/media/${params.mediaId}/subtitles/download`, {
@@ -205,10 +122,8 @@ export function createDownloadSubtitleMutation() {
 			}
 			return response.json();
 		},
-		onSuccess: (_data, params) => {
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.media.subtitles(params.mediaId),
-			});
+		onSuccess: async (_data, params) => {
+			await invalidate(`/api/media/${params.mediaId}`);
 		},
 	}));
 }
@@ -220,8 +135,6 @@ export interface SetDefaultSubtitleParams {
 }
 
 export function createSetDefaultSubtitleMutation() {
-	const queryClient = useQueryClient();
-
 	return createMutation<unknown, Error, SetDefaultSubtitleParams>(() => ({
 		mutationFn: async (params: SetDefaultSubtitleParams) => {
 			const response = await fetch(`/api/media/${params.mediaId}/subtitles/${params.subtitleId}`, {
@@ -234,10 +147,8 @@ export function createSetDefaultSubtitleMutation() {
 			}
 			return response.json();
 		},
-		onSuccess: (_data, params) => {
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.media.subtitles(params.mediaId),
-			});
+		onSuccess: async (_data, params) => {
+			await invalidate(`/api/media/${params.mediaId}`);
 		},
 	}));
 }
@@ -248,8 +159,6 @@ export interface DeleteSubtitleParams {
 }
 
 export function createDeleteSubtitleMutation() {
-	const queryClient = useQueryClient();
-
 	return createMutation<unknown, Error, DeleteSubtitleParams>(() => ({
 		mutationFn: async (params: DeleteSubtitleParams) => {
 			const response = await fetch(`/api/media/${params.mediaId}/subtitles/${params.subtitleId}`, {
@@ -260,10 +169,8 @@ export function createDeleteSubtitleMutation() {
 			}
 			return response.json();
 		},
-		onSuccess: (_data, params) => {
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.media.subtitles(params.mediaId),
-			});
+		onSuccess: async (_data, params) => {
+			await invalidate(`/api/media/${params.mediaId}`);
 		},
 	}));
 }
@@ -279,8 +186,6 @@ export interface SavePositionParams {
 }
 
 export function createSavePositionMutation() {
-	const queryClient = useQueryClient();
-
 	return createMutation<void, Error, SavePositionParams>(() => ({
 		mutationFn: async (params: SavePositionParams): Promise<void> => {
 			const response = await fetch(`/api/media/${params.id}/position`, {
@@ -294,11 +199,6 @@ export function createSavePositionMutation() {
 			if (!response.ok) {
 				throw new Error("Failed to save position");
 			}
-		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.media.continueWatching(),
-			});
 		},
 	}));
 }

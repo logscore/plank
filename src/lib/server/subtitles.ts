@@ -1,5 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import type { Media } from "$lib/server/db/schema";
+import type { SubtitleTrackResponse } from "$lib/types";
 import { subtitlesDb } from "./db";
 import { PATHS } from "./paths";
 
@@ -103,15 +105,23 @@ export async function discoverSubtitles(mediaId: string, _videoFilePath: string,
 	await discoverSidecarSubtitles(mediaId, libraryDir);
 }
 
-export function getSubtitleTracks(mediaId: string) {
+function getSubtitleTracks(mediaId: string): SubtitleTrackResponse[] {
 	return subtitlesDb.getByMediaId(mediaId).map((subtitle) => ({
 		id: subtitle.id,
 		mediaId: subtitle.mediaId,
 		language: subtitle.language,
 		label: subtitle.label,
 		source: subtitle.source,
-		isDefault: subtitle.isDefault,
-		isForced: subtitle.isForced,
+		isDefault: Boolean(subtitle.isDefault),
+		isForced: Boolean(subtitle.isForced),
 		src: `/api/media/${mediaId}/subtitles/${subtitle.id}`,
 	}));
+}
+export async function getSubtitleTracksForMedia(
+	media: Pick<Media, "id" | "filePath">
+): Promise<SubtitleTrackResponse[]> {
+	if (media.filePath) {
+		await discoverSubtitles(media.id, media.filePath, path.dirname(media.filePath));
+	}
+	return getSubtitleTracks(media.id);
 }

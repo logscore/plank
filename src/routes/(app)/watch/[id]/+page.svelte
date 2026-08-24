@@ -10,12 +10,7 @@
     import { browser } from "$app/environment";
     import { connectMediaProgressStream } from "$lib/client/media-progress-stream";
     import { createSavePositionMutation } from "$lib/mutations/media-mutations";
-    import {
-        fetchPlayPosition,
-        fetchSubtitleTracks,
-        type ProgressInfo,
-        type SubtitleTrackResponse,
-    } from "$lib/queries/media-queries";
+    import type { ProgressInfo } from "$lib/types";
     import { isTerminalProgressStatus } from "$lib/utils";
     import type { PageData } from "./$types";
 
@@ -46,7 +41,7 @@
     let showStats = $state(false);
 
     // Play position state
-    let initialPosition: number | null = $state(null);
+    const initialPosition = $derived(data.position.position > 0 ? data.position.position : null);
     let positionRestored = $state(false);
     const savePositionMutation = createSavePositionMutation();
     let lastSaveTime = 0;
@@ -59,7 +54,7 @@
     let blockStalePositionSave = false;
 
     // Subtitle state
-    let subtitleTracks: SubtitleTrackResponse[] = $state([]);
+    let subtitleTracks = $derived(data.subtitleTracks);
 
     function formatSpeed(bytesPerSecond: number): string {
         if (bytesPerSecond < 1024) {
@@ -321,25 +316,9 @@
         };
     });
 
-    onMount(async () => {
+    onMount(() => {
         document.addEventListener("click", handleGlobalClick);
         startProgressStream();
-
-        const mediaId = data.media.id;
-
-        // Fetch initial position and subtitle tracks in parallel
-        const [posResult, subsResult] = await Promise.allSettled([
-            fetchPlayPosition(mediaId),
-            fetchSubtitleTracks(mediaId),
-        ]);
-
-        if (posResult.status === "fulfilled" && posResult.value.position > 0) {
-            initialPosition = posResult.value.position;
-        }
-
-        if (subsResult.status === "fulfilled") {
-            subtitleTracks = subsResult.value;
-        }
     });
 
     onDestroy(() => {

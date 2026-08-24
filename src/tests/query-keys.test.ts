@@ -2,27 +2,6 @@ import { describe, expect, it } from "vitest";
 import { queryKeys } from "$lib/query-keys";
 
 describe("Query Keys", () => {
-	describe("Media Keys", () => {
-		it("should generate all keys", () => {
-			expect(queryKeys.media.all).toEqual(["media"]);
-		});
-
-		it("should generate list keys", () => {
-			expect(queryKeys.media.lists()).toEqual(["media", "list"]);
-			expect(queryKeys.media.list("movie")).toEqual(["media", "list", "movie"]);
-			expect(queryKeys.media.list("show")).toEqual(["media", "list", "show"]);
-			expect(queryKeys.media.list("all")).toEqual(["media", "list", "all"]);
-		});
-
-		it("should generate detail keys", () => {
-			expect(queryKeys.media.detail("123")).toEqual(["media", "detail", "123"]);
-		});
-
-		it("should generate search keys", () => {
-			expect(queryKeys.media.search("test")).toEqual(["media", "search", "test"]);
-		});
-	});
-
 	describe("Browse Keys", () => {
 		it("should generate all keys", () => {
 			expect(queryKeys.browse.all).toEqual(["browse"]);
@@ -78,16 +57,6 @@ describe("Query Keys", () => {
 		it("should generate prowlarr keys", () => {
 			expect(queryKeys.system.prowlarr.status()).toEqual(["system", "prowlarr", "status"]);
 			expect(queryKeys.system.prowlarr.test()).toEqual(["system", "prowlarr", "test"]);
-		});
-	});
-
-	describe("TMDB Keys", () => {
-		it("should generate all keys", () => {
-			expect(queryKeys.tmdb.all).toEqual(["tmdb"]);
-		});
-
-		it("should generate search keys", () => {
-			expect(queryKeys.tmdb.search("query")).toEqual(["tmdb", "search", "query"]);
 		});
 	});
 });

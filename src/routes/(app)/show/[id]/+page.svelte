@@ -581,6 +581,7 @@
                                                 {#if media}
                                                     <SubtitleMenu
                                                         mediaId={episode.id}
+                                                        tracks={data.subtitleTracksByMediaId[episode.id] ?? []}
                                                         onAddSubtitles={() =>
                                                             openSubtitlesForEpisode(
                                                                 episode,

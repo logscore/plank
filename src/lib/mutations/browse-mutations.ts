@@ -1,6 +1,5 @@
-import type { CreateMutationOptions } from "@tanstack/svelte-query";
-import { createMutation, useQueryClient } from "@tanstack/svelte-query";
-import { queryKeys } from "$lib/query-keys";
+import { createMutation } from "@tanstack/svelte-query";
+import { invalidate } from "$app/navigation";
 import type { Media } from "$lib/types";
 
 interface AddFromBrowseMagnetParams {
@@ -37,9 +36,7 @@ export type AddFromBrowseParams = AddFromBrowseMagnetParams | AddSeasonFromBrows
 export type AddFromBrowseResponse = Media | AddSeasonFromBrowseResult;
 
 export function createAddFromBrowseMutation() {
-	const queryClient = useQueryClient();
-
-	const options: CreateMutationOptions<AddFromBrowseResponse, Error, AddFromBrowseParams, undefined> = {
+	return createMutation<AddFromBrowseResponse, Error, AddFromBrowseParams>(() => ({
 		mutationFn: async (params: AddFromBrowseParams): Promise<AddFromBrowseResponse> => {
 			const response = await fetch("/api/media", {
 				method: "POST",
@@ -53,10 +50,8 @@ export function createAddFromBrowseMutation() {
 
 			return response.json();
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.media.lists() });
+		onSuccess: async () => {
+			await invalidate("/api/media");
 		},
-	};
-
-	return createMutation<AddFromBrowseResponse, Error, AddFromBrowseParams, undefined>(() => options);
+	}));
 }

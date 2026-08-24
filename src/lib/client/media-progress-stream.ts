@@ -2,7 +2,7 @@
 // FEATURE: Live progress transport for movie and episode download monitoring
 
 import { browser } from "$app/environment";
-import type { ProgressInfo } from "$lib/queries/media-queries";
+import type { ProgressInfo } from "$lib/types";
 import { isTerminalProgressStatus } from "$lib/utils";
 
 export function connectMediaProgressStream(

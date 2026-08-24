@@ -11,24 +11,22 @@
     import Input from "$lib/components/ui/Input.svelte";
     import { createAddFromBrowseMutation } from "$lib/mutations/browse-mutations";
     import { createAddMediaMutation, createDeleteMediaMutation } from "$lib/mutations/media-mutations";
-    import {
-        type BrowseDetailItem,
-        type BrowseItem,
-        fetchBrowseDetails,
-        fetchSeasons,
-        resolveTorrent,
-        type SeasonSummary,
-        searchTMDB,
-    } from "$lib/queries/browse-queries";
-    import { searchMedia } from "$lib/queries/media-queries";
+    import { type BrowseItem, fetchSeasons, resolveTorrent, type SeasonSummary } from "$lib/queries/browse-queries";
     import { queryKeys } from "$lib/query-keys";
-    import type { Media } from "$lib/types";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
+    import type { PageData } from "./$types";
+
+    let { data } = $props<{ data: PageData }>();
 
     let query = $state("");
     let searchType = $state<"local" | "tmdb">("local");
-    let localResults: Media[] = $state([]);
-    let tmdbResults: BrowseItem[] = $state([]);
+    let localResults = $derived(data.localResults);
+    let tmdbResults = $derived(data.tmdbResults);
+    $effect(() => {
+        query = data.query;
+        searchType = data.searchType;
+    });
+
     let searching = $state(false);
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let showDropdown = $state(false);
@@ -51,89 +49,22 @@
     let seasonsCache = $state<Map<number, SeasonData[]>>(new Map());
     let seasonsLoading = $state<Set<number>>(new Set());
 
-    // Lazy enrichment for TMDB search results
-    let enrichmentMap = $state<Map<number, BrowseDetailItem>>(new Map());
-    let enrichedIds = $state<Set<number>>(new Set());
-
-    // Enrich TMDB results lazily after they load
-    function enrichItems(items: BrowseItem[]) {
-        const unenriched = items.filter((item) => !enrichedIds.has(item.tmdbId));
-        if (unenriched.length === 0) {
-            return;
-        }
-
-        const newIds = new Set(enrichedIds);
-        for (const item of unenriched) {
-            newIds.add(item.tmdbId);
-        }
-        enrichedIds = newIds;
-
-        const batch = unenriched.map((item) => ({
-            tmdbId: item.tmdbId,
-            mediaType: item.mediaType,
-        }));
-        queryClient
-            .fetchQuery({
-                queryKey: queryKeys.browse.details(batch.map((b) => b.tmdbId)),
-                queryFn: () => fetchBrowseDetails(batch),
-                staleTime: 30 * 60 * 1000,
-            })
-            .then((response) => {
-                const updated = new Map(enrichmentMap);
-                for (const detail of response.details) {
-                    updated.set(detail.tmdbId, detail);
-                }
-                enrichmentMap = updated;
-            });
-    }
-
-    // Merge enrichment into displayed TMDB results
-    const enrichedTmdbResults = $derived(
-        tmdbResults.map((item) => {
-            const detail = enrichmentMap.get(item.tmdbId);
-            if (detail) {
-                return {
-                    ...item,
-                    imdbId: detail.imdbId ?? item.imdbId,
-                    certification: detail.certification ?? item.certification,
-                    magnetLink: detail.magnetLink ?? item.magnetLink,
-                    needsResolve: !detail.magnetLink && item.needsResolve,
-                };
-            }
-            return item;
-        })
-    );
-
     async function performSearch() {
-        if (query.trim().length < 2) {
-            localResults = [];
-            tmdbResults = [];
-            return;
+        const trimmedQuery = query.trim();
+        const searchParams = new URLSearchParams({ type: searchType });
+        if (trimmedQuery.length >= 2) {
+            searchParams.set("q", trimmedQuery);
         }
 
         searching = true;
         try {
-            if (searchType === "local") {
-                const res = await queryClient.fetchQuery({
-                    queryKey: queryKeys.media.search(query),
-                    queryFn: () => searchMedia(query),
-                    staleTime: 1000 * 60, // 1 min
-                });
-                localResults = res;
-                tmdbResults = [];
-            } else {
-                const res = await queryClient.fetchQuery({
-                    queryKey: queryKeys.tmdb.search(query),
-                    queryFn: () => searchTMDB(query),
-                    staleTime: 1000 * 60 * 60, // 1 hour
-                });
-                tmdbResults = res.items;
-                localResults = [];
-                // Trigger lazy enrichment for the search results
-                enrichItems(res.items);
-            }
-        } catch (e) {
-            console.error("Search failed:", e);
+            await goto(`?${searchParams.toString()}`, {
+                keepFocus: true,
+                noScroll: true,
+                replaceState: true,
+            });
+        } catch (errorValue) {
+            console.error("Search failed:", errorValue);
         } finally {
             searching = false;
         }
@@ -157,7 +88,6 @@
                 try {
                     deletingId = id;
                     await deleteMediaMutation.mutateAsync(id);
-                    localResults = localResults.filter((m: Media) => m.id !== id);
                 } catch (e) {
                     console.error("Failed to delete media:", e);
                 } finally {
@@ -461,7 +391,7 @@
         <div class="flex items-center justify-center p-12">
             <LoaderCircle class="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
-    {:else if query.length >= 2 && localResults.length === 0 && enrichedTmdbResults.length === 0}
+    {:else if query.length >= 2 && localResults.length === 0 && tmdbResults.length === 0}
         <div class="flex flex-col items-center justify-center p-12 text-center space-y-4">
             <div class="p-4 rounded-full bg-accent/30">
                 <Film class="w-8 h-8 text-muted-foreground" />
@@ -472,12 +402,12 @@
     {:else if localResults.length > 0}
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
             {#each localResults as media (media.id)}
-                <MediaCard {media} onDelete={deleteMedia} />
+                <MediaCard {media} seasons={data.seasonsByMediaId[media.id] ?? []} onDelete={deleteMedia} />
             {/each}
         </div>
-    {:else if enrichedTmdbResults.length > 0}
+    {:else if tmdbResults.length > 0}
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-            {#each enrichedTmdbResults as item (item.tmdbId)}
+            {#each tmdbResults as item (item.tmdbId)}
                 <TorrentCard
                     {item}
                     onAddToLibrary={handleAddToLibrary}

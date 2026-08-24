@@ -2,16 +2,17 @@
     import { Check, ChevronDown, ClosedCaption, Plus, Trash2 } from "@lucide/svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import { createDeleteSubtitleMutation, createSetDefaultSubtitleMutation } from "$lib/mutations/media-mutations";
-    import type { SubtitleTrackResponse } from "$lib/queries/media-queries";
-    import { createSubtitleTracksQuery } from "$lib/queries/media-queries";
+    import type { SubtitleTrackResponse } from "$lib/types";
 
     let {
         mediaId,
+        tracks,
         onAddSubtitles,
         buttonClass = "",
         compact = false,
     }: {
         mediaId: string;
+        tracks: SubtitleTrackResponse[];
         onAddSubtitles: () => void;
         buttonClass?: string;
         compact?: boolean;
@@ -19,9 +20,6 @@
 
     let isOpen = $state(false);
     let menuRef = $state<HTMLDivElement | null>(null);
-
-    let subtitlesQuery = $derived(createSubtitleTracksQuery(mediaId));
-    let tracks = $derived(subtitlesQuery.data ?? []);
 
     const setDefaultMutation = createSetDefaultSubtitleMutation();
     const deleteMutation = createDeleteSubtitleMutation();

@@ -1,18 +1,4 @@
 export const queryKeys = {
-	// Media queries
-	media: {
-		all: ["media"] as const,
-		lists: () => [...queryKeys.media.all, "list"] as const,
-		list: (type: "movie" | "show" | "all") => [...queryKeys.media.lists(), type] as const,
-		detail: (id: string) => [...queryKeys.media.all, "detail", id] as const,
-		search: (query: string) => [...queryKeys.media.all, "search", query] as const,
-		continueWatching: () => [...queryKeys.media.all, "continue-watching"] as const,
-		position: (id: string) => [...queryKeys.media.all, "position", id] as const,
-		subtitles: (id: string) => [...queryKeys.media.all, "subtitles", id] as const,
-		seasons: (id: string) => [...queryKeys.media.all, "seasons", id] as const,
-		progress: (id: string) => [...queryKeys.media.all, "progress", id] as const,
-	},
-
 	// Browse queries
 	browse: {
 		all: ["browse"] as const,
@@ -45,11 +31,5 @@ export const queryKeys = {
 			indexers: () => [...queryKeys.system.all, "prowlarr", "indexers"] as const,
 			schemas: () => [...queryKeys.system.all, "prowlarr", "schemas"] as const,
 		},
-	},
-
-	// TMDB queries
-	tmdb: {
-		all: ["tmdb"] as const,
-		search: (query: string) => [...queryKeys.tmdb.all, "search", query] as const,
 	},
 } as const;

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, like, sql } from "drizzle-orm";
 import {
 	type Download,
 	downloads as downloadsTable,
@@ -23,6 +23,18 @@ function removeUndefinedFromObject<T extends Record<string, unknown>>(obj: T): P
 export const mediaDb = {
 	list(organizationId: string, type?: MediaType): Media[] {
 		const conditions = [eq(mediaTable.organizationId, organizationId)];
+		if (type) {
+			conditions.push(eq(mediaTable.type, type));
+		}
+		return db
+			.select()
+			.from(mediaTable)
+			.where(and(...conditions))
+			.orderBy(desc(mediaTable.addedAt))
+			.all();
+	},
+	search(organizationId: string, query: string, type?: "movie" | "show"): Media[] {
+		const conditions = [eq(mediaTable.organizationId, organizationId), like(mediaTable.title, `%${query}%`)];
 		if (type) {
 			conditions.push(eq(mediaTable.type, type));
 		}
@@ -351,6 +363,12 @@ export const seasonsDb = {
 			.where(eq(seasonsTable.mediaId, mediaId))
 			.orderBy(asc(seasonsTable.seasonNumber))
 			.all();
+	},
+	getWithEpisodes(mediaId: string) {
+		return this.getByMediaId(mediaId).map((season) => ({
+			...season,
+			episodes: mediaDb.getEpisodesBySeasonId(season.id),
+		}));
 	},
 
 	getById(id: string): Season | undefined {

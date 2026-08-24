@@ -407,7 +407,11 @@
                             </Button>
                         </a>
                     {/if}
-                    <SubtitleMenu mediaId={data.media.id} onAddSubtitles={() => (openSubtitlesDialogOpen = true)} />
+                    <SubtitleMenu
+                        mediaId={data.media.id}
+                        tracks={data.subtitleTracks}
+                        onAddSubtitles={() => (openSubtitlesDialogOpen = true)}
+                    />
                     <Button
                         variant="ghost"
                         size="lg"

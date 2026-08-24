@@ -1,5 +1,5 @@
 import { error } from "@sveltejs/kit";
-import { mediaDb } from "$lib/server/db";
+import { mediaDb, seasonsDb } from "$lib/server/db";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ depends, locals }) => {
@@ -9,10 +9,13 @@ export const load: PageServerLoad = ({ depends, locals }) => {
 	}
 
 	depends("/api/media");
+	const movies = mediaDb.list(organizationId, "movie");
+	const shows = mediaDb.list(organizationId, "show");
 
 	return {
-		movies: mediaDb.list(organizationId, "movie"),
-		shows: mediaDb.list(organizationId, "show"),
+		movies,
+		shows,
 		continueWatching: mediaDb.getRecentlyWatched(organizationId, 20),
+		seasonsByMediaId: Object.fromEntries(shows.map((show) => [show.id, seasonsDb.getWithEpisodes(show.id)])),
 	};
 };

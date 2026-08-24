@@ -171,31 +171,6 @@ export async function fetchProwlarrStatus(): Promise<ProwlarrStatus> {
 	return response.json();
 }
 
-/**
- * Search TMDB
- */
-export async function searchTMDB(query: string): Promise<BrowseResponse> {
-	if (query.length < 2) {
-		return { items: [], page: 1, totalPages: 0 };
-	}
-
-	const response = await fetch(`/api/tmdb/search?q=${encodeURIComponent(query)}`);
-
-	if (!response.ok) {
-		const err: FetchError = new Error(`Failed to search TMDB: ${response.statusText}`);
-		err.status = response.status;
-		throw err;
-	}
-
-	const data = await response.json();
-	// Normalize response to match BrowseResponse structure
-	return {
-		items: data.results || [],
-		page: data.page || 1,
-		totalPages: data.total_pages || 1,
-	};
-}
-
 // =============================================================================
 // TV Seasons
 // =============================================================================

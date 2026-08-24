@@ -140,6 +140,12 @@ export interface BrowseItem {
 	magnetLink?: string;
 	needsResolve: boolean;
 }
+export interface TmdbCatalogSearchResult {
+	items: BrowseItem[];
+	total: number;
+	page: number;
+	totalPages: number;
+}
 
 // =============================================================================
 // Trending & Popular Movies
@@ -465,6 +471,68 @@ export async function searchTVShow(query: string, year?: number | null): Promise
 		overview: show.overview ?? null,
 		totalSeasons: show.number_of_seasons ?? null,
 	}));
+}
+export async function searchTmdbCatalog(
+	query: string,
+	type: "all" | "movie" | "show" = "all",
+	page = 1
+): Promise<TmdbCatalogSearchResult> {
+	if (query.length < 2) {
+		return { items: [], total: 0, page: 1, totalPages: 0 };
+	}
+
+	const searches: Promise<TMDBMetadata[]>[] = [];
+	const mediaTypes: Array<"movie" | "show"> = [];
+	if (type === "all" || type === "movie") {
+		searches.push(searchMovie(query));
+		mediaTypes.push("movie");
+	}
+	if (type === "all" || type === "show") {
+		searches.push(searchTVShow(query));
+		mediaTypes.push("show");
+	}
+
+	const searchResults = await Promise.all(searches);
+	const items: BrowseItem[] = [];
+	for (const [index, results] of searchResults.entries()) {
+		const mediaType = mediaTypes[index];
+		for (const result of results) {
+			if (result.tmdbId === null) {
+				continue;
+			}
+			items.push({
+				tmdbId: result.tmdbId,
+				imdbId: null,
+				title: result.title,
+				year: result.year,
+				posterUrl: result.posterUrl,
+				backdropUrl: result.backdropUrl,
+				overview: result.overview,
+				voteAverage: null,
+				genres: [],
+				mediaType,
+				certification: null,
+				needsResolve: true,
+			});
+		}
+	}
+
+	const queryLower = query.toLowerCase();
+	items.sort((a, b) => {
+		const aLower = a.title.toLowerCase();
+		const bLower = b.title.toLowerCase();
+		const aScore = aLower === queryLower ? 2 : Number(aLower.startsWith(queryLower));
+		const bScore = bLower === queryLower ? 2 : Number(bLower.startsWith(queryLower));
+		return bScore - aScore;
+	});
+
+	const startIndex = (page - 1) * 20;
+	return {
+		items: items.slice(startIndex, startIndex + 20),
+		total: items.length,
+		page,
+		totalPages: Math.ceil(items.length / 20),
+	};
 }
 
 export async function getTVDetails(tmdbId: number): Promise<TMDBMetadata & { totalSeasons: number }> {

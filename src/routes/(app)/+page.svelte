@@ -112,7 +112,7 @@
             {:else}
                 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                     {#each movies as media (media.id)}
-                        <MediaCard {media} onDelete={deleteMedia} />
+                        <MediaCard {media} seasons={data.seasonsByMediaId[media.id] ?? []} onDelete={deleteMedia} />
                     {/each}
                 </div>
             {/if}
@@ -127,7 +127,7 @@
         {:else}
             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                 {#each shows as media (media.id)}
-                    <MediaCard {media} onDelete={deleteMedia} />
+                    <MediaCard {media} seasons={data.seasonsByMediaId[media.id] ?? []} onDelete={deleteMedia} />
                 {/each}
             </div>
         {/if}

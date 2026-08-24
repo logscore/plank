@@ -1,7 +1,5 @@
 import { error, json } from "@sveltejs/kit";
-import { and, eq, like } from "drizzle-orm";
-import { db } from "$lib/server/db/index";
-import { media } from "$lib/server/db/schema";
+import { mediaDb } from "$lib/server/db";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -11,23 +9,15 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	}
 
 	const query = url.searchParams.get("q");
-	const type = url.searchParams.get("type");
+	const typeParam = url.searchParams.get("type");
 
 	if (!query || query.length < 2) {
 		return json([]);
 	}
 
 	try {
-		const results = await db.query.media.findMany({
-			where: and(
-				eq(media.organizationId, organizationId),
-				like(media.title, `%${query}%`),
-				type ? eq(media.type, type as "movie" | "show") : undefined
-			),
-			orderBy: (media, { desc }) => [desc(media.addedAt)],
-		});
-
-		return json(results);
+		const type = typeParam === "movie" || typeParam === "show" ? typeParam : undefined;
+		return json(mediaDb.search(organizationId, query, type));
 	} catch (err) {
 		console.error("Search failed:", err);
 		throw error(500, "Failed to search library");

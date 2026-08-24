@@ -3,14 +3,14 @@
     import { goto } from "$app/navigation";
     import EpisodeSelector from "$lib/components/EpisodeSelector.svelte";
     import { createRetryMediaMutation } from "$lib/mutations/media-mutations";
-    import { createMediaSeasonsQuery } from "$lib/queries/media-queries";
-    import type { Media } from "$lib/types";
+    import type { Media, SeasonWithEpisodes } from "$lib/types";
     import { canPlayEpisode } from "$lib/utils";
     import Button from "./ui/Button.svelte";
     import Tv from "./ui/Tv.svelte";
 
-    let { media, onDelete } = $props<{
+    let { media, seasons, onDelete } = $props<{
         media: Media;
+        seasons: SeasonWithEpisodes[];
         onDelete: (id: string, e: Event) => void;
     }>();
 
@@ -18,18 +18,8 @@
     let isMobileActive = $state(false);
     let rootEl: HTMLElement | undefined = $state();
 
-    let shouldLoadSeasons = $state(false);
     const retryMutation = createRetryMediaMutation();
-    const seasonsQuery = createMediaSeasonsQuery(
-        () => media.id,
-        () => shouldLoadSeasons
-    );
-    const seasons = $derived(seasonsQuery.data ?? []);
     const retrying = $derived(retryMutation.isPending);
-
-    async function loadEpisodes() {
-        shouldLoadSeasons = true;
-    }
 
     function handlePlayEpisode(episode: Media) {
         if (canPlayEpisode(episode)) {
@@ -176,7 +166,6 @@
                 <EpisodeSelector
                     {seasons}
                     onPlayEpisode={handlePlayEpisode}
-                    onOpen={loadEpisodes}
                     buttonSize="sm"
                     class="flex-1 w-full"
                     buttonClass="w-full"

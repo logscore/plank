@@ -8,18 +8,8 @@ vi.mock("@tanstack/svelte-query", () => ({
 	createMutation: vi.fn(),
 }));
 
-import { createSeasonsQuery, fetchSeasons, searchTMDB } from "$lib/queries/browse-queries";
-import {
-	createMediaDetailQuery,
-	createMediaListQuery,
-	createMediaProgressQuery,
-	createSearchMediaQuery,
-	fetchMediaDetail,
-	fetchMediaList,
-	fetchMediaProgress,
-	searchMedia,
-	searchOpenSubtitles,
-} from "$lib/queries/media-queries";
+import { createSeasonsQuery, fetchSeasons } from "$lib/queries/browse-queries";
+import { searchOpenSubtitles } from "$lib/queries/media-queries";
 
 // Mock global fetch
 const fetchMock = vi.fn();
@@ -32,55 +22,6 @@ describe("Client Queries", () => {
 	});
 
 	describe("Media Queries", () => {
-		it("fetchMediaList should call correct endpoint with params", async () => {
-			fetchMock.mockResolvedValue({
-				ok: true,
-				json: async () => [{ id: "1", title: "Movie" }],
-			});
-
-			await fetchMediaList("movie");
-			expect(fetchMock).toHaveBeenCalledWith("/api/media?type=movie");
-
-			await fetchMediaList("all");
-			expect(fetchMock).toHaveBeenCalledWith("/api/media");
-		});
-
-		it("fetchMediaDetail should call correct endpoint", async () => {
-			fetchMock.mockResolvedValue({
-				ok: true,
-				json: async () => ({ id: "1", title: "Movie" }),
-			});
-
-			await fetchMediaDetail("123");
-			expect(fetchMock).toHaveBeenCalledWith("/api/media/123");
-		});
-
-		it("searchMedia should call search endpoint", async () => {
-			fetchMock.mockResolvedValue({
-				ok: true,
-				json: async () => [{ id: "1", title: "Search Result" }],
-			});
-
-			await searchMedia("avatar");
-			expect(fetchMock).toHaveBeenCalledWith("/api/media/search?q=avatar");
-		});
-
-		it("searchMedia should return empty array for short queries", async () => {
-			const result = await searchMedia("a");
-			expect(result).toEqual([]);
-			expect(fetchMock).not.toHaveBeenCalled();
-		});
-
-		it("fetchMediaProgress should call progress endpoint", async () => {
-			fetchMock.mockResolvedValue({
-				ok: true,
-				json: async () => ({ status: "downloading", progress: 0.5 }),
-			});
-
-			await fetchMediaProgress("123");
-			expect(fetchMock).toHaveBeenCalledWith("/api/media/123/progress");
-		});
-
 		it("searchOpenSubtitles should omit null episode number", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
@@ -162,22 +103,6 @@ describe("Client Queries", () => {
 			expect(fetchMock).toHaveBeenCalledWith("/api/prowlarr/status");
 		});
 
-		it("searchTMDB should call TMDB search endpoint", async () => {
-			fetchMock.mockResolvedValue({
-				ok: true,
-				json: async () => ({ results: [], page: 1, total_pages: 1 }),
-			});
-
-			await searchTMDB("matrix");
-			expect(fetchMock).toHaveBeenCalledWith("/api/tmdb/search?q=matrix");
-		});
-
-		it("searchTMDB should handle empty/short queries", async () => {
-			const result = await searchTMDB("a");
-			expect(result.items).toEqual([]);
-			expect(fetchMock).not.toHaveBeenCalled();
-		});
-
 		it("fetchSeasons should call seasons endpoint", async () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
@@ -190,57 +115,6 @@ describe("Client Queries", () => {
 	});
 
 	describe("TanStack Query Creators", () => {
-		it("createMediaListQuery should configure query correctly", () => {
-			createMediaListQuery("movie");
-			expect(createQuery).toHaveBeenCalled();
-			const optionsFn = vi.mocked(createQuery).mock.calls[0][0] as () => any;
-			const options = optionsFn();
-			expect(options).toEqual(
-				expect.objectContaining({
-					queryKey: ["media", "list", "movie"],
-				})
-			);
-		});
-
-		it("createMediaDetailQuery should configure query correctly", () => {
-			createMediaDetailQuery("123");
-			expect(createQuery).toHaveBeenCalled();
-			const optionsFn = vi.mocked(createQuery).mock.calls[0][0] as () => any;
-			const options = optionsFn();
-			expect(options).toEqual(
-				expect.objectContaining({
-					queryKey: ["media", "detail", "123"],
-					enabled: true,
-				})
-			);
-		});
-
-		it("createSearchMediaQuery should configure query correctly", () => {
-			createSearchMediaQuery(() => "avatar");
-			expect(createQuery).toHaveBeenCalled();
-			const optionsFn = vi.mocked(createQuery).mock.calls[0][0] as () => any;
-			const options = optionsFn();
-			expect(options).toEqual(
-				expect.objectContaining({
-					queryKey: ["media", "search", "avatar"],
-					enabled: true,
-				})
-			);
-		});
-
-		it("createMediaProgressQuery should configure query correctly", () => {
-			createMediaProgressQuery("123");
-			expect(createQuery).toHaveBeenCalled();
-			const optionsFn = vi.mocked(createQuery).mock.calls[0][0] as () => any;
-			const options = optionsFn();
-			expect(options).toEqual(
-				expect.objectContaining({
-					queryKey: ["media", "progress", "123"],
-					refetchInterval: 1000,
-				})
-			);
-		});
-
 		it("createSeasonsQuery should configure query correctly", () => {
 			createSeasonsQuery(123);
 			expect(createQuery).toHaveBeenCalled();
@@ -256,46 +130,6 @@ describe("Client Queries", () => {
 	});
 
 	describe("Error Handling", () => {
-		it("fetchMediaList should throw error when response is not ok", async () => {
-			fetchMock.mockResolvedValue({
-				ok: false,
-				status: 500,
-				statusText: "Internal Server Error",
-			});
-
-			await expect(fetchMediaList("all")).rejects.toThrow("Failed to fetch all media");
-		});
-
-		it("fetchMediaDetail should throw error when response is not ok", async () => {
-			fetchMock.mockResolvedValue({
-				ok: false,
-				status: 404,
-				statusText: "Not Found",
-			});
-
-			await expect(fetchMediaDetail("123")).rejects.toThrow("Failed to fetch media detail");
-		});
-
-		it("searchMedia should throw error when response is not ok", async () => {
-			fetchMock.mockResolvedValue({
-				ok: false,
-				status: 500,
-				statusText: "Error",
-			});
-
-			await expect(searchMedia("avatar")).rejects.toThrow("Failed to search media");
-		});
-
-		it("fetchMediaProgress should throw error when response is not ok", async () => {
-			fetchMock.mockResolvedValue({
-				ok: false,
-				status: 500,
-				statusText: "Error",
-			});
-
-			await expect(fetchMediaProgress("123")).rejects.toThrow("Failed to fetch progress");
-		});
-
 		it("fetchTrending should throw error when response is not ok", async () => {
 			fetchMock.mockResolvedValue({
 				ok: false,
@@ -340,17 +174,6 @@ describe("Client Queries", () => {
 
 			const { fetchProwlarrStatus } = await import("$lib/queries/browse-queries");
 			await expect(fetchProwlarrStatus()).rejects.toThrow("Failed to fetch Prowlarr status");
-		});
-
-		it("searchTMDB should throw error when response is not ok", async () => {
-			fetchMock.mockResolvedValue({
-				ok: false,
-				status: 500,
-				statusText: "Error",
-			});
-
-			const { searchTMDB } = await import("$lib/queries/browse-queries");
-			await expect(searchTMDB("query")).rejects.toThrow("Failed to search TMDB");
 		});
 
 		it("fetchSeasons should throw error when response is not ok", async () => {

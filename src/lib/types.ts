@@ -56,6 +56,26 @@ export interface Season {
 export type SeasonWithEpisodes = Season & {
 	episodes: Media[];
 };
+export interface SubtitleTrackResponse {
+	id: string;
+	mediaId: string;
+	language: string;
+	label: string;
+	source: string;
+	isDefault: boolean;
+	isForced: boolean;
+	src: string;
+}
+export interface ProgressInfo {
+	status: string;
+	progress: number;
+	downloadSpeed: number;
+	uploadSpeed: number;
+	peers: number;
+	isActive: boolean;
+	filePath: string | null;
+	fileSize?: number;
+}
 
 export interface OpenSubtitleResult {
 	id: string;
