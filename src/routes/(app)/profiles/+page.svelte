@@ -5,6 +5,7 @@
     import { authClient } from "$lib/auth-client";
     import ProfileCard from "$lib/components/ProfileCard.svelte";
     import Button from "$lib/components/ui/Button.svelte";
+    import Scroller from "$lib/components/ui/Scroller.svelte";
     import { queryClient } from "$lib/data/client";
     import type { PageData } from "./$types";
 
@@ -57,18 +58,18 @@
             <h1 class="text-4xl font-semibold tracking-tight sm:text-5xl">Who's watching?</h1>
         </div>
 
-        <div
-            class="mb-12 grid max-h-100 grid-cols-2 gap-8 overflow-auto p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
-        >
-            {#each data.profiles as profile}
-                <ProfileCard
-                    name={profile.name}
-                    logo={profile.logo}
-                    isMember={profile.isMember}
-                    onclick={() => selectProfile(profile.id)}
-                />
-            {/each}
-        </div>
+        <Scroller class="max-h-100 p-4" rootClass="mb-12">
+            <div class="grid grid-cols-2 gap-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {#each data.profiles as profile}
+                    <ProfileCard
+                        name={profile.name}
+                        logo={profile.logo}
+                        isMember={profile.isMember}
+                        onclick={() => selectProfile(profile.id)}
+                    />
+                {/each}
+            </div>
+        </Scroller>
 
         {#if data.canManageProfiles}
             <div class="flex flex-wrap items-center justify-center gap-3">

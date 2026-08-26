@@ -1,6 +1,6 @@
 <script lang="ts">
     import { Film, LogOut, Play, Plus, Search, Settings, User, Users } from "@lucide/svelte";
-    import { DropdownMenu, Tooltip } from "bits-ui";
+    import { Avatar, DropdownMenu, Tooltip } from "bits-ui";
     import type { Snippet } from "svelte";
     import { fade, fly } from "svelte/transition";
     import { goto } from "$app/navigation";
@@ -47,21 +47,22 @@
                         class="flex h-12 w-12 items-center justify-center rounded-full transition-all duration-300 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         aria-label="Account"
                     >
-                        {#if page.data.user?.image}
-                            <img
-                                src={page.data.user.image}
-                                alt={page.data.user.name || "User"}
+                        <Avatar.Root class="h-12.5 w-12.5 rounded-full">
+                            <Avatar.Image
+                                src={page.data.user?.image}
+                                alt={page.data.user?.name || "User"}
                                 class="h-12.5 w-12.5 rounded-full object-cover"
-                            >
-                        {:else}
-                            <Facehash
-                                class="flex items-center justify-center rounded-full"
-                                name={page.data.user?.name || ""}
-                                variant="solid"
-                                size={50}
-                                intensity3d="dramatic"
                             />
-                        {/if}
+                            <Avatar.Fallback>
+                                <Facehash
+                                    class="flex items-center justify-center rounded-full"
+                                    name={page.data.user?.name || ""}
+                                    variant="solid"
+                                    size={50}
+                                    intensity3d="dramatic"
+                                />
+                            </Avatar.Fallback>
+                        </Avatar.Root>
                     </DropdownMenu.Trigger>
                 </div>
 

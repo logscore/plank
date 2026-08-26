@@ -1,11 +1,12 @@
 <script lang="ts">
     import { ChevronDown, Download, Loader2, Play, Plus } from "@lucide/svelte";
-    import { DropdownMenu } from "bits-ui";
+    import { DropdownMenu, Progress } from "bits-ui";
     import { onDestroy } from "svelte";
     import type { BrowseItem } from "$lib/server/tmdb";
     import type { CatalogSeason } from "$lib/types";
     import { cn } from "$lib/utils";
     import Button from "./ui/Button.svelte";
+    import Tip from "./ui/Tip.svelte";
     import Tv from "./ui/Tv.svelte";
 
     let {
@@ -252,11 +253,18 @@
         {/if}
 
         {#if progressState !== "idle"}
-            <div
-                class="absolute bottom-0 left-0 z-20 h-1 bg-red-600 transition-all ease-out"
-                style:width="{progressWidth}%"
-                style:transition-duration="{transitionDuration}ms"
-            ></div>
+            <Progress.Root
+                value={progressWidth}
+                max={100}
+                aria-label="Add progress"
+                class="absolute bottom-0 left-0 z-20 h-1 w-full"
+            >
+                <div
+                    class="h-full bg-red-600 transition-all ease-out"
+                    style:width="{progressWidth}%"
+                    style:transition-duration="{transitionDuration}ms"
+                ></div>
+            </Progress.Root>
         {/if}
 
         <div
@@ -359,27 +367,35 @@
                         </DropdownMenu.Portal>
                     </DropdownMenu.Root>
                 {:else}
-                    <Button
-                        size="sm"
-                        variant="secondary"
-                        class="flex-1 text-xs"
-                        onclick={handleAddToLibrary}
-                        disabled={isDisabled}
-                        title="Add to Library"
-                    >
-                        <Plus class="mr-1 h-3 w-3" />
-                        Add
-                    </Button>
-                    <Button
-                        size="sm"
-                        class="flex-1 text-xs"
-                        onclick={handleWatchNow}
-                        disabled={isDisabled}
-                        title="Watch Now"
-                    >
-                        <Play class="mr-1 h-3 w-3 fill-current" />
-                        Watch
-                    </Button>
+                    <Tip text="Add to Library">
+                        {#snippet children(tipProps)}
+                            <Button
+                                {...tipProps}
+                                size="sm"
+                                variant="secondary"
+                                class="flex-1 text-xs"
+                                onclick={handleAddToLibrary}
+                                disabled={isDisabled}
+                            >
+                                <Plus class="mr-1 h-3 w-3" />
+                                Add
+                            </Button>
+                        {/snippet}
+                    </Tip>
+                    <Tip text="Watch Now">
+                        {#snippet children(tipProps)}
+                            <Button
+                                {...tipProps}
+                                size="sm"
+                                class="flex-1 text-xs"
+                                onclick={handleWatchNow}
+                                disabled={isDisabled}
+                            >
+                                <Play class="mr-1 h-3 w-3 fill-current" />
+                                Watch
+                            </Button>
+                        {/snippet}
+                    </Tip>
                 {/if}
             </div>
         </div>

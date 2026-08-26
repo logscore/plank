@@ -1,6 +1,6 @@
 <script lang="ts">
     import { ArrowLeft, Calendar, Database, EllipsisVertical, Film, Play, RotateCcw, Trash2 } from "@lucide/svelte";
-    import { DropdownMenu } from "bits-ui";
+    import { DropdownMenu, Tabs } from "bits-ui";
     import { goto, invalidate, replaceState } from "$app/navigation";
     import { page } from "$app/state";
     import EpisodeSelector from "$lib/components/EpisodeSelector.svelte";
@@ -466,183 +466,184 @@
 
                 <!-- Season Tabs -->
                 {#if seasons.length > 0}
-                    <div class="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
-                        {#each seasons as season}
-                            <Button
-                                variant={selectedSeason === season.seasonNumber
-                                    ? "default"
-                                    : "ghost"}
-                                onclick={() =>
-                                    handleSelectSeason(season.seasonNumber)}
-                                class="whitespace-nowrap"
-                            >
-                                {season.name || `Season ${season.seasonNumber}`}
-                            </Button>
-                        {/each}
-                    </div>
+                    <Tabs.Root
+                        value={String(selectedSeason ?? "")}
+                        onValueChange={(value) => handleSelectSeason(Number(value))}
+                    >
+                        <Tabs.List class="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
+                            {#each seasons as season (season.seasonNumber)}
+                                <Tabs.Trigger
+                                    value={String(season.seasonNumber)}
+                                    class="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-colors cursor-pointer hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:hover:bg-primary/90"
+                                >
+                                    {season.name || `Season ${season.seasonNumber}`}
+                                </Tabs.Trigger>
+                            {/each}
+                        </Tabs.List>
 
-                    <!-- Episode List -->
-                    {#if currentSeason}
-                        <div class="space-y-4">
-                            {#each currentSeason.episodes as episode}
-                                <div
-                                    class="group flex gap-4 rounded-2xl border bg-card/70 p-4 transition-colors {getEpisodeCardClass(
+                        <!-- Episode List -->
+                        {#if currentSeason}
+                            <Tabs.Content value={String(currentSeason.seasonNumber)} class="space-y-4">
+                                {#each currentSeason.episodes as episode}
+                                    <div
+                                        class="group flex gap-4 rounded-2xl border bg-card/70 p-4 transition-colors {getEpisodeCardClass(
                                         episode,
                                     )}"
-                                >
-                                    <!-- Episode Thumbnail -->
-                                    <div
-                                        class="shrink-0 w-32 md:w-48 aspect-video rounded overflow-hidden bg-accent relative"
                                     >
-                                        {#if episode.stillPath}
-                                            <img
-                                                src={episode.stillPath}
-                                                alt={episode.title ??
-                                                    `Episode ${episode.episodeNumber}`}
-                                                class="w-full h-full object-cover"
-                                            >
-                                        {:else}
-                                            <div
-                                                class="w-full h-full flex items-center justify-center text-muted-foreground"
-                                            >
-                                                <Play class="w-8 h-8" />
-                                            </div>
-                                        {/if}
+                                        <!-- Episode Thumbnail -->
                                         <div
-                                            class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] {getEpisodeStatusClass(
+                                            class="shrink-0 w-32 md:w-48 aspect-video rounded overflow-hidden bg-accent relative"
+                                        >
+                                            {#if episode.stillPath}
+                                                <img
+                                                    src={episode.stillPath}
+                                                    alt={episode.title ??
+                                                    `Episode ${episode.episodeNumber}`}
+                                                    class="w-full h-full object-cover"
+                                                >
+                                            {:else}
+                                                <div
+                                                    class="w-full h-full flex items-center justify-center text-muted-foreground"
+                                                >
+                                                    <Play class="w-8 h-8" />
+                                                </div>
+                                            {/if}
+                                            <div
+                                                class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] {getEpisodeStatusClass(
                                                 episode,
                                             )}"
-                                        >
-                                            {getEpisodeStatusLabel(episode)}
-                                        </div>
-                                    </div>
-
-                                    <!-- Episode Info -->
-                                    <div class="flex-1 min-w-0 flex flex-col justify-between py-1">
-                                        <div>
-                                            <div class="flex items-start justify-between gap-4">
-                                                <h3 class="font-semibold text-base md:text-lg line-clamp-1">
-                                                    <span class="text-muted-foreground mr-1"
-                                                        >{episode.episodeNumber}.</span
-                                                    >
-                                                    {episode.title ||
-                                                        `Episode ${episode.episodeNumber}`}
-                                                </h3>
-                                            </div>
-
-                                            <div
-                                                class="flex items-center gap-3 text-xs md:text-sm text-muted-foreground mt-1"
                                             >
-                                                {#if episode.runtime}
-                                                    <span
-                                                        >{formatRuntime(
+                                                {getEpisodeStatusLabel(episode)}
+                                            </div>
+                                        </div>
+
+                                        <!-- Episode Info -->
+                                        <div class="flex-1 min-w-0 flex flex-col justify-between py-1">
+                                            <div>
+                                                <div class="flex items-start justify-between gap-4">
+                                                    <h3 class="font-semibold text-base md:text-lg line-clamp-1">
+                                                        <span class="text-muted-foreground mr-1"
+                                                            >{episode.episodeNumber}.</span
+                                                        >
+                                                        {episode.title ||
+                                                        `Episode ${episode.episodeNumber}`}
+                                                    </h3>
+                                                </div>
+
+                                                <div
+                                                    class="flex items-center gap-3 text-xs md:text-sm text-muted-foreground mt-1"
+                                                >
+                                                    {#if episode.runtime}
+                                                        <span
+                                                            >{formatRuntime(
                                                             episode.runtime,
                                                         )}</span
-                                                    >
-                                                {/if}
-                                                {#if episode.airDate}
-                                                    <span>• {episode.airDate}</span>
-                                                {/if}
+                                                        >
+                                                    {/if}
+                                                    {#if episode.airDate}
+                                                        <span>• {episode.airDate}</span>
+                                                    {/if}
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        <div class="flex items-center justify-between mt-2 md:mt-0">
-                                            {#if episode.overview}
-                                                <p
-                                                    class="text-xs text-muted-foreground line-clamp-2 pr-4 hidden md:block"
-                                                >
-                                                    {episode.overview}
-                                                </p>
-                                            {/if}
+                                            <div class="flex items-center justify-between mt-2 md:mt-0">
+                                                {#if episode.overview}
+                                                    <p
+                                                        class="text-xs text-muted-foreground line-clamp-2 pr-4 hidden md:block"
+                                                    >
+                                                        {episode.overview}
+                                                    </p>
+                                                {/if}
 
-                                            <div class="flex items-center gap-1 shrink-0 ml-auto">
-                                                {#if media}
-                                                    <SubtitleMenu
-                                                        mediaId={episode.id}
-                                                        tracks={data.subtitleTracksByMediaId[episode.id] ?? []}
-                                                        onAddSubtitles={() =>
+                                                <div class="flex items-center gap-1 shrink-0 ml-auto">
+                                                    {#if media}
+                                                        <SubtitleMenu
+                                                            mediaId={episode.id}
+                                                            tracks={data.subtitleTracksByMediaId[episode.id] ?? []}
+                                                            onAddSubtitles={() =>
                                                             openSubtitlesForEpisode(
                                                                 episode,
                                                             )}
-                                                        compact
-                                                    />
-                                                {/if}
-                                                <Button
-                                                    size="sm"
-                                                    disabled={!canPlayEpisode(
+                                                            compact
+                                                        />
+                                                    {/if}
+                                                    <Button
+                                                        size="sm"
+                                                        disabled={!canPlayEpisode(
                                                         episode,
                                                     )}
-                                                    onclick={() =>
+                                                        onclick={() =>
                                                         handlePlayEpisode(
                                                             episode,
                                                         )}
-                                                >
-                                                    <Play class="w-4 h-4 mr-1 fill-current" />
-                                                    Play
-                                                </Button>
-                                                <DropdownMenu.Root>
-                                                    <DropdownMenu.Trigger
-                                                        class="inline-flex h-10 w-10 items-center justify-center rounded-md text-white transition-colors hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-                                                        aria-label="Episode actions"
                                                     >
-                                                        <EllipsisVertical class="h-4 w-4" />
-                                                    </DropdownMenu.Trigger>
-                                                    <DropdownMenu.Portal>
-                                                        <DropdownMenu.Content
-                                                            side="bottom"
-                                                            align="end"
-                                                            sideOffset={8}
-                                                            class="z-50 w-44 overflow-hidden rounded-xl border border-white/10 bg-black/95 p-1.5 text-gray-200 shadow-2xl backdrop-blur-xl focus:outline-none"
+                                                        <Play class="w-4 h-4 mr-1 fill-current" />
+                                                        Play
+                                                    </Button>
+                                                    <DropdownMenu.Root>
+                                                        <DropdownMenu.Trigger
+                                                            class="inline-flex h-10 w-10 items-center justify-center rounded-md text-white transition-colors hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                                                            aria-label="Episode actions"
                                                         >
-                                                            <DropdownMenu.Item
-                                                                disabled={retryingEpisodeIds.has(
+                                                            <EllipsisVertical class="h-4 w-4" />
+                                                        </DropdownMenu.Trigger>
+                                                        <DropdownMenu.Portal>
+                                                            <DropdownMenu.Content
+                                                                side="bottom"
+                                                                align="end"
+                                                                sideOffset={8}
+                                                                class="z-50 w-44 overflow-hidden rounded-xl border border-white/10 bg-black/95 p-1.5 text-gray-200 shadow-2xl backdrop-blur-xl focus:outline-none"
+                                                            >
+                                                                <DropdownMenu.Item
+                                                                    disabled={retryingEpisodeIds.has(
                                                                     episode.id,
                                                                 )}
-                                                                onSelect={() =>
+                                                                    onSelect={() =>
                                                                     openRedownloadDialog(
                                                                         episode,
                                                                     )}
-                                                                class="flex h-10 cursor-default select-none items-center gap-2 rounded-lg px-3 text-sm outline-none data-highlighted:bg-white/10 data-disabled:pointer-events-none data-disabled:opacity-50"
-                                                            >
-                                                                <RotateCcw class="h-4 w-4" />
-                                                                {retryingEpisodeIds.has(
+                                                                    class="flex h-10 cursor-default select-none items-center gap-2 rounded-lg px-3 text-sm outline-none data-highlighted:bg-white/10 data-disabled:pointer-events-none data-disabled:opacity-50"
+                                                                >
+                                                                    <RotateCcw class="h-4 w-4" />
+                                                                    {retryingEpisodeIds.has(
                                                                     episode.id,
                                                                 )
                                                                     ? "Working..."
                                                                     : "Redownload"}
-                                                            </DropdownMenu.Item>
-                                                            <DropdownMenu.Item
-                                                                disabled={retryingEpisodeIds.has(
+                                                                </DropdownMenu.Item>
+                                                                <DropdownMenu.Item
+                                                                    disabled={retryingEpisodeIds.has(
                                                                     episode.id,
                                                                 ) ||
                                                                     isEpisodeRemoved(
                                                                         episode,
                                                                     )}
-                                                                onSelect={() =>
+                                                                    onSelect={() =>
                                                                     handleRemoveEpisodeDownload(
                                                                         episode,
                                                                     )}
-                                                                class="flex h-10 cursor-default select-none items-center gap-2 rounded-lg px-3 text-sm text-red-400 outline-none data-highlighted:bg-red-500/10 data-disabled:pointer-events-none data-disabled:opacity-50"
-                                                            >
-                                                                <Trash2 class="h-4 w-4" />
-                                                                Delete
-                                                            </DropdownMenu.Item>
-                                                        </DropdownMenu.Content>
-                                                    </DropdownMenu.Portal>
-                                                </DropdownMenu.Root>
+                                                                    class="flex h-10 cursor-default select-none items-center gap-2 rounded-lg px-3 text-sm text-red-400 outline-none data-highlighted:bg-red-500/10 data-disabled:pointer-events-none data-disabled:opacity-50"
+                                                                >
+                                                                    <Trash2 class="h-4 w-4" />
+                                                                    Delete
+                                                                </DropdownMenu.Item>
+                                                            </DropdownMenu.Content>
+                                                        </DropdownMenu.Portal>
+                                                    </DropdownMenu.Root>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            {/each}
+                                {/each}
 
-                            {#if currentSeason.episodes.length === 0}
-                                <div class="text-center py-12 text-muted-foreground">
-                                    No episodes available for this season
-                                </div>
-                            {/if}
-                        </div>
-                    {/if}
+                                {#if currentSeason.episodes.length === 0}
+                                    <div class="text-center py-12 text-muted-foreground">
+                                        No episodes available for this season
+                                    </div>
+                                {/if}
+                            </Tabs.Content>
+                        {/if}
+                    </Tabs.Root>
                 {:else}
                     <div class="text-center py-12 text-muted-foreground">No seasons available</div>
                 {/if}

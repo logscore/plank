@@ -5,7 +5,7 @@
     import "vidstack/player/layouts";
     import "vidstack/player/ui";
     import { ArrowLeft, Download, EllipsisVertical, Play, Users, X } from "@lucide/svelte";
-    import { DropdownMenu } from "bits-ui";
+    import { DropdownMenu, Progress } from "bits-ui";
     import { onDestroy, onMount } from "svelte";
     import type { MediaPlayerElement } from "vidstack/elements";
     import { browser } from "$app/environment";
@@ -506,12 +506,17 @@
                 <Users class="w-4 h-4 text-green-400" />
                 <span>{progressInfo.peers} peers</span>
             </div>
-            <div class="w-48 h-1.5 bg-zinc-800 rounded-full overflow-hidden mt-2">
+            <Progress.Root
+                value={progressInfo.progress * 100}
+                max={100}
+                aria-label="Download progress"
+                class="w-48 h-1.5 bg-zinc-800 rounded-full overflow-hidden mt-2"
+            >
                 <div
                     class="h-full bg-primary transition-all duration-500 ease-out"
                     style="width: {progressInfo.progress * 100}%"
                 ></div>
-            </div>
+            </Progress.Root>
         </div>
     {/if}
 </div>

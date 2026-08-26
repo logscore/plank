@@ -1,6 +1,7 @@
 <script lang="ts">
     import { Check, ChevronDown, ClosedCaption, Plus, Trash2 } from "@lucide/svelte";
     import { Popover } from "bits-ui";
+    import Scroller from "$lib/components/ui/Scroller.svelte";
     import { createDeleteSubtitleMutation, createSetDefaultSubtitleMutation } from "$lib/data/media";
     import type { SubtitleTrackResponse } from "$lib/types";
 
@@ -101,7 +102,7 @@
                 {/if}
             </div>
 
-            <div class="max-h-64 overflow-y-auto">
+            <Scroller class="max-h-64">
                 {#if tracks.length === 0}
                     <div class="px-4 py-6 text-center text-sm text-muted-foreground">No subtitles available</div>
                 {:else}
@@ -150,7 +151,7 @@
                         </div>
                     {/each}
                 {/if}
-            </div>
+            </Scroller>
 
             <div class="border-t border-white/10 p-2">
                 <button

@@ -4,6 +4,7 @@
     import { onMount } from "svelte";
     import { toast } from "svelte-sonner";
     import Button from "$lib/components/ui/Button.svelte";
+    import Scroller from "$lib/components/ui/Scroller.svelte";
     import SelectField from "$lib/components/ui/SelectField.svelte";
     import {
         createAddProwlarrIndexerMutation,
@@ -145,21 +146,21 @@
         <!-- Quick Setup -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             {#each PACKAGES as pkg}
-                <div
-                    class="border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors cursor-pointer"
-                    role="button"
-                    tabindex="0"
+                <button
+                    type="button"
+                    class="border rounded-lg p-4 bg-card text-left hover:bg-muted/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     onclick={() => applyPackage(pkg)}
-                    onkeydown={(e) => e.key === "Enter" && applyPackage(pkg)}
                 >
                     <div class="text-2xl mb-2">{pkg.icon}</div>
                     <h3 class="font-semibold mb-1">{pkg.name}</h3>
                     <p class="min-h-10 text-xs text-muted-foreground mb-3">{pkg.description}</p>
-                    <Button variant="secondary" size="sm" class="w-full" type="button">
+                    <span
+                        class="inline-flex h-9 w-full items-center justify-center rounded-md bg-secondary px-3 text-sm font-medium text-secondary-foreground"
+                    >
                         <Plus class="w-3 h-3 mr-2" />
                         Quick Add
-                    </Button>
-                </div>
+                    </span>
+                </button>
             {/each}
         </div>
 
@@ -171,34 +172,38 @@
                     <RefreshCw class="w-4 h-4 {loadingIndexers ? 'animate-spin' : ''}" />
                 </Button>
             </div>
-            <div class="divide-y max-h-60 overflow-y-auto">
-                {#if indexers.length === 0}
-                    <div class="p-8 text-center text-muted-foreground text-sm">
-                        No indexers configured. Use a Quick Setup package above or add manually.
-                    </div>
-                {:else}
-                    {#each indexers as indexer}
-                        <div class="py-3 px-5 flex items-center justify-between hover:bg-muted/50">
-                            <div class="flex items-center gap-3">
-                                <span class="text-sm font-medium">{indexer.name}</span>
-                                <span class="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground border">
-                                    {indexer.protocol}
-                                </span>
-                            </div>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                type="button"
-                                class="h-8 w-8 text-destructive hover:text-destructive"
-                                onclick={() =>
-                                    deleteIndexer(indexer.id, indexer.name)}
-                            >
-                                <Trash2 class="w-4 h-4" />
-                            </Button>
+            <Scroller class="max-h-60">
+                <div class="divide-y">
+                    {#if indexers.length === 0}
+                        <div class="p-8 text-center text-muted-foreground text-sm">
+                            No indexers configured. Use a Quick Setup package above or add manually.
                         </div>
-                    {/each}
-                {/if}
-            </div>
+                    {:else}
+                        {#each indexers as indexer}
+                            <div class="py-3 px-5 flex items-center justify-between hover:bg-muted/50">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-sm font-medium">{indexer.name}</span>
+                                    <span
+                                        class="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground border"
+                                    >
+                                        {indexer.protocol}
+                                    </span>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    type="button"
+                                    class="h-8 w-8 text-destructive hover:text-destructive"
+                                    onclick={() =>
+                                    deleteIndexer(indexer.id, indexer.name)}
+                                >
+                                    <Trash2 class="w-4 h-4" />
+                                </Button>
+                            </div>
+                        {/each}
+                    {/if}
+                </div>
+            </Scroller>
         </div>
 
         <!-- Advanced Manual Add -->

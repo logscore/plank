@@ -39,8 +39,20 @@ function fetchProwlarrIndexers(): Promise<ProwlarrIndexer[]> {
 	return apiRequest("/api/prowlarr/indexer", "Failed to fetch indexers");
 }
 
-function fetchProwlarrIndexerSchemas(): Promise<ProwlarrIndexerSchema[]> {
-	return apiRequest("/api/prowlarr/indexer/schema", "Failed to fetch indexer schemas");
+async function fetchProwlarrIndexerSchemas(): Promise<ProwlarrIndexerSchema[]> {
+	const schemas = await apiRequest<ProwlarrIndexerSchema[]>(
+		"/api/prowlarr/indexer/schema",
+		"Failed to fetch indexer schemas"
+	);
+	// Prowlarr repeats some names. Callers key lists and look schemas up by name,
+	// so keep the first schema of each name.
+	const byName = new Map<string, ProwlarrIndexerSchema>();
+	for (const schema of schemas) {
+		if (!byName.has(schema.name)) {
+			byName.set(schema.name, schema);
+		}
+	}
+	return [...byName.values()];
 }
 
 export function createProwlarrStatusQuery() {

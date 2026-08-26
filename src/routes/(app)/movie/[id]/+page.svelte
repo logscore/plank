@@ -20,6 +20,7 @@
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
+    import Tip from "$lib/components/ui/Tip.svelte";
     import { createAddMediaMutation, createDeleteMediaMutation, createRetryMediaMutation } from "$lib/data/media";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
     import { isTerminalProgressStatus } from "$lib/utils";
@@ -434,15 +435,20 @@
                         File Information
                     </h3>
                     {#if liveStatus !== "error" && liveStatus !== "downloading"}
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            class="h-8 w-8 p-0 text-muted-foreground hover:text-white"
-                            onclick={openRedownloadDialog}
-                            title="Redownload Content"
-                        >
-                            <RefreshCw class="w-4 h-4" />
-                        </Button>
+                        <Tip text="Redownload Content">
+                            {#snippet children(tipProps)}
+                                <Button
+                                    {...tipProps}
+                                    variant="ghost"
+                                    size="sm"
+                                    class="h-8 w-8 p-0 text-muted-foreground hover:text-white"
+                                    onclick={openRedownloadDialog}
+                                    aria-label="Redownload Content"
+                                >
+                                    <RefreshCw class="w-4 h-4" />
+                                </Button>
+                            {/snippet}
+                        </Tip>
                     {/if}
                 </div>
                 <div class="space-y-3 text-sm">
