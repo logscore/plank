@@ -163,6 +163,7 @@ async function handleDownloadComplete(infohash: string, download: ActiveDownload
 			downloadsDb.updateProgress(failedRecord.id, download.progress, "error");
 		}
 		updateMediaStatusFromDownloads(download.mediaId);
+		cleanupDownload(infohash, false);
 		return;
 	}
 	download.status = "complete";

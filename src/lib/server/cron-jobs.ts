@@ -1,11 +1,12 @@
 import fs from "node:fs/promises";
+import type { ScheduledTask } from "node-cron";
 import cron from "node-cron";
 import { PATHS } from "./paths";
 import { hasActiveDownloads } from "./torrent/client";
 
 // Schedule temp folder cleanup daily at midnight
-export function tempFolderCleanupJob() {
-	cron.schedule("0 0 * * *", async () => {
+export function tempFolderCleanupJob(): ScheduledTask {
+	return cron.schedule("0 0 * * *", async () => {
 		console.log("[Cron] Starting daily temp folder cleanup...");
 		try {
 			if (hasActiveDownloads()) {

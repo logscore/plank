@@ -1,5 +1,6 @@
 import type { Readable } from "node:stream";
 import parseTorrent from "parse-torrent";
+import WebTorrent from "webtorrent";
 import type { MediaType } from "$lib/types";
 
 export interface TorrentFile {
@@ -46,7 +47,8 @@ export interface WebTorrentClient {
 	): Torrent;
 	remove(torrentId: string, opts?: { destroyStore?: boolean }, callback?: () => void): void;
 	get(torrentId: string): Torrent | null;
-	destroy(callback?: () => void): void;
+	on(event: "error", callback: (error: Error) => void): void;
+	destroy(callback?: (error?: Error | null) => void): void;
 	torrents: Torrent[];
 	downloadSpeed: number;
 	uploadSpeed: number;
@@ -77,8 +79,10 @@ export const activeDownloads = new Map<string, ActiveDownload>();
 // Pending download promises keyed by infohash (prevents duplicate starts of same torrent)
 export const pendingDownloads = new Map<string, Promise<void>>();
 
-// Singleton WebTorrent client
-let client: WebTorrentClient | null = null;
+// Singleton WebTorrent client lifecycle
+let clientPromise: Promise<WebTorrentClient> | null = null;
+let clientShutdown: Promise<void> | null = null;
+let shuttingDown = false;
 
 // Public trackers for better peer discovery
 const TRACKERS = [
@@ -96,38 +100,51 @@ const TRACKERS = [
 	"http://tracker.opentrackr.org:1337/announce",
 ];
 
-export async function getClient(): Promise<WebTorrentClient> {
-	if (!client) {
-		// Suppress expected 'utp-native not found' warning during WebTorrent import
-		const originalError = console.error;
-		console.error = (...args: unknown[]) => {
-			if (typeof args[0] === "string" && args[0].includes("uTP not supported")) {
-				return;
-			}
-			originalError.apply(console, args);
-		};
-
-		const WebTorrent = await import("webtorrent");
-		client = new WebTorrent.default({
+export function getClient(): Promise<WebTorrentClient> {
+	if (shuttingDown) {
+		return Promise.reject(new Error("WebTorrent client is shutting down"));
+	}
+	if (!clientPromise) {
+		const torrentClient = new WebTorrent({
 			maxConns: 100,
 			downloadLimit: -1,
 			uploadLimit: -1,
 		}) as unknown as WebTorrentClient;
-
-		console.error = originalError;
-
-		// Add global error handler
-		(
-			client as unknown as {
-				on: (event: string, handler: (err: Error) => void) => void;
-			}
-		).on("error", (err: Error) => {
-			console.error("[WebTorrent] Global client error:", err);
+		torrentClient.on("error", (error) => {
+			console.error("[WebTorrent] Global client error:", error);
 		});
-
-		// console.log('[WebTorrent] Client initialized successfully');
+		clientPromise = Promise.resolve(torrentClient);
 	}
-	return client;
+	return clientPromise;
+}
+
+export function shutdownTorrentClient(): Promise<void> {
+	if (clientShutdown) {
+		return clientShutdown;
+	}
+
+	shuttingDown = true;
+	clientShutdown = (async () => {
+		const torrentClient = await clientPromise;
+		try {
+			if (torrentClient) {
+				await new Promise<void>((resolve, reject) => {
+					torrentClient.destroy((error) => {
+						if (error) {
+							reject(error);
+							return;
+						}
+						resolve();
+					});
+				});
+			}
+		} finally {
+			clientPromise = null;
+			activeDownloads.clear();
+			pendingDownloads.clear();
+		}
+	})();
+	return clientShutdown;
 }
 
 /** Get all active downloads for a media item */
