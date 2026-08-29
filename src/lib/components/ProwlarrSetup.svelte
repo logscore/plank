@@ -22,7 +22,7 @@
                 Prowlarr API Key is missing. Please configure it in Settings.
             </p>
             <a
-                href="/settings#prowlarr"
+                href="/settings/connections"
                 class="inline-flex items-center justify-center px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90"
             >
                 Go to Settings

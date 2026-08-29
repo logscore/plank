@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Film, LogOut, Play, Plus, Search, Settings, User, Users } from "@lucide/svelte";
+    import { Film, LogOut, Play, Plus, Search, Settings, Users } from "@lucide/svelte";
     import { Avatar, DropdownMenu, Tooltip } from "bits-ui";
     import type { Snippet } from "svelte";
     import { fade, fly } from "svelte/transition";
@@ -84,24 +84,13 @@
                         </DropdownMenu.Item>
                         <DropdownMenu.Item
                             onSelect={() => {
-                                void goto("/account");
+                                void goto("/settings/account");
                             }}
                             class="flex h-10 cursor-default select-none items-center gap-3 rounded-lg px-3 text-sm outline-none data-highlighted:bg-white/10"
                         >
-                            <User class="h-4 w-4" />
-                            View Account
+                            <Settings class="h-4 w-4" />
+                            Settings
                         </DropdownMenu.Item>
-                        {#if page.data.role === "owner"}
-                            <DropdownMenu.Item
-                                onSelect={() => {
-                                    void goto("/settings");
-                                }}
-                                class="flex h-10 cursor-default select-none items-center gap-3 rounded-lg px-3 text-sm outline-none data-highlighted:bg-white/10"
-                            >
-                                <Settings class="h-4 w-4" />
-                                Settings
-                            </DropdownMenu.Item>
-                        {/if}
                         <DropdownMenu.Separator class="my-1 h-px bg-white/10" />
                         <DropdownMenu.Item
                             onSelect={logout}

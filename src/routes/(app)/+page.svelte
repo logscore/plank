@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Film, LoaderCircle } from "@lucide/svelte";
+    import { CircleAlert, Film, LoaderCircle } from "@lucide/svelte";
     import { untrack } from "svelte";
     import { goto } from "$app/navigation";
     import CatalogFilterButton from "$lib/components/CatalogFilterButton.svelte";
@@ -22,6 +22,7 @@
     let { data } = $props<{ data: PageData }>();
     const deleteMutation = createDeleteMediaMutation();
     const continueWatching = $derived(data.continueWatching);
+    const errorCount = $derived(data.errorCount);
     let filters = $state<CatalogFilters>(
         untrack(() => ({ ...data.request.filters, genres: [...data.request.filters.genres] }))
     );
@@ -112,6 +113,16 @@
         </div>
         <CatalogFilterButton {filters} onApply={applyFilters} class="shrink-0" />
     </header>
+
+    {#if errorCount > 0}
+        <div class="mb-9 flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+            <CircleAlert class="h-5 w-5 shrink-0 text-red-500" />
+            <span class="text-red-400">
+                {errorCount}
+                {errorCount === 1 ? "item" : "items"} failed to download
+            </span>
+        </div>
+    {/if}
 
     {#if continueWatching.length > 0}
         <section class="mb-10">

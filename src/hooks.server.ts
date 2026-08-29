@@ -51,6 +51,17 @@ function classifyRoute(path: string) {
 	};
 }
 
+/** Old destinations that the unified settings shell replaced. */
+function legacySettingsRedirect(path: string): string | null {
+	if (path === "/account" || path.startsWith("/account/")) {
+		return "/settings/account";
+	}
+	if (path === "/settings") {
+		return "/settings/account";
+	}
+	return null;
+}
+
 async function enforceProfileSelection(event: RequestEvent, activeOrgId: string | null | undefined) {
 	if (activeOrgId) {
 		return;
@@ -104,6 +115,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	if (routes.isAuthPage && event.locals.user) {
 		throw redirect(302, "/profiles");
+	}
+
+	const settingsTarget = legacySettingsRedirect(event.url.pathname);
+	if (settingsTarget) {
+		throw redirect(308, settingsTarget);
 	}
 
 	if (routes.isProfilesRoute || routes.isAcceptInvitation) {

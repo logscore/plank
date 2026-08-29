@@ -1,8 +1,15 @@
 <script lang="ts">
     import { AlertDialog } from "bits-ui";
+    import { toast } from "svelte-sonner";
     import { uiState } from "$lib/ui-state.svelte";
 
     let loading = $state(false);
+
+    const confirmClass = $derived(
+        uiState.confirmation.tone === "destructive"
+            ? "bg-destructive text-destructive-foreground hover:bg-destructive/85"
+            : "bg-white/10 text-white hover:bg-white/20"
+    );
 
     async function handleConfirm(event: MouseEvent) {
         event.preventDefault();
@@ -12,15 +19,19 @@
 
         loading = true;
         try {
-            await uiState.deleteConfirmation.confirmAction();
-            uiState.deleteConfirmation.open = false;
+            await uiState.confirmation.confirmAction();
+            uiState.confirmation.open = false;
+        } catch (error) {
+            // Stay open so the user can retry or cancel.
+            console.error("Confirmation action failed:", error);
+            toast.error(error instanceof Error ? error.message : "The action failed");
         } finally {
             loading = false;
         }
     }
 </script>
 
-<AlertDialog.Root bind:open={uiState.deleteConfirmation.open}>
+<AlertDialog.Root bind:open={uiState.confirmation.open}>
     <AlertDialog.Portal>
         <AlertDialog.Overlay class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm" />
         <AlertDialog.Content
@@ -28,10 +39,10 @@
         >
             <div class="space-y-2">
                 <AlertDialog.Title class="text-xl font-semibold tracking-tight">
-                    {uiState.deleteConfirmation.title}
+                    {uiState.confirmation.title}
                 </AlertDialog.Title>
                 <AlertDialog.Description class="text-sm leading-relaxed text-muted-foreground">
-                    {uiState.deleteConfirmation.description}
+                    {uiState.confirmation.description}
                 </AlertDialog.Description>
             </div>
 
@@ -45,9 +56,9 @@
                 <AlertDialog.Action
                     disabled={loading}
                     onclick={handleConfirm}
-                    class="inline-flex h-10 items-center justify-center rounded-full bg-destructive px-5 text-sm font-semibold text-destructive-foreground transition hover:bg-destructive/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                    class="inline-flex h-10 items-center justify-center rounded-full px-5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 {confirmClass}"
                 >
-                    {loading ? "Processing..." : "Confirm"}
+                    {loading ? "Working..." : uiState.confirmation.confirmLabel}
                 </AlertDialog.Action>
             </div>
         </AlertDialog.Content>

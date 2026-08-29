@@ -23,7 +23,7 @@
     import Tip from "$lib/components/ui/Tip.svelte";
     import { createAddMediaMutation, createDeleteMediaMutation, createRetryMediaMutation } from "$lib/data/media";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
-    import { isTerminalProgressStatus } from "$lib/utils";
+    import { formatFileSize, isTerminalProgressStatus } from "$lib/utils";
     import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
@@ -63,21 +63,10 @@
         liveFileSize = data.progress?.fileSize ?? data.media.fileSize;
     });
 
-    function formatFileSize(bytes: number | null): string {
-        if (!bytes) {
-            return "Unknown";
-        }
-        if (bytes < 1024) {
-            return `${bytes} B`;
-        }
-        if (bytes < 1024 * 1024) {
-            return `${(bytes / 1024).toFixed(1)} KB`;
-        }
-        if (bytes < 1024 * 1024 * 1024) {
-            return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-        }
-        return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
-    }
+    const fileSizeLabel = $derived.by(() => {
+        const bytes = liveFileSize ?? data.media.fileSize;
+        return bytes ? formatFileSize(bytes) : "Unknown";
+    });
 
     function formatSpeed(bytesPerSecond: number): string {
         if (bytesPerSecond < 1024) {
@@ -480,11 +469,7 @@
                     {/if}
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">File Size</span>
-                        <span class="font-medium"
-                            >{formatFileSize(
-                                liveFileSize ?? data.media.fileSize,
-                            )}</span
-                        >
+                        <span class="font-medium">{fileSizeLabel}</span>
                     </div>
                 </div>
             </div>

@@ -12,7 +12,7 @@
     import { createDeleteMediaMutation, createRetryMediaMutation } from "$lib/data/media";
     import type { Media, SeasonWithEpisodes } from "$lib/types";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
-    import { canPlayEpisode } from "$lib/utils";
+    import { canPlayEpisode, formatFileSize } from "$lib/utils";
     import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
@@ -194,22 +194,6 @@
             month: "long",
             day: "numeric",
         });
-    }
-
-    function formatFileSize(bytes: number | null): string {
-        if (!bytes) {
-            return "Unknown";
-        }
-        if (bytes < 1024) {
-            return `${bytes} B`;
-        }
-        if (bytes < 1024 * 1024) {
-            return `${(bytes / 1024).toFixed(1)} KB`;
-        }
-        if (bytes < 1024 * 1024 * 1024) {
-            return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-        }
-        return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
     }
 
     function getSelectedSeasonFromUrl(): number | null {

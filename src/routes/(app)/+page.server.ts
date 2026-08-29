@@ -22,5 +22,6 @@ export const load: PageServerLoad = async ({ depends, locals, url }) => {
 		request,
 		response: await searchCatalog(organizationId, request),
 		continueWatching: mediaDb.getRecentlyWatched(organizationId, 20),
+		errorCount: mediaDb.countByStatus(organizationId, "error"),
 	};
 };

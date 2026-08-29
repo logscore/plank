@@ -14,7 +14,7 @@ import {
 	seasons as seasonsTable,
 	subtitles as subtitlesTable,
 } from "$lib/server/db/schema";
-import type { MediaType } from "$lib/types";
+import type { MediaStatus, MediaType } from "$lib/types";
 import { db } from "./db/index";
 
 function removeUndefinedFromObject<T extends Record<string, unknown>>(obj: T): Partial<T> {
@@ -57,6 +57,14 @@ function getCatalogMediaConditions(organizationId: string, query: string, filter
 }
 
 export const mediaDb = {
+	countByStatus(organizationId: string, status: MediaStatus): number {
+		const row = db
+			.select({ total: sql<number>`count(*)` })
+			.from(mediaTable)
+			.where(and(eq(mediaTable.organizationId, organizationId), eq(mediaTable.status, status)))
+			.get();
+		return row?.total ?? 0;
+	},
 	list(organizationId: string, type?: MediaType): Media[] {
 		const conditions = [eq(mediaTable.organizationId, organizationId)];
 		if (type) {

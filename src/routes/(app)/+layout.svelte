@@ -15,13 +15,17 @@
     const APP_NAME = "Plank";
     const ROUTE_TITLES: Record<string, string> = {
         "/": "Home",
-        "/account": "Account",
         "/browse": "Browse",
         "/onboarding": "Onboarding",
         "/profiles": "Profiles",
         "/profiles/manage": "Manage Profiles",
         "/search": "Search",
-        "/settings": "Settings",
+        "/settings/account": "Account",
+        "/settings/security": "Security",
+        "/settings/profile": "Profile",
+        "/settings/members": "Members",
+        "/settings/connections": "Connections",
+        "/settings/indexers": "Indexers",
     };
 
     const pageTitle = $derived.by(() => {

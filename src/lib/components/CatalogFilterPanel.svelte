@@ -129,7 +129,7 @@
     }
 </script>
 
-<div class="flex max-h-[min(78vh,680px)] flex-col">
+<div class="flex max-h-[min(90dvh,760px)] flex-col">
     <div class="border-b border-white/10 px-5 py-4">
         <h2 class="text-lg font-semibold text-white">Filter titles</h2>
         <p class="mt-1 text-xs text-muted-foreground">Use the same filters across your library and catalog.</p>
@@ -294,7 +294,7 @@
                         <Combobox.Content
                             sideOffset={6}
                             customAnchor={genreAnchor}
-                            class="z-90 max-h-64 w-[var(--bits-combobox-anchor-width)] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-white/10 bg-black/98 p-1.5 text-white shadow-2xl focus:outline-none"
+                            class="z-90 max-h-64 w-(--bits-combobox-anchor-width) max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-white/10 bg-black/98 p-1.5 text-white shadow-2xl focus:outline-none"
                         >
                             <Combobox.Viewport>
                                 {#each filteredGenres as genre (genre.key)}
