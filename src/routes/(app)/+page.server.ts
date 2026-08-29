@@ -1,21 +1,27 @@
-import { error } from "@sveltejs/kit";
-import { mediaDb, seasonsDb } from "$lib/server/db";
+import { parseCatalogSearchParams } from "$lib/data/search";
+import { requireOrganizationAccess } from "$lib/server/api-guard";
+import { mediaDb } from "$lib/server/db";
+import { searchCatalog } from "$lib/server/search";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = ({ depends, locals }) => {
-	const organizationId = locals.session?.activeOrganizationId;
-	if (!(locals.user && organizationId)) {
-		throw error(403, "Active profile required");
-	}
-
+export const load: PageServerLoad = async ({ depends, locals, url }) => {
+	const { organizationId } = requireOrganizationAccess(locals);
 	depends("/api/media");
-	const movies = mediaDb.list(organizationId, "movie");
-	const shows = mediaDb.list(organizationId, "show");
+	depends("/api/search");
 
+	const parsedRequest = parseCatalogSearchParams(url.searchParams);
+	const request = {
+		...parsedRequest,
+		query: "",
+		filters: {
+			...parsedRequest.filters,
+			scope: "library" as const,
+		},
+	};
 	return {
-		movies,
-		shows,
+		request,
+		response: await searchCatalog(organizationId, request),
 		continueWatching: mediaDb.getRecentlyWatched(organizationId, 20),
-		seasonsByMediaId: Object.fromEntries(shows.map((show) => [show.id, seasonsDb.getWithEpisodes(show.id)])),
+		errorCount: mediaDb.countByStatus(organizationId, "error"),
 	};
 };

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { ChevronDown, Loader, Plus, Trash2 } from "@lucide/svelte";
+    import { DropdownMenu } from "bits-ui";
     import { onMount } from "svelte";
     import { toast } from "svelte-sonner";
     import {
@@ -230,11 +231,9 @@
         </div>
 
         <!-- Ghost Dropdown for Manual -->
-        <div class="relative">
-            <button
-                type="button"
-                class="w-full flex items-center justify-between p-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                onclick={() => (advancedOpen = !advancedOpen)}
+        <DropdownMenu.Root bind:open={advancedOpen}>
+            <DropdownMenu.Trigger
+                class="w-full flex items-center justify-between p-2 text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                 disabled={loadingIndexers}
             >
                 <span class="flex items-center gap-2">
@@ -247,26 +246,27 @@
                         advancedOpen && "rotate-180",
                     )}
                 />
-            </button>
-
-            {#if advancedOpen}
-                <div
-                    class="absolute top-full left-0 right-0 mt-1 p-2 bg-black/90 backdrop-blur-xl border border-white/10 rounded-lg shadow-xl z-10 max-h-48 overflow-y-auto"
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                    sideOffset={4}
+                    class="z-70 w-(--bits-floating-anchor-width) max-h-48 overflow-y-auto p-2 bg-black/90 backdrop-blur-xl border border-white/10 rounded-lg shadow-xl focus:outline-none"
                 >
-                    {#each sortedSchemas as schema}
-                        <button
-                            type="button"
-                            class="w-full text-left px-3 py-1.5 text-sm hover:bg-white/10 rounded flex items-center justify-between group"
-                            onclick={() => addIndexer(schema)}
+                    {#each sortedSchemas as schema (schema.name)}
+                        <DropdownMenu.Item
+                            class="w-full text-left px-3 py-1.5 text-sm rounded flex items-center justify-between data-highlighted:bg-white/10 focus:outline-none"
+                            onSelect={() => addIndexer(schema)}
                         >
                             <span>{schema.name}</span>
-                            <span class="text-xs text-muted-foreground opacity-0 group-hover:opacity-100"
-                                >{schema.protocol}</span
-                            >
-                        </button>
+                            <span class="text-xs text-muted-foreground">{schema.protocol}</span>
+                        </DropdownMenu.Item>
+                    {:else}
+                        <div class="px-3 py-4 text-center text-xs text-muted-foreground">
+                            {loadingIndexers ? "Loading indexers..." : "Prowlarr returned no indexers"}
+                        </div>
                     {/each}
-                </div>
-            {/if}
-        </div>
+                </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+        </DropdownMenu.Root>
     {/if}
 </div>

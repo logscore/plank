@@ -34,7 +34,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	// Cap batch size to prevent abuse
-	const items = body.items.slice(0, 40);
+	const items = body.items.slice(0, 36);
 
 	// Fetch IMDB IDs and certifications in parallel (server-side cache handles dedup)
 	const details = await Promise.all(

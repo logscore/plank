@@ -142,6 +142,7 @@ beforeAll(() => {
       title TEXT NOT NULL,
       overview TEXT,
       year INTEGER,
+      vote_average REAL,
       tmdb_id INTEGER,
       imdb_id TEXT,
       runtime INTEGER,

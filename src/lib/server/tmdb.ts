@@ -1,3 +1,4 @@
+import { type CatalogSearchRequest, getCatalogGenreIds } from "$lib/data/search";
 import { type AppSettings, getSettings } from "$lib/server/settings";
 
 interface TMDBGenre {
@@ -17,6 +18,7 @@ interface TMDBMovie {
 	genres?: TMDBGenre[];
 	tagline?: string;
 	original_language?: string;
+	adult?: boolean;
 }
 
 interface TMDBSeason {
@@ -42,6 +44,7 @@ interface TMDBTVShow {
 	episode_run_time?: number[];
 	genres?: TMDBGenre[];
 	original_language?: string;
+	adult?: boolean;
 	seasons?: TMDBSeason[];
 }
 
@@ -83,7 +86,15 @@ export interface TMDBMetadata {
 	genres?: string | null;
 	originalLanguage?: string | null;
 	certification?: string | null;
+	voteAverage?: number | null;
 	totalSeasons?: number | null;
+}
+
+export class AdultContentError extends Error {
+	constructor() {
+		super("Adult content is not available");
+		this.name = "AdultContentError";
+	}
 }
 
 export interface SeasonMetadata {
@@ -148,7 +159,7 @@ export interface TmdbCatalogSearchResult {
 }
 
 // =============================================================================
-// Trending & Popular Movies
+// Trending Movies and Shows
 // =============================================================================
 
 interface TMDBTrendingItem {
@@ -161,14 +172,17 @@ interface TMDBTrendingItem {
 	backdrop_path: string | null;
 	overview: string;
 	vote_average: number;
-	genre_ids: number[];
-	media_type?: "movie" | "show";
+	genre_ids?: number[];
+	popularity?: number;
+	adult?: boolean;
+	media_type?: "movie" | "tv" | "show" | "person";
 }
 
 interface TMDBTrendingResponse {
 	results: TMDBTrendingItem[];
 	page: number;
 	total_pages: number;
+	total_results?: number;
 }
 
 // Genre ID to name mapping for movies
@@ -214,11 +228,18 @@ const TV_GENRES: Record<number, string> = {
 };
 
 function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: "movie" | "show", settings: AppSettings): BrowseItem {
-	const type = item.media_type || defaultType;
+	let type = defaultType;
+	if (item.media_type === "movie") {
+		type = "movie";
+	} else if (item.media_type === "tv" || item.media_type === "show") {
+		type = "show";
+	}
 	const title = item.title || item.name || "Unknown Title";
 	const date = item.release_date || item.first_air_date;
 	const year = date ? Number.parseInt(date.slice(0, 4), 10) : null;
-	const genres = item.genre_ids.map((id) => (type === "movie" ? MOVIE_GENRES[id] : TV_GENRES[id])).filter(Boolean);
+	const genres = (item.genre_ids ?? [])
+		.map((id) => (type === "movie" ? MOVIE_GENRES[id] : TV_GENRES[id]))
+		.filter(Boolean);
 
 	return {
 		tmdbId: item.id,
@@ -245,8 +266,9 @@ export async function getTrending(
 	type: "all" | "movie" | "show" = "all"
 ): Promise<{ items: BrowseItem[]; totalPages: number }> {
 	const settings = await getSettings();
+	const tmdbType = type === "show" ? "tv" : type;
 	const res = await fetch(
-		`${settings.tmdb.baseUrl}/trending/${type}/${timeWindow}?api_key=${settings.tmdb.apiKey}&page=${page}&language=${settings.tmdb.language}&include_adult=false`
+		`${settings.tmdb.baseUrl}/trending/${tmdbType}/${timeWindow}?api_key=${settings.tmdb.apiKey}&page=${page}&language=${settings.tmdb.language}&include_adult=false`
 	);
 
 	if (!res.ok) {
@@ -255,35 +277,16 @@ export async function getTrending(
 	}
 
 	const data: TMDBTrendingResponse = await res.json();
-
-	// If type is 'all', TMDB returns media_type. If specific, it doesn't always, so default.
-	const items: BrowseItem[] = data.results.map((item) =>
-		mapTmdbToBrowseItem(item, type === "all" ? "movie" : type, settings)
-	);
-
-	return { items, totalPages: data.total_pages };
-}
-
-/**
- * Get popular content from TMDB
- */
-export async function getPopular(
-	page = 1,
-	type: "movie" | "show" = "movie"
-): Promise<{ items: BrowseItem[]; totalPages: number }> {
-	const settings = await getSettings();
-	const res = await fetch(
-		`${settings.tmdb.baseUrl}/${type}/popular?api_key=${settings.tmdb.apiKey}&page=${page}&language=${settings.tmdb.language}&include_adult=false`
-	);
-
-	if (!res.ok) {
-		console.error(`[TMDB] Popular ${type} failed: ${res.status}`);
-		return { items: [], totalPages: 0 };
-	}
-
-	const data: TMDBTrendingResponse = await res.json();
-
-	const items: BrowseItem[] = data.results.map((item) => mapTmdbToBrowseItem(item, type, settings));
+	const items = data.results
+		.filter(
+			(item) =>
+				item.adult !== true &&
+				(type !== "all" ||
+					item.media_type === "movie" ||
+					item.media_type === "tv" ||
+					item.media_type === "show")
+		)
+		.map((item) => mapTmdbToBrowseItem(item, type === "all" ? "movie" : type, settings));
 
 	return { items, totalPages: data.total_pages };
 }
@@ -330,6 +333,9 @@ export async function getBrowseItemDetails(
 	}
 
 	const data = await res.json();
+	if (data.adult === true) {
+		throw new AdultContentError();
+	}
 	const imdbId = data.external_ids?.imdb_id ?? null;
 	let certification: string | null = null;
 
@@ -372,8 +378,9 @@ async function tmdbSearch<T extends { results: unknown[] }>(
 		api_key: settings.tmdb.apiKey,
 		language: settings.tmdb.language,
 		...extraParams,
+		include_adult: "false",
 	});
-	const res = await fetch(`${settings.tmdb.baseUrl}${endpoint}?${params}&include_adult=false`);
+	const res = await fetch(`${settings.tmdb.baseUrl}${endpoint}?${params}`);
 	if (!res.ok) {
 		console.error(`[TMDB] Search ${endpoint} failed: ${res.status} ${res.statusText}`);
 		return [];
@@ -395,14 +402,17 @@ export async function searchMovie(query: string, year?: number | null): Promise<
 
 	const results = await tmdbSearch<TMDBSearchResult>("/search/movie", extra);
 
-	return (results as TMDBMovie[]).map((movie) => ({
-		tmdbId: movie.id,
-		title: movie.title,
-		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
-		posterUrl: movie.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${movie.poster_path}` : null,
-		backdropUrl: movie.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${movie.backdrop_path}` : null,
-		overview: movie.overview ?? null,
-	}));
+	return (results as TMDBMovie[])
+		.filter((movie) => movie.adult !== true)
+		.map((movie) => ({
+			tmdbId: movie.id,
+			title: movie.title,
+			year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
+			posterUrl: movie.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${movie.poster_path}` : null,
+			backdropUrl: movie.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${movie.backdrop_path}` : null,
+			overview: movie.overview ?? null,
+			voteAverage: movie.vote_average ?? null,
+		}));
 }
 
 export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
@@ -426,6 +436,9 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 		console.error(`[TMDB] Invalid movie response for ${tmdbId}:`, movie);
 		throw new Error("Invalid TMDB response");
 	}
+	if (movie.adult === true) {
+		throw new AdultContentError();
+	}
 
 	let certification: string | null = null;
 	const usRelease = movie.release_dates?.results?.find((r) => r.iso_3166_1 === "US");
@@ -442,6 +455,7 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 		posterUrl: movie.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${movie.poster_path}` : null,
 		backdropUrl: movie.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${movie.backdrop_path}` : null,
 		overview: movie.overview ?? null,
+		voteAverage: movie.vote_average ?? null,
 		runtime: movie.runtime ?? null,
 		genres: movie.genres ? JSON.stringify(movie.genres.map((g) => g.name)) : null,
 		originalLanguage: movie.original_language ?? null,
@@ -462,76 +476,196 @@ export async function searchTVShow(query: string, year?: number | null): Promise
 
 	const results = await tmdbSearch<TMDBTVSearchResult>("/search/tv", extra);
 
-	return (results as TMDBTVShow[]).map((show) => ({
-		tmdbId: show.id,
-		title: show.name,
-		year: show.first_air_date ? Number.parseInt(show.first_air_date.slice(0, 4), 10) : null,
-		posterUrl: show.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${show.poster_path}` : null,
-		backdropUrl: show.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${show.backdrop_path}` : null,
-		overview: show.overview ?? null,
-		totalSeasons: show.number_of_seasons ?? null,
-	}));
+	return (results as TMDBTVShow[])
+		.filter((show) => show.adult !== true)
+		.map((show) => ({
+			tmdbId: show.id,
+			title: show.name,
+			year: show.first_air_date ? Number.parseInt(show.first_air_date.slice(0, 4), 10) : null,
+			posterUrl: show.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${show.poster_path}` : null,
+			backdropUrl: show.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${show.backdrop_path}` : null,
+			overview: show.overview ?? null,
+			voteAverage: show.vote_average ?? null,
+			totalSeasons: show.number_of_seasons ?? null,
+		}));
 }
-export async function searchTmdbCatalog(
-	query: string,
-	type: "all" | "movie" | "show" = "all",
-	page = 1
-): Promise<TmdbCatalogSearchResult> {
-	if (query.length < 2) {
+interface CatalogCandidate {
+	item: BrowseItem;
+	popularity: number;
+}
+
+async function fetchTmdbCatalogPage(
+	settings: AppSettings,
+	endpoint: string,
+	extraParams: Record<string, string>
+): Promise<TMDBTrendingResponse> {
+	const params = new URLSearchParams({
+		api_key: settings.tmdb.apiKey,
+		language: settings.tmdb.language,
+		...extraParams,
+		include_adult: "false",
+	});
+	const response = await fetch(`${settings.tmdb.baseUrl}${endpoint}?${params}`);
+	if (!response.ok) {
+		console.error(`[TMDB] Catalog ${endpoint} failed: ${response.status} ${response.statusText}`);
+		return { results: [], page: 1, total_pages: 0, total_results: 0 };
+	}
+	const data: TMDBTrendingResponse = await response.json();
+	if (!Array.isArray(data.results)) {
+		console.error(`[TMDB] Catalog ${endpoint} returned an invalid result`);
+		return { results: [], page: 1, total_pages: 0, total_results: 0 };
+	}
+	return data;
+}
+
+interface CatalogBranch {
+	candidates: CatalogCandidate[];
+	total: number;
+	totalPages: number;
+}
+
+function getCatalogRequestDetails(
+	request: CatalogSearchRequest,
+	mediaType: "movie" | "show",
+	genreIds: number[]
+): { endpoint: string; params: Record<string, string> } {
+	const tmdbType = mediaType === "show" ? "tv" : "movie";
+	const params: Record<string, string> = { page: String(request.page) };
+	if (request.query) {
+		params.query = request.query;
+		return { endpoint: `/search/${tmdbType}`, params };
+	}
+
+	const dateField = mediaType === "movie" ? "primary_release_date" : "first_air_date";
+	if (request.filters.yearFrom !== null) {
+		params[`${dateField}.gte`] = `${request.filters.yearFrom}-01-01`;
+	}
+	if (request.filters.yearTo !== null) {
+		params[`${dateField}.lte`] = `${request.filters.yearTo}-12-31`;
+	}
+	if (request.filters.rating > 0) {
+		params["vote_average.gte"] = String(request.filters.rating);
+	}
+	if (genreIds.length > 0) {
+		params.with_genres = genreIds.join("|");
+	}
+	switch (request.filters.sort) {
+		case "rating":
+			params.sort_by = "vote_average.desc";
+			params["vote_count.gte"] = "25";
+			break;
+		case "newest":
+			params.sort_by = `${dateField}.desc`;
+			break;
+		case "oldest":
+			params.sort_by = `${dateField}.asc`;
+			break;
+		default:
+			params.sort_by = "popularity.desc";
+	}
+	return { endpoint: `/discover/${tmdbType}`, params };
+}
+
+function matchesCatalogFilters(item: TMDBTrendingItem, request: CatalogSearchRequest, genreIds: number[]): boolean {
+	if (item.adult === true || (request.filters.rating > 0 && item.vote_average < request.filters.rating)) {
+		return false;
+	}
+	const date = item.release_date || item.first_air_date;
+	const year = date ? Number.parseInt(date.slice(0, 4), 10) : null;
+	if (request.filters.yearFrom !== null && (year === null || year < request.filters.yearFrom)) {
+		return false;
+	}
+	if (request.filters.yearTo !== null && (year === null || year > request.filters.yearTo)) {
+		return false;
+	}
+	return genreIds.length === 0 || (item.genre_ids ?? []).some((id) => genreIds.includes(id));
+}
+
+async function searchCatalogBranch(
+	settings: AppSettings,
+	request: CatalogSearchRequest,
+	mediaType: "movie" | "show"
+): Promise<CatalogBranch> {
+	const genreIds = getCatalogGenreIds(request.filters.genres, mediaType);
+	if (genreIds === null) {
+		return { candidates: [], total: 0, totalPages: 0 };
+	}
+	const { endpoint, params } = getCatalogRequestDetails(request, mediaType, genreIds);
+	const data = await fetchTmdbCatalogPage(settings, endpoint, params);
+	const candidates = data.results
+		.filter((item) => matchesCatalogFilters(item, request, genreIds))
+		.map((item) => ({
+			item: mapTmdbToBrowseItem(item, mediaType, settings),
+			popularity: item.popularity ?? 0,
+		}));
+	return {
+		candidates,
+		total: data.total_results ?? candidates.length,
+		totalPages: Math.min(500, data.total_pages),
+	};
+}
+
+function sortCatalogCandidates(candidates: CatalogCandidate[], request: CatalogSearchRequest): void {
+	switch (request.filters.sort) {
+		case "rating":
+			candidates.sort((a, b) => (b.item.voteAverage ?? -1) - (a.item.voteAverage ?? -1));
+			return;
+		case "newest":
+			candidates.sort((a, b) => (b.item.year ?? -1) - (a.item.year ?? -1));
+			return;
+		case "oldest":
+			candidates.sort(
+				(a, b) => (a.item.year ?? Number.MAX_SAFE_INTEGER) - (b.item.year ?? Number.MAX_SAFE_INTEGER)
+			);
+			return;
+		case "popular":
+			candidates.sort((a, b) => b.popularity - a.popularity);
+			return;
+		default:
+			if (!request.query) {
+				candidates.sort((a, b) => b.popularity - a.popularity);
+				return;
+			}
+	}
+	const normalizedQuery = request.query.toLowerCase();
+	candidates.sort((a, b) => {
+		const aTitle = a.item.title.toLowerCase();
+		const bTitle = b.item.title.toLowerCase();
+		const aScore = aTitle === normalizedQuery ? 2 : Number(aTitle.startsWith(normalizedQuery));
+		const bScore = bTitle === normalizedQuery ? 2 : Number(bTitle.startsWith(normalizedQuery));
+		return bScore - aScore || b.popularity - a.popularity;
+	});
+}
+
+export async function searchTmdbCatalog(request: CatalogSearchRequest): Promise<TmdbCatalogSearchResult> {
+	const { filters, page, query } = request;
+	if (query.length === 1) {
 		return { items: [], total: 0, page: 1, totalPages: 0 };
 	}
 
-	const searches: Promise<TMDBMetadata[]>[] = [];
-	const mediaTypes: Array<"movie" | "show"> = [];
-	if (type === "all" || type === "movie") {
-		searches.push(searchMovie(query));
-		mediaTypes.push("movie");
-	}
-	if (type === "all" || type === "show") {
-		searches.push(searchTVShow(query));
-		mediaTypes.push("show");
-	}
-
-	const searchResults = await Promise.all(searches);
-	const items: BrowseItem[] = [];
-	for (const [index, results] of searchResults.entries()) {
-		const mediaType = mediaTypes[index];
-		for (const result of results) {
-			if (result.tmdbId === null) {
-				continue;
+	const settings = await getSettings();
+	const mediaTypes: Array<"movie" | "show"> = filters.media === "all" ? ["movie", "show"] : [filters.media];
+	const branches = await Promise.all(
+		mediaTypes.map((mediaType) => searchCatalogBranch(settings, request, mediaType))
+	);
+	const seen = new Set<string>();
+	const candidates = branches
+		.flatMap((branch) => branch.candidates)
+		.filter(({ item }) => {
+			const key = `${item.mediaType}:${item.tmdbId}`;
+			if (seen.has(key)) {
+				return false;
 			}
-			items.push({
-				tmdbId: result.tmdbId,
-				imdbId: null,
-				title: result.title,
-				year: result.year,
-				posterUrl: result.posterUrl,
-				backdropUrl: result.backdropUrl,
-				overview: result.overview,
-				voteAverage: null,
-				genres: [],
-				mediaType,
-				certification: null,
-				needsResolve: true,
-			});
-		}
-	}
+			seen.add(key);
+			return true;
+		});
+	sortCatalogCandidates(candidates, request);
 
-	const queryLower = query.toLowerCase();
-	items.sort((a, b) => {
-		const aLower = a.title.toLowerCase();
-		const bLower = b.title.toLowerCase();
-		const aScore = aLower === queryLower ? 2 : Number(aLower.startsWith(queryLower));
-		const bScore = bLower === queryLower ? 2 : Number(bLower.startsWith(queryLower));
-		return bScore - aScore;
-	});
-
-	const startIndex = (page - 1) * 20;
 	return {
-		items: items.slice(startIndex, startIndex + 20),
-		total: items.length,
+		items: candidates.map(({ item }) => item),
+		total: branches.reduce((total, branch) => total + branch.total, 0),
 		page,
-		totalPages: Math.ceil(items.length / 20),
+		totalPages: branches.reduce((maximum, branch) => Math.max(maximum, branch.totalPages), 0),
 	};
 }
 
@@ -553,6 +687,9 @@ export async function getTVDetails(tmdbId: number): Promise<TMDBMetadata & { tot
 		console.error(`[TMDB] Invalid TV response for ${tmdbId}:`, show);
 		throw new Error("Invalid TMDB response");
 	}
+	if (show.adult === true) {
+		throw new AdultContentError();
+	}
 
 	const usRating = show.content_ratings?.results?.find((r) => r.iso_3166_1 === "US");
 	const certification = usRating?.rating || null;
@@ -564,6 +701,7 @@ export async function getTVDetails(tmdbId: number): Promise<TMDBMetadata & { tot
 		posterUrl: show.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${show.poster_path}` : null,
 		backdropUrl: show.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${show.backdrop_path}` : null,
 		overview: show.overview ?? null,
+		voteAverage: show.vote_average ?? null,
 		totalSeasons: show.number_of_seasons ?? 0,
 		runtime: show.episode_run_time?.[0] ?? null,
 		genres: show.genres ? JSON.stringify(show.genres.map((g) => g.name)) : null,
@@ -590,6 +728,9 @@ export async function getTVSeasons(tmdbId: number, includeSpecials = false): Pro
 	const show: TMDBTVShow = await res.json();
 
 	if (!show?.seasons) {
+		return [];
+	}
+	if (show.adult === true) {
 		return [];
 	}
 

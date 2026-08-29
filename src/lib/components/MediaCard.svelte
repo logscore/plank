@@ -1,5 +1,6 @@
 <script lang="ts">
     import { EllipsisVertical, Info, Play, RotateCcw, Trash2 } from "@lucide/svelte";
+    import { DropdownMenu } from "bits-ui";
     import { goto } from "$app/navigation";
     import EpisodeSelector from "$lib/components/EpisodeSelector.svelte";
     import { createRetryMediaMutation } from "$lib/data/media";
@@ -11,11 +12,11 @@
     let { media, seasons, onDelete } = $props<{
         media: Media;
         seasons: SeasonWithEpisodes[];
-        onDelete: (id: string, e: Event) => void;
+        onDelete: (id: string) => void;
     }>();
 
-    let showMenu = $state(false);
     let isMobileActive = $state(false);
+    let optionsOpen = $state(false);
     let rootEl: HTMLElement | undefined = $state();
 
     const retryMutation = createRetryMediaMutation();
@@ -27,15 +28,8 @@
         }
     }
 
-    function handleMenuClick(e: Event) {
-        e.preventDefault();
-        e.stopPropagation();
-        showMenu = !showMenu;
-    }
-
-    function handleDelete(e: Event) {
-        showMenu = false;
-        onDelete(media.id, e);
+    function handleDelete() {
+        onDelete(media.id);
     }
 
     async function handleRetry(e: Event) {
@@ -50,9 +44,6 @@
 
     function handleClickOutside(e: MouseEvent) {
         const target = e.target as HTMLElement;
-        if (showMenu && !target.closest(".media-menu")) {
-            showMenu = false;
-        }
         // Close mobile overlay if clicked outside
         if (isMobileActive && rootEl && !rootEl.contains(target)) {
             isMobileActive = false;
@@ -96,14 +87,13 @@
     onkeydown={handleKeydown}
     role="button"
     tabindex="0"
-    class="relative aspect-2/3 rounded-lg group shadow-lg border border-border/50 bg-card hover:scale-[1.02] hover:z-20 hover:border-red-500 transition-all duration-500 outline-none"
+    class="group relative aspect-2/3 rounded-lg border border-border/50 bg-card shadow-lg outline-none transition-[border-color,box-shadow] duration-300 hover:z-20 hover:border-red-500 hover:shadow-xl"
 >
-    <!-- Image Container (Clipped) -->
-    <div class="absolute inset-0 rounded-lg overflow-hidden">
-        <!-- Type Badge for TV Shows -->
+    <div class="absolute inset-0 overflow-hidden rounded-lg">
         {#if media.type === "show"}
             <div
-                class="absolute top-2 left-2 z-10 bg-primary/90 text-primary-foreground px-2 py-0.5 rounded text-xs flex items-center gap-1 group-hover:hidden group-active:hidden {isMobileActive
+                class="absolute left-2 top-2 z-10 flex items-center gap-1 rounded bg-primary/90 px-2 py-0.5 text-xs text-primary-foreground group-hover:hidden group-active:hidden {isMobileActive ||
+                optionsOpen
                     ? 'hidden'
                     : ''}"
             >
@@ -112,33 +102,34 @@
             </div>
         {/if}
 
-        <!-- Poster Image -->
         {#if media.posterUrl}
             <img
                 src={media.posterUrl}
                 alt={media.title}
-                class="w-full h-full object-cover transition-opacity duration-500 group-hover:blur-md"
+                class="h-full w-full object-cover transition-opacity duration-500 group-hover:blur-md {isMobileActive ||
+                optionsOpen
+                    ? 'blur-md'
+                    : ''}"
             >
         {:else}
-            <div class="w-full h-full flex items-center justify-center bg-accent text-muted-foreground">
+            <div class="flex h-full w-full items-center justify-center bg-accent text-muted-foreground">
                 <span class="text-xs">No Poster</span>
             </div>
         {/if}
     </div>
 
-    <!-- Details Overlay (Visible on Hover or Mobile Active) -->
     <div
-        class="absolute inset-0 p-4 rounded-lg flex flex-col justify-between transition-all duration-300 ease-out bg-black/60 backdrop-blur-sm
-        {isMobileActive
-            ? 'opacity-100 translate-y-0 pointer-events-auto'
-            : 'opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto'}"
+        class="absolute inset-0 flex flex-col justify-between rounded-lg bg-black/60 p-4 backdrop-blur-sm transition-all duration-300 ease-out
+        {isMobileActive || optionsOpen
+            ? 'pointer-events-auto translate-y-0 opacity-100'
+            : 'pointer-events-none translate-y-2 opacity-0 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100'}"
     >
-        <div class="space-y-2 overflow-hidden flex-1 min-h-0 flex flex-col">
-            <h4 class="font-bold text-lg leading-tight text-white shrink-0">{media.title}</h4>
-            <div class="flex items-center gap-2 text-xs text-zinc-300 shrink-0">
+        <div class="flex min-h-0 flex-1 flex-col space-y-2 overflow-hidden">
+            <h4 class="shrink-0 text-lg font-bold leading-tight text-white">{media.title}</h4>
+            <div class="flex shrink-0 items-center gap-2 text-xs text-zinc-300">
                 <span>{media.year || ""}</span>
                 {#if media.certification}
-                    <span class="px-1 border border-zinc-600 rounded text-[10px]">{media.certification}</span>
+                    <span class="rounded border border-zinc-600 px-1 text-[10px]">{media.certification}</span>
                 {/if}
                 {#if media.runtime}
                     <span>• {formatRuntime(media.runtime)}</span>
@@ -148,18 +139,18 @@
                 {/if}
             </div>
             {#if media.overview}
-                <p class="text-xs text-zinc-400 leading-relaxed overflow-y-auto pr-1">{media.overview}</p>
+                <p class="overflow-y-auto pr-1 text-xs leading-relaxed text-zinc-400">{media.overview}</p>
             {/if}
         </div>
 
-        <div class="flex items-center gap-2 pt-2 shrink-0">
+        <div class="flex shrink-0 items-center gap-2 pt-2">
             {#if media.status === "error"}
                 <button
                     onclick={handleRetry}
                     disabled={retrying}
-                    class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-yellow-600 hover:bg-yellow-500 text-white font-medium text-sm transition disabled:opacity-50"
+                    class="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-yellow-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-yellow-500 disabled:opacity-50"
                 >
-                    <RotateCcw class="w-4 h-4" />
+                    <RotateCcw class="h-4 w-4" />
                     {retrying ? "Retrying..." : "Download"}
                 </button>
             {:else if media.type === "show"}
@@ -167,57 +158,51 @@
                     {seasons}
                     onPlayEpisode={handlePlayEpisode}
                     buttonSize="sm"
-                    class="flex-1 w-full"
+                    class="w-full flex-1"
                     buttonClass="w-full"
                 />
             {:else}
                 <a href={playLink} class="flex-1">
                     <Button size="sm" class="w-full">
-                        <Play class="w-4 h-4 mr-2 fill-current" />
+                        <Play class="mr-2 h-4 w-4 fill-current" />
                         Play
                     </Button>
                 </a>
             {/if}
 
-            <!-- Three-dot Menu -->
-            <div class="relative media-menu">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    class="text-white hover:bg-neutral-800 shrink-0 size-9.25"
-                    onclick={handleMenuClick}
-                    title="Options"
+            <DropdownMenu.Root bind:open={optionsOpen}>
+                <DropdownMenu.Trigger
+                    class="inline-flex size-9.25 shrink-0 items-center justify-center rounded-md text-white transition-colors hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="Open options"
                 >
-                    <EllipsisVertical class="w-5 h-5" />
-                </Button>
-
-                <!-- Context Menu Dropdown -->
-                {#if showMenu}
-                    <div
-                        class="absolute right-0 bottom-full mb-2 w-36 rounded-md shadow-lg bg-black/95 border border-white/10 ring-1 ring-black ring-opacity-5 backdrop-blur-md overflow-hidden z-50"
+                    <EllipsisVertical class="h-5 w-5" />
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                    <DropdownMenu.Content
+                        side="top"
+                        align="end"
+                        sideOffset={8}
+                        class="z-50 w-36 overflow-hidden rounded-xl border border-white/10 bg-black/95 p-1.5 text-gray-200 shadow-2xl backdrop-blur-xl focus:outline-none"
                     >
-                        <div class="py-1" role="menu">
-                            <a
-                                href={detailsLink}
-                                class="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-2"
-                                role="menuitem"
-                                onclick={() => (showMenu = false)}
-                            >
-                                <Info class="w-4 h-4" />
-                                Details
-                            </a>
-                            <button
-                                onclick={handleDelete}
-                                class="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-white/10 flex items-center gap-2"
-                                role="menuitem"
-                            >
-                                <Trash2 class="w-4 h-4" />
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                {/if}
-            </div>
+                        <DropdownMenu.Item
+                            onSelect={async () => {
+                                await goto(detailsLink);
+                            }}
+                            class="flex h-9 cursor-default select-none items-center gap-2 rounded-lg px-3 text-sm outline-none data-highlighted:bg-white/10"
+                        >
+                            <Info class="h-4 w-4" />
+                            Details
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item
+                            onSelect={handleDelete}
+                            class="flex h-9 cursor-default select-none items-center gap-2 rounded-lg px-3 text-sm text-red-400 outline-none data-highlighted:bg-red-500/10"
+                        >
+                            <Trash2 class="h-4 w-4" />
+                            Delete
+                        </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+            </DropdownMenu.Root>
         </div>
     </div>
 </div>

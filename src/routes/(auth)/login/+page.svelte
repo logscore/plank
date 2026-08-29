@@ -35,10 +35,10 @@
     }
 </script>
 
-<div class="w-full max-w-md bg-card/50 backdrop-blur-xl rounded-xl p-8 border border-white/10 shadow-2xl">
-    <div class="text-center mb-8 flex flex-col items-center">
-        <h1 class="text-3xl font-bold tracking-tight">Welcome back</h1>
-        <p class="text-muted-foreground mt-2">Sign in to your account</p>
+<div class="w-full max-w-md rounded-3xl border border-white/10 bg-card/60 p-8 shadow-2xl backdrop-blur-xl">
+    <div class="mb-8 flex flex-col items-center text-center">
+        <h1 class="text-3xl font-semibold tracking-tight">Welcome back</h1>
+        <p class="mt-2 text-muted-foreground">Sign in to your account</p>
     </div>
 
     <form onsubmit={handleSubmit} class="space-y-4">

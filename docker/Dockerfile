@@ -53,6 +53,6 @@ EXPOSE 3300
 EXPOSE 6881/tcp 6881/udp
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3300/health || exit 1
+    CMD ["curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:3300/health"]
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]

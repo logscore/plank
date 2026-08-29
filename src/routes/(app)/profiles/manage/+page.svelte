@@ -148,17 +148,19 @@
     }
 </script>
 
-<div class="container mx-auto px-4 py-8 max-w-2xl">
+<div class="mx-auto max-w-6xl px-6 py-10">
     <!-- Header -->
-    <div class="flex items-center gap-4 mb-8">
-        <Button variant="ghost" class="p-2" onclick={() => goto("/profiles")}>
-            <ArrowLeft class="w-5 h-5" />
+    <div class="mb-8 flex items-center gap-4">
+        <Button variant="ghost" class="size-10 rounded-full p-2" onclick={() => goto("/profiles")}>
+            <ArrowLeft class="h-5 w-5" />
         </Button>
-        <h1 class="text-3xl font-bold">Manage Profiles</h1>
+        <div>
+            <h1 class="mt-1 text-3xl font-semibold tracking-tight">Manage Profiles</h1>
+        </div>
     </div>
 
     <!-- Create New Profile -->
-    <div class="rounded-xl border border-border bg-card p-6 mb-6">
+    <div class="mb-6 rounded-2xl border border-white/10 bg-card/60 p-6">
         <h2 class="text-lg font-semibold mb-4">Create New Profile</h2>
         <form onsubmit={createProfile} class="space-y-4">
             <div class="flex items-center gap-4">
@@ -189,11 +191,13 @@
 
     <!-- Existing Profiles -->
     {#if data.profiles.length > 0}
-        <div class="rounded-xl border border-border bg-card p-6">
+        <div class="rounded-2xl border border-white/10 bg-card/60 p-6">
             <h2 class="text-lg font-semibold mb-4">Existing Profiles</h2>
             <div class="space-y-3">
                 {#each data.profiles as profile}
-                    <div class="flex items-center justify-between p-4 rounded-lg border border-border bg-background/50">
+                    <div
+                        class="flex items-center justify-between rounded-xl border border-white/10 bg-background/50 p-4"
+                    >
                         {#if editingId === profile.id}
                             <!-- Edit mode -->
                             <div class="flex items-center gap-3 flex-1">

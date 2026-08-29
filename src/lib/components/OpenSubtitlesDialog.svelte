@@ -2,6 +2,8 @@
     import { Check, Download, Ear, Globe, Loader, Search, Shield, Star } from "@lucide/svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
+    import Scroller from "$lib/components/ui/Scroller.svelte";
+    import Tip from "$lib/components/ui/Tip.svelte";
     import { LANGUAGES } from "$lib/constants";
     import { createDownloadSubtitleMutation, searchOpenSubtitles } from "$lib/data/media";
     import type { OpenSubtitleResult } from "$lib/types";
@@ -156,106 +158,120 @@
         {/if}
 
         <!-- Results -->
-        <div class="max-h-96 overflow-y-auto space-y-1 -mx-2 px-2">
-            {#if searching}
-                <div class="flex items-center justify-center py-12">
-                    <Loader class="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-            {:else if results.length === 0 && !searchError}
-                <div class="text-center py-12 text-muted-foreground text-sm">
-                    No subtitles found. Try different languages.
-                </div>
-            {:else}
-                {#each results as result (result.id)}
-                    <div
-                        class="flex items-start gap-3 p-3 rounded-lg border border-border/50 hover:border-border transition-colors bg-card/50"
-                    >
-                        <!-- Main info -->
-                        <div class="flex-1 min-w-0 space-y-1.5">
-                            <!-- Title line with tags -->
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <span class="text-sm font-medium text-white truncate"> {result.languageName} </span>
-
-                                {#if result.isExactMatch}
-                                    <span
-                                        class="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30 font-medium"
-                                    >
-                                        Exact Match
-                                    </span>
-                                {/if}
-
-                                {#if result.hearingImpaired}
-                                    <span
-                                        class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400"
-                                        title="Hearing Impaired"
-                                    >
-                                        <Ear class="w-3 h-3 inline-block" /> HI
-                                    </span>
-                                {/if}
-
-                                {#if result.fromTrusted}
-                                    <span
-                                        class="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400"
-                                        title="Trusted uploader"
-                                    >
-                                        <Shield class="w-3 h-3 inline-block" /> Trusted
-                                    </span>
-                                {/if}
-
-                                {#if result.aiTranslated}
-                                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
-                                        AI
-                                    </span>
-                                {/if}
-                            </div>
-
-                            <!-- Release name -->
-                            <p class="text-xs text-muted-foreground truncate" title={result.release}>
-                                {result.release || result.fileName}
-                            </p>
-
-                            <!-- Stats line -->
-                            <div class="flex items-center gap-3 text-[11px] text-muted-foreground">
-                                <span class="flex items-center gap-1">
-                                    <Download class="w-3 h-3" />
-                                    {formatDownloadCount(result.downloadCount)}
-                                </span>
-                                {#if result.ratings > 0}
-                                    <span class="flex items-center gap-1">
-                                        <Star class="w-3 h-3" />
-                                        {result.ratings.toFixed(1)}
-                                    </span>
-                                {/if}
-                                {#if result.fps > 0}
-                                    <span>{result.fps} fps</span>
-                                {/if}
-                            </div>
-                        </div>
-
-                        <!-- Download button -->
-                        <div class="shrink-0 pt-1">
-                            {#if downloadedIds.has(result.id)}
-                                <Button variant="ghost" size="icon" class="h-8 w-8 text-green-400" disabled>
-                                    <Check class="w-4 h-4" />
-                                </Button>
-                            {:else if downloadingIds.has(result.id)}
-                                <Button variant="ghost" size="icon" class="h-8 w-8" disabled>
-                                    <Loader class="w-4 h-4 animate-spin" />
-                                </Button>
-                            {:else}
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    class="h-8 w-8 text-muted-foreground hover:text-white"
-                                    onclick={() => handleDownload(result)}
-                                >
-                                    <Download class="w-4 h-4" />
-                                </Button>
-                            {/if}
-                        </div>
+        <Scroller class="max-h-96 -mx-2 px-2">
+            <div class="space-y-1">
+                {#if searching}
+                    <div class="flex items-center justify-center py-12">
+                        <Loader class="w-6 h-6 animate-spin text-muted-foreground" />
                     </div>
-                {/each}
-            {/if}
-        </div>
+                {:else if results.length === 0 && !searchError}
+                    <div class="text-center py-12 text-muted-foreground text-sm">
+                        No subtitles found. Try different languages.
+                    </div>
+                {:else}
+                    {#each results as result (result.id)}
+                        <div
+                            class="flex items-start gap-3 p-3 rounded-lg border border-border/50 hover:border-border transition-colors bg-card/50"
+                        >
+                            <!-- Main info -->
+                            <div class="flex-1 min-w-0 space-y-1.5">
+                                <!-- Title line with tags -->
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-sm font-medium text-white truncate"> {result.languageName} </span>
+
+                                    {#if result.isExactMatch}
+                                        <span
+                                            class="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30 font-medium"
+                                        >
+                                            Exact Match
+                                        </span>
+                                    {/if}
+
+                                    {#if result.hearingImpaired}
+                                        <Tip text="Hearing Impaired">
+                                            {#snippet children(tipProps)}
+                                                <button
+                                                    {...tipProps}
+                                                    type="button"
+                                                    class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 cursor-default"
+                                                >
+                                                    <Ear class="w-3 h-3 inline-block" /> HI
+                                                </button>
+                                            {/snippet}
+                                        </Tip>
+                                    {/if}
+
+                                    {#if result.fromTrusted}
+                                        <Tip text="Trusted uploader">
+                                            {#snippet children(tipProps)}
+                                                <button
+                                                    {...tipProps}
+                                                    type="button"
+                                                    class="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 cursor-default"
+                                                >
+                                                    <Shield class="w-3 h-3 inline-block" /> Trusted
+                                                </button>
+                                            {/snippet}
+                                        </Tip>
+                                    {/if}
+
+                                    {#if result.aiTranslated}
+                                        <span
+                                            class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400"
+                                        >
+                                            AI
+                                        </span>
+                                    {/if}
+                                </div>
+
+                                <!-- Release name -->
+                                <p class="text-xs text-muted-foreground truncate" title={result.release}>
+                                    {result.release || result.fileName}
+                                </p>
+
+                                <!-- Stats line -->
+                                <div class="flex items-center gap-3 text-[11px] text-muted-foreground">
+                                    <span class="flex items-center gap-1">
+                                        <Download class="w-3 h-3" />
+                                        {formatDownloadCount(result.downloadCount)}
+                                    </span>
+                                    {#if result.ratings > 0}
+                                        <span class="flex items-center gap-1">
+                                            <Star class="w-3 h-3" />
+                                            {result.ratings.toFixed(1)}
+                                        </span>
+                                    {/if}
+                                    {#if result.fps > 0}
+                                        <span>{result.fps} fps</span>
+                                    {/if}
+                                </div>
+                            </div>
+
+                            <!-- Download button -->
+                            <div class="shrink-0 pt-1">
+                                {#if downloadedIds.has(result.id)}
+                                    <Button variant="ghost" size="icon" class="h-8 w-8 text-green-400" disabled>
+                                        <Check class="w-4 h-4" />
+                                    </Button>
+                                {:else if downloadingIds.has(result.id)}
+                                    <Button variant="ghost" size="icon" class="h-8 w-8" disabled>
+                                        <Loader class="w-4 h-4 animate-spin" />
+                                    </Button>
+                                {:else}
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="h-8 w-8 text-muted-foreground hover:text-white"
+                                        onclick={() => handleDownload(result)}
+                                    >
+                                        <Download class="w-4 h-4" />
+                                    </Button>
+                                {/if}
+                            </div>
+                        </div>
+                    {/each}
+                {/if}
+            </div>
+        </Scroller>
     </div>
 </Dialog>

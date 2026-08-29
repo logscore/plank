@@ -1,5 +1,6 @@
 <script lang="ts">
     import { Play } from "@lucide/svelte";
+    import { Progress } from "bits-ui";
     import type { Media } from "$lib/types";
 
     let { media } = $props<{ media: Media }>();
@@ -41,12 +42,17 @@
     <div class="absolute bottom-0 left-0 right-0 p-3 space-y-2">
         <h3 class="text-sm font-semibold text-white leading-tight truncate">{media.title}</h3>
         {#if progress > 0}
-            <div class="w-full h-1 bg-white/20 rounded-full overflow-hidden">
+            <Progress.Root
+                value={progress}
+                max={100}
+                aria-label="Watch progress"
+                class="w-full h-1 bg-white/20 rounded-full overflow-hidden"
+            >
                 <div
                     class="h-full bg-primary rounded-full transition-all duration-300"
                     style="width: {progress}%"
                 ></div>
-            </div>
+            </Progress.Root>
         {/if}
     </div>
 </a>

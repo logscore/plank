@@ -1,11 +1,12 @@
 // Syncs TMDB season metadata and queues episode downloads for browse
 // FEATURE: Metadata-first episodic torrent acquisition for queued season ingestion flows
 
+import { error } from "@sveltejs/kit";
 import { mediaDb, seasonsDb } from "./db";
 import { savePosterBackdropImages } from "./images";
 import { acquireMediaByImdb, waitForTerminalMediaState } from "./media-acquisition";
 import { getShowLibraryDirectoryId } from "./paths";
-import { getSeasonDetailsWithExternalIds, getTVDetails } from "./tmdb";
+import { AdultContentError, getSeasonDetailsWithExternalIds, getTVDetails } from "./tmdb";
 
 const SEASON_DOWNLOAD_CONCURRENCY = 3;
 const activeSeasonJobs = new Map<string, Promise<void>>();
@@ -34,6 +35,7 @@ export interface AddSeasonFromBrowseResult {
 interface ShowMetadata {
 	title: string;
 	year: number | null;
+	voteAverage: number | null;
 	posterUrl: string | null;
 	backdropUrl: string | null;
 	overview: string | null;
@@ -62,12 +64,19 @@ function shouldQueueEpisode(episode: { filePath: string | null; status: string |
 	return episode.status === "pending" || episode.status === "searching";
 }
 
+function rejectAdultContent(errorValue: unknown): void {
+	if (errorValue instanceof AdultContentError) {
+		error(400, errorValue.message);
+	}
+}
+
 async function resolveShowMetadata(params: AddSeasonFromBrowseParams): Promise<ShowMetadata> {
 	try {
 		const details = await getTVDetails(params.tmdbId);
 		return {
 			title: params.title || details.title,
 			year: params.year ?? details.year ?? null,
+			voteAverage: details.voteAverage ?? null,
 			posterUrl: params.posterUrl ?? details.posterUrl,
 			backdropUrl: params.backdropUrl ?? details.backdropUrl,
 			overview: params.overview ?? details.overview,
@@ -78,10 +87,12 @@ async function resolveShowMetadata(params: AddSeasonFromBrowseParams): Promise<S
 			totalSeasons: details.totalSeasons ?? null,
 		};
 	} catch (errorValue) {
+		rejectAdultContent(errorValue);
 		console.error(`[Season Sync] Failed to resolve TV metadata for ${params.tmdbId}:`, errorValue);
 		return {
 			title: params.title,
 			year: params.year ?? null,
+			voteAverage: null,
 			posterUrl: params.posterUrl ?? null,
 			backdropUrl: params.backdropUrl ?? null,
 			overview: params.overview ?? null,
@@ -128,6 +139,7 @@ async function upsertShow(
 		mediaDb.updateMetadata(existingShow.id, {
 			title: metadata.title,
 			year: metadata.year,
+			voteAverage: metadata.voteAverage,
 			posterUrl: metadata.posterUrl,
 			backdropUrl: metadata.backdropUrl,
 			overview: metadata.overview,
@@ -147,6 +159,7 @@ async function upsertShow(
 		type: "show",
 		title: metadata.title,
 		year: metadata.year,
+		voteAverage: metadata.voteAverage,
 		posterUrl: metadata.posterUrl,
 		backdropUrl: metadata.backdropUrl,
 		overview: metadata.overview,

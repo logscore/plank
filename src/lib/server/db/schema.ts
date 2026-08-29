@@ -164,6 +164,7 @@ export const media = sqliteTable(
 		title: text("title").notNull(),
 		overview: text("overview"),
 		year: integer("year"),
+		voteAverage: real("vote_average"),
 		tmdbId: integer("tmdb_id"),
 		imdbId: text("imdb_id"),
 		runtime: integer("runtime"),

@@ -106,6 +106,13 @@
       "when": 1783821658000,
       "tag": "0014_migrate_image_urls",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1787591394763,
+      "tag": "0015_wakeful_kree",
+      "breakpoints": true
     }
   ]
 }

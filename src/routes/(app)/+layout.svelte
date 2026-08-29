@@ -3,7 +3,6 @@
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import { authClient } from "$lib/auth-client";
-    import AddMediaDialog from "$lib/components/AddMediaDialog.svelte";
     import ConfirmationDialog from "$lib/components/ConfirmationDialog.svelte";
     import InviteMemberDialog from "$lib/components/InviteMemberDialog.svelte";
     import Layout from "$lib/components/Layout.svelte";
@@ -15,13 +14,17 @@
     const APP_NAME = "Plank";
     const ROUTE_TITLES: Record<string, string> = {
         "/": "Home",
-        "/account": "Account",
         "/browse": "Browse",
         "/onboarding": "Onboarding",
         "/profiles": "Profiles",
         "/profiles/manage": "Manage Profiles",
         "/search": "Search",
-        "/settings": "Settings",
+        "/settings/account": "Account",
+        "/settings/security": "Security",
+        "/settings/profile": "Profile",
+        "/settings/members": "Members",
+        "/settings/connections": "Connections",
+        "/settings/indexers": "Indexers",
     };
 
     const pageTitle = $derived.by(() => {
@@ -51,5 +54,4 @@
     {@render children()}
     <InviteMemberDialog />
     <ConfirmationDialog />
-    <AddMediaDialog />
 </Layout>

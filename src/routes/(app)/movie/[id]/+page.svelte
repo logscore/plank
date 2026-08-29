@@ -15,15 +15,15 @@
     import { onDestroy, onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { connectMediaProgressStream } from "$lib/client/media-progress-stream";
-    import DeleteConfirmationModal from "$lib/components/DeleteConfirmationModal.svelte";
     import OpenSubtitlesDialog from "$lib/components/OpenSubtitlesDialog.svelte";
     import SubtitleMenu from "$lib/components/SubtitleMenu.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
-    import { createAddMediaMutation, createDeleteMediaMutation, createRetryMediaMutation } from "$lib/data/media";
-    import { confirmDelete, uiState } from "$lib/ui-state.svelte";
-    import { isTerminalProgressStatus } from "$lib/utils";
+    import Tip from "$lib/components/ui/Tip.svelte";
+    import { createDeleteMediaMutation, createRetryMediaMutation } from "$lib/data/media";
+    import { confirmDelete } from "$lib/ui-state.svelte";
+    import { formatFileSize, isTerminalProgressStatus } from "$lib/utils";
     import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
@@ -35,14 +35,8 @@
     let manualSourceInput = $state("");
 
     // Mutations
-    const addMediaMutation = createAddMediaMutation();
     const deleteMediaMutation = createDeleteMediaMutation();
     const retryMediaMutation = createRetryMediaMutation();
-
-    // Add Media Dialog state
-    let magnetInput = $state("");
-    let magnetError = $state("");
-    let adding = $state(false);
 
     // OpenSubtitles Dialog state
     let openSubtitlesDialogOpen = $state(false);
@@ -63,21 +57,10 @@
         liveFileSize = data.progress?.fileSize ?? data.media.fileSize;
     });
 
-    function formatFileSize(bytes: number | null): string {
-        if (!bytes) {
-            return "Unknown";
-        }
-        if (bytes < 1024) {
-            return `${bytes} B`;
-        }
-        if (bytes < 1024 * 1024) {
-            return `${(bytes / 1024).toFixed(1)} KB`;
-        }
-        if (bytes < 1024 * 1024 * 1024) {
-            return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-        }
-        return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
-    }
+    const fileSizeLabel = $derived.by(() => {
+        const bytes = liveFileSize ?? data.media.fileSize;
+        return bytes ? formatFileSize(bytes) : "Unknown";
+    });
 
     function formatSpeed(bytesPerSecond: number): string {
         if (bytesPerSecond < 1024) {
@@ -245,29 +228,6 @@
         }
     }
 
-    async function addMagnet() {
-        if (!magnetInput.trim()) {
-            magnetError = "Please enter a magnet link";
-            return;
-        }
-        if (!magnetInput.startsWith("magnet:")) {
-            magnetError = "Invalid magnet link format";
-            return;
-        }
-
-        magnetError = "";
-        adding = true;
-        try {
-            await addMediaMutation.mutateAsync({ magnetLink: magnetInput });
-            magnetInput = "";
-            uiState.addMediaDialogOpen = false;
-        } catch (e) {
-            magnetError = (e as Error).message || "Failed to add media";
-        } finally {
-            adding = false;
-        }
-    }
-
     async function handleDelete() {
         confirmDelete(
             "Delete Media",
@@ -291,58 +251,52 @@
     <title>{data.media.title} | Plank</title>
 </svelte:head>
 
-<div class="min-h-screen bg-background">
+<div class="relative min-h-screen overflow-hidden">
     <!-- Hero Section with Backdrop -->
-    <div class="relative h-80 md:h-96 overflow-hidden">
-        {#if data.media.backdropUrl || data.media.posterUrl}
+    {#if data.media.backdropUrl || data.media.posterUrl}
+        <picture>
+            {#if data.media.backdropUrl}
+                <source media="(min-width: 1024px)" srcset={data.media.backdropUrl}>
+            {/if}
             <img
-                src={data.media.backdropUrl || data.media.posterUrl}
+                src={data.media.posterUrl ?? data.media.backdropUrl}
                 alt={data.media.title}
-                class="absolute inset-0 w-full h-full object-cover"
+                class="absolute inset-0 h-full w-full object-cover opacity-30 lg:opacity-20"
             >
-            <div class="absolute inset-0 bg-linear-to-t from-background via-background/80 to-transparent"></div>
-        {:else}
-            <div class="absolute inset-0 bg-linear-to-b from-accent/20 to-background"></div>
-        {/if}
+        </picture>
+    {/if}
+    <div class="absolute inset-0 bg-linear-to-b from-background/30 via-background/80 to-background"></div>
 
-        <!-- Back Button -->
-        <div class="fixed top-6 left-6 z-50">
-            <Button
-                variant="ghost"
-                class="bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm"
-                onclick={() => window.history.back()}
-            >
-                <ArrowLeft class="w-5 h-5 mr-2" />
-                Back
-            </Button>
-        </div>
+    <div class="fixed left-6 top-6 z-50">
+        <Button
+            variant="ghost"
+            class="rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70"
+            onclick={() => window.history.back()}
+        >
+            <ArrowLeft class="mr-2 h-5 w-5" />
+            Back
+        </Button>
     </div>
 
     <!-- Content -->
-    <div class="container mx-auto px-4 -mt-40 relative z-10">
-        <div class="flex flex-col md:flex-row gap-8">
+    <div class="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div class="grid gap-8 lg:grid-cols-[320px_1fr] lg:items-end">
             <!-- Poster -->
-            <div class="shrink-0">
+            <div class="hidden overflow-hidden rounded-2xl border border-white/10 shadow-2xl lg:block">
                 {#if data.media.posterUrl}
-                    <img
-                        src={data.media.posterUrl}
-                        alt={data.media.title}
-                        class="w-48 md:w-64 rounded-lg shadow-2xl border border-white/10"
-                    >
+                    <img src={data.media.posterUrl} alt={data.media.title} class="w-full object-cover">
                 {:else}
-                    <div
-                        class="w-48 md:w-64 aspect-2/3 rounded-lg bg-accent flex items-center justify-center border border-white/10"
-                    >
+                    <div class="flex aspect-2/3 w-full items-center justify-center bg-accent">
                         <Film class="w-16 h-16 text-muted-foreground" />
                     </div>
                 {/if}
             </div>
 
             <!-- Details -->
-            <div class="flex-1 space-y-6">
+            <div class="space-y-6">
                 <!-- Title -->
                 <div>
-                    <h1 class="text-3xl md:text-4xl font-bold text-white">{data.media.title}</h1>
+                    <h1 class="text-4xl font-semibold tracking-tight text-white sm:text-5xl">{data.media.title}</h1>
                 </div>
 
                 <!-- Meta Badges -->
@@ -357,10 +311,12 @@
                         </span>
                     {/if}
                     {#if data.media.year}
-                        <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">{data.media.year}</span>
+                        <span class="rounded-full border border-white/15 px-3 py-1 text-muted-foreground"
+                            >{data.media.year}</span
+                        >
                     {/if}
                     {#if data.media.runtime}
-                        <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground">
+                        <span class="rounded-full border border-white/15 px-3 py-1 text-muted-foreground">
                             {Math.floor(data.media.runtime / 60)}h
                             {data.media
                                 .runtime % 60}
@@ -368,7 +324,7 @@
                         </span>
                     {/if}
                     {#if data.media.originalLanguage}
-                        <span class="px-3 py-1 rounded-full bg-accent text-muted-foreground uppercase">
+                        <span class="rounded-full border border-white/15 px-3 py-1 text-muted-foreground uppercase">
                             {data.media.originalLanguage}
                         </span>
                     {/if}
@@ -381,15 +337,13 @@
                     ) as string[]}
                     <div class="flex flex-wrap gap-2">
                         {#each genreList as genre}
-                            <span class="px-3 py-1 rounded-full border border-white/20 text-sm text-muted-foreground"
-                                >{genre}</span
-                            >
+                            <span class="rounded-full bg-white/5 px-3 py-1 text-sm text-zinc-300">{genre}</span>
                         {/each}
                     </div>
                 {/if}
 
                 <!-- Action Buttons -->
-                <div class="flex items-center gap-3">
+                <div class="flex flex-wrap items-center gap-3">
                     {#if liveStatus === "error"}
                         <Button size="lg" class="px-8 bg-yellow-600 hover:bg-yellow-500" onclick={openRedownloadDialog}>
                             <RotateCcw class="w-5 h-5 mr-2" />
@@ -422,32 +376,39 @@
 
                 <!-- Overview -->
                 {#if data.media.overview}
-                    <div class="ml-2">
-                        <h2 class="text-lg font-semibold text-white mb-1 mt-4">Overview</h2>
-                        <p class="text-muted-foreground leading-relaxed">{data.media.overview}</p>
+                    <div>
+                        <h2 class="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                            Overview
+                        </h2>
+                        <p class="max-w-3xl text-sm leading-7 text-zinc-300 sm:text-base">{data.media.overview}</p>
                     </div>
                 {/if}
             </div>
         </div>
 
         <!-- Technical Details -->
-        <div class="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">
-            <div class="bg-card border border-border rounded-lg p-6 space-y-4">
+        <div class="mt-12 grid grid-cols-1 gap-4 pb-12 md:grid-cols-2">
+            <div class="space-y-4 rounded-2xl border border-white/10 bg-card/70 p-5">
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold flex items-center gap-2">
                         <Database class="w-5 h-5 text-primary" />
                         File Information
                     </h3>
                     {#if liveStatus !== "error" && liveStatus !== "downloading"}
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            class="h-8 w-8 p-0 text-muted-foreground hover:text-white"
-                            onclick={openRedownloadDialog}
-                            title="Redownload Content"
-                        >
-                            <RefreshCw class="w-4 h-4" />
-                        </Button>
+                        <Tip text="Redownload Content">
+                            {#snippet children(tipProps)}
+                                <Button
+                                    {...tipProps}
+                                    variant="ghost"
+                                    size="sm"
+                                    class="h-8 w-8 p-0 text-muted-foreground hover:text-white"
+                                    onclick={openRedownloadDialog}
+                                    aria-label="Redownload Content"
+                                >
+                                    <RefreshCw class="w-4 h-4" />
+                                </Button>
+                            {/snippet}
+                        </Tip>
                     {/if}
                 </div>
                 <div class="space-y-3 text-sm">
@@ -479,16 +440,12 @@
                     {/if}
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">File Size</span>
-                        <span class="font-medium"
-                            >{formatFileSize(
-                                liveFileSize ?? data.media.fileSize,
-                            )}</span
-                        >
+                        <span class="font-medium">{fileSizeLabel}</span>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-card border border-border rounded-lg p-6 space-y-4">
+            <div class="space-y-4 rounded-2xl border border-white/10 bg-card/70 p-5">
                 <h3 class="text-lg font-semibold flex items-center gap-2">
                     <Folder class="w-5 h-5 text-primary" />
                     Storage
@@ -532,7 +489,7 @@
                 </div>
             </div>
 
-            <div class="bg-card border border-border rounded-lg p-6 space-y-4">
+            <div class="space-y-4 rounded-2xl border border-white/10 bg-card/70 p-5">
                 <h3 class="text-lg font-semibold flex items-center gap-2">
                     <Calendar class="w-5 h-5 text-primary" />
                     Dates
@@ -553,7 +510,7 @@
                 </div>
             </div>
 
-            <div class="bg-card border border-border rounded-lg p-6 space-y-4">
+            <div class="space-y-4 rounded-2xl border border-white/10 bg-card/70 p-5">
                 <h3 class="text-lg font-semibold flex items-center gap-2">
                     <Film class="w-5 h-5 text-primary" />
                     Metadata
@@ -619,35 +576,5 @@
         {/if}
     </div>
 </Dialog>
-
-<!-- Add Media Dialog - Controlled by Global Store -->
-<Dialog
-    bind:open={uiState.addMediaDialogOpen}
-    title="Add Media"
-    description="Paste a magnet link to start downloading."
->
-    <div class="grid gap-4 py-4">
-        <Input
-            placeholder="magnet:?xt=urn:btih:..."
-            bind:value={magnetInput}
-            onkeydown={(e) => e.key === "Enter" && addMagnet()}
-        />
-        {#if magnetError}
-            <p class="text-sm text-destructive">{magnetError}</p>
-        {/if}
-    </div>
-    <div class="flex justify-end gap-2">
-        <Button variant="ghost" onclick={() => (uiState.addMediaDialogOpen = false)}>Cancel</Button>
-        <Button onclick={addMagnet} disabled={adding}>{adding ? "Adding..." : "Add"}</Button>
-    </div>
-</Dialog>
-
-<DeleteConfirmationModal
-    bind:open={uiState.deleteConfirmation.open}
-    title={uiState.deleteConfirmation.title}
-    description={uiState.deleteConfirmation.description}
-    onConfirm={uiState.deleteConfirmation.confirmAction}
-    loading={deleting}
-/>
 
 <OpenSubtitlesDialog bind:open={openSubtitlesDialogOpen} mediaId={data.media.id} mediaTitle={data.media.title} />

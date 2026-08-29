@@ -1,10 +1,12 @@
 <script lang="ts">
-    import { ChevronDown, Play, Plus } from "@lucide/svelte";
+    import { ChevronDown, Download, Loader2, Play, Plus } from "@lucide/svelte";
+    import { DropdownMenu, Progress } from "bits-ui";
+    import { onDestroy } from "svelte";
     import type { BrowseItem } from "$lib/server/tmdb";
+    import type { CatalogSeason } from "$lib/types";
     import { cn } from "$lib/utils";
     import Button from "./ui/Button.svelte";
-    import type { SeasonData } from "./ui/ContextMenu.svelte";
-    import ContextMenu from "./ui/ContextMenu.svelte";
+    import Tip from "./ui/Tip.svelte";
     import Tv from "./ui/Tv.svelte";
 
     let {
@@ -31,7 +33,7 @@
         onPrefetchSeasonTorrent?: (item: BrowseItem, seasonNumber: number) => void;
         isAdding?: boolean;
         isResolving?: boolean;
-        seasons?: SeasonData[];
+        seasons?: CatalogSeason[];
         seasonsLoading?: boolean;
         /** Load image eagerly (for above-the-fold cards) */
         eagerLoad?: boolean;
@@ -46,6 +48,7 @@
     let hasPrefetched = $state(false);
     let prefetchTimeout: ReturnType<typeof setTimeout> | null = null;
     let seasonsPrefetchTimeout: ReturnType<typeof setTimeout> | null = null;
+    let seasonTorrentPrefetchTimeout: ReturnType<typeof setTimeout> | null = null;
     let seasonMenuOpen = $state(false);
 
     const PREFETCH_DELAY = 300; // ms to wait before prefetching
@@ -116,11 +119,8 @@
         onWatchNow?.(item);
     }
 
-    function handleSeasonButtonClick(e: Event) {
-        e.stopPropagation();
-        seasonMenuOpen = !seasonMenuOpen;
-        // Trigger season fetch if not already loaded
-        const shouldFetchSeasons = !(hasSeasonsLoaded || seasonsLoading) && onPrefetchSeasons;
+    function handleSeasonMenuOpen(open: boolean) {
+        const shouldFetchSeasons = open && !(hasSeasonsLoaded || seasonsLoading) && onPrefetchSeasons;
         if (shouldFetchSeasons) {
             onPrefetchSeasons(item);
         }
@@ -130,8 +130,24 @@
         onSelectSeason?.(item, seasonNumber);
     }
 
-    function handleCloseSeasonMenu() {
-        seasonMenuOpen = false;
+    function handleSeasonItemEnter(seasonNumber: number) {
+        if (!onPrefetchSeasonTorrent) {
+            return;
+        }
+        if (seasonTorrentPrefetchTimeout) {
+            clearTimeout(seasonTorrentPrefetchTimeout);
+        }
+        seasonTorrentPrefetchTimeout = setTimeout(() => {
+            onPrefetchSeasonTorrent(item, seasonNumber);
+            seasonTorrentPrefetchTimeout = null;
+        }, 500);
+    }
+
+    function handleSeasonItemLeave() {
+        if (seasonTorrentPrefetchTimeout) {
+            clearTimeout(seasonTorrentPrefetchTimeout);
+            seasonTorrentPrefetchTimeout = null;
+        }
     }
 
     const isDisabled = $derived(isAdding);
@@ -167,6 +183,17 @@
             }, 500); // Wait for completion animation
         }
     });
+    onDestroy(() => {
+        if (prefetchTimeout) {
+            clearTimeout(prefetchTimeout);
+        }
+        if (seasonsPrefetchTimeout) {
+            clearTimeout(seasonsPrefetchTimeout);
+        }
+        if (seasonTorrentPrefetchTimeout) {
+            clearTimeout(seasonTorrentPrefetchTimeout);
+        }
+    });
 </script>
 
 <div
@@ -179,155 +206,198 @@
     role="button"
     tabindex="0"
     class={cn(
-        "relative aspect-2/3 rounded-lg group shadow-lg border border-border/50 bg-card hover:scale-[1.02] hover:z-20 hover:border-primary/50 transition-all duration-300 outline-none cursor-pointer",
+        "group relative aspect-2/3 cursor-pointer rounded-lg border border-border/50 bg-card shadow-lg outline-none transition-[border-color,box-shadow] duration-300 hover:z-20 hover:border-primary/50 hover:shadow-xl",
         className,
     )}
 >
-    <!-- Image Container -->
-    <div class="absolute inset-0 rounded-lg overflow-hidden">
-        <!-- Rating Badge -->
+    <div class="absolute inset-0 overflow-hidden rounded-xl">
         {#if item.voteAverage && item.voteAverage > 0}
             <div
-                class="absolute top-2 right-2 z-10 bg-black/80 text-yellow-400 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1 group-hover:hidden {isMobileActive
-                    ? 'hidden'
-                    : ''}"
+                class={cn(
+                    "absolute right-2 top-2 z-10 flex items-center gap-1 rounded bg-black/80 px-2 py-0.5 text-xs font-medium text-yellow-400",
+                    isMobileActive || seasonMenuOpen ? "hidden" : "group-hover:hidden",
+                )}
             >
                 <span class="text-yellow-400">&#9733;</span>
                 {item.voteAverage.toFixed(1)}
             </div>
         {/if}
 
-        <!-- Type Badge for TV Shows -->
         {#if item.mediaType === "show"}
             <div
-                class="absolute top-2 left-2 z-10 bg-primary/90 text-primary-foreground px-2 py-0.5 rounded text-xs flex items-center gap-1 group-hover:hidden {isMobileActive
-                    ? 'hidden'
-                    : ''}"
+                class={cn(
+                    "absolute left-2 top-2 z-10 flex items-center gap-1 rounded bg-primary/90 px-2 py-0.5 text-xs text-primary-foreground",
+                    isMobileActive || seasonMenuOpen ? "hidden" : "group-hover:hidden",
+                )}
             >
                 <Tv size={12} />
                 TV
             </div>
         {/if}
 
-        <!-- Poster Image -->
         {#if item.posterUrl}
             <img
                 src={item.posterUrl}
                 alt={item.title}
-                class="w-full h-full object-cover transition-all duration-300 group-hover:scale-105 group-hover:blur-sm"
+                class={cn(
+                    "h-full w-full object-cover transition-all duration-300 group-hover:scale-105 group-hover:blur-sm",
+                    isMobileActive || seasonMenuOpen ? "scale-105 blur-sm" : "",
+                )}
                 loading={eagerLoad ? "eager" : "lazy"}
                 decoding={eagerLoad ? "sync" : "async"}
             >
         {:else}
-            <div class="w-full h-full flex items-center justify-center bg-accent text-muted-foreground">
-                <span class="text-sm text-center px-4">{item.title}</span>
+            <div class="flex h-full w-full items-center justify-center bg-accent text-muted-foreground">
+                <span class="px-4 text-center text-sm">{item.title}</span>
             </div>
         {/if}
 
-        <!-- Progress Bar -->
         {#if progressState !== "idle"}
-            <div
-                class="absolute bottom-0 left-0 h-1 bg-red-600 transition-all ease-out z-20"
-                style:width="{progressWidth}%"
-                style:transition-duration="{transitionDuration}ms"
-            ></div>
+            <Progress.Root
+                value={progressWidth}
+                max={100}
+                aria-label="Add progress"
+                class="absolute bottom-0 left-0 z-20 h-1 w-full"
+            >
+                <div
+                    class="h-full bg-red-600 transition-all ease-out"
+                    style:width="{progressWidth}%"
+                    style:transition-duration="{transitionDuration}ms"
+                ></div>
+            </Progress.Root>
         {/if}
-    </div>
 
-    <!-- Details Overlay -->
-    <div
-        class={cn(
-            "absolute inset-0 p-4 rounded-lg flex flex-col justify-between transition-all duration-300 ease-out bg-black/60 backdrop-blur-sm",
-            isMobileActive
-                ? "opacity-100 translate-y-0 pointer-events-auto"
-                : "opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto",
-        )}
-    >
-        <div class="space-y-2 overflow-hidden flex-1 min-h-0 flex flex-col">
-            <h4 class="font-bold text-lg leading-tight text-white shrink-0">{item.title}</h4>
+        <div
+            class={cn(
+                "absolute inset-0 flex flex-col justify-between rounded-xl bg-black/60 p-4 backdrop-blur-sm transition-all duration-300 ease-out",
+                isMobileActive || seasonMenuOpen
+                    ? "pointer-events-auto translate-y-0 opacity-100"
+                    : "pointer-events-none translate-y-2 opacity-0 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100",
+            )}
+        >
+            <div class="flex min-h-0 flex-1 flex-col space-y-2 overflow-hidden">
+                <h4 class="shrink-0 text-lg font-bold leading-tight text-white">{item.title}</h4>
 
-            <div class="flex items-center gap-2 text-xs text-zinc-300 shrink-0">
-                {#if item.year}
-                    <span>{item.year}</span>
+                <div class="flex shrink-0 items-center gap-2 text-xs text-zinc-300">
+                    {#if item.year}
+                        <span>{item.year}</span>
+                    {/if}
+                    {#if item.certification}
+                        <span class="rounded bg-white/10 px-1 text-[10px] font-medium">{item.certification}</span>
+                    {/if}
+                    {#if item.voteAverage && item.voteAverage > 0}
+                        <span class="flex items-center gap-0.5 text-yellow-400">
+                            &#9733; {item.voteAverage.toFixed(1)}
+                        </span>
+                    {/if}
+                </div>
+
+                {#if item.genres.length > 0}
+                    <div class="flex shrink-0 flex-wrap gap-1 pt-1">
+                        {#each item.genres.slice(0, 2) as genre}
+                            <span class="rounded bg-zinc-700/80 px-1.5 py-0.5 text-[10px] text-zinc-300">
+                                {genre}
+                            </span>
+                        {/each}
+                    </div>
                 {/if}
-                {#if item.certification}
-                    <span class="bg-white/10 px-1 rounded text-[10px] font-medium">{item.certification}</span>
-                {/if}
-                {#if item.voteAverage && item.voteAverage > 0}
-                    <span class="flex items-center gap-0.5 text-yellow-400">
-                        &#9733; {item.voteAverage.toFixed(1)}
-                    </span>
+
+                {#if item.overview}
+                    <p class="overflow-y-auto pr-1 text-xs leading-relaxed text-zinc-400">{item.overview}</p>
                 {/if}
             </div>
 
-            {#if item.genres.length > 0}
-                <div class="flex flex-wrap gap-1 pt-1 shrink-0">
-                    {#each item.genres.slice(0, 2) as genre}
-                        <span class="px-1.5 py-0.5 bg-zinc-700/80 text-zinc-300 text-[10px] rounded"> {genre} </span>
-                    {/each}
-                </div>
-            {/if}
-
-            {#if item.overview}
-                <p class="text-xs text-zinc-400 leading-relaxed overflow-y-auto pr-1">{item.overview}</p>
-            {/if}
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex gap-2 pt-2 shrink-0 relative">
-            {#if isTvShow}
-                <!-- TV Show: Season Selection Button -->
-                <Button
-                    size="sm"
-                    class="flex-1 text-xs"
-                    onclick={handleSeasonButtonClick}
-                    disabled={isDisabled}
-                    title="Add Season"
-                >
-                    <Plus class="w-3 h-3 mr-1" />
-                    Add Season
-                    <ChevronDown
-                        class="w-3 h-3 ml-1 transition-transform {seasonMenuOpen
-                            ? 'rotate-180'
-                            : ''}"
-                    />
-                </Button>
-
-                <!-- Season Context Menu -->
-                <ContextMenu
-                    open={seasonMenuOpen}
-                    {seasons}
-                    loading={seasonsLoading}
-                    onSelectSeason={handleSelectSeason}
-                    onPrefetchSeason={(seasonNumber) =>
-                        onPrefetchSeasonTorrent?.(item, seasonNumber)}
-                    onClose={handleCloseSeasonMenu}
-                    class="top-full left-0 mt-2"
-                />
-            {:else}
-                <!-- Movie: Add and Watch Buttons -->
-                <Button
-                    size="sm"
-                    variant="secondary"
-                    class="flex-1 text-xs"
-                    onclick={handleAddToLibrary}
-                    disabled={isDisabled}
-                    title="Add to Library"
-                >
-                    <Plus class="w-3 h-3 mr-1" />
-                    Add
-                </Button>
-                <Button
-                    size="sm"
-                    class="flex-1 text-xs"
-                    onclick={handleWatchNow}
-                    disabled={isDisabled}
-                    title="Watch Now"
-                >
-                    <Play class="w-3 h-3 mr-1 fill-current" />
-                    Watch
-                </Button>
-            {/if}
+            <div class="relative flex shrink-0 gap-2 pt-2">
+                {#if isTvShow}
+                    <DropdownMenu.Root bind:open={seasonMenuOpen} onOpenChange={handleSeasonMenuOpen}>
+                        <DropdownMenu.Trigger
+                            disabled={isDisabled}
+                            class="inline-flex h-9 flex-1 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                            aria-label="Add season"
+                        >
+                            <Plus class="mr-1 h-3 w-3" />
+                            Add Season
+                            <ChevronDown
+                                class="ml-1 h-3 w-3 transition-transform {seasonMenuOpen ? 'rotate-180' : ''}"
+                            />
+                        </DropdownMenu.Trigger>
+                        <DropdownMenu.Portal>
+                            <DropdownMenu.Content
+                                side="bottom"
+                                align="start"
+                                sideOffset={8}
+                                class="z-50 max-h-96 w-72 overflow-y-auto rounded-xl border border-white/10 bg-black/95 p-1.5 text-white shadow-2xl backdrop-blur-xl focus:outline-none"
+                            >
+                                {#if seasonsLoading}
+                                    <div
+                                        class="flex items-center justify-center gap-2 px-4 py-6 text-sm text-muted-foreground"
+                                    >
+                                        <Loader2 class="h-4 w-4 animate-spin" />
+                                        Loading seasons...
+                                    </div>
+                                {:else if seasons.length === 0}
+                                    <div class="px-4 py-5 text-center text-sm text-muted-foreground">
+                                        No seasons available
+                                    </div>
+                                {:else}
+                                    {#each seasons as season}
+                                        <DropdownMenu.Item
+                                            onSelect={() => handleSelectSeason(season.seasonNumber)}
+                                            onpointerenter={() => handleSeasonItemEnter(season.seasonNumber)}
+                                            onpointerleave={handleSeasonItemLeave}
+                                            class="group flex min-h-11 cursor-default select-none items-center gap-3 rounded-lg px-3 py-2 text-left outline-none data-highlighted:bg-white/10"
+                                        >
+                                            <div class="min-w-0 flex-1">
+                                                <div class="truncate text-sm font-medium">
+                                                    {season.name || `Season ${season.seasonNumber}`}
+                                                </div>
+                                                {#if season.episodeCount > 0}
+                                                    <div class="text-xs text-muted-foreground">
+                                                        {season.episodeCount} episodes
+                                                    </div>
+                                                {/if}
+                                            </div>
+                                            <Download
+                                                class="h-4 w-4 text-primary opacity-0 transition-opacity group-data-highlighted:opacity-100"
+                                            />
+                                        </DropdownMenu.Item>
+                                    {/each}
+                                {/if}
+                            </DropdownMenu.Content>
+                        </DropdownMenu.Portal>
+                    </DropdownMenu.Root>
+                {:else}
+                    <Tip text="Add to Library">
+                        {#snippet children(tipProps)}
+                            <Button
+                                {...tipProps}
+                                size="sm"
+                                variant="secondary"
+                                class="flex-1 text-xs"
+                                onclick={handleAddToLibrary}
+                                disabled={isDisabled}
+                            >
+                                <Plus class="mr-1 h-3 w-3" />
+                                Add
+                            </Button>
+                        {/snippet}
+                    </Tip>
+                    <Tip text="Watch Now">
+                        {#snippet children(tipProps)}
+                            <Button
+                                {...tipProps}
+                                size="sm"
+                                class="flex-1 text-xs"
+                                onclick={handleWatchNow}
+                                disabled={isDisabled}
+                            >
+                                <Play class="mr-1 h-3 w-3 fill-current" />
+                                Watch
+                            </Button>
+                        {/snippet}
+                    </Tip>
+                {/if}
+            </div>
         </div>
     </div>
 </div>

@@ -1,34 +1,33 @@
-/**
- * Browse API - Discovery
- *
- * Returns trending/popular movies from TMDB immediately.
- * Detail enrichment (IMDB IDs, certifications, cached magnets)
- * is handled lazily via /api/browse/details.
- */
-
-import { error, json } from "@sveltejs/kit";
-import { getPopular, getTrending } from "$lib/server/tmdb";
+import { json } from "@sveltejs/kit";
+import { DEFAULT_CATALOG_FILTERS, parseCatalogSearchParams } from "$lib/data/search";
+import { requireOrganizationAccess } from "$lib/server/api-guard";
+import { getTrending, searchTmdbCatalog } from "$lib/server/tmdb";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-	if (!locals.user) {
-		throw error(401, "Unauthorized");
+	requireOrganizationAccess(locals);
+	const request = parseCatalogSearchParams(url.searchParams);
+	const filters = { ...request.filters, scope: "catalog" as const };
+	const useTrending =
+		filters.rating === DEFAULT_CATALOG_FILTERS.rating &&
+		filters.yearFrom === null &&
+		filters.yearTo === null &&
+		filters.genres.length === 0 &&
+		filters.sort === DEFAULT_CATALOG_FILTERS.sort;
+
+	if (useTrending) {
+		const result = await getTrending("day", request.page, filters.media);
+		return json({
+			items: result.items,
+			page: request.page,
+			totalPages: result.totalPages,
+		});
 	}
 
-	const type = url.searchParams.get("type") || "trending";
-	const filter = (url.searchParams.get("filter") as "all" | "movie" | "show") || "all";
-	const page = Number.parseInt(url.searchParams.get("page") || "1", 10);
-
-	switch (type) {
-		case "trending": {
-			const result = await getTrending("day", page, filter);
-			return json({ items: result.items, page, totalPages: result.totalPages });
-		}
-		case "popular": {
-			const result = await getPopular(page, filter === "all" ? "movie" : filter);
-			return json({ items: result.items, page, totalPages: result.totalPages });
-		}
-		default:
-			throw error(400, 'Invalid type. Use "trending" or "popular"');
-	}
+	const result = await searchTmdbCatalog({ ...request, filters });
+	return json({
+		items: result.items,
+		page: result.page,
+		totalPages: result.totalPages,
+	});
 };

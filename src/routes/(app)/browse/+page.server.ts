@@ -1,8 +1,13 @@
+import { parseCatalogSearchParams } from "$lib/data/search";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ url }) => {
-	const type = (url.searchParams.get("type") as "trending" | "popular") || "trending";
-	const filter = (url.searchParams.get("filter") as "all" | "movie" | "show") || "all";
-
-	return { type, filter };
+export const load: PageServerLoad = ({ url }) => {
+	const parsedRequest = parseCatalogSearchParams(url.searchParams);
+	return {
+		request: {
+			...parsedRequest,
+			query: "",
+			filters: { ...parsedRequest.filters, scope: "catalog" as const },
+		},
+	};
 };

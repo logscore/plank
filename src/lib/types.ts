@@ -10,6 +10,7 @@ export interface Media {
 	title: string;
 	overview: string | null;
 	year: number | null;
+	voteAverage: number | null;
 	tmdbId: number | null;
 	imdbId: string | null;
 	runtime: number | null;
@@ -56,6 +57,14 @@ export interface Season {
 export type SeasonWithEpisodes = Season & {
 	episodes: Media[];
 };
+
+export interface CatalogSeason {
+	seasonNumber: number;
+	name: string;
+	episodeCount: number;
+	year?: number;
+	posterPath?: string;
+}
 export interface SubtitleTrackResponse {
 	id: string;
 	mediaId: string;

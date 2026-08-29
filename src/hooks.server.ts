@@ -3,6 +3,7 @@ import { auth } from "$lib/server/auth";
 import { tempFolderCleanupJob } from "$lib/server/cron-jobs";
 import { db } from "$lib/server/db/index";
 import { schema } from "$lib/server/db/schema";
+import { shutdownTorrentClient } from "$lib/server/torrent/client";
 import { recoverDownloads } from "$lib/server/torrent/recovery";
 
 // Recover incomplete downloads on server startup
@@ -10,8 +11,21 @@ recoverDownloads().catch((e: Error) => {
 	console.error("[Startup] Failed to recover downloads:", e.message);
 });
 
-// Start scheduled tasks
-tempFolderCleanupJob();
+// Start scheduled tasks and release their resources after the HTTP server closes.
+const tempCleanupTask = tempFolderCleanupJob();
+
+async function shutdownApplication(): Promise<void> {
+	try {
+		await tempCleanupTask.destroy();
+		await shutdownTorrentClient();
+		console.log("[Shutdown] Torrent resources released");
+	} catch (errorValue) {
+		console.error("[Shutdown] Failed to release torrent resources:", errorValue);
+		process.exitCode = 1;
+	}
+}
+
+process.once("sveltekit:shutdown", shutdownApplication);
 
 function classifyRoute(path: string) {
 	const isAuthPage = path.startsWith("/login") || path.startsWith("/register");
@@ -35,6 +49,17 @@ function classifyRoute(path: string) {
 			path === "/profiles" ||
 			path.startsWith("/profiles/"),
 	};
+}
+
+/** Old destinations that the unified settings shell replaced. */
+function legacySettingsRedirect(path: string): string | null {
+	if (path === "/account" || path.startsWith("/account/")) {
+		return "/settings/account";
+	}
+	if (path === "/settings") {
+		return "/settings/account";
+	}
+	return null;
 }
 
 async function enforceProfileSelection(event: RequestEvent, activeOrgId: string | null | undefined) {
@@ -70,6 +95,10 @@ async function enforceProfileSelection(event: RequestEvent, activeOrgId: string 
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
+	if (event.url.pathname === "/health") {
+		return resolve(event);
+	}
+
 	const session = await auth.api.getSession({ headers: event.request.headers });
 	event.locals.user = session?.user ?? null;
 	event.locals.session = session?.session ?? null;
@@ -86,6 +115,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	if (routes.isAuthPage && event.locals.user) {
 		throw redirect(302, "/profiles");
+	}
+
+	const settingsTarget = legacySettingsRedirect(event.url.pathname);
+	if (settingsTarget) {
+		throw redirect(308, settingsTarget);
 	}
 
 	if (routes.isProfilesRoute || routes.isAcceptInvitation) {

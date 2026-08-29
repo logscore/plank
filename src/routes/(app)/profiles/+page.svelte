@@ -5,6 +5,7 @@
     import { authClient } from "$lib/auth-client";
     import ProfileCard from "$lib/components/ProfileCard.svelte";
     import Button from "$lib/components/ui/Button.svelte";
+    import Scroller from "$lib/components/ui/Scroller.svelte";
     import { queryClient } from "$lib/data/client";
     import type { PageData } from "./$types";
 
@@ -35,15 +36,17 @@
     const hasProfiles = $derived(data.profiles.length > 0);
 </script>
 
-<div class="min-h-screen flex flex-col items-center justify-center px-4">
+<div
+    class="mx-auto flex min-h-[calc(100vh-6rem)] max-w-6xl flex-col items-center justify-center px-6 py-12 text-center"
+>
     {#if !hasProfiles && !data.canManageProfiles}
         <!-- User with no profile memberships: waiting state -->
-        <div class="text-center max-w-md">
-            <div class="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-6">
-                <Settings class="w-10 h-10 text-muted-foreground" />
+        <div class="max-w-md rounded-3xl border border-white/10 bg-card/60 p-8 text-center shadow-xl">
+            <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/5">
+                <Settings class="h-10 w-10 text-muted-foreground" />
             </div>
-            <h1 class="text-2xl font-bold mb-3">Waiting for Access</h1>
-            <p class="text-muted-foreground mb-8">You need an invitation to a profile before you can start watching.</p>
+            <h1 class="mb-3 text-2xl font-semibold tracking-tight">Waiting for access</h1>
+            <p class="mb-8 text-muted-foreground">You need an invitation to a profile before you can start watching.</p>
             <Button variant="outline" onclick={handleLogout}>
                 <LogOut class="w-4 h-4 mr-2" />
                 Sign Out
@@ -51,25 +54,25 @@
         </div>
     {:else}
         <!-- Profile picker -->
-        <div class="text-center mb-12">
-            <h1 class="text-3xl md:text-4xl font-bold tracking-tight">Who's watching?</h1>
+        <div class="mb-10 space-y-3">
+            <h1 class="text-4xl font-semibold tracking-tight sm:text-5xl">Who's watching?</h1>
         </div>
 
-        <div
-            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 md:gap-8 mb-12 overflow-auto p-4 max-h-100"
-        >
-            {#each data.profiles as profile}
-                <ProfileCard
-                    name={profile.name}
-                    logo={profile.logo}
-                    isMember={profile.isMember}
-                    onclick={() => selectProfile(profile.id)}
-                />
-            {/each}
-        </div>
+        <Scroller class="max-h-100 p-4" rootClass="mb-12">
+            <div class="grid grid-cols-2 gap-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {#each data.profiles as profile}
+                    <ProfileCard
+                        name={profile.name}
+                        logo={profile.logo}
+                        isMember={profile.isMember}
+                        onclick={() => selectProfile(profile.id)}
+                    />
+                {/each}
+            </div>
+        </Scroller>
 
         {#if data.canManageProfiles}
-            <div class="flex gap-4">
+            <div class="flex flex-wrap items-center justify-center gap-3">
                 <Button variant="outline" onclick={() => goto("/profiles/manage")}>
                     <Plus class="w-4 h-4 mr-2" />
                     Manage Profiles
