@@ -1,6 +1,6 @@
 <script lang="ts">
     import { Film, Tv } from "@lucide/svelte";
-    import { goto } from "$app/navigation";
+    import { onDestroy } from "svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
@@ -16,34 +16,47 @@
     let selectedType = $state<MediaType | null>(null);
     let error = $state("");
 
+    function reset() {
+        magnetInput = "";
+        selectedType = null;
+        error = "";
+    }
+
+    // Closing must not leave a stale magnet or error for the next open.
+    $effect(() => {
+        if (!uiState.addMediaDialogOpen) {
+            reset();
+        }
+    });
+
+    // The nav unmounts this on /watch, /profiles and /onboarding. Drop the
+    // flag too, so the dialog does not reopen itself on the way back.
+    onDestroy(() => {
+        uiState.addMediaDialogOpen = false;
+    });
+
     async function addMagnet() {
-        if (!magnetInput.trim()) {
+        const magnetLink = magnetInput.trim();
+        if (!magnetLink) {
+            error = "Please enter a magnet link";
+            return;
+        }
+        if (!magnetLink.startsWith("magnet:")) {
+            error = "Invalid magnet link format";
             return;
         }
 
         error = "";
 
         try {
-            const result = await addMediaMutation.mutateAsync({
-                magnetLink: magnetInput,
+            await addMediaMutation.mutateAsync({
+                magnetLink,
                 type: selectedType ?? undefined,
             });
-
-            // Check if this was a season addition to an existing show
-            // Note: result type might not imply _seasonAdded directly if strictly typed, but we use it in +page.svelte
-            if (result._seasonAdded) {
-                goto("?type=shows", { replaceState: true, noScroll: true });
-            } else if (result.type === "show") {
-                goto("?type=shows", { replaceState: true, noScroll: true });
-            } else {
-                goto("?type=movies", { replaceState: true, noScroll: true });
-            }
-
-            magnetInput = "";
-            selectedType = null;
+            reset();
             uiState.addMediaDialogOpen = false;
-        } catch (e) {
-            error = e instanceof Error ? e.message : "Failed to add media";
+        } catch (cause) {
+            error = cause instanceof Error ? cause.message : "Failed to add media";
         }
     }
 </script>
@@ -57,7 +70,7 @@
         <Input
             placeholder="magnet:?xt=urn:btih:..."
             bind:value={magnetInput}
-            onkeydown={(e) => e.key === "Enter" && addMagnet()}
+            onkeydown={(e: KeyboardEvent) => e.key === "Enter" && addMagnet()}
             autofocus
         />
 

@@ -21,8 +21,8 @@
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
     import Tip from "$lib/components/ui/Tip.svelte";
-    import { createAddMediaMutation, createDeleteMediaMutation, createRetryMediaMutation } from "$lib/data/media";
-    import { confirmDelete, uiState } from "$lib/ui-state.svelte";
+    import { createDeleteMediaMutation, createRetryMediaMutation } from "$lib/data/media";
+    import { confirmDelete } from "$lib/ui-state.svelte";
     import { formatFileSize, isTerminalProgressStatus } from "$lib/utils";
     import type { PageData } from "./$types";
 
@@ -35,14 +35,8 @@
     let manualSourceInput = $state("");
 
     // Mutations
-    const addMediaMutation = createAddMediaMutation();
     const deleteMediaMutation = createDeleteMediaMutation();
     const retryMediaMutation = createRetryMediaMutation();
-
-    // Add Media Dialog state
-    let magnetInput = $state("");
-    let magnetError = $state("");
-    let adding = $state(false);
 
     // OpenSubtitles Dialog state
     let openSubtitlesDialogOpen = $state(false);
@@ -231,29 +225,6 @@
         });
         if (success) {
             closeRedownloadDialog();
-        }
-    }
-
-    async function addMagnet() {
-        if (!magnetInput.trim()) {
-            magnetError = "Please enter a magnet link";
-            return;
-        }
-        if (!magnetInput.startsWith("magnet:")) {
-            magnetError = "Invalid magnet link format";
-            return;
-        }
-
-        magnetError = "";
-        adding = true;
-        try {
-            await addMediaMutation.mutateAsync({ magnetLink: magnetInput });
-            magnetInput = "";
-            uiState.addMediaDialogOpen = false;
-        } catch (e) {
-            magnetError = (e as Error).message || "Failed to add media";
-        } finally {
-            adding = false;
         }
     }
 
@@ -603,28 +574,6 @@
         {#if retryError}
             <p class="text-sm text-destructive">{retryError}</p>
         {/if}
-    </div>
-</Dialog>
-
-<!-- Add Media Dialog - Controlled by Global Store -->
-<Dialog
-    bind:open={uiState.addMediaDialogOpen}
-    title="Add Media"
-    description="Paste a magnet link to start downloading."
->
-    <div class="grid gap-4 py-4">
-        <Input
-            placeholder="magnet:?xt=urn:btih:..."
-            bind:value={magnetInput}
-            onkeydown={(e) => e.key === "Enter" && addMagnet()}
-        />
-        {#if magnetError}
-            <p class="text-sm text-destructive">{magnetError}</p>
-        {/if}
-    </div>
-    <div class="flex justify-end gap-2">
-        <Button variant="ghost" onclick={() => (uiState.addMediaDialogOpen = false)}>Cancel</Button>
-        <Button onclick={addMagnet} disabled={adding}>{adding ? "Adding..." : "Add"}</Button>
     </div>
 </Dialog>
 

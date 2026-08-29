@@ -7,8 +7,6 @@
     import MediaCard from "$lib/components/MediaCard.svelte";
     import TorrentCard from "$lib/components/TorrentCard.svelte";
     import Button from "$lib/components/ui/Button.svelte";
-    import Dialog from "$lib/components/ui/Dialog.svelte";
-    import Input from "$lib/components/ui/Input.svelte";
     import {
         type BrowseItem,
         createAddFromBrowseMutation,
@@ -16,7 +14,7 @@
         resolveTorrentCached,
         type SeasonSummary,
     } from "$lib/data/browse";
-    import { createAddMediaMutation, createDeleteMediaMutation } from "$lib/data/media";
+    import { createDeleteMediaMutation } from "$lib/data/media";
     import {
         type CatalogFilters,
         type CatalogSearchJsonResponse,
@@ -27,7 +25,7 @@
     } from "$lib/data/search";
     import { searchHistory } from "$lib/search-history.svelte";
     import type { CatalogSeason, Media, SeasonWithEpisodes } from "$lib/types";
-    import { confirmDelete, uiState } from "$lib/ui-state.svelte";
+    import { confirmDelete } from "$lib/ui-state.svelte";
     import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
@@ -55,15 +53,11 @@
         );
     });
 
-    let magnetInput = $state("");
-    let error = $state("");
-    let adding = $state(false);
     let resolvingItems = $state<Set<number>>(new Set());
     let addingItems = $state<Set<number>>(new Set());
     let seasonsCache = $state<Map<number, CatalogSeason[]>>(new Map());
     let seasonsLoading = $state<Set<number>>(new Set());
 
-    const addMediaMutation = createAddMediaMutation();
     const deleteMediaMutation = createDeleteMediaMutation();
     const addToLibraryMutation = createAddFromBrowseMutation();
 
@@ -257,29 +251,6 @@
                 }
             }
         );
-    }
-
-    async function addMagnet() {
-        if (!magnetInput.trim()) {
-            error = "Please enter a magnet link";
-            return;
-        }
-        if (!magnetInput.startsWith("magnet:")) {
-            error = "Invalid magnet link format";
-            return;
-        }
-        error = "";
-        adding = true;
-        try {
-            await addMediaMutation.mutateAsync({ magnetLink: magnetInput });
-            magnetInput = "";
-            uiState.addMediaDialogOpen = false;
-            await performSearch();
-        } catch (cause) {
-            error = (cause as Error).message || "Failed to add media";
-        } finally {
-            adding = false;
-        }
     }
 
     async function getMagnetLink(item: BrowseItem): Promise<string | null> {
@@ -550,26 +521,3 @@
         {/if}
     </section>
 </div>
-
-<!-- Add Media Dialog - Controlled by Global Store -->
-<Dialog
-    bind:open={uiState.addMediaDialogOpen}
-    title="Add Media"
-    description="Paste a magnet link to start downloading."
->
-    <div class="grid gap-4 py-4">
-        <Input
-            placeholder="magnet:?xt=urn:btih:..."
-            bind:value={magnetInput}
-            onkeydown={(e: KeyboardEvent) => e.key === "Enter" && addMagnet()}
-            autofocus
-        />
-        {#if error}
-            <p class="text-sm text-destructive">{error}</p>
-        {/if}
-    </div>
-    <div class="flex justify-end gap-2">
-        <Button variant="ghost" onclick={() => (uiState.addMediaDialogOpen = false)}>Cancel</Button>
-        <Button onclick={addMagnet} disabled={adding}>{adding ? "Adding..." : "Add"}</Button>
-    </div>
-</Dialog>

@@ -7,6 +7,7 @@
     import { page } from "$app/state";
     import { uiState } from "$lib/ui-state.svelte";
     import { cn } from "$lib/utils";
+    import AddMediaDialog from "./AddMediaDialog.svelte";
     import Facehash from "./facehash/Facehash.svelte";
 
     let {
@@ -181,5 +182,8 @@
                 </nav>
             </Tooltip.Provider>
         </div>
+
+        <!-- Mounts with the nav: the + button above is its only trigger. -->
+        <AddMediaDialog />
     {/if}
 </div>

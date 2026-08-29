@@ -3,7 +3,6 @@
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import { authClient } from "$lib/auth-client";
-    import AddMediaDialog from "$lib/components/AddMediaDialog.svelte";
     import ConfirmationDialog from "$lib/components/ConfirmationDialog.svelte";
     import InviteMemberDialog from "$lib/components/InviteMemberDialog.svelte";
     import Layout from "$lib/components/Layout.svelte";
@@ -55,5 +54,4 @@
     {@render children()}
     <InviteMemberDialog />
     <ConfirmationDialog />
-    <AddMediaDialog />
 </Layout>
