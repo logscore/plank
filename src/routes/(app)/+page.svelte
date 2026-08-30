@@ -127,20 +127,20 @@
     </header>
 
     {#if errorCount > 0}
-        <a
-            href="/errors"
-            class="mb-9 flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 transition-colors hover:border-red-500/60 hover:bg-red-500/15"
-        >
+        <div class="mb-9 flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
             <CircleAlert class="h-5 w-5 shrink-0 text-red-500" />
             <span class="text-red-400">
                 {errorCount}
                 {errorCount === 1 ? "item" : "items"} failed to download
             </span>
-            <span class="ml-auto flex shrink-0 items-center gap-1 text-sm font-medium text-red-300">
+            <a
+                href="/errors"
+                class="ml-auto flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-300 transition-colors hover:text-neutral-200 bg-red-100/10 py-1 px-2 rounded-lg"
+            >
                 Fix them
                 <ArrowRight class="h-4 w-4" />
-            </span>
-        </a>
+            </a>
+        </div>
     {/if}
 
     {#if continueWatching.length > 0}

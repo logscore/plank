@@ -6,7 +6,7 @@
 
 <div
     class={cn(
-        "relative aspect-2/3 rounded-lg bg-muted/30 animate-pulse border border-border/50",
+        "relative aspect-2/3 rounded-xl bg-muted/30 animate-pulse border border-border/50",
         className
     )}
     role="status"

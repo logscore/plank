@@ -206,7 +206,7 @@
     role="button"
     tabindex="0"
     class={cn(
-        "group relative aspect-2/3 cursor-pointer rounded-lg border border-border/50 bg-card shadow-lg outline-none transition-[border-color,box-shadow] duration-300 hover:z-20 hover:border-primary/50 hover:shadow-xl",
+        "group relative aspect-2/3 cursor-pointer rounded-xl border border-border/50 bg-card shadow-lg outline-none transition-[border-color,box-shadow] duration-300 hover:z-20 hover:border-primary/50 hover:shadow-xl",
         className,
     )}
 >

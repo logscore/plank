@@ -87,9 +87,9 @@
     onkeydown={handleKeydown}
     role="button"
     tabindex="0"
-    class="group relative aspect-2/3 rounded-lg border border-border/50 bg-card shadow-lg outline-none transition-[border-color,box-shadow] duration-300 hover:z-20 hover:border-red-500 hover:shadow-xl"
+    class="group relative aspect-2/3 rounded-xl border border-border/50 bg-card shadow-lg outline-none transition-[border-color,box-shadow] duration-300 hover:z-20 hover:border-red-500 hover:shadow-xl"
 >
-    <div class="absolute inset-0 overflow-hidden rounded-lg">
+    <div class="absolute inset-0 overflow-hidden rounded-xl">
         {#if media.type === "show"}
             <div
                 class="absolute left-2 top-2 z-10 flex items-center gap-1 rounded bg-primary/90 px-2 py-0.5 text-xs text-primary-foreground group-hover:hidden group-active:hidden {isMobileActive ||
@@ -119,7 +119,7 @@
     </div>
 
     <div
-        class="absolute inset-0 flex flex-col justify-between rounded-lg bg-black/60 p-4 backdrop-blur-sm transition-all duration-300 ease-out
+        class="absolute inset-0 flex flex-col justify-between rounded-xl bg-black/60 p-4 backdrop-blur-sm transition-all duration-300 ease-out
         {isMobileActive || optionsOpen
             ? 'pointer-events-auto translate-y-0 opacity-100'
             : 'pointer-events-none translate-y-2 opacity-0 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100'}"

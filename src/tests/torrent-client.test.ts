@@ -39,6 +39,34 @@ describe("WebTorrent client lifecycle", () => {
 		expect(webTorrentMock.construct).toHaveBeenCalledTimes(1);
 	});
 
+	it("applies the peer and cache limits that keep memory bounded", async () => {
+		const { getClient } = await import("../lib/server/torrent/client");
+
+		await getClient();
+
+		expect(webTorrentMock.construct).toHaveBeenCalledWith(expect.objectContaining({ maxConns: 30 }));
+	});
+
+	it("releases the client when the last download is cleaned up", async () => {
+		const { activeDownloads, cleanupDownload, getClient } = await import("../lib/server/torrent/client");
+		const client = await getClient();
+		const torrent = { destroy: vi.fn((_opts: unknown, callback: () => void) => callback()) };
+		activeDownloads.set("hash-1", { torrent } as never);
+		activeDownloads.set("hash-2", { torrent } as never);
+
+		cleanupDownload("hash-1", false);
+		await Promise.resolve();
+		expect(webTorrentMock.destroy).not.toHaveBeenCalled();
+
+		cleanupDownload("hash-2", false);
+		await Promise.resolve();
+
+		expect(webTorrentMock.destroy).toHaveBeenCalledTimes(1);
+		expect(activeDownloads.size).toBe(0);
+		// A later download must get a fresh client, not the destroyed one.
+		await expect(getClient()).resolves.not.toBe(client);
+	});
+
 	it("destroys the client once and blocks new work during shutdown", async () => {
 		const { getClient, pendingDownloads, shutdownTorrentClient } = await import("../lib/server/torrent/client");
 		await getClient();

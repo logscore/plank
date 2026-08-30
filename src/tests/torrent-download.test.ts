@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 	moveToLibrary: vi.fn(),
 	parseMagnet: vi.fn(() => ({ infohash: "hash-1", name: "Movie" })),
 	pendingDownloads: new Map(),
+	stopClientIfIdle: vi.fn(),
 }));
 
 vi.mock("node:fs/promises", () => ({
@@ -50,6 +51,7 @@ vi.mock("../lib/server/torrent/client", () => ({
 	getDownloadsForMedia: vi.fn(() => Array.from(mocks.activeDownloads.values())),
 	getOrAddTorrent: mocks.getOrAddTorrent,
 	pendingDownloads: mocks.pendingDownloads,
+	stopClientIfIdle: mocks.stopClientIfIdle,
 }));
 
 vi.mock("../lib/server/torrent/files", () => ({

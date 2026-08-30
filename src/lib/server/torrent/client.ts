@@ -88,16 +88,8 @@ let shuttingDown = false;
 const TRACKERS = [
 	"udp://tracker.opentrackr.org:1337/announce",
 	"udp://open.tracker.cl:1337/announce",
-	"udp://tracker.openbittorrent.com:6969/announce",
 	"udp://open.stealth.si:80/announce",
 	"udp://tracker.torrent.eu.org:451/announce",
-	"udp://exodus.desync.com:6969/announce",
-	"udp://tracker.moeking.me:6969/announce",
-	"udp://explodie.org:6969/announce",
-	"udp://tracker.dler.org:6969/announce",
-	"udp://tracker.theoks.net:6969/announce",
-	"http://tracker.openbittorrent.com:80/announce",
-	"http://tracker.opentrackr.org:1337/announce",
 ];
 
 export function getClient(): Promise<WebTorrentClient> {
@@ -106,7 +98,7 @@ export function getClient(): Promise<WebTorrentClient> {
 	}
 	if (!clientPromise) {
 		const torrentClient = new WebTorrent({
-			maxConns: 100,
+			maxConns: 55,
 			downloadLimit: -1,
 			uploadLimit: -1,
 		}) as unknown as WebTorrentClient;
@@ -233,17 +225,41 @@ export function getOrAddTorrent(
 	});
 }
 
+// Destroy the client when no download needs it.
+function releaseClientIfIdle(): void {
+	if (shuttingDown || activeDownloads.size > 0 || pendingDownloads.size > 0) {
+		return;
+	}
+
+	const idleClient = clientPromise;
+	if (!idleClient) {
+		return;
+	}
+
+	// Clear the handle first, so a download that starts during the destroy
+	// builds a new client instead of using the one that is going away.
+	clientPromise = null;
+	idleClient
+		.then((torrentClient) => {
+			torrentClient.destroy(() => {
+				console.log("[WebTorrent] Released idle client");
+			});
+		})
+		.catch((error) => {
+			console.error("[WebTorrent] Failed to release idle client:", error);
+		});
+}
+
 export function cleanupDownload(infohash: string, removeFiles: boolean): void {
 	const download = activeDownloads.get(infohash);
 	if (!download) {
 		return;
 	}
 
-	download.torrent.destroy({ destroyStore: removeFiles }, () => {
-		// console.log(`[${download.mediaId}:${infohash.slice(0, 8)}] Torrent destroyed`);
-	});
+	download.torrent.destroy({ destroyStore: removeFiles });
 
 	activeDownloads.delete(infohash);
+	releaseClientIfIdle();
 }
 
 export function hasActiveDownloads(): boolean {
