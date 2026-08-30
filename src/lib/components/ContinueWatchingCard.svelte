@@ -1,9 +1,12 @@
 <script lang="ts">
-    import { Play } from "@lucide/svelte";
+    import { Check, Play } from "@lucide/svelte";
     import { Progress } from "bits-ui";
+    import { createMarkWatchedMutation } from "$lib/data/media";
     import type { Media } from "$lib/types";
 
     let { media } = $props<{ media: Media }>();
+
+    const markWatchedMutation = createMarkWatchedMutation();
 
     const progress = $derived(
         media.playPosition && media.playDuration && media.playDuration > 0
@@ -15,44 +18,62 @@
     const imageUrl = $derived(media.backdropUrl ?? media.stillPath ?? media.posterUrl);
 </script>
 
-<a
-    href={link}
-    class="relative shrink-0 w-92 aspect-video rounded-lg overflow-hidden group shadow-lg border border-border/50 hover:border-primary/50 transition-all duration-300 hover:scale-[1.03]"
+<div
+    class="relative shrink-0 group transition duration-300 hover:scale-[1.03] {markWatchedMutation.isPending
+        ? 'pointer-events-none opacity-0 delay-200'
+        : ''}"
 >
-    <!-- Backdrop Image -->
-    {#if imageUrl}
-        <img src={imageUrl} alt={media.title} class="absolute inset-0 w-full h-full object-cover">
-    {:else}
-        <div class="absolute inset-0 bg-accent"></div>
-    {/if}
-
-    <!-- Bottom Gradient Overlay -->
-    <div class="absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-black via-black/75 to-transparent"></div>
-
-    <!-- Play Icon -->
-    <div
-        class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+    <a
+        href={link}
+        class="relative block w-92 aspect-video rounded-lg overflow-hidden shadow-lg border border-border/50 group-hover:border-primary/50 transition-colors duration-300"
     >
-        <div class="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
-            <Play class="w-6 h-6 text-black fill-black ml-0.5" />
-        </div>
-    </div>
-
-    <!-- Title & Progress -->
-    <div class="absolute bottom-0 left-0 right-0 p-3 space-y-2">
-        <h3 class="text-sm font-semibold text-white leading-tight truncate">{media.title}</h3>
-        {#if progress > 0}
-            <Progress.Root
-                value={progress}
-                max={100}
-                aria-label="Watch progress"
-                class="w-full h-1 bg-white/20 rounded-full overflow-hidden"
-            >
-                <div
-                    class="h-full bg-primary rounded-full transition-all duration-300"
-                    style="width: {progress}%"
-                ></div>
-            </Progress.Root>
+        <!-- Backdrop Image -->
+        {#if imageUrl}
+            <img src={imageUrl} alt={media.title} class="absolute inset-0 w-full h-full object-cover">
+        {:else}
+            <div class="absolute inset-0 bg-accent"></div>
         {/if}
-    </div>
-</a>
+
+        <!-- Bottom Gradient Overlay -->
+        <div class="absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-black via-black/75 to-transparent"></div>
+
+        <!-- Play Icon -->
+        <div
+            class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+        >
+            <div class="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                <Play class="w-6 h-6 text-black fill-black ml-0.5" />
+            </div>
+        </div>
+
+        <!-- Title & Progress -->
+        <div class="absolute bottom-0 left-0 right-0 p-3 space-y-2">
+            <h3 class="text-sm font-semibold text-white leading-tight truncate">{media.title}</h3>
+            {#if progress > 0}
+                <Progress.Root
+                    value={progress}
+                    max={100}
+                    aria-label="Watch progress"
+                    class="w-full h-1 bg-white/20 rounded-full overflow-hidden"
+                >
+                    <div
+                        class="h-full bg-primary rounded-full transition-all duration-300"
+                        style="width: {progress}%"
+                    ></div>
+                </Progress.Root>
+            {/if}
+        </div>
+    </a>
+
+    <button
+        type="button"
+        onclick={() => markWatchedMutation.mutate(media.id)}
+        disabled={markWatchedMutation.isPending}
+        aria-label="Mark {media.title} as watched"
+        class="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full text-white opacity-0 transition duration-100 focus-visible:opacity-100 group-hover:opacity-100 {markWatchedMutation.isPending
+            ? 'bg-green-700 opacity-100'
+            : 'bg-black/70 hover:bg-neutral-600 active:bg-green-700'}"
+    >
+        <Check class="h-5 w-5" />
+    </button>
+</div>

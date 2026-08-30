@@ -40,6 +40,20 @@ export function createDeleteMediaMutation() {
 	}));
 }
 
+/** Hold the checkmark on screen long enough to read before the card leaves. */
+const MARK_WATCHED_HOLD_MS = 500;
+
+export function createMarkWatchedMutation() {
+	return createMutation<void, Error, string>(() => ({
+		mutationFn: (id) =>
+			apiRequest<void>(`/api/media/${id}/watched`, "Failed to mark as watched", { method: "POST" }),
+		onSuccess: async () => {
+			await new Promise((resolve) => setTimeout(resolve, MARK_WATCHED_HOLD_MS));
+			await invalidate("/api/media");
+		},
+	}));
+}
+
 export interface RetryMediaInput {
 	id: string;
 	mode?: "same" | "replace" | "remove";

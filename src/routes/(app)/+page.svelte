@@ -1,6 +1,7 @@
 <script lang="ts">
     import { CircleAlert, Film, LoaderCircle } from "@lucide/svelte";
     import { untrack } from "svelte";
+    import { flip } from "svelte/animate";
     import { goto } from "$app/navigation";
     import CatalogFilterButton from "$lib/components/CatalogFilterButton.svelte";
     import ContinueWatchingCard from "$lib/components/ContinueWatchingCard.svelte";
@@ -91,6 +92,17 @@
         }
     }
 
+    /** Fade the row and collapse its height, so the titles below slide up when the last card leaves. */
+    function collapseRow(node: HTMLElement) {
+        const height = node.offsetHeight;
+        const marginBottom = Number.parseFloat(getComputedStyle(node).marginBottom);
+        return {
+            duration: 300,
+            css: (t: number) =>
+                `overflow: hidden; opacity: ${t}; height: ${t * height}px; margin-bottom: ${t * marginBottom}px;`,
+        };
+    }
+
     function deleteMedia(id: string) {
         confirmDelete(
             "Delete Media",
@@ -125,13 +137,15 @@
     {/if}
 
     {#if continueWatching.length > 0}
-        <section class="mb-10">
+        <section out:collapseRow class="mb-10">
             <div class="mb-3 flex items-end justify-between">
                 <h2 class="text-lg font-semibold text-white">Continue watching</h2>
             </div>
             <div class="-mx-2 flex gap-4 overflow-x-auto px-2 pb-4 pt-2 no-scrollbar">
                 {#each continueWatching as item (item.id)}
-                    <ContinueWatchingCard media={item} />
+                    <div class="shrink-0" animate:flip={{ duration: 300 }}>
+                        <ContinueWatchingCard media={item} />
+                    </div>
                 {/each}
             </div>
         </section>

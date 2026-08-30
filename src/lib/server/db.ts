@@ -356,6 +356,14 @@ export const mediaDb = {
 		db.update(mediaTable).set(updates).where(eq(mediaTable.id, id)).run();
 	},
 
+	/** Finish playback so getRecentlyWatched drops the row. */
+	markWatched(id: string) {
+		db.update(mediaTable)
+			.set({ playPosition: sql`COALESCE(${mediaTable.playDuration}, 0)` })
+			.where(eq(mediaTable.id, id))
+			.run();
+	},
+
 	getRecentlyWatched(organizationId: string, limit = 20): Media[] {
 		return db
 			.select()

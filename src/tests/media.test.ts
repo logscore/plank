@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { mediaDb, seasonsDb } from "$lib/server/db";
 import { schema } from "$lib/server/db/schema";
+import { POST as markWatchedRoute } from "../routes/api/media/[id]/watched/+server";
 import { db } from "./setup";
 
 const testUser = {
@@ -240,6 +241,40 @@ describe("unified media model", () => {
 		mediaDb.updateLastPlayed(episodeA.id);
 		const recentlyWatched = mediaDb.getRecentlyWatched(testOrg.id);
 		expect(recentlyWatched.map((item) => item.id)).toContain(episodeA.id);
+	});
+
+	it("drops a marked-watched episode with a known duration from continue watching", () => {
+		const { episodeA } = createShowHierarchy();
+		mediaDb.updatePlayPosition(episodeA.id, 120, 1800);
+		mediaDb.updateLastPlayed(episodeA.id);
+		mediaDb.markWatched(episodeA.id);
+		expect(mediaDb.getById(episodeA.id)?.playPosition).toBe(1800);
+		expect(mediaDb.getRecentlyWatched(testOrg.id).map((item) => item.id)).not.toContain(episodeA.id);
+	});
+
+	it("drops a marked-watched episode without a duration from continue watching", () => {
+		const { episodeA } = createShowHierarchy();
+		mediaDb.updatePlayPosition(episodeA.id, 120);
+		mediaDb.updateLastPlayed(episodeA.id);
+		expect(mediaDb.getRecentlyWatched(testOrg.id).map((item) => item.id)).toContain(episodeA.id);
+		mediaDb.markWatched(episodeA.id);
+		expect(mediaDb.getById(episodeA.id)?.playPosition).toBe(0);
+		expect(mediaDb.getRecentlyWatched(testOrg.id).map((item) => item.id)).not.toContain(episodeA.id);
+	});
+
+	it("marks watched through the API route", async () => {
+		const { episodeA } = createShowHierarchy();
+		mediaDb.updatePlayPosition(episodeA.id, 120, 1800);
+		mediaDb.updateLastPlayed(episodeA.id);
+		const locals = {
+			user: { id: testUser.id },
+			session: { activeOrganizationId: testOrg.id },
+		} as unknown as App.Locals;
+
+		const response = await markWatchedRoute({ params: { id: episodeA.id }, locals } as never);
+
+		expect(response.status).toBe(204);
+		expect(mediaDb.getRecentlyWatched(testOrg.id).map((item) => item.id)).not.toContain(episodeA.id);
 	});
 
 	it("cascades show deletion to seasons and episodes", () => {
