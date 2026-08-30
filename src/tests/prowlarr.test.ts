@@ -6,6 +6,7 @@ import {
 	type IndexerResult,
 	parseProwlarrResults,
 	searchProwlarr,
+	searchSourceCandidates,
 	selectBestTorrent,
 } from "$lib/server/prowlarr";
 import { updateSettings } from "$lib/server/settings";
@@ -290,6 +291,73 @@ describe("Prowlarr Client", () => {
 
 			const results = await searchProwlarr("tt1234567");
 			expect(results).toEqual([]);
+		});
+	});
+
+	describe("searchSourceCandidates", () => {
+		const rawResults = [
+			{
+				title: "Movie.2024.720p.WEBRip-GROUP",
+				downloadUrl: "http://localhost:9696/1/download?apikey=secret&link=abc",
+				infoHash: "aaa",
+				size: 1_000_000_000,
+				seeders: 10,
+				publishDate: "2024-01-15T12:00:00Z",
+				guid: "1",
+			},
+			{
+				title: "Movie.2024.1080p.BluRay-GROUP",
+				magnetUrl: "magnet:?xt=urn:btih:bbb",
+				infoHash: "bbb",
+				size: 2_000_000_000,
+				seeders: 200,
+				publishDate: "2024-01-15T12:00:00Z",
+				guid: "2",
+			},
+			{
+				title: "Movie.2024.CAM.XviD",
+				magnetUrl: "magnet:?xt=urn:btih:ccc",
+				infoHash: "ccc",
+				size: 700_000_000,
+				seeders: 900,
+				publishDate: "2024-01-15T12:00:00Z",
+				guid: "3",
+			},
+			{
+				title: "Movie.2024.1080p.BluRay-GROUP",
+				magnetUrl: "magnet:?xt=urn:btih:bbb",
+				infoHash: "BBB",
+				size: 2_000_000_000,
+				seeders: 200,
+				publishDate: "2024-01-15T12:00:00Z",
+				guid: "4",
+			},
+		];
+
+		it("keeps every acceptable release, best first, without duplicates", async () => {
+			mockFetch.mockResolvedValueOnce({ ok: true, json: async () => rawResults });
+
+			const results = await searchSourceCandidates("Movie 2024", false);
+
+			expect(results.map((result) => result.infohash)).toEqual(["bbb", "aaa"]);
+		});
+
+		it("searches the TV category for an episode", async () => {
+			mockFetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+
+			await searchSourceCandidates("Show S01E02", true);
+
+			const url = mockFetch.mock.calls[0][0] as string;
+			expect(url).toContain("categories=5000");
+		});
+
+		it("strips the Prowlarr API key from download links", async () => {
+			mockFetch.mockResolvedValueOnce({ ok: true, json: async () => rawResults });
+
+			const results = await searchSourceCandidates("Movie 2024", false);
+
+			const downloadLink = results.find((result) => result.infohash === "aaa");
+			expect(downloadLink?.magnetUri).toBe("http://localhost:9696/1/download?link=abc");
 		});
 	});
 

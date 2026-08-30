@@ -16,27 +16,22 @@
     import { goto } from "$app/navigation";
     import { connectMediaProgressStream } from "$lib/client/media-progress-stream";
     import OpenSubtitlesDialog from "$lib/components/OpenSubtitlesDialog.svelte";
+    import RedownloadDialog from "$lib/components/RedownloadDialog.svelte";
     import SubtitleMenu from "$lib/components/SubtitleMenu.svelte";
     import Button from "$lib/components/ui/Button.svelte";
-    import Dialog from "$lib/components/ui/Dialog.svelte";
-    import Input from "$lib/components/ui/Input.svelte";
     import Tip from "$lib/components/ui/Tip.svelte";
-    import { createDeleteMediaMutation, createRetryMediaMutation } from "$lib/data/media";
+    import { createDeleteMediaMutation } from "$lib/data/media";
     import { confirmDelete } from "$lib/ui-state.svelte";
     import { formatFileSize, isTerminalProgressStatus } from "$lib/utils";
     import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
     let deleting = $state(false);
-    let retrying = $state(false);
     let copied = $state(false);
     let redownloadDialogOpen = $state(false);
-    let retryError = $state("");
-    let manualSourceInput = $state("");
 
     // Mutations
     const deleteMediaMutation = createDeleteMediaMutation();
-    const retryMediaMutation = createRetryMediaMutation();
 
     // OpenSubtitles Dialog state
     let openSubtitlesDialogOpen = $state(false);
@@ -161,71 +156,15 @@
         stopStream();
     });
 
-    function openRedownloadDialog() {
-        retryError = "";
-        manualSourceInput = "";
-        redownloadDialogOpen = true;
-    }
-
-    function closeRedownloadDialog() {
-        redownloadDialogOpen = false;
-        retryError = "";
-        manualSourceInput = "";
-    }
-
-    async function runMovieRetry(body?: { mode?: "same" | "replace"; magnetLink?: string }) {
-        retrying = true;
-        retryError = "";
-        try {
-            await retryMediaMutation.mutateAsync({
-                id: data.media.id,
-                mode: body?.mode,
-                magnetLink: body?.magnetLink,
-            });
-            if (body?.mode === "replace" && body.magnetLink) {
-                data = {
-                    ...data,
-                    media: {
-                        ...data.media,
-                        magnetLink: body.magnetLink,
-                    },
-                };
-            }
-            liveStatus = "pending";
-            liveProgress = 0;
-            downloadSpeed = 0;
-            peers = 0;
-            liveFileSize = null;
-            stopStream();
-            startStream();
-            return true;
-        } catch (error) {
-            console.error("Failed to retry download:", error);
-            retryError = error instanceof Error ? error.message : "Failed to retry download";
-            return false;
-        } finally {
-            retrying = false;
-        }
-    }
-
-    async function handleRetryCurrentSource() {
-        const success = await runMovieRetry({ mode: "same" });
-        if (success) {
-            closeRedownloadDialog();
-        }
-    }
-
-    async function handleManualSourceSubmit() {
-        if (!manualSourceInput.trim()) {
-            return;
-        }
-        const success = await runMovieRetry({
-            mode: "replace",
-            magnetLink: manualSourceInput.trim(),
-        });
-        if (success) {
-            closeRedownloadDialog();
-        }
+    /** The queued download starts from zero, so watch it again from the start. */
+    function handleRetried() {
+        liveStatus = "pending";
+        liveProgress = 0;
+        downloadSpeed = 0;
+        peers = 0;
+        liveFileSize = null;
+        stopStream();
+        startStream();
     }
 
     async function handleDelete() {
@@ -345,7 +284,11 @@
                 <!-- Action Buttons -->
                 <div class="flex flex-wrap items-center gap-3">
                     {#if liveStatus === "error"}
-                        <Button size="lg" class="px-8 bg-yellow-600 hover:bg-yellow-500" onclick={openRedownloadDialog}>
+                        <Button
+                            size="lg"
+                            class="px-8 bg-yellow-600 hover:bg-yellow-500"
+                            onclick={() => (redownloadDialogOpen = true)}
+                        >
                             <RotateCcw class="w-5 h-5 mr-2" />
                             Redownload
                         </Button>
@@ -402,7 +345,7 @@
                                     variant="ghost"
                                     size="sm"
                                     class="h-8 w-8 p-0 text-muted-foreground hover:text-white"
-                                    onclick={openRedownloadDialog}
+                                    onclick={() => (redownloadDialogOpen = true)}
                                     aria-label="Redownload Content"
                                 >
                                     <RefreshCw class="w-4 h-4" />
@@ -530,51 +473,6 @@
     </div>
 </div>
 
-<Dialog
-    bind:open={redownloadDialogOpen}
-    title={`Redownload ${data.media.title}`}
-    description="Reuse the saved source or paste a magnet link or torrent URL manually."
->
-    <div class="space-y-5 py-1">
-        <div class="space-y-3">
-            <div class="space-y-1">
-                <p class="text-sm font-medium">Saved source</p>
-                <p class="text-sm text-muted-foreground">Retry the source already stored on this movie.</p>
-            </div>
-            <Button onclick={handleRetryCurrentSource} disabled={!data.media.magnetLink || retrying}>
-                <RotateCcw class="w-4 h-4 mr-2" />
-                {retrying ? "Retrying..." : "Retry saved source"}
-            </Button>
-            {#if !data.media.magnetLink}
-                <p class="text-sm text-muted-foreground">
-                    This movie does not have a saved source yet. Paste a new one below.
-                </p>
-            {/if}
-        </div>
-
-        <div class="space-y-3 border-t border-border pt-4">
-            <div class="space-y-1">
-                <p class="text-sm font-medium">Manual source</p>
-                <p class="text-sm text-muted-foreground">Paste a magnet link or a direct torrent URL.</p>
-            </div>
-            <Input
-                placeholder="magnet:?xt=urn:btih:... or https://..."
-                bind:value={manualSourceInput}
-                onkeydown={(event) =>
-                    event.key === "Enter" && handleManualSourceSubmit()}
-            />
-            <div class="flex justify-end gap-2">
-                <Button variant="ghost" onclick={closeRedownloadDialog}>Cancel</Button>
-                <Button onclick={handleManualSourceSubmit} disabled={retrying || !manualSourceInput.trim()}>
-                    {retrying ? "Starting..." : "Use manual source"}
-                </Button>
-            </div>
-        </div>
-
-        {#if retryError}
-            <p class="text-sm text-destructive">{retryError}</p>
-        {/if}
-    </div>
-</Dialog>
+<RedownloadDialog bind:open={redownloadDialogOpen} media={data.media} onRetried={handleRetried} />
 
 <OpenSubtitlesDialog bind:open={openSubtitlesDialogOpen} mediaId={data.media.id} mediaTitle={data.media.title} />

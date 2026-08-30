@@ -1,6 +1,6 @@
-import { createMutation } from "@tanstack/svelte-query";
+import { createMutation, createQuery } from "@tanstack/svelte-query";
 import { invalidate } from "$app/navigation";
-import type { Media, MediaType, OpenSubtitleResult } from "$lib/types";
+import type { Media, MediaType, OpenSubtitleResult, SourceCandidate } from "$lib/types";
 import { apiRequest } from "./client";
 
 export interface AddMediaParams {
@@ -153,6 +153,33 @@ export function createSavePositionMutation() {
 				method: "PUT",
 				json: { position: params.position, duration: params.duration },
 			}),
+	}));
+}
+
+interface SourceSearchResult {
+	/** The text the server searched with, so the caller can show it. */
+	query: string;
+	results: SourceCandidate[];
+}
+
+/** An indexer search takes seconds, so hold the result while the user works on one title. */
+const SOURCES_STALE_TIME_MS = 10 * 60 * 1000;
+
+const mediaKeys = {
+	sources: (mediaId: string | null) => ["media", mediaId, "sources"] as const,
+};
+
+function searchMediaSources(mediaId: string): Promise<SourceSearchResult> {
+	return apiRequest(`/api/media/${mediaId}/sources`, "Failed to search indexers");
+}
+
+/** Cached indexer releases for one title. Reopening the dialog reuses the last search. */
+export function createMediaSourcesQuery(mediaId: () => string | null, enabled: () => boolean) {
+	return createQuery(() => ({
+		queryKey: mediaKeys.sources(mediaId()),
+		queryFn: () => searchMediaSources(mediaId() as string),
+		enabled: enabled() && mediaId() !== null,
+		staleTime: SOURCES_STALE_TIME_MS,
 	}));
 }
 

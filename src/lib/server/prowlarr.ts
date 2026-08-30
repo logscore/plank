@@ -262,6 +262,43 @@ async function tryFetchMagnet(fetchUrl: string): Promise<string | null> {
 }
 
 /**
+ * Remove the Prowlarr API key from a download link.
+ * Links leave the server without the key, so a browser never holds it.
+ */
+function stripApiKey(url: string): string {
+	if (!url.startsWith("http")) {
+		return url;
+	}
+	try {
+		const target = new URL(url);
+		target.searchParams.delete("apikey");
+		return target.toString();
+	} catch {
+		return url;
+	}
+}
+
+/**
+ * Put the Prowlarr API key back on a download link before the server fetches it.
+ * Only links to the configured Prowlarr host get the key.
+ */
+async function addApiKey(url: string): Promise<string> {
+	try {
+		const settings = await getSettings();
+		const target = new URL(url);
+		const configured = new URL(settings.prowlarr.url);
+		const isProwlarrHost = target.hostname === configured.hostname || isLocalhost(target.hostname);
+		if (isProwlarrHost && settings.prowlarr.apiKey && !target.searchParams.has("apikey")) {
+			target.searchParams.set("apikey", settings.prowlarr.apiKey);
+			return target.toString();
+		}
+	} catch {
+		// Ignore URL parsing errors
+	}
+	return url;
+}
+
+/**
  * Rewrite URL to use configured Prowlarr host (for Docker scenarios)
  */
 async function rewriteUrlForConfig(url: string): Promise<string> {
@@ -296,7 +333,8 @@ export async function resolveMagnetLink(url: string): Promise<string> {
 	}
 
 	// Try with rewritten URL (for Docker scenarios)
-	const primaryUrl = await rewriteUrlForConfig(url);
+	const authorizedUrl = await addApiKey(url);
+	const primaryUrl = await rewriteUrlForConfig(authorizedUrl);
 	const primaryResult = await tryFetchMagnet(primaryUrl);
 	if (primaryResult) {
 		return primaryResult;
@@ -304,7 +342,7 @@ export async function resolveMagnetLink(url: string): Promise<string> {
 
 	// Fallback: try 'prowlarr' service name for docker-compose
 	try {
-		const targetUrl = new URL(url);
+		const targetUrl = new URL(authorizedUrl);
 		if (isLocalhost(targetUrl.hostname)) {
 			targetUrl.hostname = "prowlarr";
 			const fallbackUrl = targetUrl.toString();
@@ -564,6 +602,22 @@ export async function findBestTorrent(imdbId: string, options?: FindBestTorrentO
 	}
 
 	return best;
+}
+
+/** Cap on releases handed to the source picker. Keeps the response small and readable. */
+const MAX_SOURCE_CANDIDATES = 40;
+
+/**
+ * Search indexers and return every acceptable release, best first.
+ * findBestTorrent picks one release; this lets a person pick one instead.
+ */
+export async function searchSourceCandidates(query: string, isEpisode: boolean): Promise<IndexerResult[]> {
+	const results = await searchProwlarr(query, isEpisode ? TV_SEARCH_CATEGORY : undefined);
+	const candidates = dedupeResults(filterByQuality(results));
+	candidates.sort((a, b) => calculateScore(b) - calculateScore(a));
+	return candidates
+		.slice(0, MAX_SOURCE_CANDIDATES)
+		.map((candidate) => ({ ...candidate, magnetUri: stripApiKey(candidate.magnetUri) }));
 }
 
 /**

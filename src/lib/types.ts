@@ -86,6 +86,18 @@ export interface ProgressInfo {
 	fileSize?: number;
 }
 
+/** One indexer release a person can pick as a new download source. */
+export interface SourceCandidate {
+	title: string;
+	magnetUri: string;
+	infohash: string;
+	size: number;
+	seeders: number;
+	peers: number;
+	publishDate: string;
+	indexer: string;
+}
+
 export interface OpenSubtitleResult {
 	id: string;
 	fileId: number;
