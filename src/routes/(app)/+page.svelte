@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { CircleAlert, Film, LoaderCircle } from "@lucide/svelte";
+    import { ArrowRight, CircleAlert, Film, LoaderCircle } from "@lucide/svelte";
     import { untrack } from "svelte";
     import { flip } from "svelte/animate";
     import { goto } from "$app/navigation";
@@ -127,13 +127,20 @@
     </header>
 
     {#if errorCount > 0}
-        <div class="mb-9 flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+        <a
+            href="/errors"
+            class="mb-9 flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 transition-colors hover:border-red-500/60 hover:bg-red-500/15"
+        >
             <CircleAlert class="h-5 w-5 shrink-0 text-red-500" />
             <span class="text-red-400">
                 {errorCount}
                 {errorCount === 1 ? "item" : "items"} failed to download
             </span>
-        </div>
+            <span class="ml-auto flex shrink-0 items-center gap-1 text-sm font-medium text-red-300">
+                Fix them
+                <ArrowRight class="h-4 w-4" />
+            </span>
+        </a>
     {/if}
 
     {#if continueWatching.length > 0}

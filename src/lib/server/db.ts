@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, gte, isNull, like, lte, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, like, lte, or, type SQL, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { type CatalogFilters, getCatalogGenreLabels } from "$lib/data/search";
 import {
 	type Download,
@@ -14,7 +15,7 @@ import {
 	seasons as seasonsTable,
 	subtitles as subtitlesTable,
 } from "$lib/server/db/schema";
-import type { MediaStatus, MediaType } from "$lib/types";
+import type { MediaType } from "$lib/types";
 import { db } from "./db/index";
 
 function removeUndefinedFromObject<T extends Record<string, unknown>>(obj: T): Partial<T> {
@@ -56,14 +57,49 @@ function getCatalogMediaConditions(organizationId: string, query: string, filter
 	return conditions;
 }
 
+/** Statuses that mean the download stopped and the user can retry it with a new source. */
+const DOWNLOAD_ERROR_STATUSES = ["error", "not_found"] as const;
+
+const parentMediaTable = alias(mediaTable, "parent_media");
+
 export const mediaDb = {
-	countByStatus(organizationId: string, status: MediaStatus): number {
+	countDownloadErrors(organizationId: string): number {
 		const row = db
 			.select({ total: sql<number>`count(*)` })
 			.from(mediaTable)
-			.where(and(eq(mediaTable.organizationId, organizationId), eq(mediaTable.status, status)))
+			.where(
+				and(
+					eq(mediaTable.organizationId, organizationId),
+					inArray(mediaTable.status, [...DOWNLOAD_ERROR_STATUSES])
+				)
+			)
 			.get();
 		return row?.total ?? 0;
+	},
+
+	/** Movies sorted by title, episodes sorted by show, then season, then episode number. */
+	listDownloadErrors(organizationId: string) {
+		const failed = inArray(mediaTable.status, [...DOWNLOAD_ERROR_STATUSES]);
+		const movies = db
+			.select()
+			.from(mediaTable)
+			.where(and(eq(mediaTable.organizationId, organizationId), eq(mediaTable.type, "movie"), failed))
+			.orderBy(asc(mediaTable.title))
+			.all();
+		const episodeRows = db
+			.select({ episode: mediaTable, showTitle: parentMediaTable.title })
+			.from(mediaTable)
+			.leftJoin(parentMediaTable, eq(mediaTable.parentId, parentMediaTable.id))
+			.where(and(eq(mediaTable.organizationId, organizationId), eq(mediaTable.type, "episode"), failed))
+			.orderBy(
+				asc(parentMediaTable.title),
+				asc(mediaTable.seasonNumber),
+				asc(mediaTable.displayOrder),
+				asc(mediaTable.episodeNumber)
+			)
+			.all();
+		const episodes = episodeRows.map((row) => ({ ...row.episode, showTitle: row.showTitle }));
+		return { movies, episodes };
 	},
 	list(organizationId: string, type?: MediaType): Media[] {
 		const conditions = [eq(mediaTable.organizationId, organizationId)];

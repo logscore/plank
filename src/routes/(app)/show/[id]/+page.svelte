@@ -1,14 +1,13 @@
 <script lang="ts">
-    import { ArrowLeft, Calendar, Database, EllipsisVertical, Film, Play, RotateCcw, Trash2 } from "@lucide/svelte";
-    import { DropdownMenu, Tabs } from "bits-ui";
+    import { ArrowLeft, Calendar, Database, Film, Trash2 } from "@lucide/svelte";
+    import { Tabs } from "bits-ui";
     import { goto, invalidate, replaceState } from "$app/navigation";
     import { page } from "$app/state";
     import EpisodeSelector from "$lib/components/EpisodeSelector.svelte";
+    import MediaRow from "$lib/components/MediaRow.svelte";
     import OpenSubtitlesDialog from "$lib/components/OpenSubtitlesDialog.svelte";
-    import SubtitleMenu from "$lib/components/SubtitleMenu.svelte";
+    import RedownloadDialog from "$lib/components/RedownloadDialog.svelte";
     import Button from "$lib/components/ui/Button.svelte";
-    import Dialog from "$lib/components/ui/Dialog.svelte";
-    import Input from "$lib/components/ui/Input.svelte";
     import { createDeleteMediaMutation, createRetryMediaMutation } from "$lib/data/media";
     import type { Media, SeasonWithEpisodes } from "$lib/types";
     import { confirmDelete, uiState } from "$lib/ui-state.svelte";
@@ -23,8 +22,6 @@
     let retryingEpisodeIds = $state<Set<string>>(new Set());
     let redownloadDialogOpen = $state(false);
     let selectedEpisode = $state<Media | null>(null);
-    let retryDialogError = $state("");
-    let manualSourceInput = $state("");
     // OpenSubtitles dialog state
     let openSubtitlesDialogOpen = $state(false);
     let subtitleDialogMediaId = $state<string | undefined>(undefined);
@@ -48,67 +45,13 @@
         }
     }
 
-    function isEpisodeRemoved(episode: Media): boolean {
-        return episode.status === "removed";
-    }
-
-    function getEpisodeStatusLabel(episode: Media): string {
-        if (episode.status === "complete" || episode.filePath) {
-            return "Downloaded";
-        }
-        if (episode.status === "removed") {
-            return "Removed";
-        }
-        if (episode.status === "searching") {
-            return "Searching";
-        }
-        if (episode.status === "downloading") {
-            return "Downloading";
-        }
-        if (episode.status === "not_found") {
-            return "Not Found";
-        }
-        if (episode.status === "error") {
-            return "Error";
-        }
-        return "Pending";
-    }
-
-    function getEpisodeStatusClass(episode: Media): string {
-        if (episode.status === "complete" || episode.filePath) {
-            return "bg-emerald-500 text-emerald-100";
-        }
-        if (episode.status === "removed") {
-            return "bg-rose-500 text-rose-100";
-        }
-        if (episode.status === "downloading") {
-            return "bg-blue-500 text-blue-100";
-        }
-        if (episode.status === "searching") {
-            return "bg-amber-500 text-amber-100";
-        }
-        if (episode.status === "not_found" || episode.status === "error") {
-            return "bg-red-500 text-red-100";
-        }
-        return "bg-muted text-muted-foreground";
-    }
-
-    function getEpisodeCardClass(episode: Media): string {
-        return isEpisodeRemoved(episode) ? "border-rose-500/40 bg-rose-500/5" : "border-border hover:border-primary/50";
-    }
-
     function openRedownloadDialog(episode: Media) {
         selectedEpisode = episode;
         redownloadDialogOpen = true;
-        retryDialogError = "";
-        manualSourceInput = "";
     }
 
-    function closeRedownloadDialog() {
-        redownloadDialogOpen = false;
-        selectedEpisode = null;
-        retryDialogError = "";
-        manualSourceInput = "";
+    async function refreshShow() {
+        await invalidate(`/api/media/${media.id}`);
     }
 
     async function runEpisodeRetry(
@@ -120,7 +63,6 @@
         }
 
         retryingEpisodeIds = new Set(retryingEpisodeIds).add(episode.id);
-        retryDialogError = "";
         try {
             await retryMediaMutation.mutateAsync({
                 id: episode.id,
@@ -131,37 +73,11 @@
             return true;
         } catch (error) {
             console.error("Failed to run episode retry action:", error);
-            retryDialogError = error instanceof Error ? error.message : "Episode action failed";
             return false;
         } finally {
             const updated = new Set(retryingEpisodeIds);
             updated.delete(episode.id);
             retryingEpisodeIds = updated;
-        }
-    }
-
-    async function handleRetryCurrentSource() {
-        if (!selectedEpisode) {
-            return;
-        }
-        const success = await runEpisodeRetry(selectedEpisode, {
-            mode: "same",
-        });
-        if (success) {
-            closeRedownloadDialog();
-        }
-    }
-
-    async function handleManualSourceSubmit() {
-        if (!(selectedEpisode && manualSourceInput.trim())) {
-            return;
-        }
-        const success = await runEpisodeRetry(selectedEpisode, {
-            mode: "replace",
-            magnetLink: manualSourceInput.trim(),
-        });
-        if (success) {
-            closeRedownloadDialog();
         }
     }
 
@@ -468,156 +384,16 @@
                         <!-- Episode List -->
                         {#if currentSeason}
                             <Tabs.Content value={String(currentSeason.seasonNumber)} class="space-y-4">
-                                {#each currentSeason.episodes as episode}
-                                    <div
-                                        class="group flex gap-4 rounded-2xl border bg-card/70 p-4 transition-colors {getEpisodeCardClass(
-                                        episode,
-                                    )}"
-                                    >
-                                        <!-- Episode Thumbnail -->
-                                        <div
-                                            class="shrink-0 w-32 md:w-48 aspect-video rounded overflow-hidden bg-accent relative"
-                                        >
-                                            {#if episode.stillPath}
-                                                <img
-                                                    src={episode.stillPath}
-                                                    alt={episode.title ??
-                                                    `Episode ${episode.episodeNumber}`}
-                                                    class="w-full h-full object-cover"
-                                                >
-                                            {:else}
-                                                <div
-                                                    class="w-full h-full flex items-center justify-center text-muted-foreground"
-                                                >
-                                                    <Play class="w-8 h-8" />
-                                                </div>
-                                            {/if}
-                                            <div
-                                                class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] {getEpisodeStatusClass(
-                                                episode,
-                                            )}"
-                                            >
-                                                {getEpisodeStatusLabel(episode)}
-                                            </div>
-                                        </div>
-
-                                        <!-- Episode Info -->
-                                        <div class="flex-1 min-w-0 flex flex-col justify-between py-1">
-                                            <div>
-                                                <div class="flex items-start justify-between gap-4">
-                                                    <h3 class="font-semibold text-base md:text-lg line-clamp-1">
-                                                        <span class="text-muted-foreground mr-1"
-                                                            >{episode.episodeNumber}.</span
-                                                        >
-                                                        {episode.title ||
-                                                        `Episode ${episode.episodeNumber}`}
-                                                    </h3>
-                                                </div>
-
-                                                <div
-                                                    class="flex items-center gap-3 text-xs md:text-sm text-muted-foreground mt-1"
-                                                >
-                                                    {#if episode.runtime}
-                                                        <span
-                                                            >{formatRuntime(
-                                                            episode.runtime,
-                                                        )}</span
-                                                        >
-                                                    {/if}
-                                                    {#if episode.airDate}
-                                                        <span>• {episode.airDate}</span>
-                                                    {/if}
-                                                </div>
-                                            </div>
-
-                                            <div class="flex items-center justify-between mt-2 md:mt-0">
-                                                {#if episode.overview}
-                                                    <p
-                                                        class="text-xs text-muted-foreground line-clamp-2 pr-4 hidden md:block"
-                                                    >
-                                                        {episode.overview}
-                                                    </p>
-                                                {/if}
-
-                                                <div class="flex items-center gap-1 shrink-0 ml-auto">
-                                                    {#if media}
-                                                        <SubtitleMenu
-                                                            mediaId={episode.id}
-                                                            tracks={data.subtitleTracksByMediaId[episode.id] ?? []}
-                                                            onAddSubtitles={() =>
-                                                            openSubtitlesForEpisode(
-                                                                episode,
-                                                            )}
-                                                            compact
-                                                        />
-                                                    {/if}
-                                                    <Button
-                                                        size="sm"
-                                                        disabled={!canPlayEpisode(
-                                                        episode,
-                                                    )}
-                                                        onclick={() =>
-                                                        handlePlayEpisode(
-                                                            episode,
-                                                        )}
-                                                    >
-                                                        <Play class="w-4 h-4 mr-1 fill-current" />
-                                                        Play
-                                                    </Button>
-                                                    <DropdownMenu.Root>
-                                                        <DropdownMenu.Trigger
-                                                            class="inline-flex h-10 w-10 items-center justify-center rounded-md text-white transition-colors hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-                                                            aria-label="Episode actions"
-                                                        >
-                                                            <EllipsisVertical class="h-4 w-4" />
-                                                        </DropdownMenu.Trigger>
-                                                        <DropdownMenu.Portal>
-                                                            <DropdownMenu.Content
-                                                                side="bottom"
-                                                                align="end"
-                                                                sideOffset={8}
-                                                                class="z-50 w-44 overflow-hidden rounded-xl border border-white/10 bg-black/95 p-1.5 text-gray-200 shadow-2xl backdrop-blur-xl focus:outline-none"
-                                                            >
-                                                                <DropdownMenu.Item
-                                                                    disabled={retryingEpisodeIds.has(
-                                                                    episode.id,
-                                                                )}
-                                                                    onSelect={() =>
-                                                                    openRedownloadDialog(
-                                                                        episode,
-                                                                    )}
-                                                                    class="flex h-10 cursor-default select-none items-center gap-2 rounded-lg px-3 text-sm outline-none data-highlighted:bg-white/10 data-disabled:pointer-events-none data-disabled:opacity-50"
-                                                                >
-                                                                    <RotateCcw class="h-4 w-4" />
-                                                                    {retryingEpisodeIds.has(
-                                                                    episode.id,
-                                                                )
-                                                                    ? "Working..."
-                                                                    : "Redownload"}
-                                                                </DropdownMenu.Item>
-                                                                <DropdownMenu.Item
-                                                                    disabled={retryingEpisodeIds.has(
-                                                                    episode.id,
-                                                                ) ||
-                                                                    isEpisodeRemoved(
-                                                                        episode,
-                                                                    )}
-                                                                    onSelect={() =>
-                                                                    handleRemoveEpisodeDownload(
-                                                                        episode,
-                                                                    )}
-                                                                    class="flex h-10 cursor-default select-none items-center gap-2 rounded-lg px-3 text-sm text-red-400 outline-none data-highlighted:bg-red-500/10 data-disabled:pointer-events-none data-disabled:opacity-50"
-                                                                >
-                                                                    <Trash2 class="h-4 w-4" />
-                                                                    Delete
-                                                                </DropdownMenu.Item>
-                                                            </DropdownMenu.Content>
-                                                        </DropdownMenu.Portal>
-                                                    </DropdownMenu.Root>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                {#each currentSeason.episodes as episode (episode.id)}
+                                    <MediaRow
+                                        media={episode}
+                                        busy={retryingEpisodeIds.has(episode.id)}
+                                        subtitleTracks={data.subtitleTracksByMediaId[episode.id] ?? []}
+                                        onPlay={handlePlayEpisode}
+                                        onRedownload={openRedownloadDialog}
+                                        onRemoveDownload={handleRemoveEpisodeDownload}
+                                        onAddSubtitles={openSubtitlesForEpisode}
+                                    />
                                 {/each}
 
                                 {#if currentSeason.episodes.length === 0}
@@ -715,64 +491,7 @@
         </div>
     </div>
 
-    <Dialog
-        bind:open={redownloadDialogOpen}
-        title={selectedEpisode
-            ? `Redownload ${selectedEpisode.title || `Episode ${selectedEpisode.episodeNumber}`}`
-            : "Redownload Episode"}
-        description="Reuse the saved source or paste a magnet link or torrent URL manually."
-        class="max-w-xl"
-    >
-        <div class="space-y-5">
-            <div class="space-y-3">
-                <div class="space-y-1">
-                    <p class="text-sm font-medium">Saved source</p>
-                    <p class="text-sm text-muted-foreground">Retry the source already stored on this episode.</p>
-                </div>
-                <Button
-                    onclick={handleRetryCurrentSource}
-                    disabled={!selectedEpisode ||
-                        !selectedEpisode.magnetLink ||
-                        retryingEpisodeIds.has(selectedEpisode.id)}
-                >
-                    <RotateCcw class="w-4 h-4 mr-2" />
-                    Retry saved source
-                </Button>
-                {#if selectedEpisode && !selectedEpisode.magnetLink}
-                    <p class="text-sm text-muted-foreground">
-                        This episode does not have a saved source yet. Paste a new one below.
-                    </p>
-                {/if}
-            </div>
-
-            <div class="space-y-3 border-t border-border pt-4">
-                <div class="space-y-1">
-                    <p class="text-sm font-medium">Manual source</p>
-                    <p class="text-sm text-muted-foreground">Paste a magnet link or a direct torrent URL.</p>
-                </div>
-                <Input
-                    bind:value={manualSourceInput}
-                    placeholder="magnet:?xt=urn:btih:... or https://..."
-                    onkeydown={(event) =>
-                        event.key === "Enter" && handleManualSourceSubmit()}
-                />
-                <div class="flex justify-end">
-                    <Button
-                        onclick={handleManualSourceSubmit}
-                        disabled={!selectedEpisode ||
-                            retryingEpisodeIds.has(selectedEpisode.id) ||
-                            !manualSourceInput.trim()}
-                    >
-                        Use manual source
-                    </Button>
-                </div>
-            </div>
-
-            {#if retryDialogError}
-                <p class="text-sm text-destructive">{retryDialogError}</p>
-            {/if}
-        </div>
-    </Dialog>
+    <RedownloadDialog bind:open={redownloadDialogOpen} media={selectedEpisode} onRetried={refreshShow} />
 
     <OpenSubtitlesDialog
         bind:open={openSubtitlesDialogOpen}
