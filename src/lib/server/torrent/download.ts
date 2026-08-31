@@ -201,37 +201,50 @@ function updateMediaStatusFromDownloads(mediaId: string): void {
 
 // Periodically check if video file is complete (fallback for missed 'done' events)
 function startCompletionChecker(infohash: string, download: ActiveDownload, torrent: Torrent): void {
-	const _logPrefix = `[${download.mediaId}:${infohash.slice(0, 8)}]`;
+	const logPrefix = `[${download.mediaId}:${infohash.slice(0, 8)}]`;
+	let lastDownloaded = torrent.downloaded;
+	let stalledChecks = 0;
 
 	const checkInterval = setInterval(() => {
-		// Stop checking if download is no longer active or already complete
 		if (!activeDownloads.has(infohash) || download.status === "complete" || download.status === "finalizing") {
 			clearInterval(checkInterval);
 			return;
 		}
 
-		// For movies, check single file
 		if (download.mediaType === "movie" && download.videoFile?.progress === 1) {
-			// console.log(`${logPrefix} Completion checker detected finished download`);
 			clearInterval(checkInterval);
 			handleDownloadComplete(infohash, download, torrent).catch((err) => {
-				console.error(`${_logPrefix} Error in completion checker:`, err);
+				console.error(`${logPrefix} Error in completion checker:`, err);
 			});
 			return;
 		}
 
-		// For TV shows, check if all selected files are complete
 		if (download.mediaType === "show") {
 			const selectedComplete = download.videoFiles.every((f) => f.progress === 1);
 			if (selectedComplete) {
-				// console.log(`${logPrefix} Completion checker detected all files finished`);
 				clearInterval(checkInterval);
 				handleDownloadComplete(infohash, download, torrent).catch((err) => {
-					console.error(`${_logPrefix} Error in completion checker:`, err);
+					console.error(`${logPrefix} Error in completion checker:`, err);
 				});
+				return;
 			}
 		}
-	}, 5000); // Check every 5 seconds
+
+		const downloaded = torrent.downloaded;
+		if (downloaded !== lastDownloaded) {
+			lastDownloaded = downloaded;
+			stalledChecks = 0;
+			return;
+		}
+
+		stalledChecks += 1;
+		if (stalledChecks < 60) {
+			return;
+		}
+
+		clearInterval(checkInterval);
+		torrent.emit("error", new Error("Download stalled for 10 minutes with no progress"));
+	}, 5000); // This 5 sec interval with a 60 maximum checks makes for a 5 min stall limit
 }
 
 /** Handle TV show torrent ready */

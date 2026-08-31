@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { startDownload } from "../lib/server/torrent/download";
 
 const mocks = vi.hoisted(() => ({
 	activeDownloads: new Map(),
@@ -71,6 +72,7 @@ vi.mock("../lib/server/torrent/finalize", () => ({
 class FakeTorrent extends EventEmitter {
 	files: unknown[] = [];
 	infoHash = "hash-1";
+	downloaded = 0;
 	path = "/temp/media-1/hash-1";
 	ready = false;
 	done = false;
@@ -103,7 +105,6 @@ describe("torrent finalization", () => {
 		mocks.findVideoFile.mockReturnValue(videoFile);
 		mocks.moveToLibrary.mockRejectedValue(new Error("disk failure"));
 		const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-		const { startDownload } = await import("../lib/server/torrent/download");
 
 		const startPromise = startDownload("media-1", "magnet:?xt=urn:btih:hash-1");
 		await vi.advanceTimersByTimeAsync(0);
@@ -115,5 +116,65 @@ describe("torrent finalization", () => {
 		expect(mocks.cleanupDownload).toHaveBeenCalledWith("hash-1", false);
 		expect(mocks.downloadUpdateProgress).toHaveBeenCalledWith("download-1", 1, "error");
 		consoleError.mockRestore();
+	});
+
+	it("cleans up a ready torrent after ten minutes without progress", async () => {
+		const torrent = new FakeTorrent();
+		const videoFile = {
+			name: "Movie.mp4",
+			path: "Movie.mp4",
+			length: 100,
+			downloaded: 0,
+			progress: 0,
+			select: vi.fn(),
+			deselect: vi.fn(),
+		};
+		mocks.getOrAddTorrent.mockReturnValue(torrent);
+		mocks.findVideoFile.mockReturnValue(videoFile);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+		const startPromise = startDownload("media-1", "magnet:?xt=urn:btih:hash-1");
+		await vi.advanceTimersByTimeAsync(0);
+		torrent.emit("ready");
+		await startPromise;
+		await vi.advanceTimersByTimeAsync(600_000);
+
+		const download = mocks.activeDownloads.get("hash-1");
+		expect(download).toMatchObject({
+			status: "error",
+			error: "Download stalled for 10 minutes with no progress",
+		});
+		expect(mocks.downloadUpdateProgress).toHaveBeenCalledWith("download-1", 0, "error");
+		expect(mocks.mediaUpdateProgress).toHaveBeenLastCalledWith("media-1", 0, "error");
+		expect(mocks.cleanupDownload).toHaveBeenCalledOnce();
+		expect(mocks.cleanupDownload).toHaveBeenCalledWith("hash-1", false);
+		consoleError.mockRestore();
+	});
+
+	it("resets the stall limit when torrent bytes increase", async () => {
+		const torrent = new FakeTorrent();
+		const videoFile = {
+			name: "Movie.mp4",
+			path: "Movie.mp4",
+			length: 100,
+			downloaded: 0,
+			progress: 0,
+			select: vi.fn(),
+			deselect: vi.fn(),
+		};
+		mocks.getOrAddTorrent.mockReturnValue(torrent);
+		mocks.findVideoFile.mockReturnValue(videoFile);
+
+		const startPromise = startDownload("media-1", "magnet:?xt=urn:btih:hash-1");
+		await vi.advanceTimersByTimeAsync(0);
+		torrent.emit("ready");
+		await startPromise;
+
+		await vi.advanceTimersByTimeAsync(595_000);
+		torrent.downloaded = 1;
+		await vi.advanceTimersByTimeAsync(5000);
+		await vi.advanceTimersByTimeAsync(595_000);
+
+		expect(mocks.cleanupDownload).not.toHaveBeenCalled();
 	});
 });
