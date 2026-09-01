@@ -156,7 +156,7 @@ export const mediaDb = {
 	search(organizationId: string, query: string, filters: CatalogFilters, limit = 21, offset = 0): Media[] {
 		const conditions = getCatalogMediaConditions(organizationId, query, filters);
 
-		const boundedLimit = Math.min(100, Math.max(1, limit));
+		const boundedLimit = Math.min(2000, Math.max(1, limit));
 		const boundedOffset = Math.max(0, offset);
 		const selection = db
 			.select()

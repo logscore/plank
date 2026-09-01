@@ -4,15 +4,19 @@ import type { BrowseItem } from "$lib/server/tmdb";
 import { searchTmdbCatalog } from "$lib/server/tmdb";
 import type { Media } from "$lib/types";
 
-const LIBRARY_PAGE_SIZE = 20;
-
 type LibraryResponse = Extract<CatalogSearchResponse, { scope: "library" }>;
 
-function searchLibrary(organizationId: string, request: CatalogSearchRequest): LibraryResponse {
-	const offset = (request.page - 1) * LIBRARY_PAGE_SIZE;
-	const pageItems = mediaDb.search(organizationId, request.query, request.filters, LIBRARY_PAGE_SIZE + 1, offset);
-	const hasNextPage = pageItems.length > LIBRARY_PAGE_SIZE;
-	const items = pageItems.slice(0, LIBRARY_PAGE_SIZE);
+/** A pageSize of null returns the whole library in one response. */
+function searchLibrary(
+	organizationId: string,
+	request: CatalogSearchRequest,
+	pageSize: number | null
+): LibraryResponse {
+	const limit = pageSize === null ? 2000 : pageSize + 1;
+	const offset = pageSize === null ? 0 : (request.page - 1) * pageSize;
+	const pageItems = mediaDb.search(organizationId, request.query, request.filters, limit, offset);
+	const hasNextPage = pageSize !== null && pageItems.length > pageSize;
+	const items = hasNextPage ? pageItems.slice(0, pageSize) : pageItems;
 	const seasonsByMediaId = Object.fromEntries(
 		items.filter((item) => item.type === "show").map((item) => [item.id, seasonsDb.getWithEpisodes(item.id)])
 	);
@@ -63,11 +67,11 @@ export async function searchCatalog(
 		};
 	}
 
-	const library = searchLibrary(organizationId, request);
 	if (request.filters.scope === "library") {
-		return library;
+		return searchLibrary(organizationId, request, null);
 	}
 
+	const library = searchLibrary(organizationId, request, 20);
 	const catalog = await searchTmdbCatalog(request);
 	const identities = mediaDb.searchIdentities(organizationId, request.query, request.filters, catalog.items);
 	const libraryKeys = new Set<string>();

@@ -1,20 +1,12 @@
 <script lang="ts">
-    import { ArrowRight, CircleAlert, Download, Film, LoaderCircle } from "@lucide/svelte";
-    import { untrack } from "svelte";
+    import { ArrowRight, CircleAlert, Download, Film } from "@lucide/svelte";
     import { flip } from "svelte/animate";
     import { goto } from "$app/navigation";
     import CatalogFilterButton from "$lib/components/CatalogFilterButton.svelte";
     import ContinueWatchingCard from "$lib/components/ContinueWatchingCard.svelte";
     import MediaCard from "$lib/components/MediaCard.svelte";
-    import Button from "$lib/components/ui/Button.svelte";
     import { createDeleteMediaMutation } from "$lib/data/media";
-    import {
-        type CatalogFilters,
-        type CatalogSearchJsonResponse,
-        type CatalogSearchResponse,
-        fromCatalogSearchJson,
-        serializeCatalogSearch,
-    } from "$lib/data/search";
+    import { type CatalogFilters, type CatalogSearchResponse, serializeCatalogSearch } from "$lib/data/search";
     import { confirmDelete } from "$lib/ui-state.svelte";
     import type { PageData } from "./$types";
 
@@ -24,24 +16,12 @@
     const deleteMutation = createDeleteMediaMutation();
     const continueWatching = $derived(data.continueWatching);
     const errorCount = $derived(data.errorCount);
-    let filters = $state<CatalogFilters>(
-        untrack(() => ({ ...data.request.filters, genres: [...data.request.filters.genres] }))
+    const filters = $derived<CatalogFilters>(data.request.filters);
+    const response = $derived<LibraryResponse>(
+        data.response.scope === "library"
+            ? data.response
+            : { scope: "library", items: [], seasonsByMediaId: {}, nextPage: null }
     );
-    let response = $state<LibraryResponse>(
-        untrack(() =>
-            data.response.scope === "library"
-                ? data.response
-                : { scope: "library", items: [], seasonsByMediaId: {}, nextPage: null }
-        )
-    );
-    let loadingMore = $state(false);
-
-    $effect(() => {
-        filters = { ...data.request.filters, genres: [...data.request.filters.genres] };
-        if (data.response.scope === "library") {
-            response = data.response;
-        }
-    });
 
     async function applyFilters(nextFilters: CatalogFilters) {
         const params = serializeCatalogSearch({
@@ -54,42 +34,6 @@
             noScroll: true,
             replaceState: true,
         });
-    }
-
-    async function loadMore() {
-        if (response.nextPage === null || loadingMore) {
-            return;
-        }
-        const params = serializeCatalogSearch({
-            query: "",
-            page: response.nextPage,
-            filters: { ...filters, scope: "library" },
-        });
-        loadingMore = true;
-        try {
-            const apiResponse = await fetch(`/api/search?${params}`);
-            if (!apiResponse.ok) {
-                throw new Error(`Library request failed with ${apiResponse.status}`);
-            }
-            const jsonResponse: CatalogSearchJsonResponse = await apiResponse.json();
-            const nextResponse = fromCatalogSearchJson(jsonResponse);
-            if (nextResponse.scope !== "library") {
-                throw new Error("Library request returned catalog results");
-            }
-            const seen = new Set(response.items.map((item) => item.id));
-            response = {
-                ...nextResponse,
-                items: [...response.items, ...nextResponse.items.filter((item) => !seen.has(item.id))],
-                seasonsByMediaId: {
-                    ...response.seasonsByMediaId,
-                    ...nextResponse.seasonsByMediaId,
-                },
-            };
-        } catch (cause) {
-            console.error("Failed to load more library titles:", cause);
-        } finally {
-            loadingMore = false;
-        }
     }
 
     /** Fade the row and collapse its height, so the titles below slide up when the last card leaves. */
@@ -189,19 +133,6 @@
                     <MediaCard {media} seasons={response.seasonsByMediaId[media.id] ?? []} onDelete={deleteMedia} />
                 {/each}
             </div>
-
-            {#if response.nextPage !== null}
-                <div class="mt-10 flex justify-center">
-                    <Button variant="secondary" class="min-w-36 rounded-xl" disabled={loadingMore} onclick={loadMore}>
-                        {#if loadingMore}
-                            <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-                            Loading...
-                        {:else}
-                            Load more
-                        {/if}
-                    </Button>
-                </div>
-            {/if}
         {/if}
     </section>
 </div>
