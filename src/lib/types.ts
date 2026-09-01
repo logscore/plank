@@ -120,3 +120,30 @@ export interface OpenSubtitleResult {
 	seasonNumber?: number;
 	episodeNumber?: number;
 }
+
+/** One queued download, plus the episodes that use its files. */
+export interface QueueEntry {
+	/** Stable queue identity. Download rows and media-only work use separate prefixes. */
+	id: string;
+	downloadId: string | null;
+	downloadInfohash: string | null;
+	sourceTitle: string | null;
+	media: Media;
+	/** Parent show title. Set only when the owner is an episode. */
+	showTitle: string | null;
+	status: string;
+	progress: number;
+	/** Live torrent stats. Zero when no torrent is running. */
+	downloadSpeed: number;
+	peers: number;
+	episodes: QueueEpisode[];
+}
+
+export interface QueueEpisode {
+	id: string;
+	title: string;
+	seasonNumber: number | null;
+	episodeNumber: number | null;
+	status: MediaStatus | null;
+	progress: number;
+}

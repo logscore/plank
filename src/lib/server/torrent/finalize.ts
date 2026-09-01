@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { assert } from "$lib/utils";
 import { mediaDb, seasonsDb } from "../db";
 import { sanitizeFilename } from "../images";
 import {
@@ -321,6 +322,15 @@ export async function moveToLibrary(mediaId: string, download: ActiveDownload): 
 	} else {
 		await moveTVShowToLibrary(mediaId, download);
 	}
+}
+
+/** Delete the temporary store for one download only. */
+export async function deleteDownloadTempFiles(mediaId: string, infohash: string): Promise<void> {
+	const safeMediaId = sanitizeFilename(mediaId);
+	const safeInfohash = sanitizeFilename(infohash);
+	assert(safeMediaId.length > 0, "deleteDownloadTempFiles: media id must not be empty");
+	assert(safeInfohash.length > 0, "deleteDownloadTempFiles: infohash must not be empty");
+	await fs.rm(path.join(PATHS.temp, safeMediaId, safeInfohash), { recursive: true, force: true });
 }
 
 export async function deleteMediaFiles(mediaId: string): Promise<void> {

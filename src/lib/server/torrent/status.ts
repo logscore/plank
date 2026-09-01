@@ -1,6 +1,13 @@
 import { existsSync } from "node:fs";
+import { assert } from "$lib/utils";
 import { mediaDb } from "../db";
-import { type ActiveDownload, getDownloadOwnerMediaId, getDownloadsForMedia, resolveEpisodeFileIndex } from "./client";
+import {
+	type ActiveDownload,
+	activeDownloads,
+	getDownloadOwnerMediaId,
+	getDownloadsForMedia,
+	resolveEpisodeFileIndex,
+} from "./client";
 
 export interface DownloadStatusResult {
 	progress: number;
@@ -91,6 +98,23 @@ function determineOverallStatus(stats: AggregatedStats): DownloadStatusResult["s
 	return "downloading";
 }
 
+function buildDownloadStatus(downloads: ActiveDownload[]): DownloadStatusResult {
+	assert(downloads.length > 0, "buildDownloadStatus: downloads must not be empty");
+	const stats = aggregateDownloadStats(downloads);
+	const overallProgress = stats.totalSize > 0 ? stats.totalProgress / stats.totalSize : 0;
+	return {
+		progress: stats.allComplete ? 1 : overallProgress,
+		downloadSpeed: stats.totalDownloadSpeed,
+		uploadSpeed: stats.totalUploadSpeed,
+		peers: stats.totalPeers,
+		status: determineOverallStatus(stats),
+		error: stats.errors.length > 0 ? stats.errors.join("; ") : undefined,
+		episodeProgress: stats.episodeProgress.size > 0 ? stats.episodeProgress : undefined,
+		activeDownloads: downloads.length,
+		totalSize: stats.totalSize,
+	};
+}
+
 export function getDownloadStatus(mediaId: string): DownloadStatusResult | null {
 	const mediaItem = mediaDb.getById(mediaId);
 	const downloadOwnerId = mediaItem ? getDownloadOwnerMediaId(mediaItem) : mediaId;
@@ -109,21 +133,12 @@ export function getDownloadStatus(mediaId: string): DownloadStatusResult | null 
 		return null;
 	}
 
-	const stats = aggregateDownloadStats(downloads);
-	const overallProgress = stats.totalSize > 0 ? stats.totalProgress / stats.totalSize : 0;
-	const status = determineOverallStatus(stats);
+	return buildDownloadStatus(downloads);
+}
 
-	return {
-		progress: stats.allComplete ? 1 : overallProgress,
-		downloadSpeed: stats.totalDownloadSpeed,
-		uploadSpeed: stats.totalUploadSpeed,
-		peers: stats.totalPeers,
-		status,
-		error: stats.errors.length > 0 ? stats.errors.join("; ") : undefined,
-		episodeProgress: stats.episodeProgress.size > 0 ? stats.episodeProgress : undefined,
-		activeDownloads: downloads.length,
-		totalSize: stats.totalSize,
-	};
+export function getDownloadStatusByInfohash(infohash: string): DownloadStatusResult | null {
+	const download = activeDownloads.get(infohash);
+	return download ? buildDownloadStatus([download]) : null;
 }
 
 export function isDownloadActive(mediaId: string): boolean {

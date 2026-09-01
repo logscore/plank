@@ -58,6 +58,7 @@ export interface RetryMediaInput {
 	id: string;
 	mode?: "same" | "replace" | "remove";
 	magnetLink?: string;
+	downloadId?: string | null;
 }
 
 export interface RetryMediaResult {
@@ -67,14 +68,14 @@ export interface RetryMediaResult {
 
 export function createRetryMediaMutation() {
 	return createMutation<RetryMediaResult, Error, RetryMediaInput>(() => ({
-		mutationFn: async ({ id, mode, magnetLink }) => {
-			const hasBody = mode !== undefined || magnetLink !== undefined;
+		mutationFn: async ({ id, mode, magnetLink, downloadId }) => {
+			const hasBody = mode !== undefined || magnetLink !== undefined || downloadId !== undefined;
 			const result = await apiRequest<RetryMediaResult | undefined>(
 				`/api/media/${id}/retry`,
 				"Media action failed",
 				{
 					method: "POST",
-					json: hasBody ? { mode, magnetLink } : undefined,
+					json: hasBody ? { mode, magnetLink, downloadId } : undefined,
 				}
 			);
 			return result ?? {};

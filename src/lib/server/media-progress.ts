@@ -33,7 +33,7 @@ function getEpisodeProgress(mediaItem: Media): number | null {
 	return getDownloadStatus(mediaItem.id)?.episodeProgress?.get(episodeKey) ?? null;
 }
 
-function getResolvedProgress(mediaItem: Media): number {
+export function getResolvedProgress(mediaItem: Media): number {
 	if (mediaItem.filePath || mediaItem.status === "complete") {
 		return 1;
 	}
@@ -44,7 +44,7 @@ function getResolvedProgress(mediaItem: Media): number {
 	return getDownloadStatus(mediaItem.id)?.progress ?? mediaItem.progress ?? 0;
 }
 
-function getResolvedStatus(mediaItem: Media): string {
+export function getResolvedStatus(mediaItem: Media): string {
 	if (mediaItem.filePath || mediaItem.status === "complete") {
 		return "complete";
 	}

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNull, like, lte, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, like, lte, notExists, or, type SQL, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { type CatalogFilters, getCatalogGenreLabels } from "$lib/data/search";
 import {
@@ -60,7 +60,26 @@ function getCatalogMediaConditions(organizationId: string, query: string, filter
 /** Statuses that mean the download stopped and the user can retry it with a new source. */
 const DOWNLOAD_ERROR_STATUSES = ["error", "not_found"] as const;
 
+/** Statuses that mean work is queued or running. */
+const DOWNLOAD_ACTIVE_STATUSES = ["pending", "searching", "downloading"] as const;
+
+const QUEUE_STATUSES = [...DOWNLOAD_ERROR_STATUSES, ...DOWNLOAD_ACTIVE_STATUSES] as const;
+
+/** Download records that still belong in the queue. */
+const QUEUED_DOWNLOAD_STATUSES = ["added", "downloading", "error"] as const;
+
+/** Hard bounds for one queue snapshot. */
+const QUEUE_ROW_LIMIT = 500;
+
 const parentMediaTable = alias(mediaTable, "parent_media");
+
+/** One raw queue row and the download that owns it, when one exists. */
+export interface QueueRow {
+	media: Media;
+	showTitle: string | null;
+	download: Download | null;
+	queuedAt: Date;
+}
 
 export const mediaDb = {
 	countDownloadErrors(organizationId: string): number {
@@ -77,29 +96,50 @@ export const mediaDb = {
 		return row?.total ?? 0;
 	},
 
-	/** Movies sorted by title, episodes sorted by show, then season, then episode number. */
-	listDownloadErrors(organizationId: string) {
-		const failed = inArray(mediaTable.status, [...DOWNLOAD_ERROR_STATUSES]);
-		const movies = db
-			.select()
-			.from(mediaTable)
-			.where(and(eq(mediaTable.organizationId, organizationId), eq(mediaTable.type, "movie"), failed))
-			.orderBy(asc(mediaTable.title))
-			.all();
-		const episodeRows = db
-			.select({ episode: mediaTable, showTitle: parentMediaTable.title })
+	/** Every failed or in-flight row, newest first. Covers movies, shows, and episodes. */
+	listQueueRows(organizationId: string): QueueRow[] {
+		const queuedDownloadExists = db
+			.select({ id: downloadsTable.id })
+			.from(downloadsTable)
+			.where(
+				and(
+					eq(downloadsTable.mediaId, mediaTable.id),
+					inArray(downloadsTable.status, [...QUEUED_DOWNLOAD_STATUSES])
+				)
+			);
+		const downloadRows: QueueRow[] = db
+			.select({ media: mediaTable, showTitle: parentMediaTable.title, download: downloadsTable })
+			.from(downloadsTable)
+			.innerJoin(mediaTable, eq(downloadsTable.mediaId, mediaTable.id))
+			.leftJoin(parentMediaTable, eq(mediaTable.parentId, parentMediaTable.id))
+			.where(
+				and(
+					eq(mediaTable.organizationId, organizationId),
+					inArray(downloadsTable.status, [...QUEUED_DOWNLOAD_STATUSES])
+				)
+			)
+			.orderBy(desc(downloadsTable.addedAt))
+			.limit(QUEUE_ROW_LIMIT)
+			.all()
+			.map((row) => ({ ...row, queuedAt: row.download.addedAt }));
+		const mediaRows: QueueRow[] = db
+			.select({ media: mediaTable, showTitle: parentMediaTable.title })
 			.from(mediaTable)
 			.leftJoin(parentMediaTable, eq(mediaTable.parentId, parentMediaTable.id))
-			.where(and(eq(mediaTable.organizationId, organizationId), eq(mediaTable.type, "episode"), failed))
-			.orderBy(
-				asc(parentMediaTable.title),
-				asc(mediaTable.seasonNumber),
-				asc(mediaTable.displayOrder),
-				asc(mediaTable.episodeNumber)
+			.where(
+				and(
+					eq(mediaTable.organizationId, organizationId),
+					inArray(mediaTable.status, [...QUEUE_STATUSES]),
+					notExists(queuedDownloadExists)
+				)
 			)
-			.all();
-		const episodes = episodeRows.map((row) => ({ ...row.episode, showTitle: row.showTitle }));
-		return { movies, episodes };
+			.orderBy(desc(mediaTable.addedAt))
+			.limit(QUEUE_ROW_LIMIT)
+			.all()
+			.map((row) => ({ ...row, download: null, queuedAt: row.media.addedAt }));
+		return [...downloadRows, ...mediaRows]
+			.sort((a, b) => b.queuedAt.getTime() - a.queuedAt.getTime())
+			.slice(0, QUEUE_ROW_LIMIT);
 	},
 	list(organizationId: string, type?: MediaType): Media[] {
 		const conditions = [eq(mediaTable.organizationId, organizationId)];
@@ -616,6 +656,13 @@ export const downloadsDb = {
 
 	updateProgress(id: string, progress: number, status: "added" | "downloading" | "complete" | "error") {
 		db.update(downloadsTable).set({ progress, status }).where(eq(downloadsTable.id, id)).run();
+	},
+
+	updateSource(id: string, magnetLink: string, infohash: string) {
+		db.update(downloadsTable)
+			.set({ magnetLink, infohash, progress: 0, status: "added" })
+			.where(eq(downloadsTable.id, id))
+			.run();
 	},
 
 	getById(id: string): Download | undefined {

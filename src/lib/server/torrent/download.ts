@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import ptt from "parse-torrent-title";
 import type { MediaType } from "$lib/types";
+import { assert } from "$lib/utils";
 import { downloadsDb, mediaDb } from "../db";
 import { SUPPORTED_VIDEO_FORMATS } from "../ffmpeg";
 import { PATHS } from "../paths";
@@ -518,6 +519,22 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 				torrent?.emit("ready");
 			});
 		}
+	});
+}
+
+/** Cancel one torrent without affecting other season packs for the same show. */
+export async function cancelDownloadByInfohash(mediaId: string, infohash: string): Promise<void> {
+	pendingDownloads.delete(infohash);
+	const download = activeDownloads.get(infohash);
+	if (!download) {
+		return;
+	}
+	assert(download.mediaId === mediaId, "cancelDownloadByInfohash: download owner must match");
+	await new Promise<void>((resolve) => {
+		download.torrent.destroy({ destroyStore: true }, () => {
+			activeDownloads.delete(infohash);
+			resolve();
+		});
 	});
 }
 

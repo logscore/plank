@@ -225,6 +225,37 @@ describe("mediaDb", () => {
 
 		expect(results.map((item) => item.id)).toEqual([old.id, recent.id, unknown.id]);
 	});
+
+	it("lists failed shows in the queue, not only movies and episodes", () => {
+		const show = createShow();
+		mediaDb.updateProgress(show.id, 0, "error");
+
+		const rows = mediaDb.listQueueRows(testOrg.id);
+
+		expect(rows.map((row) => row.media.id)).toContain(show.id);
+		expect(rows.length).toBe(mediaDb.countDownloadErrors(testOrg.id));
+	});
+
+	it("lists one queue row per show download", () => {
+		const show = createShow();
+		const first = downloadsDb.create({
+			mediaId: show.id,
+			magnetLink: "magnet:?xt=urn:btih:season1",
+			infohash: "season1",
+			status: "error",
+		});
+		const second = downloadsDb.create({
+			mediaId: show.id,
+			magnetLink: "magnet:?xt=urn:btih:season2",
+			infohash: "season2",
+			status: "added",
+		});
+
+		const rows = mediaDb.listQueueRows(testOrg.id);
+		const showDownloads = rows.filter((row) => row.media.id === show.id).map((row) => row.download?.id);
+
+		expect(showDownloads).toEqual([first.id, second.id]);
+	});
 });
 
 describe("downloadsDb", () => {

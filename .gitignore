@@ -22,6 +22,7 @@ opencode.json
 .claude
 AGENTS.md
 .opencode/
+internal
 
 # docs demo app
 **/.svelte-kit

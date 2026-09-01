@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ArrowRight, CircleAlert, Film, LoaderCircle } from "@lucide/svelte";
+    import { ArrowRight, CircleAlert, Download, Film, LoaderCircle } from "@lucide/svelte";
     import { untrack } from "svelte";
     import { flip } from "svelte/animate";
     import { goto } from "$app/navigation";
@@ -123,7 +123,16 @@
         <div>
             <h1 class="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Library</h1>
         </div>
-        <CatalogFilterButton {filters} onApply={applyFilters} class="shrink-0" />
+        <div class="flex shrink-0 items-end gap-2">
+            <CatalogFilterButton {filters} onApply={applyFilters} />
+            <a
+                href="/queue"
+                aria-label="Download queue"
+                class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white shadow-sm transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+                <Download class="h-4 w-4" />
+            </a>
+        </div>
     </header>
 
     {#if errorCount > 0}
@@ -134,7 +143,7 @@
                 {errorCount === 1 ? "item" : "items"} failed to download
             </span>
             <a
-                href="/errors"
+                href="/queue"
                 class="ml-auto flex shrink-0 items-center gap-1 text-sm font-medium text-neutral-300 transition-colors hover:text-neutral-200 bg-red-100/10 py-1 px-2 rounded-lg"
             >
                 Fix them

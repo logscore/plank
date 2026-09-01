@@ -11,10 +11,12 @@
     let {
         open = $bindable(false),
         media,
+        downloadId = null,
         onRetried = null,
     }: {
         open?: boolean;
         media: Media | null;
+        downloadId?: string | null;
         /** Runs after the retry is queued, so the caller can refresh its own data. */
         onRetried?: ((item: Media) => Promise<void> | void) | null;
     } = $props();
@@ -33,6 +35,7 @@
     const title = $derived(media ? `Redownload "${media.title || `Episode ${media.episodeNumber}`}"` : "Redownload");
     const searchQuery = $derived(sourcesQuery.data?.query ?? "");
     const searchResults = $derived<SourceCandidate[]>(sourcesQuery.data?.results ?? []);
+    const hasSavedSource = $derived(Boolean(media?.magnetLink || downloadId));
     // Cached releases stay on screen while a stale search refetches behind them.
     const searching = $derived(sourcesQuery.isFetching && searchResults.length === 0);
     const searchError = $derived(sourcesQuery.error && searchResults.length === 0 ? sourcesQuery.error.message : "");
@@ -53,7 +56,7 @@
         retrying = true;
         retryError = "";
         try {
-            await retryMutation.mutateAsync({ id: item.id, mode, magnetLink });
+            await retryMutation.mutateAsync({ id: item.id, mode, magnetLink, downloadId });
             await onRetried?.(item);
             open = false;
         } catch (error) {
@@ -94,11 +97,11 @@
             <div class="space-y-1">
                 <p class="text-sm font-medium">Retry same source</p>
             </div>
-            <Button onclick={() => runRetry("same")} disabled={!media?.magnetLink || retrying}>
+            <Button onclick={() => runRetry("same")} disabled={!hasSavedSource || retrying}>
                 <RotateCcw class="mr-2 h-4 w-4" />
                 {retrying ? "Retrying..." : "Retry"}
             </Button>
-            {#if media && !media.magnetLink}
+            {#if media && !hasSavedSource}
                 <p class="text-sm text-muted-foreground">
                     This title does not have a saved source yet. Paste a new one below.
                 </p>
