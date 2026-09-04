@@ -14,8 +14,10 @@ export interface DownloadStatusResult {
 	downloadSpeed: number;
 	uploadSpeed: number;
 	peers: number;
-	status: "idle" | "initializing" | "downloading" | "complete" | "error";
+	status: "idle" | "initializing" | "downloading" | "finalizing" | "complete" | "error";
 	error?: string;
+	/** Finalization progress from 0 to 1. Zero unless the status is finalizing. */
+	transcodeProgress: number;
 	episodeProgress?: Map<number, number>;
 	activeDownloads?: number;
 	totalSize?: number;
@@ -24,11 +26,14 @@ export interface DownloadStatusResult {
 interface AggregatedStats {
 	totalProgress: number;
 	totalSize: number;
+	totalTranscodeProgress: number;
+	finalizingCount: number;
 	totalDownloadSpeed: number;
 	totalUploadSpeed: number;
 	totalPeers: number;
 	hasInitializing: boolean;
 	hasDownloading: boolean;
+	hasFinalizing: boolean;
 	hasError: boolean;
 	allComplete: boolean;
 	errors: string[];
@@ -51,11 +56,14 @@ function aggregateDownloadStats(downloads: ActiveDownload[]): AggregatedStats {
 	const result: AggregatedStats = {
 		totalProgress: 0,
 		totalSize: 0,
+		totalTranscodeProgress: 0,
+		finalizingCount: 0,
 		totalDownloadSpeed: 0,
 		totalUploadSpeed: 0,
 		totalPeers: 0,
 		hasInitializing: false,
 		hasDownloading: false,
+		hasFinalizing: false,
 		hasError: false,
 		allComplete: true,
 		errors: [],
@@ -70,8 +78,12 @@ function aggregateDownloadStats(downloads: ActiveDownload[]): AggregatedStats {
 		result.totalProgress += download.progress * download.totalSize;
 
 		result.hasInitializing = result.hasInitializing || download.status === "initializing";
-		result.hasDownloading =
-			result.hasDownloading || download.status === "downloading" || download.status === "finalizing";
+		result.hasDownloading = result.hasDownloading || download.status === "downloading";
+		if (download.status === "finalizing") {
+			result.hasFinalizing = true;
+			result.totalTranscodeProgress += download.transcodeProgress;
+			result.finalizingCount += 1;
+		}
 		result.hasError = result.hasError || download.status === "error";
 		result.allComplete = result.allComplete && download.status === "complete";
 
@@ -89,11 +101,15 @@ function determineOverallStatus(stats: AggregatedStats): DownloadStatusResult["s
 	if (stats.allComplete) {
 		return "complete";
 	}
-	if (stats.hasError && !stats.hasDownloading && !stats.hasInitializing) {
+	if (stats.hasError && !(stats.hasDownloading || stats.hasFinalizing || stats.hasInitializing)) {
 		return "error";
 	}
 	if (stats.hasInitializing) {
 		return "initializing";
+	}
+	// A download that still moves bytes outranks one that is already in ffmpeg.
+	if (stats.hasFinalizing && !stats.hasDownloading) {
+		return "finalizing";
 	}
 	return "downloading";
 }
@@ -102,12 +118,16 @@ function buildDownloadStatus(downloads: ActiveDownload[]): DownloadStatusResult 
 	assert(downloads.length > 0, "buildDownloadStatus: downloads must not be empty");
 	const stats = aggregateDownloadStats(downloads);
 	const overallProgress = stats.totalSize > 0 ? stats.totalProgress / stats.totalSize : 0;
+	const status = determineOverallStatus(stats);
+	const transcodeProgress =
+		status === "finalizing" && stats.finalizingCount > 0 ? stats.totalTranscodeProgress / stats.finalizingCount : 0;
 	return {
 		progress: stats.allComplete ? 1 : overallProgress,
 		downloadSpeed: stats.totalDownloadSpeed,
 		uploadSpeed: stats.totalUploadSpeed,
 		peers: stats.totalPeers,
-		status: determineOverallStatus(stats),
+		status,
+		transcodeProgress,
 		error: stats.errors.length > 0 ? stats.errors.join("; ") : undefined,
 		episodeProgress: stats.episodeProgress.size > 0 ? stats.episodeProgress : undefined,
 		activeDownloads: downloads.length,
@@ -128,6 +148,7 @@ export function getDownloadStatus(mediaId: string): DownloadStatusResult | null 
 				uploadSpeed: 0,
 				peers: 0,
 				status: "complete",
+				transcodeProgress: 0,
 			};
 		}
 		return null;

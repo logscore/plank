@@ -41,6 +41,7 @@ describe("library transcoder", () => {
 			audioChannels: 2,
 			hasDataStreams: false,
 		} as never);
+		vi.mocked(normalizeFileForPlayback).mockResolvedValue(undefined);
 		vi.mocked(requiresBrowserSafePlayback).mockResolvedValue(false);
 		vi.mocked(fs.stat).mockResolvedValue({ size: 1000 } as never);
 		vi.mocked(fs.unlink).mockResolvedValue(undefined);
@@ -75,12 +76,25 @@ describe("library transcoder", () => {
 		});
 	});
 
-	it("fails finalization when output is not direct-playback safe", async () => {
-		vi.mocked(requiresBrowserSafePlayback).mockResolvedValue(true);
+	it("reports finalization progress until the file is ready", async () => {
+		const onProgress = vi.fn();
+		vi.mocked(normalizeFileForPlayback).mockImplementation(async (_source, _target, reportProgress) => {
+			reportProgress?.(0.4);
+		});
 
-		await expect(finalizeMediaToLibrary("/temp/pilot.mkv", "/library/pilot.mkv")).rejects.toThrow(
+		await finalizeMediaToLibrary("/temp/pilot.mkv", "/library/pilot.mkv", onProgress);
+
+		expect(onProgress.mock.calls).toEqual([[0], [0.4], [1]]);
+	});
+
+	it("does not report completion when finalization fails", async () => {
+		vi.mocked(requiresBrowserSafePlayback).mockResolvedValue(true);
+		const onProgress = vi.fn();
+
+		await expect(finalizeMediaToLibrary("/temp/pilot.mkv", "/library/pilot.mkv", onProgress)).rejects.toThrow(
 			"Finalized file is not browser-safe"
 		);
+		expect(onProgress.mock.calls).toEqual([[0]]);
 		expect(vi.mocked(fs.rename)).not.toHaveBeenCalled();
 	});
 });

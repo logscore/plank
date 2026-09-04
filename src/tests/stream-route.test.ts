@@ -133,6 +133,7 @@ describe("stream route", () => {
 			uploadSpeed: 0,
 			peers: 0,
 			status: "initializing",
+			transcodeProgress: 0,
 		});
 
 		const response = await HEAD({ params: { id: "episode-1" }, locals: {} as App.Locals } as never);

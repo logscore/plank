@@ -141,7 +141,9 @@ async function moveMovieToLibrary(mediaId: string, download: ActiveDownload): Pr
 	const destPath = path.join(destDir, fileName);
 
 	await fs.mkdir(destDir, { recursive: true });
-	const finalized = await finalizeMediaToLibrary(sourcePath, destPath);
+	const finalized = await finalizeMediaToLibrary(sourcePath, destPath, (progress) => {
+		download.transcodeProgress = progress;
+	});
 
 	for (const subFile of download.subtitleFiles) {
 		try {
@@ -236,7 +238,9 @@ async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): 
 	const destPath = getEpisodeLibraryPath(show, episode, download.videoFile.name);
 
 	await fs.mkdir(seasonDir, { recursive: true });
-	const finalized = await finalizeMediaToLibrary(sourcePath, destPath);
+	const finalized = await finalizeMediaToLibrary(sourcePath, destPath, (progress) => {
+		download.transcodeProgress = progress;
+	});
 	for (const subFile of download.subtitleFiles) {
 		try {
 			const subSource = path.join(download.torrent.path, subFile.path);
@@ -293,6 +297,10 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 		}
 	}
 
+	let completedFiles = 0;
+	const fileCount = download.videoFiles.length;
+	assert(fileCount > 0, "moveTVShowToLibrary: show download must include video files");
+
 	for (const [seasonNum, files] of filesBySeason.entries()) {
 		const seasonDir = path.join(baseDir, `Season ${seasonNum.toString().padStart(2, "0")}`);
 		await fs.mkdir(seasonDir, { recursive: true });
@@ -305,10 +313,14 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 				? getEpisodeLibraryPath(show, episode, videoFile.name)
 				: path.join(seasonDir, sanitizeFilename(videoFile.name));
 
-			const finalized = await finalizeMediaToLibrary(sourcePath, destPath);
+			const finalized = await finalizeMediaToLibrary(sourcePath, destPath, (progress) => {
+				download.transcodeProgress = (completedFiles + progress) / fileCount;
+			});
 			await updateEpisodeFileInfo(mediaId, download, videoFile, finalized.filePath, finalized.fileSize);
+			completedFiles += 1;
 		}
 	}
+	assert(completedFiles === fileCount, "moveTVShowToLibrary: every video file must be finalized");
 }
 
 export async function moveToLibrary(mediaId: string, download: ActiveDownload): Promise<void> {

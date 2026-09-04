@@ -75,8 +75,10 @@ async function scanShows(): Promise<void> {
 
 export async function finalizeMediaToLibrary(
 	sourcePath: string,
-	targetPath: string
+	targetPath: string,
+	onProgress?: (progress: number) => void
 ): Promise<{ filePath: string; fileSize: number }> {
+	onProgress?.(0);
 	await fs.mkdir(path.dirname(targetPath), { recursive: true });
 
 	const needsNormalization = await shouldNormalizeFile(sourcePath);
@@ -93,7 +95,7 @@ export async function finalizeMediaToLibrary(
 	}
 
 	if (needsNormalization) {
-		await normalizeFileForPlayback(sourcePath, tempPath);
+		await normalizeFileForPlayback(sourcePath, tempPath, onProgress);
 	} else {
 		await fs.copyFile(sourcePath, tempPath);
 	}
@@ -111,6 +113,7 @@ export async function finalizeMediaToLibrary(
 
 	await fs.rename(tempPath, finalPath);
 	const stats = await fs.stat(finalPath);
+	onProgress?.(1);
 
 	return { filePath: finalPath, fileSize: stats.size };
 }

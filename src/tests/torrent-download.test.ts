@@ -1,9 +1,11 @@
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ActiveDownload } from "../lib/server/torrent/client";
 import { startDownload } from "../lib/server/torrent/download";
+import { getDownloadStatus } from "../lib/server/torrent/status";
 
 const mocks = vi.hoisted(() => ({
-	activeDownloads: new Map(),
+	activeDownloads: new Map<string, ActiveDownload>(),
 	cleanupDownload: vi.fn(),
 	downloadGetByInfohash: vi.fn(() => ({ id: "download-1" })),
 	downloadUpdateProgress: vi.fn(),
@@ -50,6 +52,7 @@ vi.mock("../lib/server/torrent/client", () => ({
 	cleanupDownload: mocks.cleanupDownload,
 	getClient: mocks.getClient,
 	getDownloadsForMedia: vi.fn(() => Array.from(mocks.activeDownloads.values())),
+	getDownloadOwnerMediaId: vi.fn((media: { id: string }) => media.id),
 	getOrAddTorrent: mocks.getOrAddTorrent,
 	pendingDownloads: mocks.pendingDownloads,
 	stopClientIfIdle: mocks.stopClientIfIdle,
@@ -176,5 +179,41 @@ describe("torrent finalization", () => {
 		await vi.advanceTimersByTimeAsync(595_000);
 
 		expect(mocks.cleanupDownload).not.toHaveBeenCalled();
+	});
+	it("averages finalization progress for concurrent downloads", () => {
+		// Status aggregation reads only these live torrent counters.
+		const torrent = {
+			downloadSpeed: 0,
+			uploadSpeed: 0,
+			numPeers: 0,
+		} as unknown as ActiveDownload["torrent"];
+		const first: ActiveDownload = {
+			mediaId: "media-1",
+			infohash: "hash-1",
+			mediaType: "movie",
+			torrent,
+			videoFile: null,
+			videoFiles: [],
+			subtitleFiles: [],
+			selectedFileIndex: null,
+			episodeMapping: new Map(),
+			progress: 1,
+			transcodeProgress: 0.25,
+			status: "finalizing",
+			activeStreams: 0,
+			totalSize: 100,
+		};
+		const second: ActiveDownload = {
+			...first,
+			infohash: "hash-2",
+			transcodeProgress: 0.75,
+		};
+		mocks.activeDownloads.set(first.infohash, first);
+		mocks.activeDownloads.set(second.infohash, second);
+
+		expect(getDownloadStatus("media-1")).toMatchObject({
+			status: "finalizing",
+			transcodeProgress: 0.5,
+		});
 	});
 });

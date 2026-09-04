@@ -64,6 +64,7 @@ function createQueueEntry(row: QueueRow): QueueEntry {
 		progress,
 		downloadSpeed: 0,
 		peers: 0,
+		transcodeProgress: 0,
 		episodes: [],
 	};
 }
@@ -150,6 +151,7 @@ function withLiveStats(entry: QueueEntry): QueueEntry {
 		progress: entry.downloadId === null ? getResolvedProgress(entry.media) : (download?.progress ?? entry.progress),
 		downloadSpeed: download?.downloadSpeed ?? 0,
 		peers: download?.peers ?? 0,
+		transcodeProgress: download?.transcodeProgress ?? 0,
 		episodes: entry.episodes.map((episode) => {
 			const key = episodeKey(episode);
 			const live = key === null ? undefined : liveEpisodes?.get(key);

@@ -67,6 +67,8 @@ export interface ActiveDownload {
 	selectedFileIndex: number | null;
 	episodeMapping: Map<number, number>;
 	progress: number;
+	/** Finalization progress from 0 to 1. */
+	transcodeProgress: number;
 	status: "initializing" | "downloading" | "finalizing" | "complete" | "error";
 	activeStreams: number;
 	totalSize: number;

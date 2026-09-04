@@ -83,6 +83,8 @@ export interface ProgressInfo {
 	peers: number;
 	isActive: boolean;
 	filePath: string | null;
+	/** Finalization progress from 0 to 1. Zero unless the status is finalizing. */
+	transcodeProgress: number;
 	fileSize?: number;
 }
 
@@ -136,6 +138,8 @@ export interface QueueEntry {
 	/** Live torrent stats. Zero when no torrent is running. */
 	downloadSpeed: number;
 	peers: number;
+	/** Finalization progress from 0 to 1. Zero unless the status is finalizing. */
+	transcodeProgress: number;
 	episodes: QueueEpisode[];
 }
 

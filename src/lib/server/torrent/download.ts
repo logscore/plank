@@ -146,6 +146,7 @@ async function handleDownloadComplete(infohash: string, download: ActiveDownload
 	// console.log(`${logPrefix} Handling download completion...`);
 	download.status = "finalizing";
 	download.progress = 1;
+	download.transcodeProgress = 0;
 
 	// Stop seeding - deselect all files to prevent uploading
 	for (const f of torrent.files) {
@@ -422,6 +423,7 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 			selectedFileIndex: null,
 			episodeMapping: new Map(),
 			progress: 0,
+			transcodeProgress: 0,
 			status: "initializing",
 			activeStreams: 0,
 			totalSize: 0,

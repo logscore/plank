@@ -9,7 +9,7 @@
 
     const ERROR_STATUSES = ["error", "not_found"];
     /** Running work first, then work that is still looking for a source. */
-    const IN_PROGRESS_ORDER = ["downloading", "searching", "pending"];
+    const IN_PROGRESS_ORDER = ["finalizing", "downloading", "searching", "pending"];
 
     let { data } = $props<{ data: PageData }>();
 
@@ -68,6 +68,7 @@
         progress={entry.progress}
         downloadSpeed={entry.downloadSpeed}
         peers={entry.peers}
+        transcodeProgress={entry.transcodeProgress}
         episodes={entry.episodes}
         onRedownload={() => openRedownload(entry)}
     />

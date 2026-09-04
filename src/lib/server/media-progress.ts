@@ -14,6 +14,8 @@ export interface MediaProgressSnapshot {
 	peers: number;
 	isActive: boolean;
 	filePath: string | null;
+	/** Finalization progress from 0 to 1. Zero unless the status is finalizing. */
+	transcodeProgress: number;
 	error?: string;
 	fileSize?: number | null;
 }
@@ -77,6 +79,7 @@ export function getMediaProgressSnapshot(mediaId: string, organizationId?: strin
 		peers: downloadStatus?.peers ?? 0,
 		isActive,
 		filePath: mediaItem.filePath,
+		transcodeProgress: downloadStatus?.transcodeProgress ?? 0,
 		error: downloadStatus?.error,
 		fileSize: getResolvedFileSize(mediaItem),
 	};

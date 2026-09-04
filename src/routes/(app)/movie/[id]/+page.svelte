@@ -42,6 +42,7 @@
     let downloadSpeed = $state(0);
     let peers = $state(0);
     let liveFileSize = $state<number | null>(null);
+    let liveTranscodeProgress = $state(0);
 
     // Sync initial values from data when component mounts or data changes
     $effect(() => {
@@ -50,7 +51,10 @@
         downloadSpeed = data.progress?.downloadSpeed ?? 0;
         peers = data.progress?.peers ?? 0;
         liveFileSize = data.progress?.fileSize ?? data.media.fileSize;
+        liveTranscodeProgress = data.progress?.transcodeProgress ?? 0;
     });
+
+    const isFinalizing = $derived(liveStatus === "finalizing");
 
     const fileSizeLabel = $derived.by(() => {
         const bytes = liveFileSize ?? data.media.fileSize;
@@ -108,6 +112,7 @@
                 liveProgress = info.progress;
                 downloadSpeed = info.downloadSpeed || 0;
                 peers = info.peers || 0;
+                liveTranscodeProgress = info.transcodeProgress || 0;
                 if (info.fileSize) {
                     liveFileSize = info.fileSize;
                 }
@@ -163,6 +168,7 @@
         downloadSpeed = 0;
         peers = 0;
         liveFileSize = null;
+        liveTranscodeProgress = 0;
         stopStream();
         startStream();
     }
@@ -337,7 +343,7 @@
                         <Database class="w-5 h-5 text-primary" />
                         File Information
                     </h3>
-                    {#if liveStatus !== "error" && liveStatus !== "downloading"}
+                    {#if liveStatus !== "error" && liveStatus !== "downloading" && !isFinalizing}
                         <Tip text="Redownload Content">
                             {#snippet children(tipProps)}
                                 <Button
@@ -361,7 +367,7 @@
                             class="capitalize font-medium {liveStatus ===
                             'complete'
                                 ? 'text-green-400'
-                                : liveStatus === 'downloading'
+                                : liveStatus === 'downloading' || isFinalizing
                                   ? 'text-yellow-400'
                                   : 'text-muted-foreground'}"
                             >{liveStatus}</span
@@ -371,7 +377,14 @@
                         <span class="text-muted-foreground">Progress</span>
                         <span class="font-medium">{((liveProgress ?? 0) * 100).toFixed(1)}%</span>
                     </div>
-                    {#if liveStatus === "downloading"}
+                    {#if isFinalizing}
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">Finalizing</span>
+                            <span class="font-medium text-green-400">
+                                {(liveTranscodeProgress * 100).toFixed(1)}%
+                            </span>
+                        </div>
+                    {:else if liveStatus === "downloading"}
                         <div class="flex justify-between">
                             <span class="text-muted-foreground">Download Speed</span>
                             <span class="font-medium text-blue-400">{formatSpeed(downloadSpeed)}</span>

@@ -267,7 +267,11 @@ export async function requiresBrowserSafePlayback(filePath: string): Promise<boo
 	return (await getPlaybackCompatibility(filePath)).requiresNormalization;
 }
 
-export async function normalizeFileForPlayback(inputPath: string, outputPath: string): Promise<void> {
+export async function normalizeFileForPlayback(
+	inputPath: string,
+	outputPath: string,
+	onProgress?: (progress: number) => void
+): Promise<void> {
 	const compatibility = await getPlaybackCompatibility(inputPath);
 	return new Promise((resolve, reject) => {
 		const command = ffmpeg(inputPath)
@@ -297,6 +301,16 @@ export async function normalizeFileForPlayback(inputPath: string, outputPath: st
 			command.outputOptions(["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p"]);
 		} else {
 			command.outputOptions(["-c:v", "copy"]);
+		}
+
+		if (onProgress) {
+			command.on("progress", (progress) => {
+				const percent = progress.percent;
+				if (percent === undefined || !Number.isFinite(percent)) {
+					return;
+				}
+				onProgress(Math.min(1, Math.max(0, percent / 100)));
+			});
 		}
 
 		command

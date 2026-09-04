@@ -15,6 +15,7 @@
         progress = null,
         downloadSpeed = 0,
         peers = 0,
+        transcodeProgress = 0,
         episodes = [],
         onPlay = null,
         onRedownload,
@@ -32,6 +33,8 @@
         progress?: number | null;
         downloadSpeed?: number;
         peers?: number;
+        /** Live finalization progress, from 0 to 1. */
+        transcodeProgress?: number;
         /** Episodes that ride on this download. When set, the row gets an expander. */
         episodes?: QueueEpisode[];
         /** Leave unset to hide the play button. */
@@ -45,8 +48,9 @@
     const rowStatus = $derived(status ?? media.status);
     const isRemoved = $derived(rowStatus === "removed");
     const thumbnail = $derived(media.stillPath ?? media.backdropUrl ?? media.posterUrl);
-    const percent = $derived(Math.round((progress ?? media.progress ?? 0) * 100));
-    const showBar = $derived(progress !== null && rowStatus === "downloading");
+    const isFinalizing = $derived(rowStatus === "finalizing");
+    const percent = $derived(Math.round((isFinalizing ? transcodeProgress : (progress ?? media.progress ?? 0)) * 100));
+    const showBar = $derived(isFinalizing || (progress !== null && rowStatus === "downloading"));
     let episodesOpen = $state(false);
 
     function episodeLabel(episode: QueueEpisode): string {
@@ -66,6 +70,8 @@
                 return "Searching";
             case "downloading":
                 return "Downloading";
+            case "finalizing":
+                return "Finalizing";
             case "not_found":
                 return "Not Found";
             case "error":
@@ -84,6 +90,8 @@
                 return "bg-rose-500 text-rose-100";
             case "downloading":
                 return "bg-blue-500 text-blue-100";
+            case "finalizing":
+                return "bg-green-500 text-green-100";
             case "searching":
                 return "bg-amber-500 text-amber-100";
             case "not_found":
@@ -215,12 +223,19 @@
     {#if showBar}
         <div class="px-4 pb-4">
             <div class="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                <div class="h-full rounded-full bg-blue-500 transition-all" style="width: {percent}%"></div>
+                <div
+                    class="h-full rounded-full transition-all {isFinalizing ? 'bg-green-500' : 'bg-blue-500'}"
+                    style="width: {percent}%"
+                ></div>
             </div>
             <div class="mt-1.5 flex gap-3 text-xs text-muted-foreground">
-                <span>{percent}%</span>
-                <span>{formatFileSize(downloadSpeed)}/s</span>
-                <span>{peers} peers</span>
+                {#if isFinalizing}
+                    <span>Finalizing media: {percent}%</span>
+                {:else}
+                    <span>{percent}%</span>
+                    <span>{formatFileSize(downloadSpeed)}/s</span>
+                    <span>{peers} peers</span>
+                {/if}
             </div>
         </div>
     {/if}

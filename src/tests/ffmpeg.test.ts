@@ -5,6 +5,7 @@ import {
 	getPlaybackCompatibility,
 	isSupportedFormat,
 	needsTransmux,
+	normalizeFileForPlayback,
 	probeFile,
 	transmuxFile,
 } from "$lib/server/ffmpeg";
@@ -28,9 +29,13 @@ const { mockFfmpegConstructor, mockFfmpegCommand } = vi.hoisted(() => {
 		run: vi.fn(),
 	};
 
-	const mockConstructor = vi.fn(() => mockCommand);
-	(mockConstructor as any).setFfmpegPath = vi.fn();
-	(mockConstructor as any).ffprobe = vi.fn();
+	const mockConstructor = Object.assign(
+		vi.fn(() => mockCommand),
+		{
+			setFfmpegPath: vi.fn(),
+			ffprobe: vi.fn(),
+		}
+	);
 
 	return {
 		mockFfmpegConstructor: mockConstructor,
@@ -48,7 +53,7 @@ describe("FFmpeg Service", () => {
 		// Reset event handlers
 		mockFfmpegCommand.on.mockImplementation((event, callback) => {
 			if (event === "end") {
-				setTimeout(callback, 0);
+				queueMicrotask(callback);
 			}
 			return mockFfmpegCommand;
 		});
@@ -93,9 +98,9 @@ describe("FFmpeg Service", () => {
 			// Mock error handler
 			mockFfmpegCommand.on.mockImplementation((event, callback) => {
 				if (event === "error") {
-					setTimeout(() => {
+					queueMicrotask(() => {
 						callback(new Error("FFmpeg error"), null, "stderr output");
-					}, 0);
+					});
 				}
 				return mockFfmpegCommand;
 			});
@@ -127,7 +132,7 @@ describe("FFmpeg Service", () => {
 		it("should handle transmux errors", async () => {
 			mockFfmpegCommand.on.mockImplementation((event, callback) => {
 				if (event === "error") {
-					setTimeout(() => callback(new Error("Transmux failed")), 0);
+					queueMicrotask(() => callback(new Error("Transmux failed")));
 				}
 				return mockFfmpegCommand;
 			});
@@ -146,8 +151,8 @@ describe("FFmpeg Service", () => {
 				],
 			};
 
-			(mockFfmpegConstructor as any).ffprobe.mockImplementation(
-				(_path: string, callback: (err: Error | null, data?: any) => void) => {
+			mockFfmpegConstructor.ffprobe.mockImplementation(
+				(_path: string, callback: (err: Error | null, data?: unknown) => void) => {
 					callback(null, mockMetadata);
 				}
 			);
@@ -166,8 +171,8 @@ describe("FFmpeg Service", () => {
 		});
 
 		it("should handle probe errors", async () => {
-			(mockFfmpegConstructor as any).ffprobe.mockImplementation(
-				(_path: string, callback: (err: Error | null, data?: any) => void) => {
+			mockFfmpegConstructor.ffprobe.mockImplementation(
+				(_path: string, callback: (err: Error | null, data?: unknown) => void) => {
 					callback(new Error("Probe failed"));
 				}
 			);
@@ -176,10 +181,43 @@ describe("FFmpeg Service", () => {
 		});
 	});
 
+	describe("normalizeFileForPlayback", () => {
+		it("reports only finite progress clamped from 0 to 1", async () => {
+			mockFfmpegConstructor.ffprobe.mockImplementation(
+				(_path: string, callback: (err: Error | null, data?: unknown) => void) => {
+					callback(null, {
+						format: { duration: 100 },
+						streams: [
+							{ codec_type: "video", codec_name: "h264", width: 1920, height: 1080 },
+							{ codec_type: "audio", codec_name: "aac", channels: 2 },
+						],
+					});
+				}
+			);
+			mockFfmpegCommand.on.mockImplementation((event, callback) => {
+				if (event === "progress") {
+					callback({ percent: undefined });
+					callback({ percent: Number.NaN });
+					callback({ percent: -10 });
+					callback({ percent: 50 });
+					callback({ percent: 120 });
+				} else if (event === "end") {
+					queueMicrotask(callback);
+				}
+				return mockFfmpegCommand;
+			});
+			const onProgress = vi.fn();
+
+			await normalizeFileForPlayback("input.mkv", "output.mp4", onProgress);
+
+			expect(onProgress.mock.calls).toEqual([[0], [0.5], [1]]);
+		});
+	});
+
 	describe("getPlaybackCompatibility", () => {
 		it("ignores embedded mp4 text subtitle data tracks", async () => {
-			(mockFfmpegConstructor as any).ffprobe.mockImplementation(
-				(_path: string, callback: (err: Error | null, data?: any) => void) => {
+			mockFfmpegConstructor.ffprobe.mockImplementation(
+				(_path: string, callback: (err: Error | null, data?: unknown) => void) => {
 					callback(null, {
 						format: { duration: 100 },
 						streams: [

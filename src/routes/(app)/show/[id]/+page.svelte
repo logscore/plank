@@ -17,6 +17,7 @@
     let { data } = $props<{ data: PageData }>();
     const media: Media = $derived(data.media);
     const seasons: SeasonWithEpisodes[] = $derived(data.seasons);
+    const episodeProgressByMediaId = $derived(data.episodeProgressByMediaId);
     let selectedSeason = $state<number | null>(null);
     let deleting = $state(false);
     let retryingEpisodeIds = $state<Set<string>>(new Set());
@@ -220,9 +221,15 @@
     });
 
     $effect(() => {
-        const hasActiveEpisodes = allEpisodes.some(
-            (episode) => episode.status === "searching" || episode.status === "downloading"
-        );
+        const hasActiveEpisodes = allEpisodes.some((episode) => {
+            const status = episodeProgressByMediaId[episode.id]?.status ?? episode.status;
+            return (
+                status === "initializing" ||
+                status === "searching" ||
+                status === "downloading" ||
+                status === "finalizing"
+            );
+        });
         if (!hasActiveEpisodes) {
             return;
         }
@@ -385,10 +392,16 @@
                         {#if currentSeason}
                             <Tabs.Content value={String(currentSeason.seasonNumber)} class="space-y-4">
                                 {#each currentSeason.episodes as episode (episode.id)}
+                                    {@const liveProgress = episodeProgressByMediaId[episode.id]}
                                     <MediaRow
                                         media={episode}
                                         busy={retryingEpisodeIds.has(episode.id)}
                                         subtitleTracks={data.subtitleTracksByMediaId[episode.id] ?? []}
+                                        status={liveProgress?.status}
+                                        progress={liveProgress?.progress}
+                                        downloadSpeed={liveProgress?.downloadSpeed}
+                                        peers={liveProgress?.peers}
+                                        transcodeProgress={liveProgress?.transcodeProgress}
                                         onPlay={handlePlayEpisode}
                                         onRedownload={openRedownloadDialog}
                                         onRemoveDownload={handleRemoveEpisodeDownload}
