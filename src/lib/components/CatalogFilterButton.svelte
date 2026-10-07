@@ -69,7 +69,8 @@
                 side="bottom"
                 align="end"
                 sideOffset={10}
-                class="z-70 w-104 overflow-hidden rounded-2xl border border-white/10 bg-black/97 text-foreground shadow-2xl backdrop-blur-2xl focus:outline-none"
+                collisionPadding={16}
+                class="z-70 w-104 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-white/10 bg-black/97 text-foreground shadow-2xl backdrop-blur-2xl focus:outline-none"
             >
                 {@render panel()}
             </Popover.Content>
@@ -81,7 +82,7 @@
         <Dialog.Portal>
             <Dialog.Overlay class="fixed inset-0 z-70 bg-black/75 backdrop-blur-sm" />
             <Dialog.Content
-                class="fixed inset-x-0 bottom-0 z-80 max-h-[92dvh] overflow-hidden rounded-t-3xl border border-b-0 border-white/10 bg-black/98 text-foreground shadow-2xl focus:outline-none"
+                class="fixed inset-x-0 bottom-0 z-80 flex max-h-[92dvh] flex-col overflow-hidden rounded-t-3xl border border-b-0 border-white/10 bg-black/98 text-foreground shadow-2xl focus:outline-none"
             >
                 <Dialog.Title class="sr-only">Filter titles</Dialog.Title>
                 <Dialog.Description class="sr-only">
@@ -89,7 +90,7 @@
                         ? "Filter by source, media type, rating, release year, genre, and sort order."
                         : "Filter by media type, rating, release year, genre, and sort order."}
                 </Dialog.Description>
-                <div class="mx-auto mt-2.5 h-1 w-10 rounded-full bg-white/20"></div>
+                <div class="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-white/20"></div>
                 {@render panel()}
             </Dialog.Content>
         </Dialog.Portal>

@@ -1,7 +1,6 @@
 <script lang="ts">
     import { Check, ChevronDown, Star } from "@lucide/svelte";
     import { Combobox, RadioGroup, Slider } from "bits-ui";
-    import Scroller from "$lib/components/ui/Scroller.svelte";
     import SelectField from "$lib/components/ui/SelectField.svelte";
     import {
         CATALOG_GENRES,
@@ -129,13 +128,15 @@
     }
 </script>
 
-<div class="flex max-h-[min(90dvh,760px)] flex-col">
-    <div class="border-b border-white/10 px-5 py-4">
+<div
+    class="flex min-h-0 max-h-[min(90dvh,760px,var(--bits-popover-content-available-height,90dvh))] flex-col overflow-hidden"
+>
+    <div class="shrink-0 border-b border-white/10 px-5 py-4">
         <h2 class="text-lg font-semibold text-white">Filter titles</h2>
         <p class="mt-1 text-xs text-muted-foreground">Use the same filters across your library and catalog.</p>
     </div>
 
-    <Scroller class="h-full px-5 py-5" rootClass="min-h-0 flex-1">
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
         <div class="space-y-5">
             {#if showSource}
                 <fieldset class="space-y-2.5">
@@ -294,7 +295,7 @@
                         <Combobox.Content
                             sideOffset={6}
                             customAnchor={genreAnchor}
-                            class="z-90 max-h-64 w-(--bits-combobox-anchor-width) max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-white/10 bg-black/98 p-1.5 text-white shadow-2xl focus:outline-none"
+                            class="z-90 max-h-[min(16rem,var(--bits-combobox-content-available-height))] w-(--bits-combobox-anchor-width) max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-white/10 bg-black/98 p-1.5 text-white shadow-2xl focus:outline-none"
                         >
                             <Combobox.Viewport>
                                 {#each filteredGenres as genre (genre.key)}
@@ -330,9 +331,9 @@
                 Adult titles are hidden.
             </p>
         </div>
-    </Scroller>
+    </div>
 
-    <div class="grid grid-cols-3 gap-2 border-t border-white/10 px-5 py-4">
+    <div class="grid shrink-0 grid-cols-3 gap-2 border-t border-white/10 px-5 py-4">
         <button
             type="button"
             class="h-10 rounded-xl px-3 text-sm text-muted-foreground transition-colors hover:bg-white/8 hover:text-white"
