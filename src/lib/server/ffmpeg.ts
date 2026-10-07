@@ -35,6 +35,22 @@ interface TransmuxOptions {
 const BROWSER_SAFE_VIDEO_CODECS = new Set(["h264", "vp8", "vp9", "av1"]);
 const BROWSER_SAFE_AUDIO_CODECS = new Set(["aac", "mp3", "opus", "vorbis"]);
 
+// Copy only audio that is suitable for MP4 and already meets our channel limit.
+const MP4_COPY_AUDIO_CODECS = new Set(["aac", "mp3"]);
+
+function getAudioOutputOptions({ audioCodec, audioChannels }: PlaybackCompatibility): string[] {
+	if (
+		audioCodec !== null &&
+		MP4_COPY_AUDIO_CODECS.has(audioCodec) &&
+		audioChannels !== null &&
+		audioChannels > 0 &&
+		audioChannels <= 2
+	) {
+		return ["-c:a", "copy"];
+	}
+	return ["-c:a", "aac", "-ac", "2", "-b:a", "192k"];
+}
+
 const INPUT_FORMAT_BY_EXTENSION: Record<string, string> = {
 	".avi": "avi",
 	".m4v": "mp4",
@@ -71,7 +87,7 @@ export function createTransmuxStream(options: TransmuxOptions): Readable {
 	const outputStream = new PassThrough();
 	const command = ffmpeg(inputStream)
 		.outputFormat("mp4")
-		.inputOptions(["-fflags", "+genpts", "-analyzeduration", "100M", "-probesize", "100M"])
+		.inputOptions(["-fflags", "+genpts", "-analyzeduration", "5M", "-probesize", "5M"])
 		.outputOptions([
 			"-map_metadata",
 			"-1",
@@ -84,7 +100,8 @@ export function createTransmuxStream(options: TransmuxOptions): Readable {
 			"-dn",
 			"-sn",
 			"-movflags",
-			"frag_keyframe+empty_moov+default_base_moof+faststart",
+			// Fragmented output can stream to a pipe; faststart is for seekable files.
+			"frag_keyframe+empty_moov+default_base_moof",
 			"-c:v",
 			"copy", // Copy video stream (no re-encoding)
 			"-c:a",
@@ -130,6 +147,7 @@ export function createTransmuxStream(options: TransmuxOptions): Readable {
  * Transmux a file from one format to another (typically MKV to MP4)
  */
 export async function transmuxFile(inputPath: string, outputPath: string): Promise<void> {
+	const compatibility = await getPlaybackCompatibility(inputPath);
 	return new Promise((resolve, reject) => {
 		ffmpeg(inputPath)
 			.output(outputPath)
@@ -148,12 +166,7 @@ export async function transmuxFile(inputPath: string, outputPath: string): Promi
 				"+faststart", // Optimize for web streaming
 				"-c:v",
 				"copy", // Copy video stream (no re-encoding)
-				"-c:a",
-				"aac", // Transcode audio to AAC for browser compatibility
-				"-ac",
-				"2",
-				"-b:a",
-				"192k",
+				...getAudioOutputOptions(compatibility),
 			])
 			.on("error", (err: Error) => {
 				console.error("[Transcoder] Transmux error:", err.message);
@@ -289,12 +302,7 @@ export async function normalizeFileForPlayback(
 				"-sn",
 				"-movflags",
 				"+faststart",
-				"-c:a",
-				"aac",
-				"-ac",
-				"2",
-				"-b:a",
-				"192k",
+				...getAudioOutputOptions(compatibility),
 			]);
 
 		if (compatibility.needsVideoTranscode) {

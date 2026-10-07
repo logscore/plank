@@ -47,9 +47,25 @@ vi.mock("fluent-ffmpeg", () => ({
 	default: mockFfmpegConstructor,
 }));
 
+function mockCodecs(videoCodec = "h264", audioCodec: string | null = "aac", audioChannels = 2): void {
+	mockFfmpegConstructor.ffprobe.mockImplementation(
+		(_path: string, callback: (err: Error | null, data?: unknown) => void) => {
+			callback(null, {
+				format: { duration: 100 },
+				streams: [
+					{ codec_type: "video", codec_name: videoCodec, width: 1920, height: 1080 },
+					...(audioCodec ? [{ codec_type: "audio", codec_name: audioCodec, channels: audioChannels }] : []),
+				],
+			});
+		}
+	);
+}
+
 describe("FFmpeg Service", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockCodecs();
+		mockFfmpegCommand.run.mockReset();
 		// Reset event handlers
 		mockFfmpegCommand.on.mockImplementation((event, callback) => {
 			if (event === "end") {
@@ -82,6 +98,19 @@ describe("FFmpeg Service", () => {
 			expect(mockFfmpegCommand.inputFormat).toHaveBeenCalledWith("matroska");
 			expect(mockFfmpegCommand.outputFormat).toHaveBeenCalledWith("mp4");
 			expect(stream).toBeInstanceOf(PassThrough);
+			expect(mockFfmpegCommand.inputOptions).toHaveBeenCalledWith([
+				"-fflags",
+				"+genpts",
+				"-analyzeduration",
+				"5M",
+				"-probesize",
+				"5M",
+			]);
+			const options = mockFfmpegCommand.outputOptions.mock.calls.flat(2);
+			expect(options[options.indexOf("-movflags") + 1]).toBe("frag_keyframe+empty_moov+default_base_moof");
+			// A non-seekable input cannot be separately probed without consuming it.
+			expect(mockFfmpegConstructor.ffprobe).not.toHaveBeenCalled();
+			expect(options[options.indexOf("-c:a") + 1]).toBe("aac");
 		});
 
 		it("should handle start time", () => {
@@ -117,6 +146,24 @@ describe("FFmpeg Service", () => {
 	});
 
 	describe("transmuxFile", () => {
+		it.each([
+			["aac", 2, "copy"],
+			["mp3", 1, "copy"],
+			["aac", 6, "aac"],
+			["ac3", 6, "aac"],
+		])("transmuxes %s (%i channels) with audio=%s", async (codec, channels, encoder) => {
+			mockCodecs("h264", codec, channels);
+			await transmuxFile("input.mkv", "output.mp4");
+			const options = mockFfmpegCommand.outputOptions.mock.calls.flat(2);
+			expect(options[options.indexOf("-c:v") + 1]).toBe("copy");
+			expect(options[options.indexOf("-c:a") + 1]).toBe(encoder);
+			expect(options[options.indexOf("-movflags") + 1]).toBe("+faststart");
+			if (encoder === "copy") {
+				expect(options).not.toContain("-ac");
+				expect(options).not.toContain("-b:a");
+			}
+		});
+
 		it("should transmux file", async () => {
 			mockFfmpegCommand.run.mockImplementation(() => {
 				// Simulate success
@@ -182,6 +229,37 @@ describe("FFmpeg Service", () => {
 	});
 
 	describe("normalizeFileForPlayback", () => {
+		it.each([
+			["h264", "aac", 2, "copy", "copy"],
+			["h264", "mp3", 1, "copy", "copy"],
+			["h264", "aac", 6, "copy", "aac"],
+			["h264", "aac", 0, "copy", "aac"],
+			["h264", "ac3", 6, "copy", "aac"],
+			["h264", "dts", 2, "copy", "aac"],
+			["vp9", "opus", 2, "copy", "aac"],
+			["h264", "vorbis", 2, "copy", "aac"],
+			["hevc", "aac", 2, "libx264", "copy"],
+			["hevc", "eac3", 6, "libx264", "aac"],
+			["h264", null, 0, "copy", "aac"],
+		])("normalizes %s/%s (%i channels) using video=%s, audio=%s", async (videoCodec, audioCodec, channels, videoEncoder, audioEncoder) => {
+			mockCodecs(videoCodec, audioCodec, channels);
+			await normalizeFileForPlayback("input.mkv", "output.mp4");
+
+			const options = mockFfmpegCommand.outputOptions.mock.calls.flat(2);
+			expect(options[options.indexOf("-c:v") + 1]).toBe(videoEncoder);
+			expect(options[options.indexOf("-c:a") + 1]).toBe(audioEncoder);
+			if (audioEncoder === "copy") {
+				expect(options).not.toContain("-ac");
+				expect(options).not.toContain("-b:a");
+			} else {
+				expect(options[options.indexOf("-ac") + 1]).toBe("2");
+			}
+			if (videoEncoder === "copy") {
+				expect(options).not.toContain("-preset");
+				expect(options).not.toContain("-pix_fmt");
+			}
+		});
+
 		it("reports only finite progress clamped from 0 to 1", async () => {
 			mockFfmpegConstructor.ffprobe.mockImplementation(
 				(_path: string, callback: (err: Error | null, data?: unknown) => void) => {
