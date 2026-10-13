@@ -27,20 +27,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	});
 };
 
-export const PATCH: RequestHandler = async ({ params, locals, request }) => {
-	requireMediaAccess(locals, params.id);
-
-	const subtitle = subtitlesDb.getById(params.subtitleId);
-	if (!subtitle || subtitle.mediaId !== params.id) {
-		throw error(404, "Subtitle not found");
-	}
-
-	const { isDefault } = (await request.json()) as { isDefault: boolean };
-	subtitlesDb.setDefault(params.subtitleId, subtitle.mediaId, isDefault);
-
-	return json({ success: true });
-};
-
 export const DELETE: RequestHandler = async ({ params, locals }) => {
 	requireMediaAccess(locals, params.id);
 

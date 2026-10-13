@@ -317,8 +317,6 @@ export const subtitles = sqliteTable(
 		format: text("format").default("vtt"),
 		filePath: text("file_path"),
 		streamIndex: integer("stream_index"),
-		isDefault: integer("is_default", { mode: "boolean" }).default(false),
-		isForced: integer("is_forced", { mode: "boolean" }).default(false),
 		createdAt: integer("created_at", { mode: "timestamp_ms" })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 			.notNull(),

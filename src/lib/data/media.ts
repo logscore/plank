@@ -1,6 +1,6 @@
 import { createMutation, createQuery } from "@tanstack/svelte-query";
 import { invalidate } from "$app/navigation";
-import type { Media, MediaType, OpenSubtitleResult, SourceCandidate } from "$lib/types";
+import type { Media, MediaType, OpenSubtitleResult, SourceCandidate, SubtitleTrackResponse } from "$lib/types";
 import { apiRequest } from "./client";
 
 export interface AddMediaParams {
@@ -93,31 +93,17 @@ export interface DownloadSubtitleParams {
 }
 
 export function createDownloadSubtitleMutation() {
-	return createMutation<unknown, Error, DownloadSubtitleParams>(() => ({
+	return createMutation<SubtitleTrackResponse, Error, DownloadSubtitleParams>(() => ({
+		retry: false,
 		mutationFn: (params) =>
-			apiRequest(`/api/media/${params.mediaId}/subtitles/download`, "Failed to download subtitle", {
-				method: "POST",
-				json: { fileId: params.fileId, language: params.language },
-			}),
-		onSuccess: async (_data, params) => {
-			await invalidate(`/api/media/${params.mediaId}`);
-		},
-	}));
-}
-
-export interface SetDefaultSubtitleParams {
-	mediaId: string;
-	subtitleId: string;
-	isDefault: boolean;
-}
-
-export function createSetDefaultSubtitleMutation() {
-	return createMutation<unknown, Error, SetDefaultSubtitleParams>(() => ({
-		mutationFn: (params) =>
-			apiRequest(`/api/media/${params.mediaId}/subtitles/${params.subtitleId}`, "Failed to update subtitle", {
-				method: "PATCH",
-				json: { isDefault: params.isDefault },
-			}),
+			apiRequest<SubtitleTrackResponse>(
+				`/api/media/${params.mediaId}/subtitles/download`,
+				"Failed to download subtitle",
+				{
+					method: "POST",
+					json: { fileId: params.fileId, language: params.language },
+				}
+			),
 		onSuccess: async (_data, params) => {
 			await invalidate(`/api/media/${params.mediaId}`);
 		},

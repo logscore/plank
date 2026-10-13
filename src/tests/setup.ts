@@ -246,8 +246,6 @@ beforeAll(() => {
       format TEXT DEFAULT 'vtt',
       file_path TEXT,
       stream_index INTEGER,
-      is_default INTEGER DEFAULT 0,
-      is_forced INTEGER DEFAULT 0,
       created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_subtitles_media ON subtitles(media_id);

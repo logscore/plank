@@ -23,6 +23,9 @@ export const load: PageServerLoad<ShowPageData> = async ({ depends, locals, para
 
 	const seasons = seasonsDb.getWithEpisodes(params.id);
 	const episodes = seasons.flatMap((season) => season.episodes);
+	for (const episode of episodes) {
+		depends(`/api/media/${episode.id}`);
+	}
 	const episodeProgressByMediaId = Object.fromEntries(
 		episodes.map((episode) => [
 			episode.id,

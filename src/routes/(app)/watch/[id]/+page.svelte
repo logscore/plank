@@ -10,6 +10,7 @@
     import type { MediaPlayerElement } from "vidstack/elements";
     import { browser } from "$app/environment";
     import { connectMediaProgressStream } from "$lib/client/media-progress-stream";
+    import PlayerSubtitleMenu from "$lib/components/PlayerSubtitleMenu.svelte";
     import { createSavePositionMutation } from "$lib/data/media";
     import type { ProgressInfo } from "$lib/types";
     import { isTerminalProgressStatus } from "$lib/utils";
@@ -390,6 +391,7 @@
                 src={getVideoSrc()}
                 autoplay
                 playsinline
+                keyTarget="document"
                 streamType="on-demand"
                 controlsDelay={3000}
                 title={data.media.title}
@@ -398,16 +400,25 @@
                 <media-provider>
                     {#each subtitleTracks as track (track.id)}
                         <track
+                            id={track.id}
                             src={track.src}
                             kind="subtitles"
                             label={track.label}
                             srclang={track.language}
-                            default={track.isDefault}
                         >
                     {/each}
                 </media-provider>
                 {#if playerReady}
                     <media-video-layout></media-video-layout>
+                    {#if playerEl}
+                        {#key data.media.id}
+                            <PlayerSubtitleMenu
+                                player={playerEl}
+                                mediaId={data.media.id}
+                                mediaTitle={data.media.title}
+                            />
+                        {/key}
+                    {/if}
                 {/if}
             </media-player>
         {/if}

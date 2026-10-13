@@ -694,13 +694,6 @@ export const subtitlesDb = {
 		return db.select().from(subtitlesTable).where(eq(subtitlesTable.id, id)).get();
 	},
 
-	setDefault(id: string, mediaId: string, isDefault: boolean) {
-		if (isDefault) {
-			db.update(subtitlesTable).set({ isDefault: false }).where(eq(subtitlesTable.mediaId, mediaId)).run();
-		}
-		db.update(subtitlesTable).set({ isDefault }).where(eq(subtitlesTable.id, id)).run();
-	},
-
 	deleteById(id: string) {
 		db.delete(subtitlesTable).where(eq(subtitlesTable.id, id)).run();
 	},

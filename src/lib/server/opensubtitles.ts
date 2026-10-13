@@ -16,6 +16,8 @@ const IMDB_PREFIX_REGEX = /^tt/;
 interface OpenSubtitlesSearchParams {
 	tmdbId?: number;
 	imdbId?: string;
+	parentTmdbId?: number;
+	parentImdbId?: string;
 	query?: string;
 	year?: number;
 	seasonNumber?: number;
@@ -264,6 +266,12 @@ export async function searchSubtitles(params: OpenSubtitlesSearchParams): Promis
 		const numericId = params.imdbId.replace(IMDB_PREFIX_REGEX, "");
 		searchParams.set("imdb_id", numericId);
 	}
+	if (params.parentTmdbId) {
+		searchParams.set("parent_tmdb_id", String(params.parentTmdbId));
+	}
+	if (params.parentImdbId) {
+		searchParams.set("parent_imdb_id", params.parentImdbId.replace(IMDB_PREFIX_REGEX, ""));
+	}
 	if (params.query) {
 		searchParams.set("query", params.query);
 	}
@@ -302,11 +310,6 @@ export async function searchSubtitles(params: OpenSubtitlesSearchParams): Promis
 		const attr = item.attributes;
 		const file = attr.files[0];
 
-		// Determine if this is an exact match based on TMDB ID
-		const isExactMatch = params.tmdbId
-			? attr.feature_details.tmdb_id === params.tmdbId
-			: attr.feature_details.title?.toLowerCase() === params.query?.toLowerCase();
-
 		return {
 			id: item.id,
 			fileId: file?.file_id ?? 0,
@@ -323,7 +326,6 @@ export async function searchSubtitles(params: OpenSubtitlesSearchParams): Promis
 			votes: attr.votes,
 			ratings: attr.ratings,
 			uploadDate: attr.upload_date,
-			isExactMatch: !!isExactMatch,
 			featureTitle: attr.feature_details.movie_name || attr.feature_details.title,
 			featureYear: attr.feature_details.year,
 			seasonNumber: attr.feature_details.season_number,

@@ -20,8 +20,6 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 			format: "vtt",
 			filePath,
 			streamIndex: null,
-			isDefault: false,
-			isForced: false,
 		});
 		return json({
 			id: subtitle.id,
@@ -29,8 +27,6 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 			language: subtitle.language,
 			label: subtitle.label,
 			source: subtitle.source,
-			isDefault: subtitle.isDefault,
-			isForced: subtitle.isForced,
 			src: `/api/media/${params.id}/subtitles/${subtitle.id}`,
 			fileName,
 		});

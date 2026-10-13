@@ -71,8 +71,6 @@ export interface SubtitleTrackResponse {
 	language: string;
 	label: string;
 	source: string;
-	isDefault: boolean;
-	isForced: boolean;
 	src: string;
 }
 export interface ProgressInfo {
@@ -116,7 +114,6 @@ export interface OpenSubtitleResult {
 	votes: number;
 	ratings: number;
 	uploadDate: string;
-	isExactMatch: boolean;
 	featureTitle: string;
 	featureYear: number;
 	seasonNumber?: number;

@@ -44,13 +44,15 @@ describe("WebTorrent client lifecycle", () => {
 
 		await getClient();
 
-		expect(webTorrentMock.construct).toHaveBeenCalledWith(expect.objectContaining({ maxConns: 30 }));
+		expect(webTorrentMock.construct).toHaveBeenCalledWith(
+			expect.objectContaining({ maxConns: 55, downloadLimit: -1, uploadLimit: -1 })
+		);
 	});
 
 	it("releases the client when the last download is cleaned up", async () => {
 		const { activeDownloads, cleanupDownload, getClient } = await import("../lib/server/torrent/client");
 		const client = await getClient();
-		const torrent = { destroy: vi.fn((_opts: unknown, callback: () => void) => callback()) };
+		const torrent = { destroy: vi.fn((_opts: unknown, callback: () => void) => callback) };
 		activeDownloads.set("hash-1", { torrent } as never);
 		activeDownloads.set("hash-2", { torrent } as never);
 

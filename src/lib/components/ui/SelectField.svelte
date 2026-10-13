@@ -16,6 +16,7 @@
         ariaLabel,
         class: className,
         onValueChange,
+        portalTarget,
     }: {
         value?: string;
         items: SelectOption[];
@@ -23,6 +24,7 @@
         ariaLabel: string;
         class?: string;
         onValueChange?: (value: string) => void;
+        portalTarget?: HTMLElement;
     } = $props();
 </script>
 
@@ -37,7 +39,7 @@
         <Select.Value {placeholder} />
         <ChevronDown class="ml-auto h-4 w-4 text-muted-foreground" />
     </Select.Trigger>
-    <Select.Portal>
+    <Select.Portal to={portalTarget}>
         <Select.Content
             sideOffset={8}
             class="z-90 max-h-[var(--bits-select-content-available-height)] min-w-[var(--bits-select-anchor-width)] overflow-y-auto rounded-xl border border-white/10 bg-black/95 p-1.5 text-foreground shadow-2xl backdrop-blur-xl focus:outline-none"

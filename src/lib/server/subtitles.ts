@@ -95,8 +95,6 @@ async function discoverSidecarSubtitles(mediaId: string, libraryDir: string): Pr
 			format: "vtt",
 			filePath: sourcePath,
 			streamIndex: null,
-			isDefault: false,
-			isForced: false,
 		});
 	}
 }
@@ -112,8 +110,6 @@ function getSubtitleTracks(mediaId: string): SubtitleTrackResponse[] {
 		language: subtitle.language,
 		label: subtitle.label,
 		source: subtitle.source,
-		isDefault: Boolean(subtitle.isDefault),
-		isForced: Boolean(subtitle.isForced),
 		src: `/api/media/${mediaId}/subtitles/${subtitle.id}`,
 	}));
 }

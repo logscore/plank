@@ -284,8 +284,6 @@ describe("subtitlesDb", () => {
 			format: "vtt",
 			filePath: "/subs/en.vtt",
 			streamIndex: null,
-			isDefault: false,
-			isForced: false,
 		});
 		const subtitleB = subtitlesDb.create({
 			mediaId: movie.id,
@@ -295,15 +293,12 @@ describe("subtitlesDb", () => {
 			format: "vtt",
 			filePath: "/subs/es.vtt",
 			streamIndex: null,
-			isDefault: false,
-			isForced: false,
 		});
-
-		subtitlesDb.setDefault(subtitleB.id, movie.id, true);
 
 		const subtitles = subtitlesDb.getByMediaId(movie.id);
 		expect(subtitles).toHaveLength(2);
-		expect(subtitles.find((subtitle) => subtitle.id === subtitleA.id)?.isDefault).toBe(false);
-		expect(subtitles.find((subtitle) => subtitle.id === subtitleB.id)?.isDefault).toBe(true);
+		expect(subtitles.map((subtitle) => subtitle.id)).toEqual(expect.arrayContaining([subtitleA.id, subtitleB.id]));
+		expect(subtitlesDb.getById(subtitleA.id)?.language).toBe("en");
+		expect(subtitlesDb.getById(subtitleB.id)?.language).toBe("es");
 	});
 });

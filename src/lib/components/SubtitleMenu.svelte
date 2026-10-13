@@ -1,8 +1,9 @@
 <script lang="ts">
     import { Check, ChevronDown, ClosedCaption, Plus, Trash2 } from "@lucide/svelte";
-    import { Popover } from "bits-ui";
+    import { Popover, Switch } from "bits-ui";
+    import { getCaptionSelection, setCaptionSelection } from "$lib/caption-session.svelte";
     import Scroller from "$lib/components/ui/Scroller.svelte";
-    import { createDeleteSubtitleMutation, createSetDefaultSubtitleMutation } from "$lib/data/media";
+    import { createDeleteSubtitleMutation } from "$lib/data/media";
     import type { SubtitleTrackResponse } from "$lib/types";
 
     let {
@@ -20,23 +21,30 @@
     } = $props();
 
     let isOpen = $state(false);
+    let errorMessage = $state("");
 
-    const setDefaultMutation = createSetDefaultSubtitleMutation();
     const deleteMutation = createDeleteSubtitleMutation();
 
-    function handleSetDefault(track: SubtitleTrackResponse) {
-        setDefaultMutation.mutate({
-            mediaId,
-            subtitleId: track.id,
-            isDefault: !track.isDefault,
-        });
+    function selectTrack(track: SubtitleTrackResponse) {
+        setCaptionSelection(mediaId, track.id, true);
     }
 
-    function handleDelete(track: SubtitleTrackResponse) {
-        deleteMutation.mutate({
-            mediaId,
-            subtitleId: track.id,
-        });
+    function toggleCaptions(enabled: boolean) {
+        const track = selectedTrack ?? tracks[0];
+        setCaptionSelection(mediaId, track?.id ?? null, enabled);
+    }
+
+    async function handleDelete(track: SubtitleTrackResponse) {
+        errorMessage = "";
+        const id = mediaId;
+        try {
+            await deleteMutation.mutateAsync({ mediaId: id, subtitleId: track.id });
+            if (getCaptionSelection(id)?.trackId === track.id) {
+                setCaptionSelection(id, null, false);
+            }
+        } catch (error) {
+            errorMessage = error instanceof Error ? error.message : "Failed to remove subtitle";
+        }
     }
 
     function handleAdd() {
@@ -51,7 +59,7 @@
             case "sidecar":
                 return "File";
             case "opensubtitles":
-                return "OpenSub";
+                return "Remote";
             case "manual":
                 return "Manual";
             default:
@@ -59,7 +67,9 @@
         }
     }
 
-    const defaultTrack = $derived(tracks.find((t: SubtitleTrackResponse) => t.isDefault));
+    const selection = $derived(getCaptionSelection(mediaId));
+    const selectedTrack = $derived(tracks.find((track) => track.id === selection?.trackId));
+    const activeTrackId = $derived(selection?.enabled ? selectedTrack?.id : null);
     const trackCount = $derived(tracks.length);
 </script>
 
@@ -67,22 +77,16 @@
     {#if compact}
         <Popover.Trigger
             class="inline-flex h-8 items-center justify-center rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring {buttonClass}"
-            aria-label="Subtitles"
+            aria-label="Captions"
         >
             <ClosedCaption class="h-6 w-6" />
-            {#if trackCount > 0}
-                <span class="ml-1 text-xs">{trackCount}</span>
-            {/if}
         </Popover.Trigger>
     {:else}
         <Popover.Trigger
             class="inline-flex h-11 items-center justify-center rounded-md px-3 text-sm font-medium text-white transition-colors hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring {buttonClass}"
-            aria-label="Subtitles"
+            aria-label="Captions"
         >
             <ClosedCaption class="mr-2 h-6 w-6" />
-            {#if trackCount > 0}
-                <span class="ml-1 rounded-full bg-primary/20 px-1.5 py-0.5 text-xs text-primary"> {trackCount} </span>
-            {/if}
             <ChevronDown class="ml-2 h-4 w-4 shrink-0 transition-transform {isOpen ? 'rotate-180' : ''}" />
         </Popover.Trigger>
     {/if}
@@ -91,59 +95,60 @@
             side="bottom"
             align={compact ? "end" : "start"}
             sideOffset={8}
-            class="z-50 w-72 overflow-hidden rounded-xl border border-white/10 bg-black/95 text-foreground shadow-2xl backdrop-blur-xl focus:outline-none"
+            aria-label="Captions"
+            class="z-50 w-[calc(100vw-1.5rem)] max-w-xs overflow-hidden rounded-xl border border-white/10 bg-zinc-950/95 text-foreground shadow-2xl backdrop-blur-xl focus:outline-none"
         >
-            <div class="border-b border-white/10 bg-white/5 px-4 py-2.5">
-                <h3 class="text-sm font-medium text-white">Subtitles</h3>
-                {#if defaultTrack}
-                    <p class="mt-0.5 text-xs text-muted-foreground">Default: {defaultTrack.label}</p>
-                {:else}
-                    <p class="mt-0.5 text-xs text-muted-foreground">No default set</p>
-                {/if}
+            <div class="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
+                <h3 class="text-sm font-semibold text-white">Captions</h3>
+                <Switch.Root
+                    checked={Boolean(activeTrackId)}
+                    onCheckedChange={toggleCaptions}
+                    disabled={tracks.length === 0 || deleteMutation.isPending}
+                    aria-label="Enable captions"
+                    class="inline-flex h-6 w-10 shrink-0 items-center rounded-full bg-white/20 p-0.5 transition-colors data-[state=checked]:bg-primary disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-primary"
+                >
+                    <Switch.Thumb
+                        class="h-5 w-5 rounded-full bg-white shadow-sm transition-transform data-[state=checked]:translate-x-4"
+                    />
+                </Switch.Root>
             </div>
 
-            <Scroller class="max-h-64">
+            {#if errorMessage}
+                <p role="alert" class="px-4 py-3 text-sm text-destructive">{errorMessage}</p>
+            {/if}
+
+            <Scroller class="max-h-64 p-2">
                 {#if tracks.length === 0}
-                    <div class="px-4 py-6 text-center text-sm text-muted-foreground">No subtitles available</div>
+                    <p class="px-3 py-4 text-center text-sm text-zinc-400">No captions yet. Find a track below.</p>
                 {:else}
                     {#each tracks as track (track.id)}
-                        <div
-                            class="group flex items-center gap-2 border-b border-white/8 px-3 py-2.5 transition-colors last:border-b-0 hover:bg-white/8"
-                        >
+                        <div class="group flex items-center gap-1 rounded-lg hover:bg-white/10">
                             <button
-                                class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors {track.isDefault
-                                    ? 'border-primary bg-primary/20 text-primary'
-                                    : 'border-white/20 text-transparent hover:border-white/40 hover:text-white/40'}"
-                                onclick={() => handleSetDefault(track)}
-                                aria-label={track.isDefault
-                                    ? "Remove as default"
-                                    : "Set as default"}
+                                type="button"
+                                class="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left focus-visible:outline focus-visible:outline-primary disabled:opacity-50"
+                                onclick={() => selectTrack(track)}
+                                aria-pressed={activeTrackId === track.id}
+                                disabled={deleteMutation.isPending}
                             >
-                                <Check class="h-3 w-3" />
-                            </button>
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-center gap-2">
+                                <Check
+                                    class="h-4 w-4 shrink-0 {activeTrackId === track.id ? 'text-primary' : 'invisible'}"
+                                />
+                                <span class="min-w-0 flex-1">
                                     <span class="truncate text-sm font-medium text-white">{track.label}</span>
-                                    <span
-                                        class="shrink-0 rounded bg-accent px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                                    >
-                                        {getSourceLabel(track.source)}
-                                    </span>
-                                    {#if track.isForced}
-                                        <span
-                                            class="shrink-0 rounded bg-yellow-500/20 px-1.5 py-0.5 text-[10px] text-yellow-400"
+                                    <!-- <span
+                                            class="shrink-0 rounded bg-accent px-1.5 py-0.5 text-[10px] text-muted-foreground"
                                         >
-                                            Forced
-                                        </span>
-                                    {/if}
-                                </div>
-                                <span class="text-xs uppercase text-muted-foreground">{track.language}</span>
-                            </div>
+                                            {getSourceLabel(track.source)}
+                                        </span> -->
+                                </span>
+                            </button>
                             {#if track.source === "opensubtitles" || track.source === "manual"}
                                 <button
-                                    class="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+                                    type="button"
+                                    class="mr-2 rounded p-1 text-muted-foreground transition-colors hover:bg-destructive hover:text-accent-foreground focus-visible:outline focus-visible:outline-primary disabled:opacity-50"
                                     onclick={() => handleDelete(track)}
-                                    aria-label="Remove subtitle"
+                                    aria-label="Remove {track.label} subtitle"
+                                    disabled={deleteMutation.isPending}
                                 >
                                     <Trash2 class="h-3.5 w-3.5" />
                                 </button>
@@ -155,11 +160,12 @@
 
             <div class="border-t border-white/10 p-2">
                 <button
-                    class="flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    type="button"
+                    class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-primary"
                     onclick={handleAdd}
                 >
-                    <Plus class="h-4 w-4" />
-                    Search OpenSubtitles
+                    <Plus class="h-4 w-4 text-zinc-400" />
+                    Add captions
                 </button>
             </div>
         </Popover.Content>

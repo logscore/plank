@@ -88,7 +88,7 @@ function isQueued(row: QueueRow): boolean {
  * Group queue rows by download. An episode folds only when its parent
  * show has one unambiguous queue entry.
  */
-export function foldQueueRows(rows: QueueRow[]): QueueEntry[] {
+function foldQueueRows(rows: QueueRow[]): QueueEntry[] {
 	const entries: QueueEntry[] = [];
 	const episodeRows: QueueRow[] = [];
 	for (const row of rows) {
