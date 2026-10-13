@@ -245,7 +245,7 @@ function startCompletionChecker(infohash: string, download: ActiveDownload, torr
 		}
 
 		clearInterval(checkInterval);
-		torrent.emit("error", new Error("Download stalled for 10 minutes with no progress"));
+		torrent.emit("error", new Error("Download stalled for 5 minutes with no progress"));
 	}, 5000); // This 5 sec interval with a 60 maximum checks makes for a 5 min stall limit
 }
 

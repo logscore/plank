@@ -121,7 +121,7 @@ describe("torrent finalization", () => {
 		consoleError.mockRestore();
 	});
 
-	it("cleans up a ready torrent after ten minutes without progress", async () => {
+	it("cleans up a ready torrent after five minutes without progress", async () => {
 		const torrent = new FakeTorrent();
 		const videoFile = {
 			name: "Movie.mp4",
@@ -140,12 +140,14 @@ describe("torrent finalization", () => {
 		await vi.advanceTimersByTimeAsync(0);
 		torrent.emit("ready");
 		await startPromise;
-		await vi.advanceTimersByTimeAsync(600_000);
+		await vi.advanceTimersByTimeAsync(299_999);
+		expect(mocks.cleanupDownload).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(1);
 
 		const download = mocks.activeDownloads.get("hash-1");
 		expect(download).toMatchObject({
 			status: "error",
-			error: "Download stalled for 10 minutes with no progress",
+			error: "Download stalled for 5 minutes with no progress",
 		});
 		expect(mocks.downloadUpdateProgress).toHaveBeenCalledWith("download-1", 0, "error");
 		expect(mocks.mediaUpdateProgress).toHaveBeenLastCalledWith("media-1", 0, "error");
@@ -155,6 +157,7 @@ describe("torrent finalization", () => {
 	});
 
 	it("resets the stall limit when torrent bytes increase", async () => {
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 		const torrent = new FakeTorrent();
 		const videoFile = {
 			name: "Movie.mp4",
@@ -173,12 +176,17 @@ describe("torrent finalization", () => {
 		torrent.emit("ready");
 		await startPromise;
 
-		await vi.advanceTimersByTimeAsync(595_000);
+		await vi.advanceTimersByTimeAsync(295_000);
 		torrent.downloaded = 1;
+		// The next check observes progress and starts a fresh five-minute window.
 		await vi.advanceTimersByTimeAsync(5000);
-		await vi.advanceTimersByTimeAsync(595_000);
+		await vi.advanceTimersByTimeAsync(299_999);
 
 		expect(mocks.cleanupDownload).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(1);
+		expect(mocks.cleanupDownload).toHaveBeenCalledOnce();
+		expect(mocks.cleanupDownload).toHaveBeenCalledWith("hash-1", false);
+		consoleError.mockRestore();
 	});
 	it("averages finalization progress for concurrent downloads", () => {
 		// Status aggregation reads only these live torrent counters.
