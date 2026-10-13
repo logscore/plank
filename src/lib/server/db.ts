@@ -679,11 +679,13 @@ export const downloadsDb = {
 };
 
 export const subtitlesDb = {
-	create(subtitle: Omit<NewSubtitle, "id" | "createdAt">): Subtitle {
+	create(subtitle: Omit<NewSubtitle, "id">): Subtitle {
 		const id = crypto.randomUUID();
-		const newSubtitle: NewSubtitle = { id, ...subtitle };
-		db.insert(subtitlesTable).values(newSubtitle).run();
-		return { ...newSubtitle, createdAt: new Date() } as Subtitle;
+		return db
+			.insert(subtitlesTable)
+			.values({ id, ...subtitle })
+			.returning()
+			.get();
 	},
 
 	getByMediaId(mediaId: string): Subtitle[] {

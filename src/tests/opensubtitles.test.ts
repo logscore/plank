@@ -9,7 +9,7 @@ import { searchSubtitles } from "$lib/server/opensubtitles";
 describe("OpenSubtitles episode searches", () => {
 	afterEach(() => vi.unstubAllGlobals());
 
-	it("sends parent IDs and only marks the requested episode as an exact match", async () => {
+	it("sends parent IDs and episode filters, including season zero", async () => {
 		const fetchMock = vi.fn(async () =>
 			Response.json({
 				data: [2, 3].map((episode) => ({
@@ -17,14 +17,13 @@ describe("OpenSubtitles episode searches", () => {
 					attributes: {
 						language: "en",
 						files: [{ file_id: episode, file_name: "subtitle.srt" }],
-						feature_details: { parent_tmdb_id: 123, season_number: 0, episode_number: episode },
 					},
 				})),
 			})
 		);
 		vi.stubGlobal("fetch", fetchMock);
 
-		const results = await searchSubtitles({
+		await searchSubtitles({
 			parentTmdbId: 123,
 			parentImdbId: "tt456",
 			seasonNumber: 0,

@@ -179,22 +179,6 @@ export async function transmuxFile(inputPath: string, outputPath: string): Promi
 	});
 }
 
-// Save for when we extract subtitles from movie files directly.
-// async function extractSubtitleAsVtt(inputPath: string, streamIndex: number, outputPath: string): Promise<void> {
-// 	return new Promise((resolve, reject) => {
-// 		ffmpeg(inputPath)
-// 			.outputOptions(["-map", `0:${streamIndex}`, "-c:s", "webvtt"])
-// 			.output(outputPath)
-// 			.on("error", (err: Error) => {
-// 				reject(err);
-// 			})
-// 			.on("end", () => {
-// 				resolve();
-// 			})
-// 			.run();
-// 	});
-// }
-
 export async function convertSubtitleToVtt(inputPath: string, outputPath: string): Promise<void> {
 	return new Promise((resolve, reject) => {
 		ffmpeg(inputPath)

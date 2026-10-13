@@ -281,18 +281,14 @@ describe("subtitlesDb", () => {
 			language: "en",
 			label: "English",
 			source: "manual",
-			format: "vtt",
 			filePath: "/subs/en.vtt",
-			streamIndex: null,
 		});
 		const subtitleB = subtitlesDb.create({
 			mediaId: movie.id,
 			language: "es",
 			label: "Spanish",
 			source: "manual",
-			format: "vtt",
 			filePath: "/subs/es.vtt",
-			streamIndex: null,
 		});
 
 		const subtitles = subtitlesDb.getByMediaId(movie.id);

@@ -157,7 +157,7 @@ async function moveMovieToLibrary(mediaId: string, download: ActiveDownload): Pr
 
 	mediaDb.updateFilePath(mediaId, finalized.filePath, finalized.fileSize);
 
-	discoverSubtitles(mediaId, finalized.filePath, destDir).catch((err) => {
+	discoverSubtitles(mediaId, destDir).catch((err) => {
 		console.error(`${logPrefix} Subtitle discovery failed:`, err);
 	});
 }
@@ -202,7 +202,7 @@ async function updateEpisodeFileInfo(
 				fileSize,
 			});
 			mediaDb.updateEpisodeProgress(episode.id, fileSize, "complete");
-			discoverSubtitles(episode.id, filePath, path.dirname(filePath)).catch((error) => {
+			discoverSubtitles(episode.id, path.dirname(filePath)).catch((error) => {
 				console.error(`[${mediaId}] Subtitle discovery failed for ${videoFile.name}:`, error);
 			});
 		} else {
@@ -256,7 +256,7 @@ async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): 
 		fileSize: finalized.fileSize,
 	});
 	mediaDb.updateEpisodeProgress(mediaId, finalized.fileSize, "complete");
-	discoverSubtitles(mediaId, finalized.filePath, seasonDir).catch((errorValue) => {
+	discoverSubtitles(mediaId, seasonDir).catch((errorValue) => {
 		console.error(`${logPrefix} Subtitle discovery failed:`, errorValue);
 	});
 }

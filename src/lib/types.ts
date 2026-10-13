@@ -108,16 +108,9 @@ export interface OpenSubtitleResult {
 	downloadCount: number;
 	hearingImpaired: boolean;
 	aiTranslated: boolean;
-	machineTranslated: boolean;
 	fromTrusted: boolean;
 	fps: number;
-	votes: number;
 	ratings: number;
-	uploadDate: string;
-	featureTitle: string;
-	featureYear: number;
-	seasonNumber?: number;
-	episodeNumber?: number;
 }
 
 /** One queued download, plus the episodes that use its files. */

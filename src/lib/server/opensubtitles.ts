@@ -26,52 +26,23 @@ interface OpenSubtitlesSearchParams {
 }
 
 interface OSAttributes {
-	subtitle_id: string;
 	language: string;
 	download_count: number;
 	hearing_impaired: boolean;
-	hd: boolean;
 	fps: number;
-	votes: number;
-	points: number | null;
 	ratings: number;
 	from_trusted: boolean;
-	foreign_parts_only: boolean;
 	ai_translated: boolean;
-	machine_translated: boolean;
-	upload_date: string;
 	release: string;
-	comments: string;
-	legacy_subtitle_id: number;
-	feature_details: {
-		feature_id: number;
-		feature_type: string;
-		year: number;
-		title: string;
-		movie_name: string;
-		imdb_id: number;
-		tmdb_id: number;
-		season_number?: number;
-		episode_number?: number;
-		parent_title?: string;
-		parent_imdb_id?: number;
-		parent_tmdb_id?: number;
-	};
 	files: Array<{
 		file_id: number;
-		cd_number: number;
 		file_name: string;
 	}>;
 }
 
 interface OSSearchResponse {
-	total_pages: number;
-	total_count: number;
-	per_page: number;
-	page: number;
 	data: Array<{
 		id: string;
-		type: string;
 		attributes: OSAttributes;
 	}>;
 }
@@ -79,21 +50,9 @@ interface OSSearchResponse {
 interface OSDownloadResponse {
 	link: string;
 	file_name: string;
-	requests: number;
-	remaining: number;
-	message: string;
-	reset_time: string;
-	reset_time_utc: string;
 }
 
 interface OSLoginResponse {
-	user: {
-		allowed_downloads: number;
-		level: string;
-		user_id: number;
-		vip: boolean;
-	};
-	base_url: string;
 	token: string;
 }
 
@@ -320,16 +279,9 @@ export async function searchSubtitles(params: OpenSubtitlesSearchParams): Promis
 			downloadCount: attr.download_count,
 			hearingImpaired: attr.hearing_impaired,
 			aiTranslated: attr.ai_translated,
-			machineTranslated: attr.machine_translated,
 			fromTrusted: attr.from_trusted,
 			fps: attr.fps,
-			votes: attr.votes,
 			ratings: attr.ratings,
-			uploadDate: attr.upload_date,
-			featureTitle: attr.feature_details.movie_name || attr.feature_details.title,
-			featureYear: attr.feature_details.year,
-			seasonNumber: attr.feature_details.season_number,
-			episodeNumber: attr.feature_details.episode_number,
 		};
 	});
 }
@@ -338,10 +290,7 @@ export async function searchSubtitles(params: OpenSubtitlesSearchParams): Promis
 // Download
 // ============================================================================
 
-export async function downloadSubtitle(
-	fileId: number,
-	mediaId: string
-): Promise<{ filePath: string; fileName: string }> {
+export async function downloadSubtitle(fileId: number, mediaId: string): Promise<{ filePath: string }> {
 	const apiKey = await getApiKey();
 	if (!apiKey) {
 		throw new Error("OpenSubtitles API key not configured");
@@ -392,10 +341,10 @@ export async function downloadSubtitle(
 		await convertSubtitleToVtt(filePath, vttPath);
 		// Clean up the original SRT
 		await fs.unlink(filePath).catch(() => undefined);
-		return { filePath: vttPath, fileName: downloadInfo.file_name };
+		return { filePath: vttPath };
 	} catch {
 		// If conversion fails, try serving the SRT directly
 		console.error("[OpenSubtitles] VTT conversion failed, keeping SRT");
-		return { filePath, fileName: downloadInfo.file_name };
+		return { filePath };
 	}
 }

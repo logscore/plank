@@ -314,12 +314,7 @@ export const subtitles = sqliteTable(
 		language: text("language").notNull(),
 		label: text("label").notNull(),
 		source: text("source", { enum: ["sidecar", "embedded", "opensubtitles", "manual"] }).notNull(),
-		format: text("format").default("vtt"),
 		filePath: text("file_path"),
-		streamIndex: integer("stream_index"),
-		createdAt: integer("created_at", { mode: "timestamp_ms" })
-			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-			.notNull(),
 	},
 	(table) => [index("idx_subtitles_media").on(table.mediaId)]
 );

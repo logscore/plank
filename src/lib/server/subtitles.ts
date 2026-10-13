@@ -92,14 +92,12 @@ async function discoverSidecarSubtitles(mediaId: string, libraryDir: string): Pr
 			language,
 			label,
 			source: "sidecar",
-			format: "vtt",
 			filePath: sourcePath,
-			streamIndex: null,
 		});
 	}
 }
 
-export async function discoverSubtitles(mediaId: string, _videoFilePath: string, libraryDir: string): Promise<void> {
+export async function discoverSubtitles(mediaId: string, libraryDir: string): Promise<void> {
 	await discoverSidecarSubtitles(mediaId, libraryDir);
 }
 
@@ -117,7 +115,7 @@ export async function getSubtitleTracksForMedia(
 	media: Pick<Media, "id" | "filePath">
 ): Promise<SubtitleTrackResponse[]> {
 	if (media.filePath) {
-		await discoverSubtitles(media.id, media.filePath, path.dirname(media.filePath));
+		await discoverSubtitles(media.id, path.dirname(media.filePath));
 	}
 	return getSubtitleTracks(media.id);
 }

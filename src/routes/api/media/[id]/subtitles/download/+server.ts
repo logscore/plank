@@ -11,15 +11,13 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		throw error(400, "fileId and language are required");
 	}
 	try {
-		const { filePath, fileName } = await downloadSubtitle(fileId, params.id);
+		const { filePath } = await downloadSubtitle(fileId, params.id);
 		const subtitle = subtitlesDb.create({
 			mediaId: params.id,
 			language: getIso2Code(language),
 			label: getLanguageName(language),
 			source: "opensubtitles",
-			format: "vtt",
 			filePath,
-			streamIndex: null,
 		});
 		return json({
 			id: subtitle.id,
@@ -28,7 +26,6 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 			label: subtitle.label,
 			source: subtitle.source,
 			src: `/api/media/${params.id}/subtitles/${subtitle.id}`,
-			fileName,
 		});
 	} catch (errorValue) {
 		const message = errorValue instanceof Error ? errorValue.message : "Download failed";

@@ -52,25 +52,9 @@
         onAddSubtitles();
     }
 
-    function getSourceLabel(source: string): string {
-        switch (source) {
-            case "embedded":
-                return "Embedded";
-            case "sidecar":
-                return "File";
-            case "opensubtitles":
-                return "Remote";
-            case "manual":
-                return "Manual";
-            default:
-                return source;
-        }
-    }
-
     const selection = $derived(getCaptionSelection(mediaId));
     const selectedTrack = $derived(tracks.find((track) => track.id === selection?.trackId));
     const activeTrackId = $derived(selection?.enabled ? selectedTrack?.id : null);
-    const trackCount = $derived(tracks.length);
 </script>
 
 <Popover.Root bind:open={isOpen}>
@@ -135,11 +119,6 @@
                                 />
                                 <span class="min-w-0 flex-1">
                                     <span class="truncate text-sm font-medium text-white">{track.label}</span>
-                                    <!-- <span
-                                            class="shrink-0 rounded bg-accent px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                                        >
-                                            {getSourceLabel(track.source)}
-                                        </span> -->
                                 </span>
                             </button>
                             {#if track.source === "opensubtitles" || track.source === "manual"}
