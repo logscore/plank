@@ -32,7 +32,6 @@
         goto("/login");
     }
 
-    const accessibleProfiles = $derived(data.profiles.filter((p: (typeof data.profiles)[number]) => p.isMember));
     const hasProfiles = $derived(data.profiles.length > 0);
 </script>
 

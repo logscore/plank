@@ -16,13 +16,10 @@
         onPrefetch,
         onSelectSeason,
         onPrefetchSeasons,
-        onPrefetchSeasonTorrent,
         isAdding = false,
-        isResolving = false,
         seasons = [],
         seasonsLoading = false,
         eagerLoad = false,
-        class: className,
     }: {
         item: BrowseItem;
         onAddToLibrary?: (item: BrowseItem) => void;
@@ -30,14 +27,11 @@
         onPrefetch?: (item: BrowseItem) => void;
         onSelectSeason?: (item: BrowseItem, seasonNumber: number) => void;
         onPrefetchSeasons?: (item: BrowseItem) => void;
-        onPrefetchSeasonTorrent?: (item: BrowseItem, seasonNumber: number) => void;
         isAdding?: boolean;
-        isResolving?: boolean;
         seasons?: CatalogSeason[];
         seasonsLoading?: boolean;
         /** Load image eagerly (for above-the-fold cards) */
         eagerLoad?: boolean;
-        class?: string;
     } = $props();
 
     const isTvShow = $derived(item.mediaType === "show");
@@ -48,7 +42,6 @@
     let hasPrefetched = $state(false);
     let prefetchTimeout: ReturnType<typeof setTimeout> | null = null;
     let seasonsPrefetchTimeout: ReturnType<typeof setTimeout> | null = null;
-    let seasonTorrentPrefetchTimeout: ReturnType<typeof setTimeout> | null = null;
     let seasonMenuOpen = $state(false);
 
     const PREFETCH_DELAY = 300; // ms to wait before prefetching
@@ -130,26 +123,6 @@
         onSelectSeason?.(item, seasonNumber);
     }
 
-    function handleSeasonItemEnter(seasonNumber: number) {
-        if (!onPrefetchSeasonTorrent) {
-            return;
-        }
-        if (seasonTorrentPrefetchTimeout) {
-            clearTimeout(seasonTorrentPrefetchTimeout);
-        }
-        seasonTorrentPrefetchTimeout = setTimeout(() => {
-            onPrefetchSeasonTorrent(item, seasonNumber);
-            seasonTorrentPrefetchTimeout = null;
-        }, 500);
-    }
-
-    function handleSeasonItemLeave() {
-        if (seasonTorrentPrefetchTimeout) {
-            clearTimeout(seasonTorrentPrefetchTimeout);
-            seasonTorrentPrefetchTimeout = null;
-        }
-    }
-
     const isDisabled = $derived(isAdding);
 
     let progressState = $state<"idle" | "adding" | "completing">("idle");
@@ -190,9 +163,6 @@
         if (seasonsPrefetchTimeout) {
             clearTimeout(seasonsPrefetchTimeout);
         }
-        if (seasonTorrentPrefetchTimeout) {
-            clearTimeout(seasonTorrentPrefetchTimeout);
-        }
     });
 </script>
 
@@ -205,10 +175,7 @@
     onblur={handleMouseLeave}
     role="button"
     tabindex="0"
-    class={cn(
-        "group relative aspect-2/3 cursor-pointer rounded-xl border border-border/50 bg-card shadow-lg outline-none transition-[border-color,box-shadow] duration-300 hover:z-20 hover:border-primary/50 hover:shadow-xl",
-        className,
-    )}
+    class="group relative aspect-2/3 cursor-pointer rounded-xl border border-border/50 bg-card shadow-lg outline-none transition-[border-color,box-shadow] duration-300 hover:z-20 hover:border-primary/50 hover:shadow-xl"
 >
     <div class="absolute inset-0 overflow-hidden rounded-xl">
         {#if item.voteAverage && item.voteAverage > 0}
@@ -343,8 +310,6 @@
                                     {#each seasons as season}
                                         <DropdownMenu.Item
                                             onSelect={() => handleSelectSeason(season.seasonNumber)}
-                                            onpointerenter={() => handleSeasonItemEnter(season.seasonNumber)}
-                                            onpointerleave={handleSeasonItemLeave}
                                             class="group flex min-h-11 cursor-default select-none items-center gap-3 rounded-lg px-3 py-2 text-left outline-none data-highlighted:bg-white/10"
                                         >
                                             <div class="min-w-0 flex-1">

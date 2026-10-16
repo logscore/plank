@@ -2,7 +2,6 @@
     import { cn } from "$lib/utils";
     import CrossFace from "./CrossFace.svelte";
     import CurvedFace from "./CurvedFace.svelte";
-    import { DEFAULT_COLORS } from "./colors";
     import type { Intensity3D, Variant } from "./facehash-data";
     import { computeFacehash, getColor, INTENSITY_PRESETS } from "./facehash-data";
     import LineFace from "./LineFace.svelte";
@@ -14,8 +13,6 @@
         variant = "gradient",
         intensity3d = "dramatic",
         interactive = true,
-        showInitial = true,
-        colors,
         enableBlink = false,
         class: className = "",
     }: {
@@ -29,10 +26,6 @@
         intensity3d?: Intensity3D;
         /** Enable hover interaction. When true, face "looks straight" on hover. */
         interactive?: boolean;
-        /** Show first letter of name below the face. */
-        showInitial?: boolean;
-        /** Hex color array for background. */
-        colors?: string[];
         /** Enable random eye blinking animation. */
         enableBlink?: boolean;
         /** Additional CSS class. */
@@ -42,10 +35,9 @@
     let isHovered = $state(false);
 
     // Compute deterministic face data from name
-    const colorsLength = $derived(colors?.length ?? DEFAULT_COLORS.length);
-    const faceData = $derived(computeFacehash(name, colorsLength));
+    const faceData = $derived(computeFacehash(name));
     const preset = $derived(INTENSITY_PRESETS[intensity3d]);
-    const bgColor = $derived(getColor(colors, faceData.colorIndex));
+    const bgColor = $derived(getColor(faceData.colorIndex));
     const sizeValue = $derived(typeof size === "number" ? `${size}px` : size);
 
     // Calculate 3D transform
@@ -147,11 +139,9 @@
         {/if}
 
         <!-- Initial letter (mouth) -->
-        {#if showInitial}
-            <span data-facehash-initial="" style="margin-top: 8%; font-size: 26cqw; line-height: 1;">
-                {faceData.initial}
-            </span>
-        {/if}
+        <span data-facehash-initial="" style="margin-top: 8%; font-size: 26cqw; line-height: 1;">
+            {faceData.initial}
+        </span>
     </div>
 </div>
 

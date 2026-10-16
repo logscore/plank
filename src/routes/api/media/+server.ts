@@ -1,20 +1,7 @@
 import { error, json } from "@sveltejs/kit";
-import { mediaDb } from "$lib/server/db";
 import { type AddMediaFromMagnetParams, addMediaFromMagnet, isBrowseSeasonRequest } from "$lib/server/media-library";
 import { addSeasonFromBrowse } from "$lib/server/season-sync";
-import type { MediaType } from "$lib/types";
 import type { RequestHandler } from "./$types";
-
-export const GET: RequestHandler = async ({ locals, url }) => {
-	const organizationId = locals.session?.activeOrganizationId;
-	if (!organizationId) {
-		throw error(403, "Active profile required");
-	}
-
-	const type = url.searchParams.get("type") as MediaType | null;
-	const list = mediaDb.list(organizationId, type ?? undefined);
-	return json(list);
-};
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const organizationId = locals.session?.activeOrganizationId;

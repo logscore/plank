@@ -1,14 +1,5 @@
-<script lang="ts">
-    import { cn } from "$lib/utils";
-
-    let { class: className }: { class?: string } = $props();
-</script>
-
 <div
-    class={cn(
-        "relative aspect-2/3 rounded-xl bg-muted/30 animate-pulse border border-border/50",
-        className
-    )}
+    class="relative aspect-2/3 rounded-xl bg-muted/30 animate-pulse border border-border/50"
     role="status"
     aria-label="Loading movie..."
 >

@@ -1,4 +1,4 @@
-import { error, json } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
 import { requireMediaAccess } from "$lib/server/api-guard";
 import { mediaDb } from "$lib/server/db";
 import type { RequestHandler } from "./$types";
@@ -7,14 +7,6 @@ function savePosition(mediaId: string, position: number, duration?: number): voi
 	mediaDb.updatePlayPosition(mediaId, position, duration);
 	mediaDb.updateLastPlayed(mediaId);
 }
-
-export const GET: RequestHandler = async ({ params, locals }) => {
-	const { mediaItem } = requireMediaAccess(locals, params.id);
-	return json({
-		position: mediaItem.playPosition ?? 0,
-		duration: mediaItem.playDuration ?? null,
-	});
-};
 
 export const PUT: RequestHandler = async ({ params, locals, request }) => {
 	requireMediaAccess(locals, params.id);

@@ -1,13 +1,7 @@
 import { createMutation } from "@tanstack/svelte-query";
 import { apiRequest } from "./client";
 
-interface UploadResult {
-	success: boolean;
-	image?: string;
-	logo?: string;
-}
-
-function uploadImage(path: string, file: File, organizationId?: string): Promise<UploadResult> {
+function uploadImage(path: string, file: File, organizationId?: string): Promise<void> {
 	const formData = new FormData();
 	formData.append("file", file);
 	if (organizationId) {
@@ -17,13 +11,13 @@ function uploadImage(path: string, file: File, organizationId?: string): Promise
 }
 
 export function createUploadAvatarMutation() {
-	return createMutation<UploadResult, Error, File>(() => ({
+	return createMutation<void, Error, File>(() => ({
 		mutationFn: (file) => uploadImage("/api/upload/avatar", file),
 	}));
 }
 
 export function createUploadOrganizationLogoMutation() {
-	return createMutation<UploadResult, Error, { organizationId: string; file: File }>(() => ({
+	return createMutation<void, Error, { organizationId: string; file: File }>(() => ({
 		mutationFn: ({ organizationId, file }) => uploadImage("/api/upload/logo", file, organizationId),
 	}));
 }

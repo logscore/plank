@@ -25,11 +25,8 @@ export function createAddMediaMutation() {
 }
 
 export function createDeleteMediaMutation() {
-	return createMutation<string, Error, string>(() => ({
-		mutationFn: async (id) => {
-			await apiRequest<void>(`/api/media/${id}`, "Failed to delete media", { method: "DELETE" });
-			return id;
-		},
+	return createMutation<void, Error, string>(() => ({
+		mutationFn: (id) => apiRequest<void>(`/api/media/${id}`, "Failed to delete media", { method: "DELETE" }),
 		onSuccess: async () => {
 			await invalidate("/api/media");
 		},
@@ -57,24 +54,14 @@ export interface RetryMediaInput {
 	downloadId?: string | null;
 }
 
-export interface RetryMediaResult {
-	success?: boolean;
-	message?: string;
-}
-
 export function createRetryMediaMutation() {
-	return createMutation<RetryMediaResult, Error, RetryMediaInput>(() => ({
-		mutationFn: async ({ id, mode, magnetLink, downloadId }) => {
+	return createMutation<void, Error, RetryMediaInput>(() => ({
+		mutationFn: ({ id, mode, magnetLink, downloadId }) => {
 			const hasBody = mode !== undefined || magnetLink !== undefined || downloadId !== undefined;
-			const result = await apiRequest<RetryMediaResult | undefined>(
-				`/api/media/${id}/retry`,
-				"Media action failed",
-				{
-					method: "POST",
-					json: hasBody ? { mode, magnetLink, downloadId } : undefined,
-				}
-			);
-			return result ?? {};
+			return apiRequest<void>(`/api/media/${id}/retry`, "Media action failed", {
+				method: "POST",
+				json: hasBody ? { mode, magnetLink, downloadId } : undefined,
+			});
 		},
 		onSuccess: async (_result, input) => {
 			await Promise.all([invalidate("/api/media"), invalidate(`/api/media/${input.id}`)]);

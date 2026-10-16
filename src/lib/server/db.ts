@@ -406,16 +406,6 @@ export const mediaDb = {
 			.run();
 	},
 
-	updateDisplayOrder(id: string, displayOrder: number) {
-		db.update(mediaTable).set({ displayOrder }).where(eq(mediaTable.id, id)).run();
-	},
-
-	bulkUpdateDisplayOrder(orders: Array<{ id: string; displayOrder: number }>) {
-		for (const order of orders) {
-			this.updateDisplayOrder(order.id, order.displayOrder);
-		}
-	},
-
 	delete(id: string, organizationId: string) {
 		db.delete(mediaTable)
 			.where(and(eq(mediaTable.id, id), eq(mediaTable.organizationId, organizationId)))
@@ -598,10 +588,6 @@ export const seasonsDb = {
 	updateEpisodeCount(id: string, count: number) {
 		db.update(seasonsTable).set({ episodeCount: count }).where(eq(seasonsTable.id, id)).run();
 	},
-
-	deleteByMediaId(mediaId: string) {
-		db.delete(seasonsTable).where(eq(seasonsTable.mediaId, mediaId)).run();
-	},
 };
 
 export const downloadsDb = {
@@ -694,9 +680,5 @@ export const subtitlesDb = {
 
 	deleteById(id: string) {
 		db.delete(subtitlesTable).where(eq(subtitlesTable.id, id)).run();
-	},
-
-	deleteByMediaId(mediaId: string) {
-		db.delete(subtitlesTable).where(eq(subtitlesTable.mediaId, mediaId)).run();
 	},
 };

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Clock, Film, LoaderCircle, Search, SearchIcon } from "@lucide/svelte";
+    import { Clock, LoaderCircle, Search, SearchIcon } from "@lucide/svelte";
     import { onDestroy, untrack } from "svelte";
     import { goto } from "$app/navigation";
     import CardSkeleton from "$lib/components/CardSkeleton.svelte";
@@ -53,7 +53,6 @@
         );
     });
 
-    let resolvingItems = $state<Set<number>>(new Set());
     let addingItems = $state<Set<number>>(new Set());
     let seasonsCache = $state<Map<number, CatalogSeason[]>>(new Map());
     let seasonsLoading = $state<Set<number>>(new Set());
@@ -257,7 +256,6 @@
         if (item.magnetLink) {
             return item.magnetLink;
         }
-        resolvingItems = new Set(resolvingItems).add(item.tmdbId);
         try {
             const result = await resolveTorrentCached({
                 imdbId: item.imdbId,
@@ -271,10 +269,6 @@
         } catch (cause) {
             console.error("Failed to resolve torrent:", cause);
             return null;
-        } finally {
-            const updated = new Set(resolvingItems);
-            updated.delete(item.tmdbId);
-            resolvingItems = updated;
         }
     }
 
@@ -392,7 +386,6 @@
             onSelectSeason={handleSelectSeason}
             onPrefetchSeasons={handlePrefetchSeasons}
             isAdding={addingItems.has(item.tmdbId)}
-            isResolving={resolvingItems.has(item.tmdbId)}
             seasons={seasonsCache.get(item.tmdbId) ?? []}
             seasonsLoading={seasonsLoading.has(item.tmdbId)}
         />

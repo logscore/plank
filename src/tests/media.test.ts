@@ -226,15 +226,6 @@ describe("unified media model", () => {
 		expect(episode?.id).toBe(episodeA.id);
 	});
 
-	it("supports reordering episode media rows", () => {
-		const { season, episodeA, episodeB } = createShowHierarchy();
-		mediaDb.bulkUpdateDisplayOrder([
-			{ id: episodeA.id, displayOrder: 2 },
-			{ id: episodeB.id, displayOrder: 0 },
-		]);
-		expect(mediaDb.getEpisodesBySeasonId(season.id).map((item) => item.id)).toEqual([episodeB.id, episodeA.id]);
-	});
-
 	it("tracks continue watching on episode rows", () => {
 		const { episodeA } = createShowHierarchy();
 		mediaDb.updatePlayPosition(episodeA.id, 120, 1800);

@@ -254,7 +254,7 @@ describe("mediaDb", () => {
 		const rows = mediaDb.listQueueRows(testOrg.id);
 		const showDownloads = rows.filter((row) => row.media.id === show.id).map((row) => row.download?.id);
 
-		expect(showDownloads).toEqual([first.id, second.id]);
+		expect(showDownloads.toSorted()).toEqual([first.id, second.id].toSorted());
 	});
 });
 

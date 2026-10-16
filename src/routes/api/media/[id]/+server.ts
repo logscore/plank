@@ -1,15 +1,8 @@
-import { json } from "@sveltejs/kit";
 import { requireMediaAccess } from "$lib/server/api-guard";
 import { mediaDb } from "$lib/server/db";
 import { cancelDownload } from "$lib/server/torrent/download";
 import { deleteMediaFiles } from "$lib/server/torrent/finalize";
 import type { RequestHandler } from "./$types";
-
-export const GET: RequestHandler = async ({ params, locals }) => {
-	const { mediaItem } = requireMediaAccess(locals, params.id);
-	mediaDb.updateLastPlayed(params.id);
-	return json(mediaItem);
-};
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
 	const { organizationId } = requireMediaAccess(locals, params.id);

@@ -74,10 +74,10 @@ export const INTENSITY_PRESETS = {
  * Computes deterministic face properties from a name string.
  * Pure function with no side effects.
  */
-export function computeFacehash(name: string, colorsLength: number = DEFAULT_COLORS.length): FacehashData {
+export function computeFacehash(name: string): FacehashData {
 	const hash = stringHash(name);
 	const faceIndex = hash % FACE_TYPES.length;
-	const colorIndex = hash % colorsLength;
+	const colorIndex = hash % DEFAULT_COLORS.length;
 	const positionIndex = hash % SPHERE_POSITIONS.length;
 	const position = SPHERE_POSITIONS[positionIndex] ?? { x: 0, y: 0 };
 
@@ -102,9 +102,8 @@ export function computeFacehash(name: string, colorsLength: number = DEFAULT_COL
 const FALLBACK_COLOR = "#ec4899"; // pink-500
 
 /**
- * Gets a color from an array by index, with fallback to default colors.
+ * Gets a color from the default palette, with a fallback.
  */
-export function getColor(colors: readonly string[] | undefined, index: number): string {
-	const palette = colors && colors.length > 0 ? colors : DEFAULT_COLORS;
-	return palette[index % palette.length] ?? FALLBACK_COLOR;
+export function getColor(index: number): string {
+	return DEFAULT_COLORS[index % DEFAULT_COLORS.length] ?? FALLBACK_COLOR;
 }

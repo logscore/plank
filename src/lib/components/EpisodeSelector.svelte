@@ -7,21 +7,18 @@
     let {
         seasons,
         onPlayEpisode,
-        onOpen,
         buttonSize = "lg",
         buttonClass = "",
         class: className = "",
     }: {
         seasons: SeasonWithEpisodes[];
         onPlayEpisode: (episode: Media) => void;
-        onOpen?: () => Promise<void>;
         buttonSize?: "default" | "sm" | "lg" | "icon";
         buttonClass?: string;
         class?: string;
     } = $props();
 
     let isOpen = $state(false);
-    let loading = $state(false);
 
     const buttonSizes = {
         default: "h-10 px-4 py-2",
@@ -29,27 +26,6 @@
         lg: "h-11 px-8",
         icon: "h-10 w-10",
     };
-
-    async function setOpen(open: boolean) {
-        if (!open) {
-            isOpen = false;
-            return;
-        }
-        if (loading) {
-            return;
-        }
-        await loadAndOpen();
-    }
-
-    async function loadAndOpen() {
-        loading = true;
-        try {
-            await onOpen?.();
-            isOpen = true;
-        } finally {
-            loading = false;
-        }
-    }
 
     function playEpisode(episode: Media) {
         isOpen = false;
@@ -87,14 +63,13 @@
 </script>
 
 <div class={className}>
-    <Popover.Root bind:open={() => isOpen, setOpen}>
+    <Popover.Root bind:open={isOpen}>
         <Popover.Trigger
-            disabled={loading}
             class="inline-flex items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 {buttonSizes[
                 buttonSize
             ]} {buttonClass}"
         >
-            <span class="flex-1 text-left">{loading ? "Loading..." : "Episodes"}</span>
+            <span class="flex-1 text-left">Episodes</span>
             <ChevronDown class="ml-2 h-4 w-4 shrink-0 transition-transform {isOpen ? 'rotate-180' : ''}" />
         </Popover.Trigger>
         <Popover.Portal>

@@ -5,14 +5,14 @@
     let {
         title,
         count,
-        open = $bindable(true),
         children,
     }: {
         title: string;
         count: number;
-        open?: boolean;
         children: Snippet;
     } = $props();
+
+    let open = $state(true);
 </script>
 
 {#if count > 0}

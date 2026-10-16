@@ -127,7 +127,6 @@
 
     // UI State
     let addingItems = $state<Set<number>>(new Set());
-    let resolvingItems = $state<Set<number>>(new Set());
 
     // TV show seasons state - keyed by TMDB ID
     // We keep a local reactive cache for the UI to bind to (passed to TorrentCard)
@@ -169,8 +168,6 @@
             return item.magnetLink;
         }
 
-        resolvingItems = new Set(resolvingItems).add(item.tmdbId);
-
         try {
             const result = await resolveTorrentCached({
                 imdbId: item.imdbId,
@@ -186,10 +183,6 @@
         } catch (err) {
             console.error("Failed to resolve torrent:", err);
             return null;
-        } finally {
-            const updated = new Set(resolvingItems);
-            updated.delete(item.tmdbId);
-            resolvingItems = updated;
         }
     }
 
@@ -409,7 +402,6 @@
                         onSelectSeason={handleSelectSeason}
                         onPrefetchSeasons={handlePrefetchSeasons}
                         isAdding={addingItems.has(item.tmdbId)}
-                        isResolving={resolvingItems.has(item.tmdbId)}
                         seasons={getSeasonsForItem(item.tmdbId)}
                         seasonsLoading={seasonsLoading.has(item.tmdbId)}
                         eagerLoad={i < 18}
