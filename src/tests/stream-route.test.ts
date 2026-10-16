@@ -130,7 +130,6 @@ describe("stream route", () => {
 		vi.mocked(torrentStatus.getDownloadStatus).mockReturnValue({
 			progress: 0,
 			downloadSpeed: 0,
-			uploadSpeed: 0,
 			peers: 0,
 			status: "initializing",
 			transcodeProgress: 0,

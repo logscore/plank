@@ -23,15 +23,6 @@ export interface AddSeasonFromBrowseParams {
 	certification?: string | null;
 }
 
-export interface AddSeasonFromBrowseResult {
-	mode: "browse-season";
-	status: "queued";
-	showId: string;
-	seasonId: string;
-	seasonNumber: number;
-	episodeCount: number;
-}
-
 interface ShowMetadata {
 	title: string;
 	year: number | null;
@@ -128,11 +119,7 @@ async function saveShowImages(showId: string, metadata: ShowMetadata): Promise<v
 	}
 }
 
-async function upsertShow(
-	userId: string,
-	organizationId: string,
-	params: AddSeasonFromBrowseParams
-): Promise<{ showId: string; metadata: ShowMetadata }> {
+async function upsertShow(userId: string, organizationId: string, params: AddSeasonFromBrowseParams): Promise<string> {
 	const metadata = await resolveShowMetadata(params);
 	const existingShow = mediaDb.getByTmdbId(params.tmdbId, organizationId, "show");
 	if (existingShow) {
@@ -151,7 +138,7 @@ async function upsertShow(
 			totalSeasons: metadata.totalSeasons,
 		});
 		saveShowImages(existingShow.id, metadata).catch(() => undefined);
-		return { showId: existingShow.id, metadata };
+		return existingShow.id;
 	}
 	const show = mediaDb.create({
 		userId,
@@ -171,7 +158,7 @@ async function upsertShow(
 		totalSeasons: metadata.totalSeasons,
 	});
 	saveShowImages(show.id, metadata).catch(() => undefined);
-	return { showId: show.id, metadata };
+	return show.id;
 }
 
 async function syncSeasonMetadata(showId: string, tmdbId: number, seasonNumber: number) {
@@ -186,9 +173,6 @@ async function syncSeasonMetadata(showId: string, tmdbId: number, seasonNumber: 
 		? (() => {
 				seasonsDb.update(existingSeason.id, {
 					name: seasonDetails.name,
-					overview: seasonDetails.overview,
-					posterPath: seasonDetails.posterPath,
-					airDate: seasonDetails.airDate,
 					episodeCount: airedEpisodes.length,
 				});
 				return seasonsDb.getById(existingSeason.id) ?? existingSeason;
@@ -197,9 +181,6 @@ async function syncSeasonMetadata(showId: string, tmdbId: number, seasonNumber: 
 				mediaId: showId,
 				seasonNumber: seasonDetails.seasonNumber,
 				name: seasonDetails.name,
-				overview: seasonDetails.overview,
-				posterPath: seasonDetails.posterPath,
-				airDate: seasonDetails.airDate,
 				episodeCount: airedEpisodes.length,
 			});
 
@@ -254,10 +235,7 @@ async function syncSeasonMetadata(showId: string, tmdbId: number, seasonNumber: 
 		});
 	}
 
-	return {
-		season,
-		episodes: mediaDb.getEpisodesBySeasonId(season.id),
-	};
+	return season;
 }
 
 async function processSeasonEpisode(mediaId: string): Promise<void> {
@@ -311,16 +289,8 @@ export async function addSeasonFromBrowse(
 	userId: string,
 	organizationId: string,
 	params: AddSeasonFromBrowseParams
-): Promise<AddSeasonFromBrowseResult> {
-	const { showId } = await upsertShow(userId, organizationId, params);
-	const { season, episodes } = await syncSeasonMetadata(showId, params.tmdbId, params.seasonNumber);
+): Promise<void> {
+	const showId = await upsertShow(userId, organizationId, params);
+	const season = await syncSeasonMetadata(showId, params.tmdbId, params.seasonNumber);
 	queueSeasonDownloads(showId, season.id, season.seasonNumber);
-	return {
-		mode: "browse-season",
-		status: "queued",
-		showId,
-		seasonId: season.id,
-		seasonNumber: season.seasonNumber,
-		episodeCount: episodes.length,
-	};
 }

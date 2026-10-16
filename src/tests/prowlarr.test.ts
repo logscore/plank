@@ -61,10 +61,7 @@ describe("Prowlarr Client", () => {
 					infoHash: "abc123",
 					size: 2_147_483_648,
 					seeders: 150,
-					leechers: 50,
-					publishDate: "2024-01-15T12:00:00Z",
 					indexer: "YTS",
-					guid: "http://example.com/1",
 				},
 				{
 					title: "Movie.2024.720p.WEB-DL-RARBG",
@@ -72,10 +69,7 @@ describe("Prowlarr Client", () => {
 					infoHash: "def456",
 					size: 1_073_741_824,
 					seeders: 75,
-					leechers: 25,
-					publishDate: "2024-01-14T10:00:00Z",
 					indexer: "RARBG",
-					guid: "http://example.com/2",
 				},
 			];
 
@@ -103,16 +97,12 @@ describe("Prowlarr Client", () => {
 					infoHash: "abc123",
 					size: 2_147_483_648,
 					seeders: 100,
-					publishDate: "2024-01-15T12:00:00Z",
-					guid: "1",
 				},
 				{
 					title: "Movie.2024.720p.WEB-DL",
 					// No magnet
 					size: 1_073_741_824,
 					seeders: 50,
-					publishDate: "2024-01-15T12:00:00Z",
-					guid: "2",
 				},
 			];
 
@@ -129,8 +119,6 @@ describe("Prowlarr Client", () => {
 			infohash: "hash",
 			size: 2_147_483_648,
 			seeders,
-			peers: 50,
-			publishDate: new Date().toISOString(),
 			indexer: "Test",
 		});
 
@@ -171,8 +159,6 @@ describe("Prowlarr Client", () => {
 			infohash: "hash",
 			size: 2_147_483_648,
 			seeders,
-			peers: 50,
-			publishDate: new Date().toISOString(),
 			indexer: "Test",
 		});
 
@@ -213,8 +199,6 @@ describe("Prowlarr Client", () => {
 			infohash: title,
 			size,
 			seeders,
-			peers: Math.floor(seeders / 2),
-			publishDate: new Date().toISOString(),
 			indexer: "Test",
 		});
 
@@ -266,8 +250,6 @@ describe("Prowlarr Client", () => {
 					infoHash: "abc123",
 					size: 2_147_483_648,
 					seeders: 150,
-					publishDate: "2024-01-15T12:00:00Z",
-					guid: "1",
 				},
 			];
 
@@ -302,8 +284,6 @@ describe("Prowlarr Client", () => {
 				infoHash: "aaa",
 				size: 1_000_000_000,
 				seeders: 10,
-				publishDate: "2024-01-15T12:00:00Z",
-				guid: "1",
 			},
 			{
 				title: "Movie.2024.1080p.BluRay-GROUP",
@@ -311,8 +291,6 @@ describe("Prowlarr Client", () => {
 				infoHash: "bbb",
 				size: 2_000_000_000,
 				seeders: 200,
-				publishDate: "2024-01-15T12:00:00Z",
-				guid: "2",
 			},
 			{
 				title: "Movie.2024.CAM.XviD",
@@ -320,8 +298,6 @@ describe("Prowlarr Client", () => {
 				infoHash: "ccc",
 				size: 700_000_000,
 				seeders: 900,
-				publishDate: "2024-01-15T12:00:00Z",
-				guid: "3",
 			},
 			{
 				title: "Movie.2024.1080p.BluRay-GROUP",
@@ -329,8 +305,6 @@ describe("Prowlarr Client", () => {
 				infoHash: "BBB",
 				size: 2_000_000_000,
 				seeders: 200,
-				publishDate: "2024-01-15T12:00:00Z",
-				guid: "4",
 			},
 		];
 
@@ -368,8 +342,6 @@ describe("Prowlarr Client", () => {
 			infohash: title,
 			size,
 			seeders,
-			peers: Math.floor(seeders / 2),
-			publishDate: new Date().toISOString(),
 			indexer: "Test",
 		});
 
@@ -416,8 +388,6 @@ describe("Prowlarr Client", () => {
 			infohash: `${title}-${seeders}`.toLowerCase(),
 			size: 2_000_000_000,
 			seeders,
-			peers: Math.floor(seeders / 2),
-			publishDate: new Date().toISOString(),
 			indexer: "Test",
 		});
 
@@ -433,9 +403,6 @@ describe("Prowlarr Client", () => {
 						infoHash: "abc123",
 						size: 2_147_483_648,
 						seeders: 25,
-						leechers: 10,
-						publishDate: "2024-01-15T12:00:00Z",
-						guid: "1",
 					},
 				],
 			});
@@ -466,9 +433,6 @@ describe("Prowlarr Client", () => {
 						infoHash: "seasonpack",
 						size: 9_000_000_000,
 						seeders: 100,
-						leechers: 15,
-						publishDate: "2024-01-15T12:00:00Z",
-						guid: "pack",
 					},
 				],
 			});

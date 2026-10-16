@@ -16,7 +16,6 @@ export interface Media {
 	runtime: number | null;
 	originalLanguage: string | null;
 	addedAt: Date;
-	createdAt: Date;
 	posterUrl: string | null;
 	backdropUrl: string | null;
 	genres: string | null;
@@ -47,11 +46,7 @@ export interface Season {
 	mediaId: string;
 	seasonNumber: number;
 	name: string | null;
-	overview: string | null;
-	posterPath: string | null;
-	airDate: string | null;
 	episodeCount: number | null;
-	createdAt: Date;
 }
 
 export type SeasonWithEpisodes = Season & {
@@ -62,8 +57,6 @@ export interface CatalogSeason {
 	seasonNumber: number;
 	name: string;
 	episodeCount: number;
-	year?: number;
-	posterPath?: string;
 }
 export interface SubtitleTrackResponse {
 	id: string;
@@ -77,10 +70,7 @@ export interface ProgressInfo {
 	status: string;
 	progress: number;
 	downloadSpeed: number;
-	uploadSpeed: number;
 	peers: number;
-	isActive: boolean;
-	filePath: string | null;
 	/** Finalization progress from 0 to 1. Zero unless the status is finalizing. */
 	transcodeProgress: number;
 	fileSize?: number;
@@ -93,8 +83,6 @@ export interface SourceCandidate {
 	infohash: string;
 	size: number;
 	seeders: number;
-	peers: number;
-	publishDate: string;
 	indexer: string;
 }
 

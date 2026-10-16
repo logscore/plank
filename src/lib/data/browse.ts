@@ -28,19 +28,10 @@ export interface BrowseResponse {
 
 export interface ResolveResponse {
 	success: boolean;
-	cached?: boolean;
 	error?: string;
 	message?: string;
 	torrent?: {
-		imdbId: string;
-		tmdbId?: number;
 		magnetLink: string;
-		infohash: string;
-		title: string;
-		quality?: string;
-		releaseGroup?: string;
-		size?: number;
-		seeders?: number;
 	};
 }
 
@@ -62,7 +53,6 @@ export interface SeasonsResponse {
 interface ResolveInput {
 	imdbId: string | null;
 	tmdbId: number;
-	title: string;
 }
 
 function fetchBrowseDetails(items: { tmdbId: number; mediaType: "movie" | "show" }[]): Promise<BrowseDetailsResponse> {
@@ -195,17 +185,8 @@ interface AddSeasonFromBrowseParams {
 	certification?: string | null;
 }
 
-interface AddSeasonFromBrowseResult {
-	mode: "browse-season";
-	status: "queued";
-	showId: string;
-	seasonId: string;
-	seasonNumber: number;
-	episodeCount: number;
-}
-
 export type AddFromBrowseParams = AddFromBrowseMagnetParams | AddSeasonFromBrowseParams;
-export type AddFromBrowseResponse = Media | AddSeasonFromBrowseResult;
+export type AddFromBrowseResponse = Media | undefined;
 
 export function createAddFromBrowseMutation() {
 	return createMutation<AddFromBrowseResponse, Error, AddFromBrowseParams>(() => ({

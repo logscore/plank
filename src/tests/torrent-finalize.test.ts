@@ -93,7 +93,6 @@ describe("torrent library finalization", () => {
 		const torrent = {
 			path: "/temp/show-1/hash-1",
 			downloadSpeed: 0,
-			uploadSpeed: 0,
 			numPeers: 0,
 		} as unknown as ActiveDownload["torrent"];
 		const download: ActiveDownload = {
@@ -104,7 +103,6 @@ describe("torrent library finalization", () => {
 			videoFile: null,
 			videoFiles,
 			subtitleFiles: [],
-			selectedFileIndex: null,
 			episodeMapping: new Map([
 				[101, 0],
 				[102, 1],
@@ -112,7 +110,6 @@ describe("torrent library finalization", () => {
 			progress: 1,
 			transcodeProgress: 0,
 			status: "finalizing",
-			activeStreams: 0,
 			totalSize: 200,
 		};
 		mocks.finalizeMediaToLibrary.mockImplementation(

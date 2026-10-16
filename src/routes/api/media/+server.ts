@@ -25,8 +25,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = (await request.json()) as Record<string, unknown>;
 
 	if (isBrowseSeasonRequest(body)) {
-		const result = await addSeasonFromBrowse(locals.user.id, organizationId, body);
-		return json(result, { status: 202 });
+		await addSeasonFromBrowse(locals.user.id, organizationId, body);
+		return new Response(null, { status: 202 });
 	}
 
 	const result = await addMediaFromMagnet(

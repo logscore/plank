@@ -17,8 +17,6 @@ export interface IndexerResult {
 	infohash: string;
 	size: number;
 	seeders: number;
-	peers: number;
-	publishDate: string;
 	indexer: string;
 }
 
@@ -32,10 +30,7 @@ interface ProwlarrResultItem {
 	infoHash?: string;
 	size: number;
 	seeders?: number;
-	leechers?: number;
-	publishDate: string;
 	indexer?: string;
-	guid: string;
 }
 
 /**
@@ -77,10 +72,6 @@ const INDEXER_PREFERENCE_SCORES: Record<string, number> = {
 	"The Pirate Bay": 1,
 };
 
-/**
- * Pattern to extract release group from title
- */
-const RELEASE_GROUP_PATTERN = /-([A-Za-z0-9]+)(?:\[.*\])?$/;
 const TV_SEARCH_CATEGORY = "5000";
 
 /**
@@ -106,8 +97,6 @@ export function parseProwlarrResults(results: ProwlarrResultItem[]): IndexerResu
 			infohash: (r.infoHash as string).toLowerCase(),
 			size: r.size,
 			seeders: r.seeders || 0,
-			peers: (r.seeders || 0) + (r.leechers || 0),
-			publishDate: r.publishDate,
 			indexer: r.indexer || "Unknown",
 		}));
 }
@@ -618,22 +607,6 @@ export async function searchSourceCandidates(query: string, isEpisode: boolean):
 	return candidates
 		.slice(0, MAX_SOURCE_CANDIDATES)
 		.map((candidate) => ({ ...candidate, magnetUri: stripApiKey(candidate.magnetUri) }));
-}
-
-/**
- * Extract quality and release group from torrent title
- */
-export function parseTorrentTitle(title: string): {
-	quality: string | null;
-	releaseGroup: string | null;
-} {
-	const quality = extractQuality(title);
-
-	// Extract release group (usually at the end after a hyphen)
-	const groupMatch = title.match(RELEASE_GROUP_PATTERN);
-	const releaseGroup = groupMatch ? groupMatch[1] : null;
-
-	return { quality, releaseGroup };
 }
 
 // =============================================================================

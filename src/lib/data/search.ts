@@ -49,14 +49,12 @@ export type CatalogSearchResponse =
 			nextPage: number | null;
 	  };
 
-type JsonMedia = Omit<Media, "addedAt" | "createdAt" | "lastPlayedAt"> & {
+type JsonMedia = Omit<Media, "addedAt" | "lastPlayedAt"> & {
 	addedAt: string;
-	createdAt: string;
 	lastPlayedAt: string | null;
 };
 
-type JsonSeasonWithEpisodes = Omit<SeasonWithEpisodes, "createdAt" | "episodes"> & {
-	createdAt: string;
+type JsonSeasonWithEpisodes = Omit<SeasonWithEpisodes, "episodes"> & {
 	episodes: JsonMedia[];
 };
 
@@ -84,7 +82,6 @@ function mediaToJson(media: Media): JsonMedia {
 	return {
 		...media,
 		addedAt: media.addedAt.toISOString(),
-		createdAt: media.createdAt.toISOString(),
 		lastPlayedAt: media.lastPlayedAt?.toISOString() ?? null,
 	};
 }
@@ -93,7 +90,6 @@ function mediaFromJson(media: JsonMedia): Media {
 	return {
 		...media,
 		addedAt: new Date(media.addedAt),
-		createdAt: new Date(media.createdAt),
 		lastPlayedAt: media.lastPlayedAt === null ? null : new Date(media.lastPlayedAt),
 	};
 }
@@ -106,7 +102,6 @@ function seasonsToJson(
 			mediaId,
 			seasons.map((season) => ({
 				...season,
-				createdAt: season.createdAt.toISOString(),
 				episodes: season.episodes.map(mediaToJson),
 			})),
 		])
@@ -121,7 +116,6 @@ function seasonsFromJson(
 			mediaId,
 			seasons.map((season) => ({
 				...season,
-				createdAt: new Date(season.createdAt),
 				episodes: season.episodes.map(mediaFromJson),
 			})),
 		])

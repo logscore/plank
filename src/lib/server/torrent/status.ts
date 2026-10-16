@@ -12,14 +12,12 @@ import {
 export interface DownloadStatusResult {
 	progress: number;
 	downloadSpeed: number;
-	uploadSpeed: number;
 	peers: number;
 	status: "idle" | "initializing" | "downloading" | "finalizing" | "complete" | "error";
 	error?: string;
 	/** Finalization progress from 0 to 1. Zero unless the status is finalizing. */
 	transcodeProgress: number;
 	episodeProgress?: Map<number, number>;
-	activeDownloads?: number;
 	totalSize?: number;
 }
 
@@ -29,7 +27,6 @@ interface AggregatedStats {
 	totalTranscodeProgress: number;
 	finalizingCount: number;
 	totalDownloadSpeed: number;
-	totalUploadSpeed: number;
 	totalPeers: number;
 	hasInitializing: boolean;
 	hasDownloading: boolean;
@@ -59,7 +56,6 @@ function aggregateDownloadStats(downloads: ActiveDownload[]): AggregatedStats {
 		totalTranscodeProgress: 0,
 		finalizingCount: 0,
 		totalDownloadSpeed: 0,
-		totalUploadSpeed: 0,
 		totalPeers: 0,
 		hasInitializing: false,
 		hasDownloading: false,
@@ -72,7 +68,6 @@ function aggregateDownloadStats(downloads: ActiveDownload[]): AggregatedStats {
 
 	for (const download of downloads) {
 		result.totalDownloadSpeed += download.torrent.downloadSpeed;
-		result.totalUploadSpeed += download.torrent.uploadSpeed;
 		result.totalPeers += download.torrent.numPeers;
 		result.totalSize += download.totalSize;
 		result.totalProgress += download.progress * download.totalSize;
@@ -124,13 +119,11 @@ function buildDownloadStatus(downloads: ActiveDownload[]): DownloadStatusResult 
 	return {
 		progress: stats.allComplete ? 1 : overallProgress,
 		downloadSpeed: stats.totalDownloadSpeed,
-		uploadSpeed: stats.totalUploadSpeed,
 		peers: stats.totalPeers,
 		status,
 		transcodeProgress,
 		error: stats.errors.length > 0 ? stats.errors.join("; ") : undefined,
 		episodeProgress: stats.episodeProgress.size > 0 ? stats.episodeProgress : undefined,
-		activeDownloads: downloads.length,
 		totalSize: stats.totalSize,
 	};
 }
@@ -145,7 +138,6 @@ export function getDownloadStatus(mediaId: string): DownloadStatusResult | null 
 			return {
 				progress: 1,
 				downloadSpeed: 0,
-				uploadSpeed: 0,
 				peers: 0,
 				status: "complete",
 				transcodeProgress: 0,

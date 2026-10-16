@@ -15,7 +15,6 @@ export interface BrowseItem {
 	genres: string[];
 	mediaType: 'movie' | 'show';
 	certification: string | null;
-	needsResolve: boolean;
 	runtime: number | null;
 	originalLanguage: string | null;
 	totalSeasons: number | null;
@@ -26,10 +25,7 @@ export interface DemoSeasonSummary {
 	seasonNumber: number;
 	name: string;
 	episodeCount: number;
-	year?: number;
-	posterPath?: string;
 	overview?: string | null;
-	airDate?: string | null;
 }
 
 export interface Media {
@@ -44,7 +40,6 @@ export interface Media {
 	runtime: number | null;
 	originalLanguage: string | null;
 	addedAt: string;
-	createdAt: string;
 	posterUrl: string | null;
 	backdropUrl: string | null;
 	genres: string[];
@@ -54,17 +49,12 @@ export interface Media {
 	seasonId: string | null;
 	episodeNumber: number | null;
 	seasonNumber: number | null;
-	displayOrder: number | null;
 	stillPath: string | null;
-	airDate: string | null;
-	magnetLink: string | null;
-	infohash: string | null;
 	status: MediaStatus | null;
 	progress: number | null;
 	filePath: string | null;
 	fileSize: number | null;
 	fileIndex: number | null;
-	downloadedBytes: number | null;
 	playPosition: number | null;
 	playDuration: number | null;
 	lastPlayedAt: string | null;
@@ -76,10 +66,7 @@ export interface Season {
 	seasonNumber: number;
 	name: string | null;
 	overview: string | null;
-	posterPath: string | null;
-	airDate: string | null;
 	episodeCount: number | null;
-	createdAt: string;
 }
 
 export type SeasonWithEpisodes = Season & {
@@ -90,10 +77,8 @@ export interface DemoProfile {
 	id: string;
 	name: string;
 	logo: string | null;
-	color: string | null;
 	isMember: boolean;
 	memberCount: number;
-	createdAt: string;
 }
 
 export interface DemoUser {

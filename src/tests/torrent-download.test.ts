@@ -192,7 +192,6 @@ describe("torrent finalization", () => {
 		// Status aggregation reads only these live torrent counters.
 		const torrent = {
 			downloadSpeed: 0,
-			uploadSpeed: 0,
 			numPeers: 0,
 		} as unknown as ActiveDownload["torrent"];
 		const first: ActiveDownload = {
@@ -203,12 +202,10 @@ describe("torrent finalization", () => {
 			videoFile: null,
 			videoFiles: [],
 			subtitleFiles: [],
-			selectedFileIndex: null,
 			episodeMapping: new Map(),
 			progress: 1,
 			transcodeProgress: 0.25,
 			status: "finalizing",
-			activeStreams: 0,
 			totalSize: 100,
 		};
 		const second: ActiveDownload = {

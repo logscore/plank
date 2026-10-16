@@ -11,14 +11,10 @@ export interface AddMediaParams {
 	tmdbId?: number;
 }
 
-export interface AddMediaResponse extends Media {
-	_seasonAdded?: boolean;
-}
-
 export function createAddMediaMutation() {
-	return createMutation<AddMediaResponse, Error, AddMediaParams>(() => ({
+	return createMutation<Media, Error, AddMediaParams>(() => ({
 		mutationFn: (params) =>
-			apiRequest<AddMediaResponse>("/api/media", "Failed to add media", {
+			apiRequest<Media>("/api/media", "Failed to add media", {
 				method: "POST",
 				json: params,
 			}),

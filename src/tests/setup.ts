@@ -51,10 +51,8 @@ beforeAll(() => {
       name TEXT NOT NULL,
       slug TEXT NOT NULL UNIQUE,
       logo TEXT,
-      color TEXT DEFAULT '#6366F1' NOT NULL,
       metadata TEXT,
-      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-      updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
+      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
     );
   `);
 
@@ -80,8 +78,7 @@ beforeAll(() => {
       role TEXT DEFAULT 'member' NOT NULL,
       status TEXT DEFAULT 'pending' NOT NULL,
       expires_at INTEGER NOT NULL,
-      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-      updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
+      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
     );
   `);
 
@@ -148,7 +145,6 @@ beforeAll(() => {
       runtime INTEGER,
       original_language TEXT,
       added_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
       poster_url TEXT,
       backdrop_url TEXT,
       genres TEXT,
@@ -192,14 +188,9 @@ beforeAll(() => {
       media_id TEXT NOT NULL REFERENCES media(id) ON DELETE CASCADE,
       season_number INTEGER NOT NULL,
       name TEXT,
-      overview TEXT,
-      poster_path TEXT,
-      air_date TEXT,
       episode_count INTEGER DEFAULT 0,
-      created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
       UNIQUE(media_id, season_number)
     );
-    CREATE INDEX IF NOT EXISTS idx_seasons_media ON seasons(media_id);
   `);
 
 	// Create downloads table for tracking multiple torrents per media
@@ -214,7 +205,6 @@ beforeAll(() => {
       added_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
       UNIQUE(media_id, infohash)
     );
-    CREATE INDEX IF NOT EXISTS idx_downloads_media ON downloads(media_id);
     CREATE INDEX IF NOT EXISTS idx_downloads_status ON downloads(status);
   `);
 
@@ -223,15 +213,13 @@ beforeAll(() => {
     CREATE TABLE IF NOT EXISTS configuration (
       id TEXT PRIMARY KEY,
       tmdb_api_key TEXT,
-      tmdb_language TEXT DEFAULT 'en-US',
       prowlarr_url TEXT,
       prowlarr_api_key TEXT,
       prowlarr_trusted_groups TEXT,
       prowlarr_min_seeders INTEGER DEFAULT 5,
       opensubtitles_api_key TEXT,
       opensubtitles_username TEXT,
-      opensubtitles_password TEXT,
-      updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
+      opensubtitles_password TEXT
     );
   `);
 
@@ -247,27 +235,6 @@ beforeAll(() => {
     );
     CREATE INDEX IF NOT EXISTS idx_subtitles_media ON subtitles(media_id);
   `);
-
-	// Create standalone FTS table for tests (simpler than content table)
-	testDb.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS media_fts USING fts5(
-        title,
-        overview
-    );
-
-    CREATE TRIGGER IF NOT EXISTS media_fts_insert AFTER INSERT ON media BEGIN
-      INSERT INTO media_fts(rowid, title, overview)
-      VALUES (new.rowid, new.title, new.overview);
-    END;
-
-    CREATE TRIGGER IF NOT EXISTS media_fts_delete AFTER DELETE ON media BEGIN
-      DELETE FROM media_fts WHERE rowid = old.rowid;
-    END;
-
-    CREATE TRIGGER IF NOT EXISTS media_fts_update AFTER UPDATE ON media BEGIN
-      UPDATE media_fts SET title = new.title, overview = new.overview WHERE rowid = new.rowid;
-    END;
-  `);
 });
 
 // Clean tables before each test
@@ -277,7 +244,6 @@ beforeEach(() => {
 	testDb.exec("DELETE FROM downloads");
 	testDb.exec("DELETE FROM configuration");
 	testDb.exec("DELETE FROM media");
-	testDb.exec("DELETE FROM media_fts");
 	testDb.exec("DELETE FROM invitation");
 	testDb.exec("DELETE FROM member");
 	testDb.exec("DELETE FROM session");
@@ -285,7 +251,7 @@ beforeEach(() => {
 	testDb.exec("DELETE FROM verification");
 	testDb.exec("DELETE FROM organization");
 	testDb.exec("DELETE FROM user");
-	testDb.exec("INSERT INTO configuration (id, tmdb_language, prowlarr_min_seeders) VALUES ('default', 'en-US', 5)");
+	testDb.exec("INSERT INTO configuration (id, prowlarr_min_seeders) VALUES ('default', 5)");
 });
 
 afterAll(() => {

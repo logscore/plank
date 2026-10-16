@@ -199,8 +199,6 @@ export async function probeFile(filePath: string): Promise<{
 	videoCodec: string | null;
 	audioCodec: string | null;
 	duration: number | null;
-	width: number | null;
-	height: number | null;
 	audioChannels: number | null;
 	hasDataStreams: boolean;
 }> {
@@ -221,8 +219,6 @@ export async function probeFile(filePath: string): Promise<{
 				videoCodec: videoStream?.codec_name || null,
 				audioCodec: audioStream?.codec_name || null,
 				duration: metadata.format.duration || null,
-				width: videoStream?.width || null,
-				height: videoStream?.height || null,
 				audioChannels: audioStream?.channels || null,
 				hasDataStreams,
 			});
@@ -231,13 +227,9 @@ export async function probeFile(filePath: string): Promise<{
 }
 
 export interface PlaybackCompatibility {
-	videoCodec: string | null;
 	audioCodec: string | null;
 	audioChannels: number | null;
-	hasDataStreams: boolean;
 	needsVideoTranscode: boolean;
-	needsAudioNormalization: boolean;
-	needsDataCleanup: boolean;
 	requiresNormalization: boolean;
 }
 
@@ -249,13 +241,9 @@ export async function getPlaybackCompatibility(filePath: string): Promise<Playba
 		(probe.audioChannels ?? 0) > 2;
 	const needsDataCleanup = probe.hasDataStreams;
 	return {
-		videoCodec: probe.videoCodec,
 		audioCodec: probe.audioCodec,
 		audioChannels: probe.audioChannels,
-		hasDataStreams: probe.hasDataStreams,
 		needsVideoTranscode,
-		needsAudioNormalization,
-		needsDataCleanup,
 		requiresNormalization: needsVideoTranscode || needsAudioNormalization || needsDataCleanup,
 	};
 }

@@ -2,21 +2,16 @@
 // FEATURE: Live progress transport for movie and episode download monitoring
 
 import type { Media } from "$lib/server/db/schema";
-import { isTerminalProgressStatus } from "$lib/utils";
 import { mediaDb } from "./db";
-import { getDownloadStatus, isDownloadActive } from "./torrent/status";
+import { getDownloadStatus } from "./torrent/status";
 
 export interface MediaProgressSnapshot {
 	status: string;
 	progress: number;
 	downloadSpeed: number;
-	uploadSpeed: number;
 	peers: number;
-	isActive: boolean;
-	filePath: string | null;
 	/** Finalization progress from 0 to 1. Zero unless the status is finalizing. */
 	transcodeProgress: number;
-	error?: string;
 	fileSize?: number | null;
 }
 
@@ -70,17 +65,12 @@ export function getMediaProgressSnapshot(mediaId: string, organizationId?: strin
 	}
 	const downloadStatus = getDownloadStatus(mediaId);
 	const status = getResolvedStatus(mediaItem);
-	const isActive = isTerminalProgressStatus(status) ? false : isDownloadActive(mediaId);
 	return {
 		status,
 		progress: getResolvedProgress(mediaItem),
 		downloadSpeed: downloadStatus?.downloadSpeed ?? 0,
-		uploadSpeed: downloadStatus?.uploadSpeed ?? 0,
 		peers: downloadStatus?.peers ?? 0,
-		isActive,
-		filePath: mediaItem.filePath,
 		transcodeProgress: downloadStatus?.transcodeProgress ?? 0,
-		error: downloadStatus?.error,
 		fileSize: getResolvedFileSize(mediaItem),
 	};
 }

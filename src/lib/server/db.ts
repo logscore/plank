@@ -290,7 +290,7 @@ export const mediaDb = {
 			.get();
 	},
 
-	create(mediaItem: Omit<NewMedia, "id" | "addedAt" | "createdAt"> & { type?: MediaType }): Media {
+	create(mediaItem: Omit<NewMedia, "id" | "addedAt"> & { type?: MediaType }): Media {
 		const id = crypto.randomUUID();
 		const now = new Date();
 		const type = mediaItem.type ?? "movie";
@@ -308,7 +308,6 @@ export const mediaDb = {
 			runtime: mediaItem.runtime,
 			originalLanguage: mediaItem.originalLanguage,
 			addedAt: now,
-			createdAt: now,
 			posterUrl: mediaItem.posterUrl,
 			backdropUrl: mediaItem.backdropUrl,
 			genres: mediaItem.genres,
@@ -337,7 +336,7 @@ export const mediaDb = {
 		return newMedia as Media;
 	},
 
-	update(id: string, data: Partial<Omit<NewMedia, "id" | "addedAt" | "createdAt">>) {
+	update(id: string, data: Partial<Omit<NewMedia, "id" | "addedAt">>) {
 		const updates = removeUndefinedFromObject(data as Record<string, unknown>);
 		if (Object.keys(updates).length === 0) {
 			return;
@@ -548,20 +547,17 @@ export const mediaDb = {
 };
 
 export const seasonsDb = {
-	create(season: Omit<NewSeason, "id" | "createdAt">): Season {
+	create(season: Omit<NewSeason, "id">): Season {
 		const id = crypto.randomUUID();
 		const newSeason: NewSeason = {
 			id,
 			mediaId: season.mediaId,
 			seasonNumber: season.seasonNumber,
 			name: season.name,
-			overview: season.overview,
-			posterPath: season.posterPath,
-			airDate: season.airDate,
 			episodeCount: season.episodeCount,
 		};
 		db.insert(seasonsTable).values(newSeason).run();
-		return { ...newSeason, createdAt: new Date() } as Season;
+		return newSeason as Season;
 	},
 
 	getByMediaId(mediaId: string): Season[] {
@@ -591,7 +587,7 @@ export const seasonsDb = {
 			.get();
 	},
 
-	update(id: string, data: Partial<Omit<NewSeason, "id" | "createdAt">>) {
+	update(id: string, data: Partial<Omit<NewSeason, "id">>) {
 		const updates = removeUndefinedFromObject(data as Record<string, unknown>);
 		if (Object.keys(updates).length === 0) {
 			return;

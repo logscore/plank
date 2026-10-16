@@ -53,7 +53,7 @@ function mockCodecs(videoCodec = "h264", audioCodec: string | null = "aac", audi
 			callback(null, {
 				format: { duration: 100 },
 				streams: [
-					{ codec_type: "video", codec_name: videoCodec, width: 1920, height: 1080 },
+					{ codec_type: "video", codec_name: videoCodec },
 					...(audioCodec ? [{ codec_type: "audio", codec_name: audioCodec, channels: audioChannels }] : []),
 				],
 			});
@@ -193,7 +193,7 @@ describe("FFmpeg Service", () => {
 			const mockMetadata = {
 				format: { duration: 100 },
 				streams: [
-					{ codec_type: "video", codec_name: "h264", width: 1920, height: 1080 },
+					{ codec_type: "video", codec_name: "h264" },
 					{ codec_type: "audio", codec_name: "aac", channels: 2 },
 				],
 			};
@@ -210,8 +210,6 @@ describe("FFmpeg Service", () => {
 				videoCodec: "h264",
 				audioCodec: "aac",
 				duration: 100,
-				width: 1920,
-				height: 1080,
 				audioChannels: 2,
 				hasDataStreams: false,
 			});
@@ -266,7 +264,7 @@ describe("FFmpeg Service", () => {
 					callback(null, {
 						format: { duration: 100 },
 						streams: [
-							{ codec_type: "video", codec_name: "h264", width: 1920, height: 1080 },
+							{ codec_type: "video", codec_name: "h264" },
 							{ codec_type: "audio", codec_name: "aac", channels: 2 },
 						],
 					});
@@ -299,7 +297,7 @@ describe("FFmpeg Service", () => {
 					callback(null, {
 						format: { duration: 100 },
 						streams: [
-							{ codec_type: "video", codec_name: "h264", width: 1920, height: 1080 },
+							{ codec_type: "video", codec_name: "h264" },
 							{ codec_type: "audio", codec_name: "aac", channels: 2 },
 							{
 								codec_type: "data",
@@ -314,7 +312,6 @@ describe("FFmpeg Service", () => {
 
 			const result = await getPlaybackCompatibility("movie.mp4");
 
-			expect(result.hasDataStreams).toBe(false);
 			expect(result.requiresNormalization).toBe(false);
 		});
 	});

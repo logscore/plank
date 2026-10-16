@@ -262,7 +262,6 @@
             const result = await resolveTorrentCached({
                 imdbId: item.imdbId,
                 tmdbId: item.tmdbId,
-                title: item.title,
             });
             if (!(result.success && result.torrent)) {
                 console.error("Failed to resolve torrent:", result.message || result.error);
@@ -295,7 +294,7 @@
                 year: item.year,
                 tmdbId: item.tmdbId,
             });
-            if (watchNow && "id" in media) {
+            if (watchNow && media) {
                 await goto(`/watch/${media.id}`);
             }
         } catch (cause) {
@@ -323,8 +322,6 @@
                 seasonNumber: season.seasonNumber,
                 name: season.name,
                 episodeCount: season.episodeCount,
-                year: season.year,
-                posterPath: season.posterPath,
             }));
             seasonsCache = new Map(seasonsCache).set(item.tmdbId, seasonData);
             return seasonData;

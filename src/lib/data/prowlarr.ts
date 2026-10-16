@@ -11,10 +11,6 @@ const prowlarrKeys = {
 
 export interface ProwlarrStatus {
 	configured: boolean;
-	url: string;
-	connectionStatus: string;
-	indexerCount: number;
-	indexers: unknown[];
 	needsSetup: boolean;
 }
 

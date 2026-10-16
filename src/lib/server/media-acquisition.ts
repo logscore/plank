@@ -2,7 +2,7 @@
 // FEATURE: Metadata-first episodic torrent acquisition for queued season ingestion flows
 
 import { downloadsDb, mediaDb } from "./db";
-import { type FindBestTorrentOptions, findBestTorrent, parseTorrentTitle } from "./prowlarr";
+import { type FindBestTorrentOptions, findBestTorrent } from "./prowlarr";
 import { startDownload } from "./torrent/download";
 import { getDownloadStatus } from "./torrent/status";
 import { cacheTorrent, getCachedTorrent } from "./torrent-cache";
@@ -136,17 +136,10 @@ export async function acquireMediaByImdb(mediaId: string, options?: AcquireMedia
 		return { status: "not_found", mediaId };
 	}
 	console.log(`[Acquire] Found torrent for ${mediaLabel}: ${result.title}`);
-	const parsedTitle = parseTorrentTitle(result.title);
 	await cacheTorrent({
 		imdbId: mediaItem.imdbId,
-		tmdbId: mediaItem.tmdbId ?? undefined,
 		magnetLink: result.magnetUri,
 		infohash: result.infohash,
-		title: result.title,
-		quality: parsedTitle.quality ?? undefined,
-		releaseGroup: parsedTitle.releaseGroup ?? undefined,
-		size: result.size,
-		seeders: result.seeders,
 	});
 	return startAttachedDownload(mediaId, result.magnetUri, result.infohash);
 }

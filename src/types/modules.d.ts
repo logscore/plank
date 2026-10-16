@@ -40,18 +40,15 @@ declare module "webtorrent" {
 	interface Torrent {
 		files: TorrentFile[];
 		infoHash: string;
-		magnetURI: string;
 		name: string;
 		path: string;
 		progress: number;
 		downloaded: number;
-		uploaded: number;
 		downloadSpeed: number;
 		uploadSpeed: number;
 		numPeers: number;
 		done: boolean;
 		ready: boolean;
-		paused: boolean;
 		destroy(opts?: { destroyStore?: boolean }, callback?: () => void): void;
 		on(event: "done" | "metadata" | "ready", callback: () => void): void;
 		on(event: "upload" | "download", callback: (bytes: number) => void): void;
@@ -88,11 +85,9 @@ declare module "webtorrent" {
 		remove(torrentId: string | Torrent, opts?: { destroyStore?: boolean }, callback?: () => void): void;
 		get(torrentId: string): Torrent | null;
 		destroy(callback?: () => void): void;
-		torrents: Torrent[];
 		downloadSpeed: number;
 		uploadSpeed: number;
 		progress: number;
-		ratio: number;
 		on(event: "torrent", callback: (torrent: Torrent) => void): void;
 		on(event: "error", callback: (err: Error) => void): void;
 		on(event: string, callback: (...args: unknown[]) => void): void;

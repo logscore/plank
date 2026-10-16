@@ -420,12 +420,10 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 			videoFile: null,
 			videoFiles: [],
 			subtitleFiles: [],
-			selectedFileIndex: null,
 			episodeMapping: new Map(),
 			progress: 0,
 			transcodeProgress: 0,
 			status: "initializing",
-			activeStreams: 0,
 			totalSize: 0,
 		};
 

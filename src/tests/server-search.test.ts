@@ -77,7 +77,6 @@ describe("unified search", () => {
 				}),
 				createCatalogItem({ tmdbId: 438_631, title: "Dune", year: 2021 }),
 			],
-			total: 2,
 			page: 1,
 			totalPages: 1,
 		});

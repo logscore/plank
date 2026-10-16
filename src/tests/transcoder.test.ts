@@ -36,8 +36,6 @@ describe("library transcoder", () => {
 			videoCodec: "h264",
 			audioCodec: "aac",
 			duration: 100,
-			width: 1920,
-			height: 1080,
 			audioChannels: 2,
 			hasDataStreams: false,
 		} as never);

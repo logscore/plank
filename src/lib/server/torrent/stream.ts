@@ -78,7 +78,6 @@ function getTorrentStream(
 			}
 		}
 
-		download.selectedFileIndex = fileIndex;
 		return createTorrentStream(download, videoFile, start, end);
 	}
 
@@ -130,9 +129,6 @@ function createTorrentStream(
 	const fileSize = videoFile.length;
 	const fileName = videoFile.name;
 
-	// Track active stream
-	download.activeStreams++;
-
 	const streamOptions: { start?: number; end?: number } = {};
 	if (start !== undefined) {
 		streamOptions.start = start;
@@ -142,15 +138,6 @@ function createTorrentStream(
 	}
 
 	const torrentStream = videoFile.createReadStream(streamOptions);
-
-	// Decrement active streams when stream ends
-	const decrementStreams = () => {
-		download.activeStreams = Math.max(0, download.activeStreams - 1);
-	};
-
-	torrentStream.once("end", decrementStreams);
-	torrentStream.once("error", decrementStreams);
-	torrentStream.once("close", decrementStreams);
 
 	return {
 		stream: torrentStream,

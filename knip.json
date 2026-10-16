@@ -1,13 +1,9 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "entry": [
-    "src/routes/**/*.svelte",
-    "src/routes/**/+*.ts",
-    "src/**/*.ts",
-    "scripts/*.ts"
-  ],
-  "project": ["src/**/*.ts", "src/**/*.svelte", "scripts/*.ts"],
-  "ignore": ["site/**", "src/tests/**"],
+  "entry": ["scripts/**/*.{js,cjs,mjs,jsx,ts,tsx,mts,cts}"],
+  "project": ["**/*.{js,cjs,mjs,jsx,ts,tsx,mts,cts,svelte}"],
+  "ignore": ["site/**"],
   "ignoreDependencies": ["tailwindcss"],
-  "ignoreBinaries": ["svelte-check-rs"]
+  "ignoreBinaries": ["svelte-check-rs"],
+  "treatConfigHintsAsErrors": true
 }

@@ -16,20 +16,14 @@ interface TMDBMovie {
 	vote_average?: number;
 	runtime?: number;
 	genres?: TMDBGenre[];
-	tagline?: string;
 	original_language?: string;
 	adult?: boolean;
 }
 
 interface TMDBSeason {
-	air_date: string | null;
 	episode_count: number;
-	id: number;
 	name: string;
-	overview: string;
-	poster_path: string | null;
 	season_number: number;
-	vote_average: number;
 }
 
 interface TMDBTVShow {
@@ -69,9 +63,6 @@ interface TMDBEpisode {
 interface TMDBSeasonDetail {
 	season_number: number;
 	name: string;
-	overview: string;
-	poster_path: string | null;
-	air_date: string;
 	episodes: TMDBEpisode[];
 }
 
@@ -100,10 +91,6 @@ export class AdultContentError extends Error {
 export interface SeasonMetadata {
 	seasonNumber: number;
 	name: string | null;
-	overview: string | null;
-	posterPath: string | null;
-	airDate: string | null;
-	episodeCount: number;
 	episodes: EpisodeMetadata[];
 }
 
@@ -127,8 +114,6 @@ export interface SeasonSummary {
 	seasonNumber: number;
 	name: string;
 	episodeCount: number;
-	year?: number;
-	posterPath?: string;
 }
 
 // =============================================================================
@@ -153,7 +138,6 @@ export interface BrowseItem {
 }
 export interface TmdbCatalogSearchResult {
 	items: BrowseItem[];
-	total: number;
 	page: number;
 	totalPages: number;
 }
@@ -182,7 +166,6 @@ interface TMDBTrendingResponse {
 	results: TMDBTrendingItem[];
 	page: number;
 	total_pages: number;
-	total_results?: number;
 }
 
 // Genre ID to name mapping for movies
@@ -508,19 +491,18 @@ async function fetchTmdbCatalogPage(
 	const response = await fetch(`${settings.tmdb.baseUrl}${endpoint}?${params}`);
 	if (!response.ok) {
 		console.error(`[TMDB] Catalog ${endpoint} failed: ${response.status} ${response.statusText}`);
-		return { results: [], page: 1, total_pages: 0, total_results: 0 };
+		return { results: [], page: 1, total_pages: 0 };
 	}
 	const data: TMDBTrendingResponse = await response.json();
 	if (!Array.isArray(data.results)) {
 		console.error(`[TMDB] Catalog ${endpoint} returned an invalid result`);
-		return { results: [], page: 1, total_pages: 0, total_results: 0 };
+		return { results: [], page: 1, total_pages: 0 };
 	}
 	return data;
 }
 
 interface CatalogBranch {
 	candidates: CatalogCandidate[];
-	total: number;
 	totalPages: number;
 }
 
@@ -588,7 +570,7 @@ async function searchCatalogBranch(
 ): Promise<CatalogBranch> {
 	const genreIds = getCatalogGenreIds(request.filters.genres, mediaType);
 	if (genreIds === null) {
-		return { candidates: [], total: 0, totalPages: 0 };
+		return { candidates: [], totalPages: 0 };
 	}
 	const { endpoint, params } = getCatalogRequestDetails(request, mediaType, genreIds);
 	const data = await fetchTmdbCatalogPage(settings, endpoint, params);
@@ -600,7 +582,6 @@ async function searchCatalogBranch(
 		}));
 	return {
 		candidates,
-		total: data.total_results ?? candidates.length,
 		totalPages: Math.min(500, data.total_pages),
 	};
 }
@@ -640,7 +621,7 @@ function sortCatalogCandidates(candidates: CatalogCandidate[], request: CatalogS
 export async function searchTmdbCatalog(request: CatalogSearchRequest): Promise<TmdbCatalogSearchResult> {
 	const { filters, page, query } = request;
 	if (query.length === 1) {
-		return { items: [], total: 0, page: 1, totalPages: 0 };
+		return { items: [], page: 1, totalPages: 0 };
 	}
 
 	const settings = await getSettings();
@@ -663,7 +644,6 @@ export async function searchTmdbCatalog(request: CatalogSearchRequest): Promise<
 
 	return {
 		items: candidates.map(({ item }) => item),
-		total: branches.reduce((total, branch) => total + branch.total, 0),
 		page,
 		totalPages: branches.reduce((maximum, branch) => Math.max(maximum, branch.totalPages), 0),
 	};
@@ -740,8 +720,6 @@ export async function getTVSeasons(tmdbId: number, includeSpecials = false): Pro
 			seasonNumber: season.season_number,
 			name: season.name || `Season ${season.season_number}`,
 			episodeCount: season.episode_count,
-			year: season.air_date ? Number.parseInt(season.air_date.slice(0, 4), 10) : undefined,
-			posterPath: season.poster_path ? `${settings.tmdb.imageBaseUrl}/w154${season.poster_path}` : undefined,
 		}));
 }
 
@@ -761,10 +739,6 @@ export async function getSeasonDetails(tmdbId: number, seasonNumber: number): Pr
 	return {
 		seasonNumber: season.season_number,
 		name: season.name ?? null,
-		overview: season.overview ?? null,
-		posterPath: season.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${season.poster_path}` : null,
-		airDate: season.air_date ?? null,
-		episodeCount: season.episodes?.length ?? 0,
 		episodes:
 			season.episodes?.map((ep) => ({
 				tmdbId: ep.id ?? null,

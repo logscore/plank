@@ -30,13 +30,6 @@ function cloneState<T>(value: T): T {
 	return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function fakeInfohash(seed: string) {
-	return seed
-		.replace(/[^a-z0-9]/gi, '')
-		.slice(0, 32)
-		.padEnd(32, '0');
-}
-
 function runtimeToFileSize(minutes: number | null, multiplier = 18_000_000) {
 	return Math.max((minutes ?? 100) * multiplier, 650_000_000);
 }
@@ -47,7 +40,6 @@ function getCatalogEntry(id: string) {
 
 function createMediaFromBrowse(item: BrowseItem, profileId: string | null): Media {
 	const now = new Date().toISOString();
-	const infohash = fakeInfohash(item.id);
 
 	return {
 		id: item.id,
@@ -61,7 +53,6 @@ function createMediaFromBrowse(item: BrowseItem, profileId: string | null): Medi
 		runtime: item.runtime,
 		originalLanguage: item.originalLanguage,
 		addedAt: now,
-		createdAt: now,
 		posterUrl: item.posterUrl,
 		backdropUrl: item.backdropUrl,
 		genres: item.genres,
@@ -71,17 +62,12 @@ function createMediaFromBrowse(item: BrowseItem, profileId: string | null): Medi
 		seasonId: null,
 		episodeNumber: null,
 		seasonNumber: null,
-		displayOrder: null,
 		stillPath: null,
-		airDate: null,
-		magnetLink: `magnet:?xt=urn:btih:${infohash}&dn=${encodeURIComponent(item.title)}`,
-		infohash,
 		status: 'complete',
 		progress: 100,
 		filePath: `/demo/library/${slugify(item.title)}`,
 		fileSize: runtimeToFileSize(item.runtime, item.mediaType === 'movie' ? 18_000_000 : 12_000_000),
 		fileIndex: 0,
-		downloadedBytes: runtimeToFileSize(item.runtime, item.mediaType === 'movie' ? 18_000_000 : 12_000_000),
 		playPosition: 0,
 		playDuration: item.runtime ? item.runtime * 60 : null,
 		lastPlayedAt: null,
@@ -91,7 +77,6 @@ function createMediaFromBrowse(item: BrowseItem, profileId: string | null): Medi
 function createEpisode(show: Media, season: SeasonWithEpisodes, episodeNumber: number): Media {
 	const now = new Date().toISOString();
 	const title = `${show.title} S${season.seasonNumber}E${episodeNumber}`;
-	const infohash = fakeInfohash(`${show.id}-${season.seasonNumber}-${episodeNumber}`);
 
 	return {
 		id: `${show.id}-s${season.seasonNumber}e${episodeNumber}`,
@@ -105,7 +90,6 @@ function createEpisode(show: Media, season: SeasonWithEpisodes, episodeNumber: n
 		runtime: Math.max(show.runtime ?? 45, 24),
 		originalLanguage: show.originalLanguage,
 		addedAt: now,
-		createdAt: now,
 		posterUrl: show.posterUrl,
 		backdropUrl: show.backdropUrl,
 		genres: show.genres,
@@ -115,17 +99,12 @@ function createEpisode(show: Media, season: SeasonWithEpisodes, episodeNumber: n
 		seasonId: season.id,
 		episodeNumber,
 		seasonNumber: season.seasonNumber,
-		displayOrder: episodeNumber,
 		stillPath: show.backdropUrl,
-		airDate: season.airDate,
-		magnetLink: `magnet:?xt=urn:btih:${infohash}&dn=${encodeURIComponent(title)}`,
-		infohash,
 		status: 'complete',
 		progress: 100,
 		filePath: `/demo/library/${slugify(show.title)}/season-${season.seasonNumber}/episode-${episodeNumber}.mp4`,
 		fileSize: runtimeToFileSize(show.runtime, 7_000_000),
 		fileIndex: 0,
-		downloadedBytes: runtimeToFileSize(show.runtime, 7_000_000),
 		playPosition: 0,
 		playDuration: Math.max(show.runtime ?? 45, 24) * 60,
 		lastPlayedAt: null,
@@ -139,10 +118,7 @@ function createSeasonSet(show: Media, seasonNumbers?: number[]) {
 			seasonNumber: 1,
 			name: 'Season 1',
 			episodeCount: 8,
-			year: show.year ?? new Date().getFullYear(),
-			posterPath: show.posterUrl ?? undefined,
 			overview: show.overview,
-			airDate: show.airDate,
 		},
 	];
 	const picked = seasonNumbers?.length
@@ -151,17 +127,13 @@ function createSeasonSet(show: Media, seasonNumbers?: number[]) {
 
 	return Object.fromEntries(
 		picked.map((summary) => {
-			const now = new Date().toISOString();
 			const season: SeasonWithEpisodes = {
 				id: `${show.id}-season-${summary.seasonNumber}`,
 				mediaId: show.id,
 				seasonNumber: summary.seasonNumber,
 				name: summary.name,
 				overview: summary.overview ?? show.overview,
-				posterPath: summary.posterPath ?? show.posterUrl,
-				airDate: summary.airDate ?? null,
 				episodeCount: summary.episodeCount,
-				createdAt: now,
 				episodes: [],
 			};
 
@@ -459,10 +431,8 @@ class DemoStore {
 			id: `profile-${slugify(trimmed)}-${Date.now()}`,
 			name: trimmed,
 			logo: null,
-			color: '#a855f7',
 			isMember: true,
 			memberCount: 1,
-			createdAt: new Date().toISOString(),
 		};
 
 		this.state.profiles = [...this.state.profiles, profile];

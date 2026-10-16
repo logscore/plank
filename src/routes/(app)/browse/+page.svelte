@@ -175,7 +175,6 @@
             const result = await resolveTorrentCached({
                 imdbId: item.imdbId,
                 tmdbId: item.tmdbId,
-                title: item.title,
             });
 
             if (!(result.success && result.torrent)) {
@@ -250,7 +249,9 @@
                 year: item.year,
                 tmdbId: item.tmdbId,
             });
-            goto(`/watch/${media.id}`);
+            if (media) {
+                goto(`/watch/${media.id}`);
+            }
         } catch (err) {
             console.error("Failed to add and watch:", err);
             if (err instanceof Error && err.message !== "Could not resolve magnet link") {
@@ -290,8 +291,6 @@
                 seasonNumber: s.seasonNumber,
                 name: s.name,
                 episodeCount: s.episodeCount,
-                year: s.year,
-                posterPath: s.posterPath,
             }));
             seasonsCache = new Map(seasonsCache).set(item.tmdbId, seasonData);
             return seasonData;

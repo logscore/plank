@@ -287,7 +287,7 @@ export async function addMediaFromMagnet(
 	organizationId: string,
 	params: AddMediaFromMagnetParams
 ): Promise<{
-	body: Media | (Media & { _seasonAdded: true });
+	body: Media;
 	status: 200 | 201;
 }> {
 	const magnetLink = typeof params.magnetLink === "string" ? params.magnetLink : null;
@@ -326,7 +326,7 @@ export async function addMediaFromMagnet(
 				downloadsDb.updateProgress(download.id, 0, "error");
 			});
 
-			return { body: { ...existingShow, _seasonAdded: true }, status: 200 };
+			return { body: existingShow, status: 200 };
 		}
 	}
 

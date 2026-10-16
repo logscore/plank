@@ -29,7 +29,6 @@
             genres: media.genres,
             mediaType: 'movie',
             certification: media.certification,
-            needsResolve: false,
             runtime: media.runtime,
             originalLanguage: media.originalLanguage,
             totalSeasons: null,

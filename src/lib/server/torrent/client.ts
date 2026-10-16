@@ -17,18 +17,14 @@ export interface TorrentFile {
 export interface Torrent {
 	files: TorrentFile[];
 	infoHash: string;
-	magnetURI: string;
 	name: string;
 	path: string;
 	progress: number;
 	downloaded: number;
-	uploaded: number;
 	downloadSpeed: number;
-	uploadSpeed: number;
 	numPeers: number;
 	done: boolean;
 	ready: boolean;
-	paused: boolean;
 	destroy(opts?: { destroyStore?: boolean }, callback?: () => void): void;
 	on(event: "done" | "metadata" | "ready", callback: () => void): void;
 	on(event: "upload" | "download", callback: (bytes: number) => void): void;
@@ -49,11 +45,6 @@ export interface WebTorrentClient {
 	get(torrentId: string): Torrent | null;
 	on(event: "error", callback: (error: Error) => void): void;
 	destroy(callback?: (error?: Error | null) => void): void;
-	torrents: Torrent[];
-	downloadSpeed: number;
-	uploadSpeed: number;
-	progress: number;
-	ratio: number;
 }
 
 export interface ActiveDownload {
@@ -64,13 +55,11 @@ export interface ActiveDownload {
 	videoFile: TorrentFile | null;
 	videoFiles: TorrentFile[];
 	subtitleFiles: TorrentFile[];
-	selectedFileIndex: number | null;
 	episodeMapping: Map<number, number>;
 	progress: number;
 	/** Finalization progress from 0 to 1. */
 	transcodeProgress: number;
 	status: "initializing" | "downloading" | "finalizing" | "complete" | "error";
-	activeStreams: number;
 	totalSize: number;
 	error?: string;
 }

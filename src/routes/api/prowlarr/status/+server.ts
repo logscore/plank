@@ -21,27 +21,19 @@ export const GET: RequestHandler = async ({ locals }) => {
 	const hasConfig = !!apiKey;
 
 	// If we have config, try to test the connection
-	let connectionStatus = "not_configured";
 	let indexers: ProwlarrIndexer[] = [];
 
 	if (hasConfig) {
 		const testResult = await testProwlarrConnection(url, apiKey);
 
 		if (testResult.success) {
-			connectionStatus = "connected";
 			// Get indexers
 			indexers = await getProwlarrIndexers();
-		} else {
-			connectionStatus = "connection_failed";
 		}
 	}
 
 	return json({
 		configured: hasConfig,
-		url,
-		connectionStatus,
-		indexerCount: indexers.length,
-		indexers,
 		needsSetup: !hasConfig || indexers.length === 0,
 	});
 };

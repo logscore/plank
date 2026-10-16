@@ -15,23 +15,12 @@ function localArtworkUrl(kind: 'posters' | 'backdrops', id: string, sourcePath: 
 	return sourcePath ? `${LOCAL_ARTWORK_BASE}/${kind}/${id}${getArtworkExtension(sourcePath)}` : null;
 }
 
-function makeSeasons(
-	title: string,
-	entryId: string,
-	episodeCounts: number[],
-	startYear: number,
-	posterPath: string | null,
-	overview: string
-): DemoSeasonSummary[] {
-	const seasonPoster = localArtworkUrl('posters', entryId, posterPath) ?? undefined;
+function makeSeasons(title: string, episodeCounts: number[], overview: string): DemoSeasonSummary[] {
 	return episodeCounts.map((episodeCount, index) => ({
 		seasonNumber: index + 1,
 		name: `Season ${index + 1}`,
 		episodeCount,
-		year: startYear + index,
-		posterPath: seasonPoster,
 		overview: `${title} Season ${index + 1}. ${overview}`.slice(0, 180),
-		airDate: `${startYear + index}-01-01`,
 	}));
 }
 
@@ -72,7 +61,6 @@ function movieEntry(input: CatalogInput): CatalogEntry {
 		genres: input.genres,
 		mediaType: 'movie',
 		certification: input.certification,
-		needsResolve: false,
 		runtime: input.runtime,
 		originalLanguage: input.originalLanguage,
 		totalSeasons: null,
@@ -94,18 +82,10 @@ function showEntry(input: ShowInput): CatalogEntry {
 		genres: input.genres,
 		mediaType: 'show',
 		certification: input.certification,
-		needsResolve: false,
 		runtime: input.runtime,
 		originalLanguage: input.originalLanguage,
 		totalSeasons: input.totalSeasons,
-		availableSeasons: makeSeasons(
-			input.title,
-			id,
-			input.episodeCounts,
-			input.year ?? new Date().getFullYear(),
-			input.posterPath,
-			input.overview
-		),
+		availableSeasons: makeSeasons(input.title, input.episodeCounts, input.overview),
 	};
 }
 
@@ -122,28 +102,22 @@ export const DEMO_PROFILES: DemoProfile[] = [
 		id: 'profile-captain',
 		name: 'Jolly Roger',
 		logo: null,
-		color: '#3b82f6',
 		isMember: true,
 		memberCount: 3,
-		createdAt: '2026-04-27T00:00:00.000Z',
 	},
 	{
 		id: 'profile-first-mate',
 		name: 'Thousand Sunny',
 		logo: null,
-		color: '#ef4444',
 		isMember: true,
 		memberCount: 3,
-		createdAt: '2026-04-27T00:00:00.000Z',
 	},
 	{
 		id: 'profile-lookout',
 		name: 'Black Pearl',
 		logo: null,
-		color: '#10b981',
 		isMember: true,
 		memberCount: 3,
-		createdAt: '2026-04-27T00:00:00.000Z',
 	},
 ];
 

@@ -6,8 +6,6 @@
         seasonNumber: number;
         name: string;
         episodeCount: number;
-        year?: number;
-        posterPath?: string;
     }
 
     let {

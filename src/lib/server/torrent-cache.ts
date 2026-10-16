@@ -2,7 +2,7 @@
  * Torrent Cache Service
  *
  * Manages the cache of IMDB ID to magnet link mappings.
- * Used to avoid repeated Jackett queries for the same content.
+ * Used to avoid repeated Prowlarr queries for the same content.
  */
 
 import { eq, inArray } from "drizzle-orm";
@@ -12,40 +12,14 @@ import { torrentCache } from "./db/schema";
 /**
  * Cached torrent data
  */
-export interface CachedTorrent {
-	imdbId: string;
-	tmdbId?: number;
-	magnetLink: string;
-	infohash: string;
-	title: string;
-	quality?: string;
-	releaseGroup?: string;
-	size?: number;
-	seeders?: number;
-}
+export type CachedTorrent = typeof torrentCache.$inferSelect;
 
 /**
  * Get cached torrent by IMDB ID
  */
 export async function getCachedTorrent(imdbId: string): Promise<CachedTorrent | null> {
-	const result = await db.select().from(torrentCache).where(eq(torrentCache.imdbId, imdbId)).limit(1);
-
-	if (result.length === 0) {
-		return null;
-	}
-
-	const row = result[0];
-	return {
-		imdbId: row.imdbId,
-		tmdbId: row.tmdbId ?? undefined,
-		magnetLink: row.magnetLink,
-		infohash: row.infohash,
-		title: row.title,
-		quality: row.quality ?? undefined,
-		releaseGroup: row.releaseGroup ?? undefined,
-		size: row.size ?? undefined,
-		seeders: row.seeders ?? undefined,
-	};
+	const [row] = await db.select().from(torrentCache).where(eq(torrentCache.imdbId, imdbId)).limit(1);
+	return row ?? null;
 }
 
 /**
@@ -60,17 +34,7 @@ export async function getCachedTorrents(imdbIds: string[]): Promise<Map<string, 
 
 	const map = new Map<string, CachedTorrent>();
 	for (const row of results) {
-		map.set(row.imdbId, {
-			imdbId: row.imdbId,
-			tmdbId: row.tmdbId ?? undefined,
-			magnetLink: row.magnetLink,
-			infohash: row.infohash,
-			title: row.title,
-			quality: row.quality ?? undefined,
-			releaseGroup: row.releaseGroup ?? undefined,
-			size: row.size ?? undefined,
-			seeders: row.seeders ?? undefined,
-		});
+		map.set(row.imdbId, row);
 	}
 
 	return map;
@@ -80,33 +44,14 @@ export async function getCachedTorrents(imdbIds: string[]): Promise<Map<string, 
  * Save torrent to cache
  */
 export async function cacheTorrent(torrent: CachedTorrent): Promise<void> {
-	const id = crypto.randomUUID();
-
 	await db
 		.insert(torrentCache)
-		.values({
-			id,
-			imdbId: torrent.imdbId,
-			tmdbId: torrent.tmdbId,
-			magnetLink: torrent.magnetLink,
-			infohash: torrent.infohash,
-			title: torrent.title,
-			quality: torrent.quality,
-			releaseGroup: torrent.releaseGroup,
-			size: torrent.size,
-			seeders: torrent.seeders,
-		})
+		.values(torrent)
 		.onConflictDoUpdate({
 			target: torrentCache.imdbId,
 			set: {
 				magnetLink: torrent.magnetLink,
 				infohash: torrent.infohash,
-				title: torrent.title,
-				quality: torrent.quality,
-				releaseGroup: torrent.releaseGroup,
-				size: torrent.size,
-				seeders: torrent.seeders,
-				updatedAt: new Date(),
 			},
 		});
 }
