@@ -268,11 +268,9 @@
     // ==========================================================================
 
     // Get seasons for a TV show through the shared query cache
-    async function getSeasons(item: BrowseItem): Promise<CatalogSeason[]> {
-        // Return local cached seasons if available (fast path)
-        const cached = seasonsCache.get(item.tmdbId);
-        if (cached) {
-            return cached;
+    async function getSeasons(item: BrowseItem): Promise<void> {
+        if (seasonsCache.has(item.tmdbId)) {
+            return;
         }
 
         seasonsLoading = new Set(seasonsLoading).add(item.tmdbId);
@@ -286,10 +284,8 @@
                 episodeCount: s.episodeCount,
             }));
             seasonsCache = new Map(seasonsCache).set(item.tmdbId, seasonData);
-            return seasonData;
         } catch (err) {
             console.error("Failed to fetch seasons:", err);
-            return [];
         } finally {
             const updated = new Set(seasonsLoading);
             updated.delete(item.tmdbId);

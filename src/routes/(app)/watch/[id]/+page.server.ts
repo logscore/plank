@@ -11,14 +11,22 @@ export const load: PageServerLoad = async ({ depends, params, locals }) => {
 		throw error(400, "Shows are not directly watchable");
 	}
 	depends(`/api/media/${params.id}`);
+	const nextEpisode = mediaItem.type === "episode" ? mediaDb.getNextEpisodeById(mediaItem.id) : null;
+
 	return {
 		media: mediaItem,
 		progress: getMediaProgressSnapshot(params.id, organizationId),
-		nextEpisode: mediaItem.type === "episode" ? mediaDb.getNextEpisodeById(mediaItem.id) : null,
-		position: {
-			position: mediaItem.playPosition ?? 0,
-			duration: mediaItem.playDuration ?? null,
-		},
+		nextEpisode: nextEpisode
+			? {
+					id: nextEpisode.id,
+					title: nextEpisode.title,
+					seasonNumber: nextEpisode.seasonNumber,
+					episodeNumber: nextEpisode.episodeNumber,
+					stillPath: nextEpisode.stillPath,
+					backdropUrl: nextEpisode.backdropUrl,
+					posterUrl: nextEpisode.posterUrl,
+				}
+			: null,
 		subtitleTracks: await getSubtitleTracksForMedia(mediaItem),
 	};
 };

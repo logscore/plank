@@ -218,16 +218,6 @@
                         ...nextResponse.items.filter((item) => !seen.has(`${item.mediaType}:${item.tmdbId}`)),
                     ],
                 };
-            } else if (response.scope === "library" && nextResponse.scope === "library") {
-                const seen = new Set(response.items.map((item) => item.id));
-                response = {
-                    ...nextResponse,
-                    items: [...response.items, ...nextResponse.items.filter((item) => !seen.has(item.id))],
-                    seasonsByMediaId: {
-                        ...response.seasonsByMediaId,
-                        ...nextResponse.seasonsByMediaId,
-                    },
-                };
             }
         } catch (cause) {
             if (!(cause instanceof DOMException && cause.name === "AbortError")) {
@@ -304,10 +294,9 @@
         await getMagnetLink(item);
     }
 
-    async function getSeasons(item: BrowseItem): Promise<CatalogSeason[]> {
-        const cached = seasonsCache.get(item.tmdbId);
-        if (cached) {
-            return cached;
+    async function getSeasons(item: BrowseItem): Promise<void> {
+        if (seasonsCache.has(item.tmdbId)) {
+            return;
         }
         seasonsLoading = new Set(seasonsLoading).add(item.tmdbId);
         try {
@@ -318,10 +307,8 @@
                 episodeCount: season.episodeCount,
             }));
             seasonsCache = new Map(seasonsCache).set(item.tmdbId, seasonData);
-            return seasonData;
         } catch (cause) {
             console.error("Failed to fetch seasons:", cause);
-            return [];
         } finally {
             const updated = new Set(seasonsLoading);
             updated.delete(item.tmdbId);

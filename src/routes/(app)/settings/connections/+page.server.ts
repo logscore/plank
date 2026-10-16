@@ -12,9 +12,18 @@ type ConnectionUpdate = Parameters<typeof updateSettings>[0];
 export const load: PageServerLoad = async ({ parent }) => {
 	const { userRole } = await parent();
 	requireSection(userRole, SECTION_HREF);
+	const settings = await getSettings();
 
 	return {
-		settings: await getSettings(),
+		settings: {
+			tmdb: { apiKey: settings.tmdb.apiKey },
+			prowlarr: {
+				url: settings.prowlarr.url,
+				apiKey: settings.prowlarr.apiKey,
+				minSeeders: settings.prowlarr.minSeeders,
+			},
+			opensubtitles: settings.opensubtitles,
+		},
 	};
 };
 

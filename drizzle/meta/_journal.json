@@ -127,6 +127,13 @@
       "when": 1791873230373,
       "tag": "0017_past_the_fury",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1792190717508,
+      "tag": "0018_ordinary_earthquake",
+      "breakpoints": true
     }
   ]
 }

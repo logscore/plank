@@ -12,6 +12,11 @@ export const load: PageServerLoad = async () => {
 	const settings = await getSettings();
 
 	return {
-		settings,
+		settings: {
+			prowlarr: {
+				url: settings.prowlarr.url,
+				apiKey: settings.prowlarr.apiKey,
+			},
+		},
 	};
 };

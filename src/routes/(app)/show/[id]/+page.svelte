@@ -36,7 +36,7 @@
         subtitleDialogMediaId = episode.id;
         subtitleDialogSeasonNumber = currentSeason?.seasonNumber;
         subtitleDialogEpisodeNumber = episode.episodeNumber;
-        subtitleDialogTitle = `${media?.title} - S${String(currentSeason?.seasonNumber ?? 0).padStart(2, "0")}E${String(episode.episodeNumber).padStart(2, "0")}`;
+        subtitleDialogTitle = `${media.title} - S${String(currentSeason?.seasonNumber ?? 0).padStart(2, "0")}E${String(episode.episodeNumber).padStart(2, "0")}`;
         openSubtitlesDialogOpen = true;
     }
 
@@ -55,26 +55,20 @@
         await invalidate(`/api/media/${media.id}`);
     }
 
-    async function runEpisodeRetry(
-        episode: Media,
-        body?: { mode?: "same" | "replace" | "remove"; magnetLink?: string }
-    ) {
+    async function removeEpisodeDownload(episode: Media) {
         if (retryingEpisodeIds.has(episode.id)) {
-            return false;
+            return;
         }
 
         retryingEpisodeIds = new Set(retryingEpisodeIds).add(episode.id);
         try {
             await retryMediaMutation.mutateAsync({
                 id: episode.id,
-                mode: body?.mode,
-                magnetLink: body?.magnetLink,
+                mode: "remove",
             });
             await invalidate(`/api/media/${media.id}`);
-            return true;
         } catch (error) {
-            console.error("Failed to run episode retry action:", error);
-            return false;
+            console.error("Failed to remove episode download:", error);
         } finally {
             const updated = new Set(retryingEpisodeIds);
             updated.delete(episode.id);
@@ -86,9 +80,7 @@
         confirmDelete(
             "Remove Episode Download",
             "This removes the downloaded file but keeps the episode metadata so you can redownload it later.",
-            async () => {
-                await runEpisodeRetry(episode, { mode: "remove" });
-            }
+            () => removeEpisodeDownload(episode)
         );
     }
 
@@ -243,278 +235,272 @@
 </script>
 
 <svelte:head>
-    <title>{media?.title ?? "Show"} | Plank</title>
+    <title>{media.title} | Plank</title>
 </svelte:head>
 
-{#if media}
-    <!-- Hero Section -->
-    <div class="relative min-h-screen overflow-hidden pb-12">
-        <!-- Hero Section with Backdrop -->
-        {#if media.backdropUrl || media.posterUrl}
-            <picture>
-                {#if media.backdropUrl}
-                    <source media="(min-width: 1024px)" srcset={media.backdropUrl}>
-                {/if}
-                <img
-                    src={media.posterUrl ?? media.backdropUrl}
-                    alt={media.title}
-                    class="absolute inset-0 h-full w-full object-cover opacity-30 lg:opacity-20"
-                >
-            </picture>
-        {/if}
-        <div class="absolute inset-0 bg-linear-to-b from-background/30 via-background/80 to-background"></div>
-
-        <div class="fixed left-6 top-6 z-50">
-            <Button
-                variant="ghost"
-                class="rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70"
-                onclick={() => window.history.back()}
+<!-- Hero Section -->
+<div class="relative min-h-screen overflow-hidden pb-12">
+    <!-- Hero Section with Backdrop -->
+    {#if media.backdropUrl || media.posterUrl}
+        <picture>
+            {#if media.backdropUrl}
+                <source media="(min-width: 1024px)" srcset={media.backdropUrl}>
+            {/if}
+            <img
+                src={media.posterUrl ?? media.backdropUrl}
+                alt={media.title}
+                class="absolute inset-0 h-full w-full object-cover opacity-30 lg:opacity-20"
             >
-                <ArrowLeft class="mr-2 h-5 w-5" />
-                Back
-            </Button>
-        </div>
+        </picture>
+    {/if}
+    <div class="absolute inset-0 bg-linear-to-b from-background/30 via-background/80 to-background"></div>
 
-        <!-- Content -->
-        <div class="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-            <div class="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-end">
-                <!-- Poster -->
-                <div class="hidden overflow-hidden rounded-2xl border border-white/10 shadow-2xl lg:block">
-                    {#if media.posterUrl}
-                        <img src={media.posterUrl} alt={media.title} class="w-full object-cover">
-                    {:else}
-                        <div class="flex aspect-2/3 w-full items-center justify-center bg-accent">
-                            <Film class="w-16 h-16 text-muted-foreground" />
-                        </div>
-                    {/if}
-                </div>
+    <div class="fixed left-6 top-6 z-50">
+        <Button
+            variant="ghost"
+            class="rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70"
+            onclick={() => window.history.back()}
+        >
+            <ArrowLeft class="mr-2 h-5 w-5" />
+            Back
+        </Button>
+    </div>
 
-                <!-- Details -->
-                <div class="space-y-6">
-                    <!-- Title -->
-                    <div>
-                        <h1 class="text-4xl font-semibold tracking-tight text-white sm:text-5xl">{media.title}</h1>
-                    </div>
-
-                    <!-- Meta Badges -->
-                    <div class="flex flex-wrap items-center gap-3 text-sm">
-                        {#if media.certification}
-                            <span
-                                class="px-3 py-1 rounded-full border font-bold {getColorForCertification(
-                                    media.certification,
-                                )}"
-                            >
-                                {media.certification}
-                            </span>
-                        {/if}
-                        {#if media.year}
-                            <span class="rounded-full border border-white/15 px-3 py-1 text-muted-foreground"
-                                >{media.year}</span
-                            >
-                        {/if}
-                        {#if media.runtime}
-                            <span class="rounded-full border border-white/15 px-3 py-1 text-muted-foreground">
-                                {formatRuntime(media.runtime)}
-                                avg
-                            </span>
-                        {/if}
-                        {#if media.totalSeasons}
-                            <span class="rounded-full border border-white/15 px-3 py-1 text-muted-foreground">
-                                {media.totalSeasons}
-                                {media.totalSeasons === 1
-                                    ? "Season"
-                                    : "Seasons"}
-                            </span>
-                        {/if}
-                    </div>
-
-                    <!-- Genres -->
-                    {#if parseGenres(media.genres).length > 0}
-                        <div class="flex flex-wrap gap-2">
-                            {#each parseGenres(media.genres) as genre}
-                                <span class="rounded-full bg-white/5 px-3 py-1 text-sm text-zinc-300">{genre}</span>
-                            {/each}
-                        </div>
-                    {/if}
-
-                    <!-- Action Buttons -->
-                    <div class="flex flex-wrap items-center gap-3 pt-2">
-                        <EpisodeSelector {seasons} onPlayEpisode={handlePlayEpisode} />
-                        <Button
-                            variant="ghost"
-                            size="lg"
-                            class="text-white hover:bg-neutral-800"
-                            onclick={handleDelete}
-                            disabled={deleting}
-                        >
-                            <Trash2 class="w-5 h-5 mr-2" />
-                            {deleting ? "Deleting..." : "Delete"}
-                        </Button>
-                    </div>
-
-                    <!-- Overview -->
-                    {#if media.overview}
-                        <div>
-                            <h2 class="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                Overview
-                            </h2>
-                            <p class="max-w-3xl text-sm leading-7 text-zinc-300 sm:text-base">{media.overview}</p>
-                        </div>
-                    {/if}
-
-                    <!-- Episode Selector (Moved here or kept below?) -->
-                    <!-- We'll keep it in the main flow but styled appropriately -->
-                </div>
-            </div>
-
-            <!-- Seasons & Episodes -->
-            <div class="mt-8">
-                <h2 class="mb-6 text-2xl font-semibold tracking-tight text-white">Seasons & Episodes</h2>
-
-                <!-- Season Tabs -->
-                {#if seasons.length > 0}
-                    <Tabs.Root
-                        value={String(selectedSeason ?? "")}
-                        onValueChange={(value) => handleSelectSeason(Number(value))}
-                    >
-                        <Tabs.List class="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
-                            {#each seasons as season (season.seasonNumber)}
-                                <Tabs.Trigger
-                                    value={String(season.seasonNumber)}
-                                    class="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-colors cursor-pointer hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:hover:bg-primary/90"
-                                >
-                                    {season.name || `Season ${season.seasonNumber}`}
-                                </Tabs.Trigger>
-                            {/each}
-                        </Tabs.List>
-
-                        <!-- Episode List -->
-                        {#if currentSeason}
-                            <Tabs.Content value={String(currentSeason.seasonNumber)} class="space-y-4">
-                                {#each currentSeason.episodes as episode (episode.id)}
-                                    {@const liveProgress = episodeProgressByMediaId[episode.id]}
-                                    <MediaRow
-                                        media={episode}
-                                        busy={retryingEpisodeIds.has(episode.id)}
-                                        subtitleTracks={data.subtitleTracksByMediaId[episode.id] ?? []}
-                                        status={liveProgress?.status}
-                                        progress={liveProgress?.progress}
-                                        downloadSpeed={liveProgress?.downloadSpeed}
-                                        peers={liveProgress?.peers}
-                                        transcodeProgress={liveProgress?.transcodeProgress}
-                                        onPlay={handlePlayEpisode}
-                                        onRedownload={openRedownloadDialog}
-                                        onRemoveDownload={handleRemoveEpisodeDownload}
-                                        onAddSubtitles={openSubtitlesForEpisode}
-                                    />
-                                {/each}
-
-                                {#if currentSeason.episodes.length === 0}
-                                    <div class="text-center py-12 text-muted-foreground">
-                                        No episodes available for this season
-                                    </div>
-                                {/if}
-                            </Tabs.Content>
-                        {/if}
-                    </Tabs.Root>
+    <!-- Content -->
+    <div class="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div class="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-end">
+            <!-- Poster -->
+            <div class="hidden overflow-hidden rounded-2xl border border-white/10 shadow-2xl lg:block">
+                {#if media.posterUrl}
+                    <img src={media.posterUrl} alt={media.title} class="w-full object-cover">
                 {:else}
-                    <div class="text-center py-12 text-muted-foreground">No seasons available</div>
+                    <div class="flex aspect-2/3 w-full items-center justify-center bg-accent">
+                        <Film class="w-16 h-16 text-muted-foreground" />
+                    </div>
                 {/if}
             </div>
-        </div>
-    </div>
 
-    <!-- Technical Details (Info Cards) -->
-    <div class="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
-        <div class="grid grid-cols-1 gap-4 pb-12 md:grid-cols-2">
-            <div class="space-y-4 rounded-2xl border border-white/10 bg-card/70 p-5">
-                <h3 class="text-lg font-semibold flex items-center gap-2">
-                    <Database class="w-5 h-5 text-primary" />
-                    File Information
-                </h3>
-                <div class="space-y-3 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Status</span>
-                        <span class="capitalize font-medium text-muted-foreground">{showStatus}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Episodes Downloaded</span>
-                        <span class="font-medium">{downloadedEpisodeCount} / {allEpisodes.length}</span>
-                    </div>
+            <!-- Details -->
+            <div class="space-y-6">
+                <!-- Title -->
+                <div>
+                    <h1 class="text-4xl font-semibold tracking-tight text-white sm:text-5xl">{media.title}</h1>
                 </div>
-            </div>
 
-            <div class="space-y-4 rounded-2xl border border-white/10 bg-card/70 p-5">
-                <h3 class="text-lg font-semibold flex items-center gap-2">
-                    <Database class="w-5 h-5 text-primary" />
-                    Library Footprint
-                </h3>
-                <div class="space-y-3 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Downloaded Size</span>
-                        <span class="font-medium">{formatFileSize(totalEpisodeSize)}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Current Season</span>
-                        <span class="font-medium"
-                            >{currentSeason?.name ||
-                                `Season ${selectedSeason ?? 1}`}</span
+                <!-- Meta Badges -->
+                <div class="flex flex-wrap items-center gap-3 text-sm">
+                    {#if media.certification}
+                        <span
+                            class="px-3 py-1 rounded-full border font-bold {getColorForCertification(
+                                media.certification,
+                            )}"
                         >
-                    </div>
-                </div>
-            </div>
-
-            <div class="space-y-4 rounded-2xl border border-white/10 bg-card/70 p-5">
-                <h3 class="text-lg font-semibold flex items-center gap-2">
-                    <Calendar class="w-5 h-5 text-primary" />
-                    Dates
-                </h3>
-                <div class="space-y-3 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Added</span>
-                        <span class="font-medium">{formatDate(media.addedAt)}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Last Played</span>
-                        <span class="font-medium"
-                            >{media.lastPlayedAt
-                                ? formatDate(media.lastPlayedAt)
-                                : "Never"}</span
+                            {media.certification}
+                        </span>
+                    {/if}
+                    {#if media.year}
+                        <span class="rounded-full border border-white/15 px-3 py-1 text-muted-foreground"
+                            >{media.year}</span
                         >
-                    </div>
+                    {/if}
+                    {#if media.runtime}
+                        <span class="rounded-full border border-white/15 px-3 py-1 text-muted-foreground">
+                            {formatRuntime(media.runtime)}
+                            avg
+                        </span>
+                    {/if}
+                    {#if media.totalSeasons}
+                        <span class="rounded-full border border-white/15 px-3 py-1 text-muted-foreground">
+                            {media.totalSeasons}
+                            {media.totalSeasons === 1
+                                ? "Season"
+                                : "Seasons"}
+                        </span>
+                    {/if}
                 </div>
-            </div>
 
-            <div class="space-y-4 rounded-2xl border border-white/10 bg-card/70 p-5">
-                <h3 class="text-lg font-semibold flex items-center gap-2">
-                    <Film class="w-5 h-5 text-primary" />
-                    Metadata
-                </h3>
-                <div class="space-y-3 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">TMDB ID</span>
-                        <span class="font-medium">{media.tmdbId || "Not linked"}</span>
+                <!-- Genres -->
+                {#if parseGenres(media.genres).length > 0}
+                    <div class="flex flex-wrap gap-2">
+                        {#each parseGenres(media.genres) as genre}
+                            <span class="rounded-full bg-white/5 px-3 py-1 text-sm text-zinc-300">{genre}</span>
+                        {/each}
                     </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Show ID</span>
-                        <code class="text-xs bg-accent px-2 py-1 rounded">{media.id}</code>
-                    </div>
+                {/if}
+
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap items-center gap-3 pt-2">
+                    <EpisodeSelector {seasons} onPlayEpisode={handlePlayEpisode} />
+                    <Button
+                        variant="ghost"
+                        size="lg"
+                        class="text-white hover:bg-neutral-800"
+                        onclick={handleDelete}
+                        disabled={deleting}
+                    >
+                        <Trash2 class="w-5 h-5 mr-2" />
+                        {deleting ? "Deleting..." : "Delete"}
+                    </Button>
                 </div>
+
+                <!-- Overview -->
+                {#if media.overview}
+                    <div>
+                        <h2 class="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                            Overview
+                        </h2>
+                        <p class="max-w-3xl text-sm leading-7 text-zinc-300 sm:text-base">{media.overview}</p>
+                    </div>
+                {/if}
+
+                <!-- Episode Selector (Moved here or kept below?) -->
+                <!-- We'll keep it in the main flow but styled appropriately -->
             </div>
         </div>
-    </div>
 
-    <RedownloadDialog bind:open={redownloadDialogOpen} media={selectedEpisode} onRetried={refreshShow} />
+        <!-- Seasons & Episodes -->
+        <div class="mt-8">
+            <h2 class="mb-6 text-2xl font-semibold tracking-tight text-white">Seasons & Episodes</h2>
 
-    <OpenSubtitlesDialog
-        bind:open={openSubtitlesDialogOpen}
-        mediaId={subtitleDialogMediaId ?? media.id}
-        mediaTitle={subtitleDialogTitle}
-        seasonNumber={subtitleDialogSeasonNumber}
-        episodeNumber={subtitleDialogEpisodeNumber}
-    />
-{:else}
-    <div class="flex items-center justify-center min-h-screen">
-        <p class="text-muted-foreground">Show not found</p>
+            <!-- Season Tabs -->
+            {#if seasons.length > 0}
+                <Tabs.Root
+                    value={String(selectedSeason ?? "")}
+                    onValueChange={(value) => handleSelectSeason(Number(value))}
+                >
+                    <Tabs.List class="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
+                        {#each seasons as season (season.seasonNumber)}
+                            <Tabs.Trigger
+                                value={String(season.seasonNumber)}
+                                class="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-colors cursor-pointer hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:hover:bg-primary/90"
+                            >
+                                {season.name || `Season ${season.seasonNumber}`}
+                            </Tabs.Trigger>
+                        {/each}
+                    </Tabs.List>
+
+                    <!-- Episode List -->
+                    {#if currentSeason}
+                        <Tabs.Content value={String(currentSeason.seasonNumber)} class="space-y-4">
+                            {#each currentSeason.episodes as episode (episode.id)}
+                                {@const liveProgress = episodeProgressByMediaId[episode.id]}
+                                <MediaRow
+                                    media={episode}
+                                    busy={retryingEpisodeIds.has(episode.id)}
+                                    subtitleTracks={data.subtitleTracksByMediaId[episode.id] ?? []}
+                                    status={liveProgress?.status}
+                                    progress={liveProgress?.progress}
+                                    downloadSpeed={liveProgress?.downloadSpeed}
+                                    peers={liveProgress?.peers}
+                                    transcodeProgress={liveProgress?.transcodeProgress}
+                                    onPlay={handlePlayEpisode}
+                                    onRedownload={openRedownloadDialog}
+                                    onRemoveDownload={handleRemoveEpisodeDownload}
+                                    onAddSubtitles={openSubtitlesForEpisode}
+                                />
+                            {/each}
+
+                            {#if currentSeason.episodes.length === 0}
+                                <div class="text-center py-12 text-muted-foreground">
+                                    No episodes available for this season
+                                </div>
+                            {/if}
+                        </Tabs.Content>
+                    {/if}
+                </Tabs.Root>
+            {:else}
+                <div class="text-center py-12 text-muted-foreground">No seasons available</div>
+            {/if}
+        </div>
     </div>
-{/if}
+</div>
+
+<!-- Technical Details (Info Cards) -->
+<div class="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 gap-4 pb-12 md:grid-cols-2">
+        <div class="space-y-4 rounded-2xl border border-white/10 bg-card/70 p-5">
+            <h3 class="text-lg font-semibold flex items-center gap-2">
+                <Database class="w-5 h-5 text-primary" />
+                File Information
+            </h3>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-muted-foreground">Status</span>
+                    <span class="capitalize font-medium text-muted-foreground">{showStatus}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-muted-foreground">Episodes Downloaded</span>
+                    <span class="font-medium">{downloadedEpisodeCount} / {allEpisodes.length}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-4 rounded-2xl border border-white/10 bg-card/70 p-5">
+            <h3 class="text-lg font-semibold flex items-center gap-2">
+                <Database class="w-5 h-5 text-primary" />
+                Library Footprint
+            </h3>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-muted-foreground">Downloaded Size</span>
+                    <span class="font-medium">{formatFileSize(totalEpisodeSize)}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-muted-foreground">Current Season</span>
+                    <span class="font-medium"
+                        >{currentSeason?.name ||
+                            `Season ${selectedSeason ?? 1}`}</span
+                    >
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-4 rounded-2xl border border-white/10 bg-card/70 p-5">
+            <h3 class="text-lg font-semibold flex items-center gap-2">
+                <Calendar class="w-5 h-5 text-primary" />
+                Dates
+            </h3>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-muted-foreground">Added</span>
+                    <span class="font-medium">{formatDate(media.addedAt)}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-muted-foreground">Last Played</span>
+                    <span class="font-medium"
+                        >{media.lastPlayedAt
+                            ? formatDate(media.lastPlayedAt)
+                            : "Never"}</span
+                    >
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-4 rounded-2xl border border-white/10 bg-card/70 p-5">
+            <h3 class="text-lg font-semibold flex items-center gap-2">
+                <Film class="w-5 h-5 text-primary" />
+                Metadata
+            </h3>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-muted-foreground">TMDB ID</span>
+                    <span class="font-medium">{media.tmdbId || "Not linked"}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-muted-foreground">Show ID</span>
+                    <code class="text-xs bg-accent px-2 py-1 rounded">{media.id}</code>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<RedownloadDialog bind:open={redownloadDialogOpen} media={selectedEpisode} onRetried={refreshShow} />
+
+<OpenSubtitlesDialog
+    bind:open={openSubtitlesDialogOpen}
+    mediaId={subtitleDialogMediaId ?? media.id}
+    mediaTitle={subtitleDialogTitle}
+    seasonNumber={subtitleDialogSeasonNumber}
+    episodeNumber={subtitleDialogEpisodeNumber}
+/>

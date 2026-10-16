@@ -43,7 +43,7 @@
     let showStats = $state(false);
 
     // Play position state
-    const initialPosition = $derived(data.position.position > 0 ? data.position.position : null);
+    const initialPosition = $derived((data.media.playPosition ?? 0) > 0 ? data.media.playPosition : null);
     let positionRestored = $state(false);
     const savePositionMutation = createSavePositionMutation();
     let lastSaveTime = 0;

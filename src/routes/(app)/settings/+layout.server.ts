@@ -30,7 +30,11 @@ export const load: LayoutServerLoad = async ({ locals, request }) => {
 
 	return {
 		user,
-		organization,
+		organization: {
+			id: organization.id,
+			name: organization.name,
+			logo: organization.logo,
+		},
 		members,
 		userRole: toSettingsRole(currentMember?.role),
 	};
