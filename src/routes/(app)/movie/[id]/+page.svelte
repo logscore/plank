@@ -16,6 +16,7 @@
     import { goto } from "$app/navigation";
     import { connectMediaProgressStream } from "$lib/client/media-progress-stream";
     import OpenSubtitlesDialog from "$lib/components/OpenSubtitlesDialog.svelte";
+    import RecommendationRows from "$lib/components/RecommendationRows.svelte";
     import RedownloadDialog from "$lib/components/RedownloadDialog.svelte";
     import SubtitleMenu from "$lib/components/SubtitleMenu.svelte";
     import Button from "$lib/components/ui/Button.svelte";
@@ -484,6 +485,12 @@
             </div>
         </div>
     </div>
+
+    {#if data.media.tmdbId}
+        <div class="relative mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
+            <RecommendationRows target={{ tmdbId: data.media.tmdbId, type: "movie" }} />
+        </div>
+    {/if}
 </div>
 
 <RedownloadDialog bind:open={redownloadDialogOpen} media={data.media} onRetried={handleRetried} />

@@ -6,6 +6,7 @@
     import EpisodeSelector from "$lib/components/EpisodeSelector.svelte";
     import MediaRow from "$lib/components/MediaRow.svelte";
     import OpenSubtitlesDialog from "$lib/components/OpenSubtitlesDialog.svelte";
+    import RecommendationRows from "$lib/components/RecommendationRows.svelte";
     import RedownloadDialog from "$lib/components/RedownloadDialog.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import { createDeleteMediaMutation, createRetryMediaMutation } from "$lib/data/media";
@@ -493,6 +494,12 @@
             </div>
         </div>
     </div>
+
+    {#if media.tmdbId}
+        <div class="relative mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
+            <RecommendationRows target={{ tmdbId: media.tmdbId, type: "show" }} />
+        </div>
+    {/if}
 </div>
 
 <RedownloadDialog bind:open={redownloadDialogOpen} media={selectedEpisode} onRetried={refreshShow} />

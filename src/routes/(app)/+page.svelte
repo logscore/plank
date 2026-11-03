@@ -5,6 +5,7 @@
     import CatalogFilterButton from "$lib/components/CatalogFilterButton.svelte";
     import ContinueWatchingCard from "$lib/components/ContinueWatchingCard.svelte";
     import MediaCard from "$lib/components/MediaCard.svelte";
+    import RecommendationRows from "$lib/components/RecommendationRows.svelte";
     import { createDeleteMediaMutation } from "$lib/data/media";
     import { type CatalogFilters, type CatalogSearchResponse, serializeCatalogSearch } from "$lib/data/search";
     import { confirmDelete } from "$lib/ui-state.svelte";
@@ -110,6 +111,8 @@
             </div>
         </section>
     {/if}
+
+    <RecommendationRows />
 
     <section>
         <div class="mb-5">
