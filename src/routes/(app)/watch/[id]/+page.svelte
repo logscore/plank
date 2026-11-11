@@ -14,9 +14,9 @@
     import { createSavePositionMutation } from "$lib/data/media";
     import type { ProgressInfo } from "$lib/types";
     import { isTerminalProgressStatus } from "$lib/utils";
-    import type { PageData } from "./$types";
+    import { goto } from "$app/navigation";
 
-    let { data } = $props<{ data: PageData }>();
+    let { data } = $props();
     let currentMediaId = $state("");
     let progressInfo: ProgressInfo | null = $state(null);
     let stopProgressStream: (() => void) | null = $state(null);
@@ -349,7 +349,7 @@
     >
         <!-- Back Button -->
         <button
-            onclick={() => window.history.back()}
+            onclick={() => goto("/")}
             class="bg-black/50 hover:bg-black/70 text-white rounded-full p-3 backdrop-blur-sm transition-all hover:scale-105"
         >
             <ArrowLeft class="w-6 h-6" />
