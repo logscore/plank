@@ -6,6 +6,7 @@
  */
 
 import parseTorrent from "parse-torrent";
+import ptt from "parse-torrent-title";
 import { getSettings } from "$lib/server/settings";
 
 /**
@@ -559,7 +560,7 @@ function filterCandidates(results: IndexerResult[], trustedGroups: string[], min
 
 /**
  * Most public indexers ignore IMDb ids, so when none answers, search "title year"
- * and keep only releases whose name contains the title.
+ * and keep only releases with a matching movie title and year.
  */
 async function searchMovieTorrent(imdbId: string, options?: FindBestTorrentOptions): Promise<IndexerResult[]> {
 	const results = await searchProwlarr(imdbId);
@@ -567,9 +568,16 @@ async function searchMovieTorrent(imdbId: string, options?: FindBestTorrentOptio
 		return results;
 	}
 	const title = normalizeSearchText(options.title);
+	if (!title) {
+		return [];
+	}
 	// indexers find nothing for "Déjà Vu", so search the plain-letter form
 	const byTitle = await searchProwlarr([title, options.year].filter(Boolean).join(" "));
-	return byTitle.filter((result) => normalizeSearchText(result.title).includes(title));
+	// shortcut: alternate release titles are rejected, add alias matching when catalog aliases are available.
+	return byTitle.filter((result) => {
+		const parsed = ptt.parse(result.title);
+		return normalizeSearchText(parsed.title) === title && (options.year == null || parsed.year === options.year);
+	});
 }
 
 /**
