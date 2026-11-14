@@ -26,6 +26,9 @@ export function assert(condition: boolean, message: string): asserts condition {
 	}
 }
 
+/** One upload chunk. It equals the SvelteKit default BODY_SIZE_LIMIT of 512K, which lets a body of exactly that size through. */
+export const UPLOAD_CHUNK_BYTES = 512 * 1024;
+
 const BYTES_PER_UNIT = 1024;
 const SIZE_UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
 const SIZE_DECIMALS = [0, 1, 1, 2, 2] as const;

@@ -1,7 +1,7 @@
 import { createMutation, createQuery } from "@tanstack/svelte-query";
 import { invalidate } from "$app/navigation";
 import type { Media, MediaType, OpenSubtitleResult, SourceCandidate, SubtitleTrackResponse } from "$lib/types";
-import { apiRequest } from "./client";
+import { apiRequest, uploadInChunks } from "./client";
 
 export interface AddMediaParams {
 	magnetLink: string;
@@ -67,6 +67,15 @@ export function createRetryMediaMutation() {
 			await Promise.all([invalidate("/api/media"), invalidate(`/api/media/${input.id}`)]);
 		},
 	}));
+}
+
+export async function uploadMediaFile(
+	mediaId: string,
+	file: File,
+	onProgress: (progress: number) => void
+): Promise<void> {
+	await uploadInChunks(`/api/media/${mediaId}/upload`, file, "Upload failed", onProgress);
+	await Promise.all([invalidate("/api/media"), invalidate(`/api/media/${mediaId}`)]);
 }
 
 export interface DownloadSubtitleParams {

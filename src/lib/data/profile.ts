@@ -1,13 +1,8 @@
 import { createMutation } from "@tanstack/svelte-query";
-import { apiRequest } from "./client";
+import { uploadInChunks } from "./client";
 
 function uploadImage(path: string, file: File, organizationId?: string): Promise<void> {
-	const formData = new FormData();
-	formData.append("file", file);
-	if (organizationId) {
-		formData.append("organizationId", organizationId);
-	}
-	return apiRequest(path, "Image upload failed", { method: "POST", body: formData });
+	return uploadInChunks(path, file, "Image upload failed", undefined, organizationId ? { organizationId } : {});
 }
 
 export function createUploadAvatarMutation() {

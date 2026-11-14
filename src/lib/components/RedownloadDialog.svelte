@@ -1,10 +1,10 @@
 <script lang="ts">
-    import { Loader, RotateCcw } from "@lucide/svelte";
+    import { Loader, RotateCcw, Upload } from "@lucide/svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
     import Scroller from "$lib/components/ui/Scroller.svelte";
-    import { createMediaSourcesQuery, createRetryMediaMutation } from "$lib/data/media";
+    import { createMediaSourcesQuery, createRetryMediaMutation, uploadMediaFile } from "$lib/data/media";
     import type { Media, SourceCandidate } from "$lib/types";
     import { formatFileSize } from "$lib/utils";
 
@@ -31,11 +31,16 @@
     let retrying = $state(false);
     /** Infohash of the release the user just picked, so only that row shows progress. */
     let pendingInfohash = $state("");
+    /** Upload progress from 0 to 1, or null when no upload runs. */
+    let uploadProgress = $state<number | null>(null);
+    let fileInput = $state<HTMLInputElement | null>(null);
 
     const title = $derived(media ? `Redownload "${media.title || `Episode ${media.episodeNumber}`}"` : "Redownload");
     const searchQuery = $derived(sourcesQuery.data?.query ?? "");
     const searchResults = $derived<SourceCandidate[]>(sourcesQuery.data?.results ?? []);
     const hasSavedSource = $derived(Boolean(media?.magnetLink || downloadId));
+    // A show holds many files, so a file goes to one movie or one episode.
+    const canUpload = $derived(Boolean(media && media.type !== "show"));
     // Cached releases stay on screen while a stale search refetches behind them.
     const searching = $derived(sourcesQuery.isFetching && searchResults.length === 0);
     const searchError = $derived(sourcesQuery.error && searchResults.length === 0 ? sourcesQuery.error.message : "");
@@ -68,6 +73,33 @@
         }
     }
 
+    async function uploadFile(event: Event) {
+        const input = event.currentTarget as HTMLInputElement;
+        const file = input.files?.[0];
+        // Clear the input, so the user can pick the same file again after an error.
+        input.value = "";
+        if (!(media && file) || retrying) {
+            return;
+        }
+        const item = media;
+        retrying = true;
+        retryError = "";
+        uploadProgress = 0;
+        try {
+            await uploadMediaFile(item.id, file, (progress) => {
+                uploadProgress = progress;
+            });
+            await onRetried?.(item);
+            open = false;
+        } catch (error) {
+            console.error("Failed to upload media:", error);
+            retryError = error instanceof Error ? error.message : "Upload failed";
+        } finally {
+            retrying = false;
+            uploadProgress = null;
+        }
+    }
+
     async function handleManualSubmit() {
         const magnetLink = manualSource.trim();
         if (!magnetLink) {
@@ -97,10 +129,26 @@
             <div class="space-y-1">
                 <p class="text-sm font-medium">Retry same source</p>
             </div>
-            <Button onclick={() => runRetry("same")} disabled={!hasSavedSource || retrying}>
-                <RotateCcw class="mr-2 h-4 w-4" />
-                {retrying ? "Retrying..." : "Retry"}
-            </Button>
+            <div class="flex flex-wrap gap-2">
+                <Button onclick={() => runRetry("same")} disabled={!hasSavedSource || retrying}>
+                    <RotateCcw class="mr-2 h-4 w-4" />
+                    {retrying && uploadProgress === null ? "Retrying..." : "Retry"}
+                </Button>
+                {#if canUpload}
+                    <Button variant="secondary" onclick={() => fileInput?.click()} disabled={retrying}>
+                        <Upload class="mr-2 h-4 w-4" />
+                        {uploadProgress === null ? "Upload file" : `Uploading ${Math.round(uploadProgress * 100)}%`}
+                    </Button>
+                    <!-- Keep this list in sync with SUPPORTED_VIDEO_FORMATS on the server. -->
+                    <input
+                        bind:this={fileInput}
+                        type="file"
+                        accept=".mp4,.webm,.mkv,.avi,.mov,.m4v"
+                        class="hidden"
+                        onchange={uploadFile}
+                    />
+                {/if}
+            </div>
             {#if media && !hasSavedSource}
                 <p class="text-sm text-muted-foreground">
                     This title does not have a saved source yet. Paste a new one below.
