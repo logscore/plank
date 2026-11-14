@@ -6,6 +6,7 @@
  */
 
 import parseTorrent from "parse-torrent";
+import ptt from "parse-torrent-title";
 import { getSettings } from "$lib/server/settings";
 
 /**
@@ -399,6 +400,8 @@ export interface FindBestTorrentOptions {
 	showTitle?: string;
 	episodeTitle?: string | null;
 	year?: number | null;
+	/** Movie title, searched when no indexer answers the IMDb id */
+	title?: string;
 }
 
 function getEpisodeSearchLabel(options?: FindBestTorrentOptions): string | null {
@@ -410,6 +413,8 @@ function getEpisodeSearchLabel(options?: FindBestTorrentOptions): string | null 
 
 function normalizeSearchText(value: string): string {
 	return value
+		.normalize("NFD")
+		.replace(/\p{M}/gu, "") // "Déjà Vu" matches "Deja.Vu"
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, " ")
 		.replace(/\s+/g, " ")
@@ -554,6 +559,28 @@ function filterCandidates(results: IndexerResult[], trustedGroups: string[], min
 }
 
 /**
+ * Most public indexers ignore IMDb ids, so when none answers, search "title year"
+ * and keep only releases with a matching movie title and year.
+ */
+async function searchMovieTorrent(imdbId: string, options?: FindBestTorrentOptions): Promise<IndexerResult[]> {
+	const results = await searchProwlarr(imdbId);
+	if (results.length > 0 || !options?.title) {
+		return results;
+	}
+	const title = normalizeSearchText(options.title);
+	if (!title) {
+		return [];
+	}
+	// indexers find nothing for "Déjà Vu", so search the plain-letter form
+	const byTitle = await searchProwlarr([title, options.year].filter(Boolean).join(" "));
+	// shortcut: alternate release titles are rejected, add alias matching when catalog aliases are available.
+	return byTitle.filter((result) => {
+		const parsed = ptt.parse(result.title);
+		return normalizeSearchText(parsed.title) === title && (options.year == null || parsed.year === options.year);
+	});
+}
+
+/**
  * Search and filter Prowlarr results for high-quality torrents.
  * Returns the best matching torrent or null.
  */
@@ -566,7 +593,7 @@ export async function findBestTorrent(imdbId: string, options?: FindBestTorrentO
 	const results =
 		options?.mediaType === "episode" && options.seasonNumber && options.episodeNumber
 			? await searchEpisodeTorrent(imdbId, options)
-			: await searchProwlarr(imdbId);
+			: await searchMovieTorrent(imdbId, options);
 	const qualityFiltered = filterByQuality(results);
 	const episodeFiltered =
 		options?.mediaType === "episode" && options.seasonNumber && options.episodeNumber

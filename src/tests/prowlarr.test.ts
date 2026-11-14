@@ -276,6 +276,95 @@ describe("Prowlarr Client", () => {
 		});
 	});
 
+	describe("Movie Fallback Search", () => {
+		it.each([
+			{
+				name: "matches accents and release separators",
+				title: "Déjà Vu",
+				year: 2006,
+				releases: ["Deja.Vu.2006.1080p-YTS"],
+				expected: "Deja.Vu.2006.1080p-YTS",
+				query: "deja vu 2006",
+			},
+			{
+				name: "selects It over the higher-quality It Comes at Night from the same year",
+				title: "It",
+				year: 2017,
+				releases: ["It.Comes.at.Night.2017.1080p-YTS", "It.2017.720p-YTS"],
+				expected: "It.2017.720p-YTS",
+				query: "it 2017",
+			},
+			{
+				name: "selects Up over the higher-quality Up in the Air from the same year",
+				title: "Up",
+				year: 2009,
+				releases: ["Up.In.The.Air.2009.1080p-YTS", "Up.2009.720p-YTS"],
+				expected: "Up.2009.720p-YTS",
+				query: "up 2009",
+			},
+			{
+				name: "selects Us over the higher-quality Hustlers despite the substring and same year",
+				title: "Us",
+				year: 2019,
+				releases: ["Hustlers.2019.1080p-YTS", "Us.2019.720p-YTS"],
+				expected: "Us.2019.720p-YTS",
+				query: "us 2019",
+			},
+			{
+				name: "rejects a different release year",
+				title: "Dune",
+				year: 2021,
+				releases: ["Dune.1984.1080p-YTS"],
+				expected: undefined,
+				query: "dune 2021",
+			},
+			{
+				name: "rejects an unverified year when the requested year is known",
+				title: "Dune",
+				year: 2021,
+				releases: ["Dune.1080p-YTS"],
+				expected: undefined,
+				query: "dune 2021",
+			},
+			{
+				name: "allows an exact title when the requested year is unknown",
+				title: "Dune",
+				year: null,
+				releases: ["Dune.1984.1080p-YTS"],
+				expected: "Dune.1984.1080p-YTS",
+				query: "dune",
+			},
+		])("$name", async ({ title, year, releases, expected, query }) => {
+			mockFetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				json: async () =>
+					releases.map((release) => ({
+						title: release,
+						magnetUrl: `magnet:?xt=urn:btih:${release}`,
+						infoHash: release,
+						size: 2_000_000_000,
+						seeders: 50,
+					})),
+			});
+
+			const result = await findBestTorrent("tt1234567", { mediaType: "movie", title, year });
+
+			expect(result?.title).toBe(expected);
+			expect(mockFetch).toHaveBeenCalledTimes(2);
+			expect(new URL(mockFetch.mock.calls[1][0] as string).searchParams.get("query")).toBe(query);
+		});
+
+		it.each(["你好", "   ", "!!!"])("does not search an empty normalized title: %s", async (title) => {
+			mockFetch.mockResolvedValue({ ok: true, json: async () => [] });
+
+			const result = await findBestTorrent("tt1234567", { mediaType: "movie", title, year: 2024 });
+
+			expect(result).toBeNull();
+			expect(mockFetch).toHaveBeenCalledTimes(1);
+		});
+	});
+
 	describe("searchSourceCandidates", () => {
 		const rawResults = [
 			{
