@@ -7,7 +7,7 @@
     import Input from "$lib/components/ui/Input.svelte";
     import type { PageData } from "./$types";
 
-    let { data } = $props<{ data: PageData }>();
+    let { data }: { data: PageData } = $props();
 
     let step = $state(1); // 1: Create Profile, 2: Indexers, 3: Invite
     let loading = $state(false);

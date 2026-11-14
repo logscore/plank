@@ -13,7 +13,7 @@
     const MENU_ITEM_CLASS =
         "flex h-9 cursor-default select-none items-center rounded-md px-3 text-sm outline-none data-highlighted:bg-white/10";
 
-    let { data } = $props<{ data: PageData }>();
+    let { data }: { data: PageData } = $props();
     const isOwner = $derived(data.userRole === "owner");
 
     function memberName(member: { user: { name: string | null; email: string } }): string {

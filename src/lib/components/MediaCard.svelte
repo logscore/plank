@@ -9,11 +9,15 @@
     import Button from "./ui/Button.svelte";
     import Tv from "./ui/Tv.svelte";
 
-    let { media, seasons, onDelete } = $props<{
+    let {
+        media,
+        seasons,
+        onDelete,
+    }: {
         media: Media;
         seasons: SeasonWithEpisodes[];
         onDelete: (id: string) => void;
-    }>();
+    } = $props();
 
     let isMobileActive = $state(false);
     let optionsOpen = $state(false);

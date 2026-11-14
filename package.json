@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "check": "svelte-kit sync && npx svelte-check-rs --tsconfig ./tsconfig.json --ignore 'docs/**' --ignore 'site/**' && npx ultracite fix && npm run knip",
-    "check:watch": "svelte-kit sync && npx svelte-check-rs --tsconfig ./tsconfig.json --watch --ignore 'docs/**' && npx ultracite fix --watch && npm run knip",
+    "check": "svelte-kit sync && npx svelte-check --tsconfig ./tsconfig.json && npx ultracite fix && npm run knip",
+    "check:watch": "svelte-kit sync && npx svelte-check --tsconfig ./tsconfig.json --watch && npx ultracite fix --watch && npm run knip",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -55,6 +55,7 @@
     "knip": "5.82.1",
     "lefthook": "2.0.15",
     "svelte": "5.57.3",
+    "svelte-check": "4.7.8",
     "tailwindcss": "4.1.18",
     "tsx": "^4.23.15",
     "typescript": "5.9.3",

@@ -11,7 +11,7 @@
     /** Running work first, then work that is still looking for a source. */
     const IN_PROGRESS_ORDER = ["finalizing", "downloading", "searching", "pending"];
 
-    let { data } = $props<{ data: PageData }>();
+    let { data }: { data: PageData } = $props();
 
     const entries = $derived(data.entries as QueueEntry[]);
 

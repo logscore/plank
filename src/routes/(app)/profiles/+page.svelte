@@ -9,7 +9,7 @@
     import { queryClient } from "$lib/data/client";
     import type { PageData } from "./$types";
 
-    let { data } = $props<{ data: PageData }>();
+    let { data }: { data: PageData } = $props();
 
     async function selectProfile(profileId: string) {
         try {
@@ -43,7 +43,7 @@
                     name={profile.name}
                     logo={profile.logo}
                     isMember={profile.isMember}
-                    onclick={() => selectProfile(profile.id)}
+                    onclick={() => profile.id && selectProfile(profile.id)}
                 />
             {/each}
         </div>

@@ -13,7 +13,7 @@
 
     type TestState = "idle" | "loading" | "success" | "error";
 
-    let { data } = $props<{ data: PageData }>();
+    let { data }: { data: PageData } = $props();
     const testConnectionMutation = createTestSettingsConnectionMutation();
 
     function formValues() {

@@ -1,12 +1,13 @@
 <script lang="ts">
     import { Check, ChevronDown } from "@lucide/svelte";
     import { Dialog } from "bits-ui";
+    import type { Snippet } from "svelte";
     import { page } from "$app/state";
     import Facehash from "$lib/components/facehash/Facehash.svelte";
     import type { LayoutData } from "./$types";
     import { findSection, visibleSections } from "./sections";
 
-    let { data, children } = $props<{ data: LayoutData; children: () => unknown }>();
+    let { data, children }: { data: LayoutData; children: Snippet } = $props();
 
     let sheetOpen = $state(false);
 

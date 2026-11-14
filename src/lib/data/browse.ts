@@ -52,8 +52,8 @@ export interface SeasonsResponse {
 
 interface ResolveInput {
 	imdbId: string | null;
-	tmdbId: number;
 	title: string;
+	tmdbId: number;
 	year: number | null;
 }
 

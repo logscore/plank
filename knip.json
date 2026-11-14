@@ -4,6 +4,5 @@
   "project": ["**/*.{js,cjs,mjs,jsx,ts,tsx,mts,cts,svelte}"],
   "ignore": ["site/**"],
   "ignoreDependencies": ["tailwindcss"],
-  "ignoreBinaries": ["svelte-check-rs"],
   "treatConfigHintsAsErrors": true
 }

@@ -1,4 +1,4 @@
-FROM node:22-bookworm AS build
+FROM node:24.11.0-bookworm AS build
 
 WORKDIR /app
 
@@ -11,20 +11,19 @@ RUN BETTER_AUTH_SECRET=dummy-build-secret \
     BETTER_AUTH_URL=http://localhost:3300 \
     npm run build
 
-FROM node:22-bookworm AS prod-deps
+FROM node:24.11.0-bookworm AS prod-deps
 
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-FROM node:22-bookworm AS runtime
+FROM node:24.11.0-bookworm AS runtime
 
 ENV NODE_ENV=production \
     PORT=3300 \
     HOST=0.0.0.0 \
-    DATA_PATH=/app/data \
-    BODY_SIZE_LIMIT=11M
+    DATA_PATH=/app/data
 
 
 WORKDIR /app

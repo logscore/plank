@@ -2,9 +2,11 @@
     import IndexerManager from "$lib/components/IndexerManager.svelte";
 
     // Props
-    let { hasApiKey } = $props<{
+    let {
+        hasApiKey,
+    }: {
         hasApiKey: boolean;
-    }>();
+    } = $props();
 </script>
 
 <div class="max-w-4xl mx-auto p-6">

@@ -52,7 +52,7 @@ describe("client data", () => {
 
 	it("resolves a torrent with JSON input", async () => {
 		fetchMock.mockResolvedValue(mockJsonResponse({ success: true }));
-		const item = { imdbId: "tt123", tmdbId: 456, title: "Example", year: 2024 };
+		const item = { imdbId: "tt123", title: "Example", tmdbId: 456, year: 2024 };
 
 		await resolveTorrent(item);
 
@@ -92,7 +92,7 @@ describe("client data", () => {
 		],
 		[
 			"torrent resolution",
-			() => resolveTorrent({ imdbId: "tt", tmdbId: 1, title: "Example", year: null }),
+			() => resolveTorrent({ imdbId: "tt", title: "Example", tmdbId: 1, year: null }),
 			"Failed to resolve torrent",
 		],
 		["Prowlarr status", fetchProwlarrStatus, "Failed to fetch Prowlarr status"],

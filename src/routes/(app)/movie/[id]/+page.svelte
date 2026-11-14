@@ -25,7 +25,7 @@
     import { formatFileSize, isTerminalProgressStatus } from "$lib/utils";
     import type { PageData } from "./$types";
 
-    let { data } = $props<{ data: PageData }>();
+    let { data }: { data: PageData } = $props();
     let deleting = $state(false);
     let copied = $state(false);
     let redownloadDialogOpen = $state(false);

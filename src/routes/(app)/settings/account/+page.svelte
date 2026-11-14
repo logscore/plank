@@ -10,7 +10,7 @@
     import Section from "../Section.svelte";
     import type { PageData } from "./$types";
 
-    let { data } = $props<{ data: PageData }>();
+    let { data }: { data: PageData } = $props();
     const uploadAvatarMutation = createUploadAvatarMutation();
 
     let name = $state(untrack(() => data.user.name || ""));

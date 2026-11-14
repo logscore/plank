@@ -16,7 +16,7 @@
         /** The image the user picked but has not saved yet. Set it to null to reset. */
         file?: File | null;
         /** The saved image, or null to fall back to a generated face. */
-        currentUrl: string | null;
+        currentUrl?: string | null;
         /** Seeds the generated face and labels the image. */
         name: string;
         changeLabel: string;

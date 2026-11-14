@@ -12,7 +12,7 @@
 
     type LibraryResponse = Extract<CatalogSearchResponse, { scope: "library" }>;
 
-    let { data } = $props<{ data: PageData }>();
+    let { data }: { data: PageData } = $props();
     const deleteMutation = createDeleteMediaMutation();
     const continueWatching = $derived(data.continueWatching);
     const errorCount = $derived(data.errorCount);

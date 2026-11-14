@@ -11,7 +11,7 @@
     import { confirmDelete } from "$lib/ui-state.svelte";
     import type { PageData } from "./$types";
 
-    let { data } = $props<{ data: PageData }>();
+    let { data }: { data: PageData } = $props();
     const uploadLogoMutation = createUploadOrganizationLogoMutation();
 
     // Create form state
@@ -63,7 +63,7 @@
     async function startEdit(profile: (typeof data.profiles)[0]) {
         editingId = profile.id;
         editName = profile.name;
-        editLogo = profile.logo;
+        editLogo = profile.logo ?? null;
         pendingLogoFile = null;
         pendingLogoPreview = null;
         await tick();

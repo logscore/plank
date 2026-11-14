@@ -279,73 +279,81 @@ describe("Prowlarr Client", () => {
 	describe("Movie Fallback Search", () => {
 		it.each([
 			{
+				expected: "Deja.Vu.2006.1080p-YTS",
 				name: "matches accents and release separators",
+				query: "deja vu 2006",
+				releases: ["Deja.Vu.2006.1080p-YTS"],
 				title: "Déjà Vu",
 				year: 2006,
-				releases: ["Deja.Vu.2006.1080p-YTS"],
-				expected: "Deja.Vu.2006.1080p-YTS",
-				query: "deja vu 2006",
 			},
 			{
+				expected: "It.2017.720p-YTS",
 				name: "selects It over the higher-quality It Comes at Night from the same year",
+				query: "it 2017",
+				releases: ["It.Comes.at.Night.2017.1080p-YTS", "It.2017.720p-YTS"],
 				title: "It",
 				year: 2017,
-				releases: ["It.Comes.at.Night.2017.1080p-YTS", "It.2017.720p-YTS"],
-				expected: "It.2017.720p-YTS",
-				query: "it 2017",
 			},
 			{
+				expected: "Up.2009.720p-YTS",
 				name: "selects Up over the higher-quality Up in the Air from the same year",
+				query: "up 2009",
+				releases: ["Up.In.The.Air.2009.1080p-YTS", "Up.2009.720p-YTS"],
 				title: "Up",
 				year: 2009,
-				releases: ["Up.In.The.Air.2009.1080p-YTS", "Up.2009.720p-YTS"],
-				expected: "Up.2009.720p-YTS",
-				query: "up 2009",
 			},
 			{
+				expected: "Us.2019.720p-YTS",
 				name: "selects Us over the higher-quality Hustlers despite the substring and same year",
+				query: "us 2019",
+				releases: ["Hustlers.2019.1080p-YTS", "Us.2019.720p-YTS"],
 				title: "Us",
 				year: 2019,
-				releases: ["Hustlers.2019.1080p-YTS", "Us.2019.720p-YTS"],
-				expected: "Us.2019.720p-YTS",
-				query: "us 2019",
 			},
 			{
+				expected: undefined,
 				name: "rejects a different release year",
-				title: "Dune",
-				year: 2021,
+				query: "dune 2021",
 				releases: ["Dune.1984.1080p-YTS"],
-				expected: undefined,
-				query: "dune 2021",
-			},
-			{
-				name: "rejects an unverified year when the requested year is known",
 				title: "Dune",
 				year: 2021,
-				releases: ["Dune.1080p-YTS"],
-				expected: undefined,
-				query: "dune 2021",
 			},
 			{
+				expected: undefined,
+				name: "rejects an unverified year when the requested year is known",
+				query: "dune 2021",
+				releases: ["Dune.1080p-YTS"],
+				title: "Dune",
+				year: 2021,
+			},
+			{
+				expected: "Dune.1984.1080p-YTS",
 				name: "allows an exact title when the requested year is unknown",
+				query: "dune",
+				releases: ["Dune.1984.1080p-YTS"],
 				title: "Dune",
 				year: null,
-				releases: ["Dune.1984.1080p-YTS"],
+			},
+			{
 				expected: "Dune.1984.1080p-YTS",
+				name: "allows an exact title when the requested year is omitted",
 				query: "dune",
+				releases: ["Dune.1984.1080p-YTS"],
+				title: "Dune",
+				year: undefined,
 			},
 		])("$name", async ({ title, year, releases, expected, query }) => {
-			mockFetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+			mockFetch.mockResolvedValueOnce({ json: async () => [], ok: true });
 			mockFetch.mockResolvedValueOnce({
-				ok: true,
 				json: async () =>
 					releases.map((release) => ({
-						title: release,
-						magnetUrl: `magnet:?xt=urn:btih:${release}`,
 						infoHash: release,
-						size: 2_000_000_000,
+						magnetUrl: `magnet:?xt=urn:btih:${release}`,
 						seeders: 50,
+						size: 2_000_000_000,
+						title: release,
 					})),
+				ok: true,
 			});
 
 			const result = await findBestTorrent("tt1234567", { mediaType: "movie", title, year });
@@ -356,7 +364,7 @@ describe("Prowlarr Client", () => {
 		});
 
 		it.each(["你好", "   ", "!!!"])("does not search an empty normalized title: %s", async (title) => {
-			mockFetch.mockResolvedValue({ ok: true, json: async () => [] });
+			mockFetch.mockResolvedValue({ json: async () => [], ok: true });
 
 			const result = await findBestTorrent("tt1234567", { mediaType: "movie", title, year: 2024 });
 

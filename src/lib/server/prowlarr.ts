@@ -397,9 +397,9 @@ export interface FindBestTorrentOptions {
 	mediaType?: "movie" | "episode";
 	seasonNumber?: number;
 	showTitle?: string;
-	year?: number | null;
 	/** Movie title, searched when no indexer answers the IMDb id */
 	title?: string;
+	year?: number | null;
 }
 
 function getEpisodeSearchLabel(options?: FindBestTorrentOptions): string | null {
@@ -575,7 +575,10 @@ async function searchMovieTorrent(imdbId: string, options?: FindBestTorrentOptio
 	// shortcut: alternate release titles are rejected, add alias matching when catalog aliases are available.
 	return byTitle.filter((result) => {
 		const parsed = ptt.parse(result.title);
-		return normalizeSearchText(parsed.title) === title && (options.year == null || parsed.year === options.year);
+		return (
+			normalizeSearchText(parsed.title) === title &&
+			(options.year === null || options.year === undefined || parsed.year === options.year)
+		);
 	});
 }
 

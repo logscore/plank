@@ -3,7 +3,7 @@
     import Button from "$lib/components/ui/Button.svelte";
     import type { PageData } from "./$types";
 
-    let { data } = $props<{ data: PageData }>();
+    let { data }: { data: PageData } = $props();
 </script>
 
 <div class="flex items-center justify-center min-h-[80vh]">

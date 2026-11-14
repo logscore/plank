@@ -14,7 +14,7 @@
     import { canPlayEpisode, formatFileSize } from "$lib/utils";
     import type { PageData } from "./$types";
 
-    let { data } = $props<{ data: PageData }>();
+    let { data }: { data: PageData } = $props();
     const media: Media = $derived(data.media);
     const seasons: SeasonWithEpisodes[] = $derived(data.seasons);
     const episodeProgressByMediaId = $derived(data.episodeProgressByMediaId);

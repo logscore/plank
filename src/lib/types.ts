@@ -68,7 +68,7 @@ export interface SubtitleTrackResponse {
 }
 export interface ProgressInfo {
 	downloadSpeed: number;
-	fileSize?: number;
+	fileSize?: number | null;
 	peers: number;
 	progress: number;
 	status: string;

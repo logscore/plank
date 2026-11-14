@@ -28,7 +28,7 @@
     import { confirmDelete } from "$lib/ui-state.svelte";
     import type { PageData } from "./$types";
 
-    let { data } = $props<{ data: PageData }>();
+    let { data }: { data: PageData } = $props();
     let query = $state(untrack(() => data.request.query));
     let filters = $state<CatalogFilters>(
         untrack(() => ({ ...data.request.filters, genres: [...data.request.filters.genres] }))
@@ -249,8 +249,8 @@
         try {
             const result = await resolveTorrentCached({
                 imdbId: item.imdbId,
-                tmdbId: item.tmdbId,
                 title: item.title,
+                tmdbId: item.tmdbId,
                 year: item.year,
             });
             if (!(result.success && result.torrent)) {

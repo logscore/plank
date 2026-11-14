@@ -1,24 +1,22 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { json } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
 import { auth } from "$lib/server/auth";
+import { appendChunk, readChunkRequest } from "$lib/server/chunk-upload";
 import { db } from "$lib/server/db/index";
 import { schema } from "$lib/server/db/schema";
-import { replaceImage } from "$lib/server/images";
+import { MAX_FILE_SIZE, replaceImage, sanitizeFilename } from "$lib/server/images";
+import { PATHS } from "$lib/server/paths";
 import type { RequestHandler } from "./$types";
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+/** Receive one chunk of the organization logo. The body is the raw chunk bytes. */
+export const PUT: RequestHandler = async ({ request, locals, url }) => {
 	if (!locals.user) {
 		return json({ error: "Unauthorized", message: "Unauthorized" }, { status: 401 });
 	}
 
-	const formData = await request.formData();
-	const file = formData.get("file");
-	const organizationId = formData.get("organizationId")?.toString();
-
-	if (!(file && file instanceof File)) {
-		return json({ error: "No file provided", message: "No file provided" }, { status: 400 });
-	}
-
+	const organizationId = url.searchParams.get("organizationId");
 	if (!organizationId) {
 		return json({ error: "Organization ID required", message: "Organization ID required" }, { status: 400 });
 	}
@@ -41,13 +39,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		);
 	}
 
+	const { chunk, fileSize, offset } = await readChunkRequest(request, url, MAX_FILE_SIZE);
+	const partPath = path.join(PATHS.temp, "uploads", `logo-${sanitizeFilename(organizationId)}.part`);
+	const received = await appendChunk(partPath, fileSize, offset, chunk);
+	if (received < fileSize) {
+		return json({ received });
+	}
+	const buffer = await fs.readFile(partPath);
+	await fs.rm(partPath, { force: true });
+
 	const currentOrg = db
 		.select({ logo: schema.organization.logo })
 		.from(schema.organization)
 		.where(eq(schema.organization.id, organizationId))
 		.get();
 
-	const buffer = Buffer.from(await file.arrayBuffer());
 	const result = await replaceImage(currentOrg?.logo, buffer, "logos", organizationId);
 
 	if ("error" in result) {
@@ -62,5 +68,5 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		headers: request.headers,
 	});
 
-	return json({ logo: result.imagePath, success: true });
+	return json({ logo: result.imagePath, received, success: true });
 };

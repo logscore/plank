@@ -15,7 +15,7 @@ import { startDownload } from "./download";
 import { MIN_VIDEO_SIZE } from "./files";
 import { isDownloadActive } from "./status";
 
-async function finalizeFromTemp(mediaId: string, videoPath: string, fileName: string): Promise<boolean> {
+export async function finalizeFromTemp(mediaId: string, videoPath: string, fileName: string): Promise<boolean> {
 	const mediaItem = mediaDb.getById(mediaId);
 	if (!mediaItem) {
 		return false;

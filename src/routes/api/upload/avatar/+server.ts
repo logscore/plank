@@ -1,23 +1,29 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { error, json } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
+import { appendChunk, readChunkRequest } from "$lib/server/chunk-upload";
 import { db } from "$lib/server/db/index";
 import { schema } from "$lib/server/db/schema";
-import { replaceImage } from "$lib/server/images";
+import { MAX_FILE_SIZE, replaceImage, sanitizeFilename } from "$lib/server/images";
+import { PATHS } from "$lib/server/paths";
 import type { RequestHandler } from "./$types";
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+/** Receive one chunk of the avatar image. The body is the raw chunk bytes. */
+export const PUT: RequestHandler = async ({ request, locals, url }) => {
 	if (!locals.user) {
 		throw error(401, "Unauthorized");
 	}
 
-	const formData = await request.formData();
-	const file = formData.get("file");
-
-	if (!(file && file instanceof File)) {
-		throw error(400, "No file provided");
-	}
-
 	const userId = locals.user.id;
+	const { chunk, fileSize, offset } = await readChunkRequest(request, url, MAX_FILE_SIZE);
+	const partPath = path.join(PATHS.temp, "uploads", `avatar-${sanitizeFilename(userId)}.part`);
+	const received = await appendChunk(partPath, fileSize, offset, chunk);
+	if (received < fileSize) {
+		return json({ received });
+	}
+	const buffer = await fs.readFile(partPath);
+	await fs.rm(partPath, { force: true });
 
 	const currentUser = db
 		.select({ image: schema.user.image })
@@ -25,7 +31,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.where(eq(schema.user.id, userId))
 		.get();
 
-	const buffer = Buffer.from(await file.arrayBuffer());
 	const result = await replaceImage(currentUser?.image, buffer, "avatars", userId);
 
 	if ("error" in result) {
@@ -34,5 +39,5 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	db.update(schema.user).set({ image: result.imagePath }).where(eq(schema.user.id, userId)).run();
 
-	return json({ image: result.imagePath, success: true });
+	return json({ image: result.imagePath, received, success: true });
 };

@@ -15,10 +15,13 @@
     import { cn } from "$lib/utils";
 
     // Props
-    let { prowlarrUrl, prowlarrApiKey } = $props<{
+    let {
+        prowlarrUrl,
+        prowlarrApiKey,
+    }: {
         prowlarrUrl: string;
         prowlarrApiKey: string;
-    }>();
+    } = $props();
 
     // State
     let connectionStatus = $state<"connected" | "failed" | "unchecked">("unchecked");

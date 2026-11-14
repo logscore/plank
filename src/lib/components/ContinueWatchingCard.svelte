@@ -4,7 +4,7 @@
     import { createMarkWatchedMutation } from "$lib/data/media";
     import type { Media } from "$lib/types";
 
-    let { media } = $props<{ media: Media }>();
+    let { media }: { media: Media } = $props();
 
     const markWatchedMutation = createMarkWatchedMutation();
 
