@@ -29,30 +29,30 @@ describe("catalog search parameters", () => {
 		expect(request.query).toHaveLength(200);
 		expect(request.page).toBe(1);
 		expect(request.filters).toEqual({
-			scope: "all",
+			genres: ["comedy"],
 			media: "show",
 			rating: 8,
+			scope: "all",
+			sort: "newest",
 			yearFrom: 1999,
 			yearTo: 2024,
-			genres: ["comedy"],
-			sort: "newest",
 		});
 	});
 
 	it("round-trips every supported filter", () => {
 		const request: CatalogSearchRequest = {
-			query: "Arrival",
-			page: 3,
 			filters: {
 				...DEFAULT_CATALOG_FILTERS,
-				scope: "all",
+				genres: ["science-fiction", "drama"],
 				media: "movie",
 				rating: 7.5,
+				scope: "all",
+				sort: "rating",
 				yearFrom: 1990,
 				yearTo: 2020,
-				genres: ["science-fiction", "drama"],
-				sort: "rating",
 			},
+			page: 3,
+			query: "Arrival",
 		};
 
 		expect(parseCatalogSearchParams(serializeCatalogSearch(request))).toEqual(request);
@@ -60,9 +60,9 @@ describe("catalog search parameters", () => {
 
 	it("preserves an explicit catalog source", () => {
 		const params = serializeCatalogSearch({
-			query: "",
-			page: 1,
 			filters: { ...DEFAULT_CATALOG_FILTERS, scope: "catalog" },
+			page: 1,
+			query: "",
 		});
 
 		expect(params.get("scope")).toBe("catalog");

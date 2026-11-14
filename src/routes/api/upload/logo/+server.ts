@@ -24,11 +24,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const permission = await auth.api.hasPermission({
-		headers: request.headers,
 		body: {
 			organizationId,
 			permissions: { organization: ["update"] },
 		},
+		headers: request.headers,
 	});
 
 	if (!permission.success) {
@@ -55,12 +55,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	await auth.api.updateOrganization({
-		headers: request.headers,
 		body: {
-			organizationId,
 			data: { logo: result.imagePath },
+			organizationId,
 		},
+		headers: request.headers,
 	});
 
-	return json({ success: true, logo: result.imagePath });
+	return json({ logo: result.imagePath, success: true });
 };

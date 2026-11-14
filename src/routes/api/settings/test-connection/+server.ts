@@ -7,13 +7,13 @@ import type { RequestHandler } from "./$types";
 type ConnectionTarget = "tmdb" | "opensubtitles" | "prowlarr";
 
 interface TestConnectionRequest {
+	opensubtitlesApiKey?: string;
+	opensubtitlesPassword?: string;
+	opensubtitlesUsername?: string;
+	prowlarrApiKey?: string;
+	prowlarrUrl?: string;
 	target: ConnectionTarget;
 	tmdbApiKey?: string;
-	prowlarrUrl?: string;
-	prowlarrApiKey?: string;
-	opensubtitlesApiKey?: string;
-	opensubtitlesUsername?: string;
-	opensubtitlesPassword?: string;
 }
 
 const OPEN_SUBTITLES_BASE_URL = "https://api.opensubtitles.com/api/v1";
@@ -21,7 +21,7 @@ const OPEN_SUBTITLES_USER_AGENT = "plank-media v0.1.0";
 
 async function testTmdbConnection(apiKey: string | undefined): Promise<{ success: boolean; message: string }> {
 	if (!apiKey?.trim()) {
-		return { success: false, message: "API key is required" };
+		return { message: "API key is required", success: false };
 	}
 
 	try {
@@ -30,11 +30,11 @@ async function testTmdbConnection(apiKey: string | undefined): Promise<{ success
 			`${settings.tmdb.baseUrl}/configuration?api_key=${encodeURIComponent(apiKey.trim())}`
 		);
 		if (response.ok) {
-			return { success: true, message: "Connection successful" };
+			return { message: "Connection successful", success: true };
 		}
-		return { success: false, message: `Request failed with status ${response.status}` };
+		return { message: `Request failed with status ${response.status}`, success: false };
 	} catch (err) {
-		return { success: false, message: err instanceof Error ? err.message : "Connection failed" };
+		return { message: err instanceof Error ? err.message : "Connection failed", success: false };
 	}
 }
 
@@ -44,7 +44,7 @@ async function testOpenSubtitlesConnection(
 	password: string | undefined
 ): Promise<{ success: boolean; message: string }> {
 	if (!apiKey?.trim()) {
-		return { success: false, message: "API key is required" };
+		return { message: "API key is required", success: false };
 	}
 
 	const headers = {
@@ -56,32 +56,32 @@ async function testOpenSubtitlesConnection(
 	try {
 		if (username?.trim() && password?.trim()) {
 			const response = await fetch(`${OPEN_SUBTITLES_BASE_URL}/login`, {
-				method: "POST",
+				body: JSON.stringify({ password: password.trim(), username: username.trim() }),
 				headers,
-				body: JSON.stringify({ username: username.trim(), password: password.trim() }),
+				method: "POST",
 			});
 			if (response.ok) {
-				return { success: true, message: "Connection successful" };
+				return { message: "Connection successful", success: true };
 			}
-			return { success: false, message: `Login failed with status ${response.status}` };
+			return { message: `Login failed with status ${response.status}`, success: false };
 		}
 
 		const response = await fetch(`${OPEN_SUBTITLES_BASE_URL}/subtitles?query=test&languages=en`, {
 			headers,
 		});
 		if (response.ok) {
-			return { success: true, message: "Connection successful" };
+			return { message: "Connection successful", success: true };
 		}
-		return { success: false, message: `Request failed with status ${response.status}` };
+		return { message: `Request failed with status ${response.status}`, success: false };
 	} catch (err) {
-		return { success: false, message: err instanceof Error ? err.message : "Connection failed" };
+		return { message: err instanceof Error ? err.message : "Connection failed", success: false };
 	}
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const organizationId = locals.session?.activeOrganizationId;
 	if (!organizationId) {
-		return json({ success: false, message: "Active profile required" }, { status: 403 });
+		return json({ message: "Active profile required", success: false }, { status: 403 });
 	}
 
 	const permission = await auth.api.getActiveMemberRole({
@@ -89,7 +89,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		query: { organizationId },
 	});
 	if (permission?.role !== "owner") {
-		return json({ success: false, message: "Only owners can test settings" }, { status: 403 });
+		return json({ message: "Only owners can test settings", success: false }, { status: 403 });
 	}
 
 	const body = (await request.json()) as TestConnectionRequest;
@@ -111,10 +111,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (body.target === "prowlarr") {
 		const result = await testProwlarrConnection(body.prowlarrUrl, body.prowlarrApiKey);
 		return json({
-			success: result.success,
 			message: result.success ? "Connection successful" : (result.message ?? "Connection failed"),
+			success: result.success,
 		});
 	}
 
-	return json({ success: false, message: "Invalid target" }, { status: 400 });
+	return json({ message: "Invalid target", success: false }, { status: 400 });
 };

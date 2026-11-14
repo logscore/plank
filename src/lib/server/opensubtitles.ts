@@ -17,30 +17,30 @@ const IMDB_PREFIX_REGEX = /^tt/;
 // ============================================================================
 
 interface OpenSubtitlesSearchParams {
-	tmdbId?: number;
-	imdbId?: string;
-	parentTmdbId?: number;
-	parentImdbId?: string;
-	query?: string;
-	year?: number;
-	seasonNumber?: number;
 	episodeNumber?: number;
+	imdbId?: string;
 	languages?: string; // comma-separated ISO 639-1 codes (e.g. "en,es,fr")
+	parentImdbId?: string;
+	parentTmdbId?: number;
+	query?: string;
+	seasonNumber?: number;
+	tmdbId?: number;
+	year?: number;
 }
 
 interface OSAttributes {
-	language: string;
-	download_count: number;
-	hearing_impaired: boolean;
-	fps: number;
-	ratings: number;
-	from_trusted: boolean;
 	ai_translated: boolean;
-	release: string;
+	download_count: number;
 	files: Array<{
 		file_id: number;
 		file_name: string;
 	}>;
+	fps: number;
+	from_trusted: boolean;
+	hearing_impaired: boolean;
+	language: string;
+	ratings: number;
+	release: string;
 }
 
 interface OSSearchResponse {
@@ -51,8 +51,8 @@ interface OSSearchResponse {
 }
 
 interface OSDownloadResponse {
-	link: string;
 	file_name: string;
+	link: string;
 }
 
 interface OSLoginResponse {
@@ -61,78 +61,78 @@ interface OSLoginResponse {
 
 // ISO 639-1 to language name mapping for display
 const LANGUAGE_NAMES: Record<string, string> = {
+	ar: "Arabic",
+	bg: "Bulgarian",
+	cs: "Czech",
+	da: "Danish",
+	de: "German",
+	el: "Greek",
 	en: "English",
 	es: "Spanish",
+	fi: "Finnish",
 	fr: "French",
-	de: "German",
+	he: "Hebrew",
+	hi: "Hindi",
+	hr: "Croatian",
+	hu: "Hungarian",
+	id: "Indonesian",
 	it: "Italian",
-	pt: "Portuguese",
 	ja: "Japanese",
 	ko: "Korean",
-	zh: "Chinese",
-	ar: "Arabic",
-	ru: "Russian",
-	hi: "Hindi",
-	pl: "Polish",
-	tr: "Turkish",
-	nl: "Dutch",
-	sv: "Swedish",
-	no: "Norwegian",
-	da: "Danish",
-	fi: "Finnish",
-	cs: "Czech",
-	ro: "Romanian",
-	hu: "Hungarian",
-	el: "Greek",
-	he: "Hebrew",
-	th: "Thai",
-	vi: "Vietnamese",
-	id: "Indonesian",
 	ms: "Malay",
-	uk: "Ukrainian",
-	bg: "Bulgarian",
-	hr: "Croatian",
-	sr: "Serbian",
+	nl: "Dutch",
+	no: "Norwegian",
+	pl: "Polish",
+	pt: "Portuguese",
+	ro: "Romanian",
+	ru: "Russian",
 	sk: "Slovak",
 	sl: "Slovenian",
+	sr: "Serbian",
+	sv: "Swedish",
+	th: "Thai",
+	tr: "Turkish",
+	uk: "Ukrainian",
+	vi: "Vietnamese",
+	zh: "Chinese",
 };
 
 // ISO 639-1 to ISO 639-2/B mapping for DB storage (matching existing LANGUAGE_MAP in subtitles.ts)
 const ISO1_TO_ISO2: Record<string, string> = {
+	ar: "ara",
+	bg: "bul",
+	cs: "ces",
+	da: "dan",
+	de: "ger",
+	el: "ell",
 	en: "eng",
 	es: "spa",
+	fi: "fin",
 	fr: "fre",
-	de: "ger",
+	he: "heb",
+	hi: "hin",
+	hr: "hrv",
+	hu: "hun",
+	id: "ind",
 	it: "ita",
-	pt: "por",
 	ja: "jpn",
 	ko: "kor",
-	zh: "chi",
-	ar: "ara",
-	ru: "rus",
-	hi: "hin",
-	pl: "pol",
-	tr: "tur",
-	nl: "nld",
-	sv: "swe",
-	no: "nor",
-	da: "dan",
-	fi: "fin",
-	cs: "ces",
-	ro: "ron",
-	hu: "hun",
-	el: "ell",
-	he: "heb",
-	th: "tha",
-	vi: "vie",
-	id: "ind",
 	ms: "msa",
-	uk: "ukr",
-	bg: "bul",
-	hr: "hrv",
-	sr: "srp",
+	nl: "nld",
+	no: "nor",
+	pl: "pol",
+	pt: "por",
+	ro: "ron",
+	ru: "rus",
 	sk: "slk",
 	sl: "slv",
+	sr: "srp",
+	sv: "swe",
+	th: "tha",
+	tr: "tur",
+	uk: "ukr",
+	vi: "vie",
+	zh: "chi",
 };
 
 export function getLanguageName(code: string): string {
@@ -151,8 +151,8 @@ async function getApiKey(): Promise<string> {
 async function getCredentials(): Promise<{ username: string; password: string }> {
 	const settings = await getSettings();
 	return {
-		username: settings.opensubtitles.username,
 		password: settings.opensubtitles.password,
+		username: settings.opensubtitles.username,
 	};
 }
 
@@ -161,8 +161,8 @@ let tokenExpiry = 0;
 
 function buildHeaders(apiKey: string, token?: string): Record<string, string> {
 	const headers: Record<string, string> = {
-		"Content-Type": "application/json",
 		"Api-Key": apiKey,
+		"Content-Type": "application/json",
 		"User-Agent": USER_AGENT,
 	};
 	if (token) {
@@ -178,9 +178,9 @@ async function login(apiKey: string): Promise<string> {
 	}
 
 	const response = await fetch(`${BASE_URL}/login`, {
-		method: "POST",
+		body: JSON.stringify({ password, username }),
 		headers: buildHeaders(apiKey),
-		body: JSON.stringify({ username, password }),
+		method: "POST",
 	});
 
 	if (!response.ok) {
@@ -270,21 +270,21 @@ export async function searchSubtitles(params: OpenSubtitlesSearchParams): Promis
 
 	return data.data.map((item) => {
 		const attr = item.attributes;
-		const file = attr.files[0];
+		const [file] = attr.files;
 
 		return {
-			id: item.id,
+			aiTranslated: attr.ai_translated,
+			downloadCount: attr.download_count,
 			fileId: file?.file_id ?? 0,
 			fileName: file?.file_name ?? "unknown",
+			fps: attr.fps,
+			fromTrusted: attr.from_trusted,
+			hearingImpaired: attr.hearing_impaired,
+			id: item.id,
 			language: attr.language,
 			languageName: getLanguageName(attr.language),
-			release: attr.release,
-			downloadCount: attr.download_count,
-			hearingImpaired: attr.hearing_impaired,
-			aiTranslated: attr.ai_translated,
-			fromTrusted: attr.from_trusted,
-			fps: attr.fps,
 			ratings: attr.ratings,
+			release: attr.release,
 		};
 	});
 }
@@ -319,9 +319,9 @@ export async function downloadSubtitle(
 	const token = await getValidToken(apiKey);
 
 	const response = await fetch(`${BASE_URL}/download`, {
-		method: "POST",
-		headers: buildHeaders(apiKey, token ?? undefined),
 		body: JSON.stringify({ file_id: fileId }),
+		headers: buildHeaders(apiKey, token ?? undefined),
+		method: "POST",
 	});
 
 	if (!response.ok) {

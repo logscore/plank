@@ -7,7 +7,7 @@ function uploadImage(path: string, file: File, organizationId?: string): Promise
 	if (organizationId) {
 		formData.append("organizationId", organizationId);
 	}
-	return apiRequest(path, "Image upload failed", { method: "POST", body: formData });
+	return apiRequest(path, "Image upload failed", { body: formData, method: "POST" });
 }
 
 export function createUploadAvatarMutation() {

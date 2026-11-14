@@ -7,17 +7,17 @@ interface TMDBGenre {
 }
 
 interface TMDBMovie {
-	id: number;
-	title: string;
-	release_date: string;
-	poster_path: string | null;
-	backdrop_path: string | null;
-	overview: string;
-	vote_average?: number;
-	runtime?: number;
-	genres?: TMDBGenre[];
-	original_language?: string;
 	adult?: boolean;
+	backdrop_path: string | null;
+	genres?: TMDBGenre[];
+	id: number;
+	original_language?: string;
+	overview: string;
+	poster_path: string | null;
+	release_date: string;
+	runtime?: number;
+	title: string;
+	vote_average?: number;
 }
 
 interface TMDBSeason {
@@ -27,19 +27,19 @@ interface TMDBSeason {
 }
 
 interface TMDBTVShow {
+	adult?: boolean;
+	backdrop_path: string | null;
+	episode_run_time?: number[];
+	first_air_date: string;
+	genres?: TMDBGenre[];
 	id: number;
 	name: string;
-	first_air_date: string;
-	poster_path: string | null;
-	backdrop_path: string | null;
-	overview: string;
-	vote_average?: number;
 	number_of_seasons?: number;
-	episode_run_time?: number[];
-	genres?: TMDBGenre[];
 	original_language?: string;
-	adult?: boolean;
+	overview: string;
+	poster_path: string | null;
 	seasons?: TMDBSeason[];
+	vote_average?: number;
 }
 
 interface TMDBSearchResult {
@@ -51,34 +51,34 @@ interface TMDBTVSearchResult {
 }
 
 interface TMDBEpisode {
-	id?: number;
+	air_date: string;
 	episode_number: number;
+	id?: number;
 	name: string;
 	overview: string;
-	still_path: string | null;
 	runtime: number | null;
-	air_date: string;
+	still_path: string | null;
 }
 
 interface TMDBSeasonDetail {
-	season_number: number;
-	name: string;
 	episodes: TMDBEpisode[];
+	name: string;
+	season_number: number;
 }
 
 export interface TMDBMetadata {
-	tmdbId: number | null;
-	title: string;
-	year: number | null;
-	posterUrl: string | null;
 	backdropUrl: string | null;
-	overview: string | null;
-	runtime?: number | null;
+	certification?: string | null;
 	genres?: string | null;
 	originalLanguage?: string | null;
-	certification?: string | null;
-	voteAverage?: number | null;
+	overview: string | null;
+	posterUrl: string | null;
+	runtime?: number | null;
+	title: string;
+	tmdbId: number | null;
 	totalSeasons?: number | null;
+	voteAverage?: number | null;
+	year: number | null;
 }
 
 export class AdultContentError extends Error {
@@ -89,9 +89,9 @@ export class AdultContentError extends Error {
 }
 
 export interface SeasonMetadata {
-	seasonNumber: number;
-	name: string | null;
 	episodes: EpisodeMetadata[];
+	name: string | null;
+	seasonNumber: number;
 }
 
 interface TMDBEpisodeExternalIds {
@@ -99,21 +99,21 @@ interface TMDBEpisodeExternalIds {
 }
 
 interface EpisodeMetadata {
-	tmdbId: number | null;
-	imdbId: string | null;
-	episodeNumber: number;
-	title: string | null;
-	overview: string | null;
-	stillPath: string | null;
-	runtime: number | null;
 	airDate: string | null;
+	episodeNumber: number;
+	imdbId: string | null;
+	overview: string | null;
+	runtime: number | null;
+	stillPath: string | null;
+	title: string | null;
+	tmdbId: number | null;
 }
 
 // Simplified season data for context menu
 export interface SeasonSummary {
-	seasonNumber: number;
-	name: string;
 	episodeCount: number;
+	name: string;
+	seasonNumber: number;
 }
 
 // =============================================================================
@@ -121,20 +121,20 @@ export interface SeasonSummary {
 // =============================================================================
 
 export interface BrowseItem {
-	tmdbId: number;
-	imdbId: string | null;
-	title: string;
-	year: number | null;
-	posterUrl: string | null;
 	backdropUrl: string | null;
-	overview: string | null;
-	voteAverage: number | null;
-	genres: string[];
-	mediaType: "movie" | "show";
 	certification: string | null;
+	genres: string[];
+	imdbId: string | null;
 	// Set by the cache lookup
 	magnetLink?: string;
+	mediaType: "movie" | "show";
 	needsResolve: boolean;
+	overview: string | null;
+	posterUrl: string | null;
+	title: string;
+	tmdbId: number;
+	voteAverage: number | null;
+	year: number | null;
 }
 export interface TmdbCatalogSearchResult {
 	items: BrowseItem[];
@@ -147,67 +147,67 @@ export interface TmdbCatalogSearchResult {
 // =============================================================================
 
 interface TMDBTrendingItem {
-	id: number;
-	title?: string;
-	name?: string;
-	release_date?: string;
-	first_air_date?: string;
-	poster_path: string | null;
-	backdrop_path: string | null;
-	overview: string;
-	vote_average: number;
-	genre_ids?: number[];
-	popularity?: number;
 	adult?: boolean;
+	backdrop_path: string | null;
+	first_air_date?: string;
+	genre_ids?: number[];
+	id: number;
 	media_type?: "movie" | "tv" | "show" | "person";
+	name?: string;
+	overview: string;
+	popularity?: number;
+	poster_path: string | null;
+	release_date?: string;
+	title?: string;
+	vote_average: number;
 }
 
 interface TMDBTrendingResponse {
-	results: TMDBTrendingItem[];
 	page: number;
+	results: TMDBTrendingItem[];
 	total_pages: number;
 }
 
 // Genre ID to name mapping for movies
 const MOVIE_GENRES: Record<number, string> = {
-	28: "Action",
 	12: "Adventure",
+	14: "Fantasy",
 	16: "Animation",
+	18: "Drama",
+	27: "Horror",
+	28: "Action",
 	35: "Comedy",
+	36: "History",
+	37: "Western",
+	53: "Thriller",
 	80: "Crime",
 	99: "Documentary",
-	18: "Drama",
-	10751: "Family",
-	14: "Fantasy",
-	36: "History",
-	27: "Horror",
-	10402: "Music",
-	9648: "Mystery",
-	10749: "Romance",
 	878: "Science Fiction",
-	10770: "TV Movie",
-	53: "Thriller",
+	9648: "Mystery",
+	10402: "Music",
+	10749: "Romance",
+	10751: "Family",
 	10752: "War",
-	37: "Western",
+	10770: "TV Movie",
 };
 
 const TV_GENRES: Record<number, string> = {
-	10759: "Action & Adventure",
 	16: "Animation",
+	18: "Drama",
 	35: "Comedy",
+	37: "Western",
 	80: "Crime",
 	99: "Documentary",
-	18: "Drama",
-	10751: "Family",
-	10762: "Kids",
 	9648: "Mystery",
+	10751: "Family",
+	10759: "Action & Adventure",
+	10762: "Kids",
 	10763: "News",
 	10764: "Reality",
 	10765: "Sci-Fi & Fantasy",
 	10766: "Soap",
 	10767: "Talk",
 	10768: "War & Politics",
-	37: "Western",
 };
 
 function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: "movie" | "show", settings: AppSettings): BrowseItem {
@@ -225,18 +225,20 @@ function mapTmdbToBrowseItem(item: TMDBTrendingItem, defaultType: "movie" | "sho
 		.filter(Boolean);
 
 	return {
-		tmdbId: item.id,
-		imdbId: null, // Will be fetched separately
-		title,
-		year,
-		posterUrl: item.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${item.poster_path}` : null,
 		backdropUrl: item.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${item.backdrop_path}` : null,
-		overview: item.overview ?? null,
-		voteAverage: item.vote_average ?? null,
-		genres,
-		mediaType: type === "movie" ? type : "show",
 		certification: null, // Will be fetched separately
+		genres,
+		imdbId: null, // Will be fetched separately
+		mediaType: type === "movie" ? type : "show",
 		needsResolve: true,
+		// biome-ignore lint/suspicious/noUnnecessaryConditions: TMDB JSON is untrusted, field may be missing
+		overview: item.overview ?? null,
+		posterUrl: item.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${item.poster_path}` : null,
+		title,
+		tmdbId: item.id,
+		// biome-ignore lint/suspicious/noUnnecessaryConditions: TMDB JSON is untrusted, field may be missing
+		voteAverage: item.vote_average ?? null,
+		year,
 	};
 }
 
@@ -299,7 +301,7 @@ export async function getBrowseItemDetails(
 	// Check in-memory cache first
 	const cached = browseDetailsCache.get(cacheKey);
 	if (cached && now < cached.expiresAt) {
-		return { imdbId: cached.imdbId, certification: cached.certification };
+		return { certification: cached.certification, imdbId: cached.imdbId };
 	}
 
 	const settings = await getSettings();
@@ -312,7 +314,7 @@ export async function getBrowseItemDetails(
 	);
 
 	if (!res.ok) {
-		return { imdbId: null, certification: null };
+		return { certification: null, imdbId: null };
 	}
 
 	const data = await res.json();
@@ -343,9 +345,9 @@ export async function getBrowseItemDetails(
 			browseDetailsCache.delete(firstKey);
 		}
 	}
-	browseDetailsCache.set(cacheKey, { imdbId, certification, expiresAt: now + BROWSE_DETAILS_TTL });
+	browseDetailsCache.set(cacheKey, { certification, expiresAt: now + BROWSE_DETAILS_TTL, imdbId });
 
-	return { imdbId, certification };
+	return { certification, imdbId };
 }
 
 // =============================================================================
@@ -369,6 +371,7 @@ async function tmdbSearch<T extends { results: unknown[] }>(
 		return [];
 	}
 	const data: T = await res.json();
+	// biome-ignore lint/suspicious/noUnnecessaryConditions: TMDB JSON is untrusted, field may be missing
 	if (!(data.results && Array.isArray(data.results))) {
 		console.error("[TMDB] Invalid response - no results array:", data);
 		return [];
@@ -388,13 +391,13 @@ export async function searchMovie(query: string, year?: number | null): Promise<
 	return (results as TMDBMovie[])
 		.filter((movie) => movie.adult !== true)
 		.map((movie) => ({
-			tmdbId: movie.id,
-			title: movie.title,
-			year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
-			posterUrl: movie.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${movie.poster_path}` : null,
 			backdropUrl: movie.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${movie.backdrop_path}` : null,
 			overview: movie.overview ?? null,
+			posterUrl: movie.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${movie.poster_path}` : null,
+			title: movie.title,
+			tmdbId: movie.id,
 			voteAverage: movie.vote_average ?? null,
+			year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
 		}));
 }
 
@@ -415,6 +418,7 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 		};
 	} = await res.json();
 
+	// biome-ignore lint/suspicious/noUnnecessaryConditions: TMDB JSON is untrusted, field may be missing
 	if (!movie?.id) {
 		console.error(`[TMDB] Invalid movie response for ${tmdbId}:`, movie);
 		throw new Error("Invalid TMDB response");
@@ -432,17 +436,18 @@ export async function getMovieDetails(tmdbId: number): Promise<TMDBMetadata> {
 	}
 
 	return {
-		tmdbId: movie.id,
-		title: movie.title,
-		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
-		posterUrl: movie.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${movie.poster_path}` : null,
 		backdropUrl: movie.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${movie.backdrop_path}` : null,
-		overview: movie.overview ?? null,
-		voteAverage: movie.vote_average ?? null,
-		runtime: movie.runtime ?? null,
+		certification,
 		genres: movie.genres ? JSON.stringify(movie.genres.map((g) => g.name)) : null,
 		originalLanguage: movie.original_language ?? null,
-		certification,
+		// biome-ignore lint/suspicious/noUnnecessaryConditions: TMDB JSON is untrusted, field may be missing
+		overview: movie.overview ?? null,
+		posterUrl: movie.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${movie.poster_path}` : null,
+		runtime: movie.runtime ?? null,
+		title: movie.title,
+		tmdbId: movie.id,
+		voteAverage: movie.vote_average ?? null,
+		year: movie.release_date ? Number.parseInt(movie.release_date.slice(0, 4), 10) : null,
 	};
 }
 
@@ -462,14 +467,14 @@ export async function searchTVShow(query: string, year?: number | null): Promise
 	return (results as TMDBTVShow[])
 		.filter((show) => show.adult !== true)
 		.map((show) => ({
-			tmdbId: show.id,
-			title: show.name,
-			year: show.first_air_date ? Number.parseInt(show.first_air_date.slice(0, 4), 10) : null,
-			posterUrl: show.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${show.poster_path}` : null,
 			backdropUrl: show.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${show.backdrop_path}` : null,
 			overview: show.overview ?? null,
-			voteAverage: show.vote_average ?? null,
+			posterUrl: show.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${show.poster_path}` : null,
+			title: show.name,
+			tmdbId: show.id,
 			totalSeasons: show.number_of_seasons ?? null,
+			voteAverage: show.vote_average ?? null,
+			year: show.first_air_date ? Number.parseInt(show.first_air_date.slice(0, 4), 10) : null,
 		}));
 }
 interface CatalogCandidate {
@@ -491,12 +496,12 @@ async function fetchTmdbCatalogPage(
 	const response = await fetch(`${settings.tmdb.baseUrl}${endpoint}?${params}`);
 	if (!response.ok) {
 		console.error(`[TMDB] Catalog ${endpoint} failed: ${response.status} ${response.statusText}`);
-		return { results: [], page: 1, total_pages: 0 };
+		return { page: 1, results: [], total_pages: 0 };
 	}
 	const data: TMDBTrendingResponse = await response.json();
 	if (!Array.isArray(data.results)) {
 		console.error(`[TMDB] Catalog ${endpoint} returned an invalid result`);
-		return { results: [], page: 1, total_pages: 0 };
+		return { page: 1, results: [], total_pages: 0 };
 	}
 	return data;
 }
@@ -663,6 +668,7 @@ export async function getTVDetails(tmdbId: number): Promise<TMDBMetadata & { tot
 	const show: TMDBTVShow & { content_ratings?: { results: Array<{ iso_3166_1: string; rating: string }> } } =
 		await res.json();
 
+	// biome-ignore lint/suspicious/noUnnecessaryConditions: TMDB JSON is untrusted, field may be missing
 	if (!show?.id) {
 		console.error(`[TMDB] Invalid TV response for ${tmdbId}:`, show);
 		throw new Error("Invalid TMDB response");
@@ -675,18 +681,19 @@ export async function getTVDetails(tmdbId: number): Promise<TMDBMetadata & { tot
 	const certification = usRating?.rating || null;
 
 	return {
-		tmdbId: show.id,
-		title: show.name,
-		year: show.first_air_date ? Number.parseInt(show.first_air_date.slice(0, 4), 10) : null,
-		posterUrl: show.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${show.poster_path}` : null,
 		backdropUrl: show.backdrop_path ? `${settings.tmdb.imageBaseUrl}/w780${show.backdrop_path}` : null,
-		overview: show.overview ?? null,
-		voteAverage: show.vote_average ?? null,
-		totalSeasons: show.number_of_seasons ?? 0,
-		runtime: show.episode_run_time?.[0] ?? null,
+		certification,
 		genres: show.genres ? JSON.stringify(show.genres.map((g) => g.name)) : null,
 		originalLanguage: show.original_language ?? null,
-		certification,
+		// biome-ignore lint/suspicious/noUnnecessaryConditions: TMDB JSON is untrusted, field may be missing
+		overview: show.overview ?? null,
+		posterUrl: show.poster_path ? `${settings.tmdb.imageBaseUrl}/w342${show.poster_path}` : null,
+		runtime: show.episode_run_time?.[0] ?? null,
+		title: show.name,
+		tmdbId: show.id,
+		totalSeasons: show.number_of_seasons ?? 0,
+		voteAverage: show.vote_average ?? null,
+		year: show.first_air_date ? Number.parseInt(show.first_air_date.slice(0, 4), 10) : null,
 	};
 }
 
@@ -707,6 +714,7 @@ export async function getTVSeasons(tmdbId: number, includeSpecials = false): Pro
 
 	const show: TMDBTVShow = await res.json();
 
+	// biome-ignore lint/suspicious/noUnnecessaryConditions: TMDB JSON is untrusted, field may be missing
 	if (!show?.seasons) {
 		return [];
 	}
@@ -717,9 +725,9 @@ export async function getTVSeasons(tmdbId: number, includeSpecials = false): Pro
 	return show.seasons
 		.filter((season) => includeSpecials || season.season_number > 0)
 		.map((season) => ({
-			seasonNumber: season.season_number,
-			name: season.name || `Season ${season.season_number}`,
 			episodeCount: season.episode_count,
+			name: season.name || `Season ${season.season_number}`,
+			seasonNumber: season.season_number,
 		}));
 }
 
@@ -737,19 +745,21 @@ export async function getSeasonDetails(tmdbId: number, seasonNumber: number): Pr
 	const season: TMDBSeasonDetail = await res.json();
 
 	return {
-		seasonNumber: season.season_number,
-		name: season.name ?? null,
 		episodes:
+			// biome-ignore lint/suspicious/noUnnecessaryConditions: TMDB JSON is untrusted, field may be missing
 			season.episodes?.map((ep) => ({
-				tmdbId: ep.id ?? null,
-				imdbId: null,
-				episodeNumber: ep.episode_number,
-				title: ep.name ?? null,
-				overview: ep.overview ?? null,
-				stillPath: ep.still_path ? `${settings.tmdb.imageBaseUrl}/w300${ep.still_path}` : null,
-				runtime: ep.runtime ?? null,
 				airDate: ep.air_date ?? null,
+				episodeNumber: ep.episode_number,
+				imdbId: null,
+				overview: ep.overview ?? null,
+				runtime: ep.runtime ?? null,
+				stillPath: ep.still_path ? `${settings.tmdb.imageBaseUrl}/w300${ep.still_path}` : null,
+				title: ep.name ?? null,
+				tmdbId: ep.id ?? null,
 			})) ?? [],
+		// biome-ignore lint/suspicious/noUnnecessaryConditions: TMDB JSON is untrusted, field may be missing
+		name: season.name ?? null,
+		seasonNumber: season.season_number,
 	};
 }
 

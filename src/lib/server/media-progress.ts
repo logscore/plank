@@ -6,13 +6,13 @@ import { mediaDb } from "./db";
 import { getDownloadStatus } from "./torrent/status";
 
 export interface MediaProgressSnapshot {
-	status: string;
-	progress: number;
 	downloadSpeed: number;
+	fileSize?: number | null;
 	peers: number;
+	progress: number;
+	status: string;
 	/** Finalization progress from 0 to 1. Zero unless the status is finalizing. */
 	transcodeProgress: number;
-	fileSize?: number | null;
 }
 
 function getEpisodeKey(mediaItem: Media): number | null {
@@ -66,11 +66,11 @@ export function getMediaProgressSnapshot(mediaId: string, organizationId?: strin
 	const downloadStatus = getDownloadStatus(mediaId);
 	const status = getResolvedStatus(mediaItem);
 	return {
-		status,
-		progress: getResolvedProgress(mediaItem),
 		downloadSpeed: downloadStatus?.downloadSpeed ?? 0,
-		peers: downloadStatus?.peers ?? 0,
-		transcodeProgress: downloadStatus?.transcodeProgress ?? 0,
 		fileSize: getResolvedFileSize(mediaItem),
+		peers: downloadStatus?.peers ?? 0,
+		progress: getResolvedProgress(mediaItem),
+		status,
+		transcodeProgress: downloadStatus?.transcodeProgress ?? 0,
 	};
 }

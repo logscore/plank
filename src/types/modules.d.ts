@@ -11,12 +11,12 @@ declare module "parse-torrent" {
 
 declare module "parse-torrent-title" {
 	interface ParsedTitle {
+		codec?: string;
+		group?: string;
+		resolution?: string;
+		source?: string;
 		title: string;
 		year?: number;
-		resolution?: string;
-		codec?: string;
-		source?: string;
-		group?: string;
 		[key: string]: any;
 	}
 
@@ -27,54 +27,56 @@ declare module "webtorrent" {
 	import type { Readable } from "node:stream";
 
 	interface TorrentFile {
+		createReadStream: (opts?: { start?: number; end?: number }) => Readable;
+		deselect: () => void;
+		downloaded: number;
+		length: number;
 		name: string;
 		path: string;
-		length: number;
-		downloaded: number;
 		progress: number;
-		select(): void;
-		deselect(): void;
-		createReadStream(opts?: { start?: number; end?: number }): Readable;
+		select: () => void;
 	}
 
 	interface Torrent {
+		destroy: (opts?: { destroyStore?: boolean }, callback?: () => void) => void;
+		done: boolean;
+		downloaded: number;
+		downloadSpeed: number;
 		files: TorrentFile[];
 		infoHash: string;
 		name: string;
+		numPeers: number;
+		on: {
+			(event: "done" | "metadata" | "ready", callback: () => void): void;
+			(event: "upload" | "download", callback: (bytes: number) => void): void;
+			(event: "wire", callback: (wire: unknown) => void): void;
+			(event: "noPeers", callback: (announceType: string) => void): void;
+			(event: "warning" | "error", callback: (err: Error) => void): void;
+			(event: string, callback: (...args: unknown[]) => void): void;
+		};
 		path: string;
 		progress: number;
-		downloaded: number;
-		downloadSpeed: number;
-		uploadSpeed: number;
-		numPeers: number;
-		done: boolean;
 		ready: boolean;
-		destroy(opts?: { destroyStore?: boolean }, callback?: () => void): void;
-		on(event: "done" | "metadata" | "ready", callback: () => void): void;
-		on(event: "upload" | "download", callback: (bytes: number) => void): void;
-		on(event: "wire", callback: (wire: unknown) => void): void;
-		on(event: "noPeers", callback: (announceType: string) => void): void;
-		on(event: "warning" | "error", callback: (err: Error) => void): void;
-		on(event: string, callback: (...args: unknown[]) => void): void;
+		uploadSpeed: number;
 	}
 
 	interface WebTorrentOptions {
+		dht?: boolean | object;
+		downloadLimit?: number;
+		lsd?: boolean;
 		maxConns?: number;
 		nodeId?: string | Buffer;
 		peerId?: string | Buffer;
 		tracker?: boolean | object;
-		dht?: boolean | object;
-		lsd?: boolean;
-		webSeeds?: boolean;
-		utp?: boolean;
-		downloadLimit?: number;
 		uploadLimit?: number;
+		utp?: boolean;
+		webSeeds?: boolean;
 	}
 
 	interface AddOptions {
-		path?: string;
 		announce?: string[];
 		maxWebConns?: number;
+		path?: string;
 		store?: unknown;
 	}
 

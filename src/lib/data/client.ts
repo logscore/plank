@@ -9,9 +9,13 @@ type ApiRequestOptions = RequestInit & { json?: unknown };
 
 export const queryClient = new QueryClient({
 	defaultOptions: {
+		mutations: {
+			retry: 1,
+		},
 		queries: {
-			staleTime: 30 * 60 * 1000,
 			gcTime: 60 * 60 * 1000,
+			refetchOnReconnect: true,
+			refetchOnWindowFocus: false,
 			retry: (failureCount, error) => {
 				if (error && typeof error === "object" && "status" in error) {
 					const status = error.status as number;
@@ -21,11 +25,7 @@ export const queryClient = new QueryClient({
 				}
 				return failureCount < 3;
 			},
-			refetchOnWindowFocus: false,
-			refetchOnReconnect: true,
-		},
-		mutations: {
-			retry: 1,
+			staleTime: 30 * 60 * 1000,
 		},
 	},
 });

@@ -6,7 +6,7 @@ export function requireOrganizationAccess(locals: App.Locals) {
 	if (!(locals.user && organizationId)) {
 		throw error(403, "Active profile required");
 	}
-	return { userId: locals.user.id, organizationId };
+	return { organizationId, userId: locals.user.id };
 }
 
 export function requireMediaAccess(locals: App.Locals, mediaId: string) {
@@ -16,5 +16,5 @@ export function requireMediaAccess(locals: App.Locals, mediaId: string) {
 		throw error(404, "Media not found");
 	}
 
-	return { userId, organizationId, mediaItem };
+	return { mediaItem, organizationId, userId };
 }

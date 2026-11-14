@@ -34,5 +34,5 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	db.update(schema.user).set({ image: result.imagePath }).where(eq(schema.user.id, userId)).run();
 
-	return json({ success: true, image: result.imagePath });
+	return json({ image: result.imagePath, success: true });
 };

@@ -20,14 +20,14 @@
     const response = $derived<LibraryResponse>(
         data.response.scope === "library"
             ? data.response
-            : { scope: "library", items: [], seasonsByMediaId: {}, nextPage: null }
+            : { items: [], nextPage: null, scope: "library", seasonsByMediaId: {} }
     );
 
     async function applyFilters(nextFilters: CatalogFilters) {
         const params = serializeCatalogSearch({
-            query: "",
-            page: 1,
             filters: { ...nextFilters, scope: "library" },
+            page: 1,
+            query: "",
         });
         params.delete("scope");
         await goto(params.size > 0 ? `?${params}` : "?", {
@@ -41,9 +41,9 @@
         const height = node.offsetHeight;
         const marginBottom = Number.parseFloat(getComputedStyle(node).marginBottom);
         return {
-            duration: 300,
             css: (t: number) =>
                 `overflow: hidden; opacity: ${t}; height: ${t * height}px; margin-bottom: ${t * marginBottom}px;`,
+            duration: 300,
         };
     }
 

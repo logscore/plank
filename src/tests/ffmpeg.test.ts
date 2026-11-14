@@ -20,26 +20,26 @@ const { mockFfmpegConstructor, mockFfmpegCommand } = vi.hoisted(() => {
 	const mockCommand = {
 		inputFormat: vi.fn().mockReturnThis(),
 		inputOptions: vi.fn().mockReturnThis(),
+		on: vi.fn().mockReturnThis(),
+		output: vi.fn().mockReturnThis(),
 		outputFormat: vi.fn().mockReturnThis(),
 		outputOptions: vi.fn().mockReturnThis(),
-		setStartTime: vi.fn().mockReturnThis(),
-		output: vi.fn().mockReturnThis(),
-		on: vi.fn().mockReturnThis(),
 		pipe: vi.fn().mockReturnThis(),
 		run: vi.fn(),
+		setStartTime: vi.fn().mockReturnThis(),
 	};
 
 	const mockConstructor = Object.assign(
 		vi.fn(() => mockCommand),
 		{
-			setFfmpegPath: vi.fn(),
 			ffprobe: vi.fn(),
+			setFfmpegPath: vi.fn(),
 		}
 	);
 
 	return {
-		mockFfmpegConstructor: mockConstructor,
 		mockFfmpegCommand: mockCommand,
+		mockFfmpegConstructor: mockConstructor,
 	};
 });
 
@@ -53,8 +53,8 @@ function mockCodecs(videoCodec = "h264", audioCodec: string | null = "aac", audi
 			callback(null, {
 				format: { duration: 100 },
 				streams: [
-					{ codec_type: "video", codec_name: videoCodec },
-					...(audioCodec ? [{ codec_type: "audio", codec_name: audioCodec, channels: audioChannels }] : []),
+					{ codec_name: videoCodec, codec_type: "video" },
+					...(audioCodec ? [{ channels: audioChannels, codec_name: audioCodec, codec_type: "audio" }] : []),
 				],
 			});
 		}
@@ -92,7 +92,7 @@ describe("FFmpeg Service", () => {
 	describe("createTransmuxStream", () => {
 		it("should create a transmux stream", () => {
 			const input = new PassThrough();
-			const stream = createTransmuxStream({ inputStream: input, fileName: "video.mkv" });
+			const stream = createTransmuxStream({ fileName: "video.mkv", inputStream: input });
 
 			expect(mockFfmpegConstructor).toHaveBeenCalledWith(input);
 			expect(mockFfmpegCommand.inputFormat).toHaveBeenCalledWith("matroska");
@@ -136,10 +136,10 @@ describe("FFmpeg Service", () => {
 
 			// We need to wait for the async error handling
 			return new Promise<void>((resolve) => {
-				const onError = vi.fn().mockImplementation(() => {
+				const onErrorResolve = vi.fn().mockImplementation(() => {
 					resolve();
 				});
-				const stream = createTransmuxStream({ inputStream: input, onError });
+				const stream = createTransmuxStream({ inputStream: input, onError: onErrorResolve });
 				stream.on("error", () => {}); // Prevent uncaught exception
 			});
 		});
@@ -193,8 +193,8 @@ describe("FFmpeg Service", () => {
 			const mockMetadata = {
 				format: { duration: 100 },
 				streams: [
-					{ codec_type: "video", codec_name: "h264" },
-					{ codec_type: "audio", codec_name: "aac", channels: 2 },
+					{ codec_name: "h264", codec_type: "video" },
+					{ channels: 2, codec_name: "aac", codec_type: "audio" },
 				],
 			};
 
@@ -207,11 +207,11 @@ describe("FFmpeg Service", () => {
 			const result = await probeFile("movie.mp4");
 
 			expect(result).toEqual({
-				videoCodec: "h264",
+				audioChannels: 2,
 				audioCodec: "aac",
 				duration: 100,
-				audioChannels: 2,
 				hasDataStreams: false,
+				videoCodec: "h264",
 			});
 		});
 
@@ -239,24 +239,27 @@ describe("FFmpeg Service", () => {
 			["hevc", "aac", 2, "libx264", "copy"],
 			["hevc", "eac3", 6, "libx264", "aac"],
 			["h264", null, 0, "copy", "aac"],
-		])("normalizes %s/%s (%i channels) using video=%s, audio=%s", async (videoCodec, audioCodec, channels, videoEncoder, audioEncoder) => {
-			mockCodecs(videoCodec, audioCodec, channels);
-			await normalizeFileForPlayback("input.mkv", "output.mp4");
+		])(
+			"normalizes %s/%s (%i channels) using video=%s, audio=%s",
+			async (videoCodec, audioCodec, channels, videoEncoder, audioEncoder) => {
+				mockCodecs(videoCodec, audioCodec, channels);
+				await normalizeFileForPlayback("input.mkv", "output.mp4");
 
-			const options = mockFfmpegCommand.outputOptions.mock.calls.flat(2);
-			expect(options[options.indexOf("-c:v") + 1]).toBe(videoEncoder);
-			expect(options[options.indexOf("-c:a") + 1]).toBe(audioEncoder);
-			if (audioEncoder === "copy") {
-				expect(options).not.toContain("-ac");
-				expect(options).not.toContain("-b:a");
-			} else {
-				expect(options[options.indexOf("-ac") + 1]).toBe("2");
+				const options = mockFfmpegCommand.outputOptions.mock.calls.flat(2);
+				expect(options[options.indexOf("-c:v") + 1]).toBe(videoEncoder);
+				expect(options[options.indexOf("-c:a") + 1]).toBe(audioEncoder);
+				if (audioEncoder === "copy") {
+					expect(options).not.toContain("-ac");
+					expect(options).not.toContain("-b:a");
+				} else {
+					expect(options[options.indexOf("-ac") + 1]).toBe("2");
+				}
+				if (videoEncoder === "copy") {
+					expect(options).not.toContain("-preset");
+					expect(options).not.toContain("-pix_fmt");
+				}
 			}
-			if (videoEncoder === "copy") {
-				expect(options).not.toContain("-preset");
-				expect(options).not.toContain("-pix_fmt");
-			}
-		});
+		);
 
 		it("reports only finite progress clamped from 0 to 1", async () => {
 			mockFfmpegConstructor.ffprobe.mockImplementation(
@@ -264,8 +267,8 @@ describe("FFmpeg Service", () => {
 					callback(null, {
 						format: { duration: 100 },
 						streams: [
-							{ codec_type: "video", codec_name: "h264" },
-							{ codec_type: "audio", codec_name: "aac", channels: 2 },
+							{ codec_name: "h264", codec_type: "video" },
+							{ channels: 2, codec_name: "aac", codec_type: "audio" },
 						],
 					});
 				}
@@ -297,12 +300,12 @@ describe("FFmpeg Service", () => {
 					callback(null, {
 						format: { duration: 100 },
 						streams: [
-							{ codec_type: "video", codec_name: "h264" },
-							{ codec_type: "audio", codec_name: "aac", channels: 2 },
+							{ codec_name: "h264", codec_type: "video" },
+							{ channels: 2, codec_name: "aac", codec_type: "audio" },
 							{
-								codec_type: "data",
 								codec_name: "bin_data",
 								codec_tag_string: "text",
+								codec_type: "data",
 								tags: { handler_name: "SubtitleHandler" },
 							},
 						],

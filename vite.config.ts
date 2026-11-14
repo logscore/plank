@@ -4,18 +4,18 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-	plugins: [tailwindcss(), sveltekit()],
-	server: {
-		host: "0.0.0.0",
-		port: Number.parseInt(process.env.PORT || "3300", 10),
-		allowedHosts: ["localhost", "127.0.0.1", ".test"],
-		watch: {
-			ignored: ["**/db/**", `${path.resolve("data")}/**`],
-		},
-	},
 	build: {
 		rollupOptions: {
 			external: ["webtorrent"],
+		},
+	},
+	plugins: [tailwindcss(), sveltekit()],
+	server: {
+		allowedHosts: ["localhost", "127.0.0.1"],
+		host: "0.0.0.0",
+		port: Number.parseInt(process.env.PORT || "3300", 10),
+		watch: {
+			ignored: ["**/db/**", `${path.resolve("data")}/**`],
 		},
 	},
 	ssr: {

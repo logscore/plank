@@ -32,11 +32,12 @@
     let downloadedIds = $state<Set<string>>(new Set());
 
     const downloadMutation = createDownloadSubtitleMutation();
-    const languageOptions = LANGUAGES.map((language) => ({ value: language.code, label: language.name }));
+    const languageOptions = LANGUAGES.map((language) => ({ label: language.name, value: language.code }));
     let searchRequestId = 0;
 
     async function performSearch() {
-        const requestId = ++searchRequestId;
+        searchRequestId += 1;
+        const requestId = searchRequestId;
         searching = true;
         searchError = "";
         downloadError = "";
@@ -44,9 +45,9 @@
 
         try {
             const matches = await searchOpenSubtitles(mediaId, {
+                episodeNumber,
                 languages: selectedLanguage,
                 seasonNumber,
-                episodeNumber,
             });
             if (requestId === searchRequestId) {
                 results = matches;
@@ -72,9 +73,9 @@
 
         try {
             const track = await downloadMutation.mutateAsync({
-                mediaId,
                 fileId: result.fileId,
                 language: result.language,
+                mediaId,
             });
             downloadedIds = new Set([...downloadedIds, result.id]);
             onDownloaded?.(track);
@@ -103,7 +104,7 @@
     });
 
     onDestroy(() => {
-        searchRequestId++;
+        searchRequestId += 1;
     });
 </script>
 

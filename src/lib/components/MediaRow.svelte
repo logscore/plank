@@ -59,11 +59,11 @@
         return `S${season}E${number}`;
     }
 
-    function statusLabel(status: string | null): string {
-        if (status === "complete" || media.filePath) {
+    function statusLabel(value: string | null): string {
+        if (value === "complete" || media.filePath) {
             return "Downloaded";
         }
-        switch (status) {
+        switch (value) {
             case "removed":
                 return "Removed";
             case "searching":
@@ -81,11 +81,11 @@
         }
     }
 
-    function statusClass(status: string | null): string {
-        if (status === "complete" || media.filePath) {
+    function statusClass(value: string | null): string {
+        if (value === "complete" || media.filePath) {
             return "bg-emerald-500 text-emerald-100";
         }
-        switch (status) {
+        switch (value) {
             case "removed":
                 return "bg-rose-500 text-rose-100";
             case "downloading":

@@ -58,6 +58,7 @@ async function scanMovies(): Promise<void> {
 		.filter((media) => media.type === "movie" && media.filePath && existsSync(media.filePath));
 	// Change to a job eventually
 	for (const movie of movies) {
+		// biome-ignore lint/performance/noAwaitInLoops: ffmpeg jobs run one at a time
 		await normalizeMediaForPlayback(movie.id);
 	}
 }
@@ -70,6 +71,7 @@ async function scanShows(): Promise<void> {
 	const episodes = showIds.flatMap((showId) => mediaDb.getEpisodesByParentId(showId));
 	// Change to a job eventually
 	for (const episode of episodes) {
+		// biome-ignore lint/performance/noAwaitInLoops: ffmpeg jobs run one at a time
 		await normalizeMediaForPlayback(episode.id);
 	}
 }
@@ -118,7 +120,7 @@ export async function finalizeMediaToLibrary(
 		return { filePath: finalPath, fileSize: stats.size };
 	} finally {
 		await fs.unlink(tempPath).catch(() => undefined);
-		await fs.rm(workDir, { recursive: true, force: true });
+		await fs.rm(workDir, { force: true, recursive: true });
 	}
 }
 

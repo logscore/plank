@@ -5,17 +5,17 @@ import { POST as markWatchedRoute } from "../routes/api/media/[id]/watched/+serv
 import { db } from "./setup";
 
 const testUser = {
-	id: "media-user",
-	name: "Media User",
 	email: "media@example.com",
 	emailVerified: true,
+	id: "media-user",
+	name: "Media User",
 };
 
 const testOrg = {
+	createdAt: new Date(),
 	id: "media-org",
 	name: "Media Org",
 	slug: "media-org",
-	createdAt: new Date(),
 };
 
 beforeEach(() => {
@@ -25,43 +25,43 @@ beforeEach(() => {
 
 function createShowHierarchy() {
 	const show = mediaDb.create({
-		userId: testUser.id,
 		organizationId: testOrg.id,
-		type: "show",
 		title: "Unified Show",
 		totalSeasons: 1,
+		type: "show",
+		userId: testUser.id,
 	});
 	const season = seasonsDb.create({
-		mediaId: show.id,
-		seasonNumber: 1,
-		name: "Season 1",
 		episodeCount: 2,
+		mediaId: show.id,
+		name: "Season 1",
+		seasonNumber: 1,
 	});
 	const episodeA = mediaDb.create({
-		userId: testUser.id,
+		displayOrder: 0,
+		episodeNumber: 1,
 		organizationId: testOrg.id,
-		type: "episode",
 		parentId: show.id,
 		seasonId: season.id,
 		seasonNumber: 1,
-		episodeNumber: 1,
-		displayOrder: 0,
-		title: "Pilot",
 		status: "pending",
+		title: "Pilot",
+		type: "episode",
+		userId: testUser.id,
 	});
 	const episodeB = mediaDb.create({
-		userId: testUser.id,
+		displayOrder: 1,
+		episodeNumber: 2,
 		organizationId: testOrg.id,
-		type: "episode",
 		parentId: show.id,
 		seasonId: season.id,
 		seasonNumber: 1,
-		episodeNumber: 2,
-		displayOrder: 1,
-		title: "Second Episode",
 		status: "pending",
+		title: "Second Episode",
+		type: "episode",
+		userId: testUser.id,
 	});
-	return { show, season, episodeA, episodeB };
+	return { episodeA, episodeB, season, show };
 }
 
 describe("unified media model", () => {
@@ -77,60 +77,60 @@ describe("unified media model", () => {
 
 	it("resolves the next episode across a season boundary", () => {
 		const show = mediaDb.create({
-			userId: testUser.id,
 			organizationId: testOrg.id,
-			type: "show",
 			title: "Boundary Show",
 			totalSeasons: 2,
+			type: "show",
+			userId: testUser.id,
 		});
 		const seasonOne = seasonsDb.create({
-			mediaId: show.id,
-			seasonNumber: 1,
-			name: "Season 1",
 			episodeCount: 2,
+			mediaId: show.id,
+			name: "Season 1",
+			seasonNumber: 1,
 		});
 		const seasonTwo = seasonsDb.create({
-			mediaId: show.id,
-			seasonNumber: 2,
-			name: "Season 2",
 			episodeCount: 1,
+			mediaId: show.id,
+			name: "Season 2",
+			seasonNumber: 2,
 		});
 
 		const finalePartOne = mediaDb.create({
-			userId: testUser.id,
+			displayOrder: 0,
+			episodeNumber: 1,
 			organizationId: testOrg.id,
-			type: "episode",
 			parentId: show.id,
 			seasonId: seasonOne.id,
 			seasonNumber: 1,
-			episodeNumber: 1,
-			displayOrder: 0,
-			title: "Episode 1",
 			status: "pending",
+			title: "Episode 1",
+			type: "episode",
+			userId: testUser.id,
 		});
 		const finalePartTwo = mediaDb.create({
-			userId: testUser.id,
+			displayOrder: 1,
+			episodeNumber: 2,
 			organizationId: testOrg.id,
-			type: "episode",
 			parentId: show.id,
 			seasonId: seasonOne.id,
 			seasonNumber: 1,
-			episodeNumber: 2,
-			displayOrder: 1,
-			title: "Episode 2",
 			status: "pending",
+			title: "Episode 2",
+			type: "episode",
+			userId: testUser.id,
 		});
 		const seasonTwoPremiere = mediaDb.create({
-			userId: testUser.id,
+			displayOrder: 0,
+			episodeNumber: 1,
 			organizationId: testOrg.id,
-			type: "episode",
 			parentId: show.id,
 			seasonId: seasonTwo.id,
 			seasonNumber: 2,
-			episodeNumber: 1,
-			displayOrder: 0,
-			title: "Season 2 Premiere",
 			status: "pending",
+			title: "Season 2 Premiere",
+			type: "episode",
+			userId: testUser.id,
 		});
 
 		expect(mediaDb.getNextEpisodeById(finalePartOne.id)?.id).toBe(finalePartTwo.id);
@@ -139,28 +139,28 @@ describe("unified media model", () => {
 
 	it("returns no next episode for the final episode", () => {
 		const show = mediaDb.create({
-			userId: testUser.id,
 			organizationId: testOrg.id,
-			type: "show",
 			title: "Finale Show",
+			type: "show",
+			userId: testUser.id,
 		});
 		const season = seasonsDb.create({
-			mediaId: show.id,
-			seasonNumber: 1,
-			name: "Season 1",
 			episodeCount: 1,
+			mediaId: show.id,
+			name: "Season 1",
+			seasonNumber: 1,
 		});
 		const finale = mediaDb.create({
-			userId: testUser.id,
+			displayOrder: 0,
+			episodeNumber: 1,
 			organizationId: testOrg.id,
-			type: "episode",
 			parentId: show.id,
 			seasonId: season.id,
 			seasonNumber: 1,
-			episodeNumber: 1,
-			displayOrder: 0,
-			title: "Finale",
 			status: "pending",
+			title: "Finale",
+			type: "episode",
+			userId: testUser.id,
 		});
 
 		expect(mediaDb.getNextEpisodeById(finale.id)).toBeNull();
@@ -168,52 +168,52 @@ describe("unified media model", () => {
 
 	it("respects display order when determining the next episode", () => {
 		const show = mediaDb.create({
-			userId: testUser.id,
 			organizationId: testOrg.id,
-			type: "show",
 			title: "Reordered Show",
+			type: "show",
+			userId: testUser.id,
 		});
 		const season = seasonsDb.create({
-			mediaId: show.id,
-			seasonNumber: 1,
-			name: "Season 1",
 			episodeCount: 3,
+			mediaId: show.id,
+			name: "Season 1",
+			seasonNumber: 1,
 		});
 		const firstByDisplayOrder = mediaDb.create({
-			userId: testUser.id,
+			displayOrder: 0,
+			episodeNumber: 2,
 			organizationId: testOrg.id,
-			type: "episode",
 			parentId: show.id,
 			seasonId: season.id,
 			seasonNumber: 1,
-			episodeNumber: 2,
-			displayOrder: 0,
-			title: "Second Numbered Episode",
 			status: "pending",
+			title: "Second Numbered Episode",
+			type: "episode",
+			userId: testUser.id,
 		});
 		const secondByDisplayOrder = mediaDb.create({
-			userId: testUser.id,
+			displayOrder: 1,
+			episodeNumber: 3,
 			organizationId: testOrg.id,
-			type: "episode",
 			parentId: show.id,
 			seasonId: season.id,
 			seasonNumber: 1,
-			episodeNumber: 3,
-			displayOrder: 1,
-			title: "Third Numbered Episode",
 			status: "pending",
+			title: "Third Numbered Episode",
+			type: "episode",
+			userId: testUser.id,
 		});
 		const lastByDisplayOrder = mediaDb.create({
-			userId: testUser.id,
+			displayOrder: 2,
+			episodeNumber: 1,
 			organizationId: testOrg.id,
-			type: "episode",
 			parentId: show.id,
 			seasonId: season.id,
 			seasonNumber: 1,
-			episodeNumber: 1,
-			displayOrder: 2,
-			title: "First Numbered Episode",
 			status: "pending",
+			title: "First Numbered Episode",
+			type: "episode",
+			userId: testUser.id,
 		});
 
 		expect(mediaDb.getNextEpisodeById(firstByDisplayOrder.id)?.id).toBe(secondByDisplayOrder.id);
@@ -258,11 +258,11 @@ describe("unified media model", () => {
 		mediaDb.updatePlayPosition(episodeA.id, 120, 1800);
 		mediaDb.updateLastPlayed(episodeA.id);
 		const locals = {
-			user: { id: testUser.id },
 			session: { activeOrganizationId: testOrg.id },
+			user: { id: testUser.id },
 		} as unknown as App.Locals;
 
-		const response = await markWatchedRoute({ params: { id: episodeA.id }, locals } as never);
+		const response = await markWatchedRoute({ locals, params: { id: episodeA.id } } as never);
 
 		expect(response.status).toBe(204);
 		expect(mediaDb.getRecentlyWatched(testOrg.id).map((item) => item.id)).not.toContain(episodeA.id);

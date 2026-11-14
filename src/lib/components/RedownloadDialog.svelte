@@ -56,7 +56,7 @@
         retrying = true;
         retryError = "";
         try {
-            await retryMutation.mutateAsync({ id: item.id, mode, magnetLink, downloadId });
+            await retryMutation.mutateAsync({ downloadId, id: item.id, magnetLink, mode });
             await onRetried?.(item);
             open = false;
         } catch (error) {

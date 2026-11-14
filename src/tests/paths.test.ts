@@ -36,7 +36,7 @@ describe("media naming", () => {
 		expect(
 			buildEpisodeFileName(
 				"Breaking Bad",
-				{ seasonNumber: 1, episodeNumber: 1, title: "Pilot" },
+				{ episodeNumber: 1, seasonNumber: 1, title: "Pilot" },
 				"breaking.bad.s01e01.mkv"
 			)
 		).toBe("Breaking Bad - S01E01 - Pilot.mkv");
@@ -44,7 +44,7 @@ describe("media naming", () => {
 
 	it("handles missing values when building deterministic episode filenames", () => {
 		expect(
-			buildEpisodeFileName("", { seasonNumber: null, episodeNumber: null, title: "" }, "breaking.bad.s01e01.exe")
+			buildEpisodeFileName("", { episodeNumber: null, seasonNumber: null, title: "" }, "breaking.bad.s01e01.exe")
 		).toBe("Unknown Show - S00E00 - Episode 00.exe");
 	});
 
@@ -73,45 +73,45 @@ describe("media naming", () => {
 
 // --- Library path resolution tests ---
 const testUser = {
-	id: "paths-user",
-	name: "Paths User",
 	email: "paths@example.com",
 	emailVerified: true,
+	id: "paths-user",
+	name: "Paths User",
 };
 
 const testOrg = {
+	createdAt: new Date(),
 	id: "paths-org",
 	name: "Paths Org",
 	slug: "paths-org",
-	createdAt: new Date(),
 };
 
 interface EpisodeSeed {
-	seasonNumber: number;
-	episodeNumber: number;
 	displayOrder: number;
+	episodeNumber: number;
 	filePath: string | null;
+	seasonNumber: number;
 }
 
 function createShowWithEpisodes(options: { title?: string; year?: number | null; episodes?: EpisodeSeed[] }) {
 	const show = mediaDb.create({
-		userId: testUser.id,
 		organizationId: testOrg.id,
-		type: "show",
 		title: options.title ?? "Breaking Bad",
+		type: "show",
+		userId: testUser.id,
 		year: options.year ?? 2008,
 	});
 	for (const episode of options.episodes ?? []) {
 		mediaDb.create({
-			userId: testUser.id,
+			displayOrder: episode.displayOrder,
+			episodeNumber: episode.episodeNumber,
+			filePath: episode.filePath,
 			organizationId: testOrg.id,
-			type: "episode",
 			parentId: show.id,
 			seasonNumber: episode.seasonNumber,
-			episodeNumber: episode.episodeNumber,
-			displayOrder: episode.displayOrder,
 			title: `Episode ${episode.episodeNumber}`,
-			filePath: episode.filePath,
+			type: "episode",
+			userId: testUser.id,
 		});
 	}
 	return show;
@@ -120,42 +120,42 @@ function createShowWithEpisodes(options: { title?: string; year?: number | null;
 describe("movie library paths", () => {
 	it("derives the root from an existing file path, ignoring the title", () => {
 		const root = getMovieLibraryRoot({
+			filePath: "/mnt/movies/Custom Folder Name/Alien.mkv",
 			id: "m1",
 			title: "Alien",
 			year: 1979,
-			filePath: "/mnt/movies/Custom Folder Name/Alien.mkv",
 		});
 		expect(root).toBe("/mnt/movies/Custom Folder Name");
 	});
 
 	it("computes the root under the configured library when there is no file path", () => {
-		const root = getMovieLibraryRoot({ id: "m1", title: "Alien", year: 1979, filePath: null });
+		const root = getMovieLibraryRoot({ filePath: null, id: "m1", title: "Alien", year: 1979 });
 		expect(root).toBe(path.join(PATHS.library, "Alien (1979)"));
 		expect(path.basename(root)).toBe("Alien (1979)");
 	});
 
 	it("omits the year from the directory name when the movie has none", () => {
-		const root = getMovieLibraryRoot({ id: "m1", title: "Akira", year: null, filePath: null });
+		const root = getMovieLibraryRoot({ filePath: null, id: "m1", title: "Akira", year: null });
 		expect(path.basename(root)).toBe("Akira");
 	});
 
 	it("sanitizes illegal filesystem characters in the directory name", () => {
-		const root = getMovieLibraryRoot({ id: "m1", title: "Spider-Man: Homecoming", year: 2017, filePath: null });
+		const root = getMovieLibraryRoot({ filePath: null, id: "m1", title: "Spider-Man: Homecoming", year: 2017 });
 		expect(path.basename(root)).toBe("Spider-Man Homecoming (2017)");
 	});
 
 	it("derives the directory id from the on-disk parent folder, not the title", () => {
 		const id = getMovieLibraryDirectoryId({
+			filePath: "/data/Films/Aliens Directors Cut (1979)/movie.mkv",
 			id: "m1",
 			title: "Alien",
 			year: 1979,
-			filePath: "/data/Films/Aliens Directors Cut (1979)/movie.mkv",
 		});
 		expect(id).toBe("Aliens Directors Cut (1979)");
 	});
 
 	it("falls back to the media id when the title sanitizes to nothing", () => {
-		const id = getMovieLibraryDirectoryId({ id: "fallback-id", title: "???", year: null, filePath: null });
+		const id = getMovieLibraryDirectoryId({ filePath: null, id: "fallback-id", title: "???", year: null });
 		expect(id).toBe("fallback-id");
 	});
 });
@@ -173,7 +173,7 @@ describe("show library paths", () => {
 
 	it("falls back to the computed root when episodes exist but none are on disk", () => {
 		const show = createShowWithEpisodes({
-			episodes: [{ seasonNumber: 1, episodeNumber: 1, displayOrder: 0, filePath: null }],
+			episodes: [{ displayOrder: 0, episodeNumber: 1, filePath: null, seasonNumber: 1 }],
 		});
 		expect(getShowLibraryRoot(show)).toBe(path.join(PATHS.library, "Breaking Bad (2008)"));
 	});
@@ -182,10 +182,10 @@ describe("show library paths", () => {
 		const show = createShowWithEpisodes({
 			episodes: [
 				{
-					seasonNumber: 1,
-					episodeNumber: 1,
 					displayOrder: 0,
+					episodeNumber: 1,
 					filePath: "/srv/tv/Breaking Bad (2008)/Season 01/ep.mkv",
+					seasonNumber: 1,
 				},
 			],
 		});
@@ -195,12 +195,12 @@ describe("show library paths", () => {
 	it("skips episodes without a file path and uses the first one that has it", () => {
 		const show = createShowWithEpisodes({
 			episodes: [
-				{ seasonNumber: 1, episodeNumber: 1, displayOrder: 0, filePath: null },
+				{ displayOrder: 0, episodeNumber: 1, filePath: null, seasonNumber: 1 },
 				{
-					seasonNumber: 2,
-					episodeNumber: 1,
 					displayOrder: 0,
+					episodeNumber: 1,
 					filePath: "/mnt/store/Breaking Bad (2008)/Season 02/e.mkv",
+					seasonNumber: 2,
 				},
 			],
 		});
@@ -210,8 +210,8 @@ describe("show library paths", () => {
 	it("uses the lowest season/episode in order when several episodes are on disk", () => {
 		const show = createShowWithEpisodes({
 			episodes: [
-				{ seasonNumber: 2, episodeNumber: 1, displayOrder: 0, filePath: "/disk-b/Show/Season 02/e.mkv" },
-				{ seasonNumber: 1, episodeNumber: 1, displayOrder: 0, filePath: "/disk-a/Show/Season 01/e.mkv" },
+				{ displayOrder: 0, episodeNumber: 1, filePath: "/disk-b/Show/Season 02/e.mkv", seasonNumber: 2 },
+				{ displayOrder: 0, episodeNumber: 1, filePath: "/disk-a/Show/Season 01/e.mkv", seasonNumber: 1 },
 			],
 		});
 		expect(getShowLibraryRoot(show)).toBe("/disk-a/Show");
@@ -220,7 +220,7 @@ describe("show library paths", () => {
 	it("derives the show directory id from the on-disk folder", () => {
 		const show = createShowWithEpisodes({
 			episodes: [
-				{ seasonNumber: 1, episodeNumber: 1, displayOrder: 0, filePath: "/x/Custom Show Dir/Season 01/e.mkv" },
+				{ displayOrder: 0, episodeNumber: 1, filePath: "/x/Custom Show Dir/Season 01/e.mkv", seasonNumber: 1 },
 			],
 		});
 		expect(getShowLibraryDirectoryId(show)).toBe("Custom Show Dir");
@@ -241,7 +241,7 @@ describe("season and episode paths", () => {
 	it("pads season numbers to two digits and nests them under the show root", () => {
 		const show = createShowWithEpisodes({
 			episodes: [
-				{ seasonNumber: 1, episodeNumber: 1, displayOrder: 0, filePath: "/srv/tv/Show (2020)/Season 01/e.mkv" },
+				{ displayOrder: 0, episodeNumber: 1, filePath: "/srv/tv/Show (2020)/Season 01/e.mkv", seasonNumber: 1 },
 			],
 		});
 		expect(getSeasonLibraryDirectory(show, 2)).toBe("/srv/tv/Show (2020)/Season 02");
@@ -251,7 +251,7 @@ describe("season and episode paths", () => {
 	it("treats a null season as Season 00 and does not truncate 3-digit seasons", () => {
 		const show = createShowWithEpisodes({
 			episodes: [
-				{ seasonNumber: 1, episodeNumber: 1, displayOrder: 0, filePath: "/srv/tv/Show (2020)/Season 01/e.mkv" },
+				{ displayOrder: 0, episodeNumber: 1, filePath: "/srv/tv/Show (2020)/Season 01/e.mkv", seasonNumber: 1 },
 			],
 		});
 		expect(getSeasonLibraryDirectory(show, null)).toBe("/srv/tv/Show (2020)/Season 00");
@@ -265,20 +265,20 @@ describe("season and episode paths", () => {
 
 	it("builds the full episode path: show root + season dir + episode file name", () => {
 		const show = createShowWithEpisodes({
-			title: "Mr Robot",
-			year: 2015,
 			episodes: [
 				{
-					seasonNumber: 2,
-					episodeNumber: 5,
 					displayOrder: 0,
+					episodeNumber: 5,
 					filePath: "/srv/tv/Mr Robot (2015)/Season 02/x.mkv",
+					seasonNumber: 2,
 				},
 			],
+			title: "Mr Robot",
+			year: 2015,
 		});
 		const episodePath = getEpisodeLibraryPath(
 			show,
-			{ title: "eps2.3", seasonNumber: 2, episodeNumber: 5 },
+			{ episodeNumber: 5, seasonNumber: 2, title: "eps2.3" },
 			"mr.robot.s02e05.1080p.mkv"
 		);
 		expect(episodePath).toBe("/srv/tv/Mr Robot (2015)/Season 02/Mr Robot - S02E05 - eps2.3.mkv");
@@ -288,16 +288,16 @@ describe("season and episode paths", () => {
 		const show = createShowWithEpisodes({
 			episodes: [
 				{
-					seasonNumber: 1,
-					episodeNumber: 10,
 					displayOrder: 0,
+					episodeNumber: 10,
 					filePath: "/srv/tv/Breaking Bad (2008)/Season 01/x.mkv",
+					seasonNumber: 1,
 				},
 			],
 		});
 		const episodePath = getEpisodeLibraryPath(
 			show,
-			{ title: "Finale", seasonNumber: 1, episodeNumber: 10 },
+			{ episodeNumber: 10, seasonNumber: 1, title: "Finale" },
 			"source-without-extension"
 		);
 		expect(episodePath).toBe("/srv/tv/Breaking Bad (2008)/Season 01/Breaking Bad - S01E10 - Finale.mp4");
@@ -307,16 +307,16 @@ describe("season and episode paths", () => {
 		const show = createShowWithEpisodes({
 			episodes: [
 				{
-					seasonNumber: 1,
-					episodeNumber: 2,
 					displayOrder: 0,
+					episodeNumber: 2,
 					filePath: "/srv/tv/Breaking Bad (2008)/Season 01/x.mkv",
+					seasonNumber: 1,
 				},
 			],
 		});
 		const episodePath = getEpisodeLibraryPath(
 			show,
-			{ title: "Part 1/2: The End?", seasonNumber: 1, episodeNumber: 2 },
+			{ episodeNumber: 2, seasonNumber: 1, title: "Part 1/2: The End?" },
 			"x.mkv"
 		);
 		expect(path.basename(episodePath)).toBe("Breaking Bad - S01E02 - Part 1 2 The End.mkv");

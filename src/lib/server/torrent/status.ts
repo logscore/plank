@@ -10,31 +10,31 @@ import {
 } from "./client";
 
 export interface DownloadStatusResult {
-	progress: number;
 	downloadSpeed: number;
-	peers: number;
-	status: "idle" | "initializing" | "downloading" | "finalizing" | "complete" | "error";
+	episodeProgress?: Map<number, number>;
 	error?: string;
+	peers: number;
+	progress: number;
+	status: "idle" | "initializing" | "downloading" | "finalizing" | "complete" | "error";
+	totalSize?: number;
 	/** Finalization progress from 0 to 1. Zero unless the status is finalizing. */
 	transcodeProgress: number;
-	episodeProgress?: Map<number, number>;
-	totalSize?: number;
 }
 
 interface AggregatedStats {
+	allComplete: boolean;
+	episodeProgress: Map<number, number>;
+	errors: string[];
+	finalizingCount: number;
+	hasDownloading: boolean;
+	hasError: boolean;
+	hasFinalizing: boolean;
+	hasInitializing: boolean;
+	totalDownloadSpeed: number;
+	totalPeers: number;
 	totalProgress: number;
 	totalSize: number;
 	totalTranscodeProgress: number;
-	finalizingCount: number;
-	totalDownloadSpeed: number;
-	totalPeers: number;
-	hasInitializing: boolean;
-	hasDownloading: boolean;
-	hasFinalizing: boolean;
-	hasError: boolean;
-	allComplete: boolean;
-	errors: string[];
-	episodeProgress: Map<number, number>;
 }
 
 function collectEpisodeProgress(download: ActiveDownload, episodeProgress: Map<number, number>): void {
@@ -51,19 +51,19 @@ function collectEpisodeProgress(download: ActiveDownload, episodeProgress: Map<n
 
 function aggregateDownloadStats(downloads: ActiveDownload[]): AggregatedStats {
 	const result: AggregatedStats = {
+		allComplete: true,
+		episodeProgress: new Map<number, number>(),
+		errors: [],
+		finalizingCount: 0,
+		hasDownloading: false,
+		hasError: false,
+		hasFinalizing: false,
+		hasInitializing: false,
+		totalDownloadSpeed: 0,
+		totalPeers: 0,
 		totalProgress: 0,
 		totalSize: 0,
 		totalTranscodeProgress: 0,
-		finalizingCount: 0,
-		totalDownloadSpeed: 0,
-		totalPeers: 0,
-		hasInitializing: false,
-		hasDownloading: false,
-		hasFinalizing: false,
-		hasError: false,
-		allComplete: true,
-		errors: [],
-		episodeProgress: new Map<number, number>(),
 	};
 
 	for (const download of downloads) {
@@ -117,14 +117,14 @@ function buildDownloadStatus(downloads: ActiveDownload[]): DownloadStatusResult 
 	const transcodeProgress =
 		status === "finalizing" && stats.finalizingCount > 0 ? stats.totalTranscodeProgress / stats.finalizingCount : 0;
 	return {
-		progress: stats.allComplete ? 1 : overallProgress,
 		downloadSpeed: stats.totalDownloadSpeed,
-		peers: stats.totalPeers,
-		status,
-		transcodeProgress,
-		error: stats.errors.length > 0 ? stats.errors.join("; ") : undefined,
 		episodeProgress: stats.episodeProgress.size > 0 ? stats.episodeProgress : undefined,
+		error: stats.errors.length > 0 ? stats.errors.join("; ") : undefined,
+		peers: stats.totalPeers,
+		progress: stats.allComplete ? 1 : overallProgress,
+		status,
 		totalSize: stats.totalSize,
+		transcodeProgress,
 	};
 }
 
@@ -136,9 +136,9 @@ export function getDownloadStatus(mediaId: string): DownloadStatusResult | null 
 	if (downloads.length === 0) {
 		if (mediaItem?.status === "complete") {
 			return {
-				progress: 1,
 				downloadSpeed: 0,
 				peers: 0,
+				progress: 1,
 				status: "complete",
 				transcodeProgress: 0,
 			};
@@ -208,6 +208,7 @@ export async function waitForVideoReady(mediaId: string, fileIndex?: number, tim
 			return true;
 		}
 
+		// biome-ignore lint/performance/noAwaitInLoops: polling loop, each wait must finish before the next check
 		await new Promise((resolve) => setTimeout(resolve, 500));
 	}
 

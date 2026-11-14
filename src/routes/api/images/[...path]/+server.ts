@@ -52,12 +52,13 @@ export const GET: RequestHandler = async ({ params }) => {
 
 		return new Response(file, {
 			headers: {
-				"Content-Type": contentType,
 				// Cache for a long time since images are content-addressed or immutable usually
 				"Cache-Control": "private, max-age=31536000, immutable.",
+				"Content-Type": contentType,
 			},
 		});
-	} catch (_e) {
+	} catch {
+		// biome-ignore lint/style/useErrorCause: SvelteKit error() has no cause option
 		throw error(404, "Not Found");
 	}
 };

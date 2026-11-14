@@ -14,8 +14,8 @@ describe("TMDB Service", () => {
 	describe("settings integration", () => {
 		it("uses TMDB API key from env when DB setting is empty", async () => {
 			(global.fetch as any).mockResolvedValue({
-				ok: true,
 				json: async () => ({ results: [] }),
+				ok: true,
 			});
 
 			await tmdb.searchMovie("Test");
@@ -27,8 +27,8 @@ describe("TMDB Service", () => {
 		it("uses TMDB API key from DB over env", async () => {
 			await updateSettings({ tmdbApiKey: "db-tmdb-api-key" });
 			(global.fetch as any).mockResolvedValue({
-				ok: true,
 				json: async () => ({ results: [] }),
+				ok: true,
 			});
 
 			await tmdb.searchMovie("Test");
@@ -44,18 +44,18 @@ describe("TMDB Service", () => {
 			const mockResponse = {
 				results: [
 					{
-						id: 100,
-						title: "Test Movie",
-						release_date: "2020-01-01",
-						poster_path: "/poster.jpg",
 						backdrop_path: "/backdrop.jpg",
+						id: 100,
 						overview: "Overview",
+						poster_path: "/poster.jpg",
+						release_date: "2020-01-01",
+						title: "Test Movie",
 					},
 				],
 			};
 			(global.fetch as any).mockResolvedValue({
-				ok: true,
 				json: async () => mockResponse,
+				ok: true,
 			});
 
 			const results = await tmdb.searchMovie("Test");
@@ -69,8 +69,8 @@ describe("TMDB Service", () => {
 
 		it("should handle empty results", async () => {
 			(global.fetch as any).mockResolvedValue({
-				ok: true,
 				json: async () => ({ results: [] }),
+				ok: true,
 			});
 			const results = await tmdb.searchMovie("Nothing");
 			expect(results).toHaveLength(0);
@@ -80,15 +80,13 @@ describe("TMDB Service", () => {
 	describe("getMovieDetails", () => {
 		it("should fetch details and certification", async () => {
 			const mockMovie = {
-				id: 100,
-				title: "Test Movie",
-				release_date: "2020-01-01",
-				poster_path: "/poster.jpg",
 				backdrop_path: "/backdrop.jpg",
-				overview: "Overview",
-				runtime: 120,
 				genres: [{ id: 1, name: "Action" }],
+				id: 100,
 				original_language: "en",
+				overview: "Overview",
+				poster_path: "/poster.jpg",
+				release_date: "2020-01-01",
 				release_dates: {
 					results: [
 						{
@@ -97,9 +95,11 @@ describe("TMDB Service", () => {
 						},
 					],
 				},
+				runtime: 120,
+				title: "Test Movie",
 			};
 
-			(global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockMovie });
+			(global.fetch as any).mockResolvedValueOnce({ json: async () => mockMovie, ok: true });
 
 			const details = await tmdb.getMovieDetails(100);
 
@@ -116,52 +116,52 @@ describe("TMDB Service", () => {
 			fetchMock.mockResolvedValue(
 				Response.json({
 					page: 2,
-					total_pages: 4,
-					total_results: 3,
 					results: [
 						{
-							id: 1,
-							title: "Adult",
 							adult: true,
-							release_date: "2010-01-01",
 							genre_ids: [28],
-							vote_average: 9,
+							id: 1,
 							popularity: 100,
+							release_date: "2010-01-01",
+							title: "Adult",
+							vote_average: 9,
 						},
 						{
+							adult: false,
+							genre_ids: [28],
 							id: 2,
-							title: "Low rated",
-							adult: false,
-							release_date: "2012-01-01",
-							genre_ids: [28],
-							vote_average: 6,
 							popularity: 90,
+							release_date: "2012-01-01",
+							title: "Low rated",
+							vote_average: 6,
 						},
 						{
-							id: 3,
-							title: "Visible",
 							adult: false,
-							release_date: "2015-01-01",
 							genre_ids: [28],
-							vote_average: 8,
+							id: 3,
 							popularity: 80,
+							release_date: "2015-01-01",
+							title: "Visible",
+							vote_average: 8,
 						},
 					],
+					total_pages: 4,
+					total_results: 3,
 				})
 			);
 
 			const result = await tmdb.searchTmdbCatalog({
-				query: "",
-				page: 2,
 				filters: {
-					scope: "catalog",
+					genres: ["action"],
 					media: "movie",
 					rating: 7,
+					scope: "catalog",
+					sort: "rating",
 					yearFrom: 2000,
 					yearTo: 2020,
-					genres: ["action"],
-					sort: "rating",
 				},
+				page: 2,
+				query: "",
 			});
 
 			const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
@@ -195,19 +195,19 @@ describe("TMDB Service", () => {
 			const mockResponse = {
 				results: [
 					{
+						backdrop_path: "/backdrop.jpg",
+						first_air_date: "2020-01-01",
 						id: 200,
 						name: "Test Show",
-						first_air_date: "2020-01-01",
-						poster_path: "/poster.jpg",
-						backdrop_path: "/backdrop.jpg",
-						overview: "Overview",
 						number_of_seasons: 5,
+						overview: "Overview",
+						poster_path: "/poster.jpg",
 					},
 				],
 			};
 			(global.fetch as any).mockResolvedValue({
-				ok: true,
 				json: async () => mockResponse,
+				ok: true,
 			});
 
 			const results = await tmdb.searchTVShow("Test");
@@ -221,12 +221,6 @@ describe("TMDB Service", () => {
 
 		it("getTVDetails should fetch details and ratings", async () => {
 			const mockShow = {
-				id: 200,
-				name: "Test Show",
-				first_air_date: "2020-01-01",
-				number_of_seasons: 5,
-				episode_run_time: [30],
-				genres: [{ id: 1, name: "Comedy" }],
 				content_ratings: {
 					results: [
 						{
@@ -235,9 +229,15 @@ describe("TMDB Service", () => {
 						},
 					],
 				},
+				episode_run_time: [30],
+				first_air_date: "2020-01-01",
+				genres: [{ id: 1, name: "Comedy" }],
+				id: 200,
+				name: "Test Show",
+				number_of_seasons: 5,
 			};
 
-			(global.fetch as any).mockResolvedValueOnce({ ok: true, json: async () => mockShow });
+			(global.fetch as any).mockResolvedValueOnce({ json: async () => mockShow, ok: true });
 
 			const details = await tmdb.getTVDetails(200);
 
@@ -250,14 +250,14 @@ describe("TMDB Service", () => {
 		it("getTVSeasons should fetch seasons", async () => {
 			const mockShow = {
 				seasons: [
-					{ season_number: 0, name: "Specials", episode_count: 5 },
-					{ season_number: 1, name: "Season 1", episode_count: 10 },
+					{ episode_count: 5, name: "Specials", season_number: 0 },
+					{ episode_count: 10, name: "Season 1", season_number: 1 },
 				],
 			};
 
 			(global.fetch as any).mockResolvedValue({
-				ok: true,
 				json: async () => mockShow,
+				ok: true,
 			});
 
 			const seasons = await tmdb.getTVSeasons(200);
@@ -269,17 +269,17 @@ describe("TMDB Service", () => {
 
 		it("getSeasonDetails should fetch episodes", async () => {
 			const mockSeason = {
-				season_number: 1,
-				name: "Season 1",
 				episodes: [
 					{ episode_number: 1, name: "Pilot", overview: "Intro" },
 					{ episode_number: 2, name: "Ep 2", overview: "Next" },
 				],
+				name: "Season 1",
+				season_number: 1,
 			};
 
 			(global.fetch as any).mockResolvedValue({
-				ok: true,
 				json: async () => mockSeason,
+				ok: true,
 			});
 
 			const details = await tmdb.getSeasonDetails(200, 1);
@@ -291,18 +291,18 @@ describe("TMDB Service", () => {
 
 		it("getSeasonDetailsWithExternalIds should include episode imdb ids", async () => {
 			const mockSeason = {
-				season_number: 1,
-				name: "Season 1",
 				episodes: [
-					{ id: 1001, episode_number: 1, name: "Pilot", overview: "Intro" },
-					{ id: 1002, episode_number: 2, name: "Ep 2", overview: "Next" },
+					{ episode_number: 1, id: 1001, name: "Pilot", overview: "Intro" },
+					{ episode_number: 2, id: 1002, name: "Ep 2", overview: "Next" },
 				],
+				name: "Season 1",
+				season_number: 1,
 			};
 
 			(global.fetch as any)
-				.mockResolvedValueOnce({ ok: true, json: async () => mockSeason })
-				.mockResolvedValueOnce({ ok: true, json: async () => ({ imdb_id: "tt1001" }) })
-				.mockResolvedValueOnce({ ok: true, json: async () => ({ imdb_id: "tt1002" }) });
+				.mockResolvedValueOnce({ json: async () => mockSeason, ok: true })
+				.mockResolvedValueOnce({ json: async () => ({ imdb_id: "tt1001" }), ok: true })
+				.mockResolvedValueOnce({ json: async () => ({ imdb_id: "tt1002" }), ok: true });
 
 			const details = await tmdb.getSeasonDetailsWithExternalIds(200, 1);
 
@@ -316,35 +316,35 @@ describe("TMDB Service", () => {
 	describe("Trending", () => {
 		it("getTrending should parse results", async () => {
 			const mockResponse = {
+				page: 1,
 				results: [
 					{
-						id: 1,
-						title: "Movie",
-						media_type: "movie",
 						genre_ids: [28],
+						id: 1,
+						media_type: "movie",
 						poster_path: "/p.jpg",
+						title: "Movie",
 					},
 					{
-						id: 2,
-						name: "Show",
-						media_type: "show",
 						genre_ids: [35],
+						id: 2,
+						media_type: "show",
+						name: "Show",
 						poster_path: "/p.jpg",
 					},
 					{
 						id: 3,
-						name: "Person",
 						media_type: "person",
+						name: "Person",
 						poster_path: "/person.jpg",
 					},
 				],
-				page: 1,
 				total_pages: 10,
 			};
 
 			(global.fetch as any).mockResolvedValue({
-				ok: true,
 				json: async () => mockResponse,
+				ok: true,
 			});
 
 			const result = await tmdb.getTrending();
@@ -368,8 +368,8 @@ describe("TMDB Service", () => {
 
 		it("getMovieDetails should throw on invalid response", async () => {
 			(global.fetch as any).mockResolvedValue({
-				ok: true,
 				json: async () => ({}), // Missing ID
+				ok: true,
 			});
 
 			await expect(tmdb.getMovieDetails(999)).rejects.toThrow("Invalid TMDB response");
@@ -410,7 +410,7 @@ describe("TMDB Service", () => {
 			});
 
 			const result = await tmdb.getBrowseItemDetails(1, "movie");
-			expect(result).toEqual({ imdbId: null, certification: null });
+			expect(result).toEqual({ certification: null, imdbId: null });
 		});
 
 		it("getBrowseItemDetails should parse movie release dates", async () => {
@@ -427,8 +427,8 @@ describe("TMDB Service", () => {
 			};
 
 			(global.fetch as any).mockResolvedValue({
-				ok: true,
 				json: async () => mockData,
+				ok: true,
 			});
 
 			const result = await tmdb.getBrowseItemDetails(1, "movie");
@@ -438,15 +438,15 @@ describe("TMDB Service", () => {
 
 		it("getBrowseItemDetails should parse TV content ratings", async () => {
 			const mockData = {
-				external_ids: { imdb_id: "tt456" },
 				content_ratings: {
 					results: [{ iso_3166_1: "US", rating: "TV-MA" }],
 				},
+				external_ids: { imdb_id: "tt456" },
 			};
 
 			(global.fetch as any).mockResolvedValue({
-				ok: true,
 				json: async () => mockData,
+				ok: true,
 			});
 
 			const result = await tmdb.getBrowseItemDetails(1, "show");

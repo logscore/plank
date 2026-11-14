@@ -15,18 +15,18 @@ export const load: PageServerLoad = async ({ depends, params, locals }) => {
 
 	return {
 		media: mediaItem,
-		progress: getMediaProgressSnapshot(params.id, organizationId),
 		nextEpisode: nextEpisode
 			? {
-					id: nextEpisode.id,
-					title: nextEpisode.title,
-					seasonNumber: nextEpisode.seasonNumber,
-					episodeNumber: nextEpisode.episodeNumber,
-					stillPath: nextEpisode.stillPath,
 					backdropUrl: nextEpisode.backdropUrl,
+					episodeNumber: nextEpisode.episodeNumber,
+					id: nextEpisode.id,
 					posterUrl: nextEpisode.posterUrl,
+					seasonNumber: nextEpisode.seasonNumber,
+					stillPath: nextEpisode.stillPath,
+					title: nextEpisode.title,
 				}
 			: null,
+		progress: getMediaProgressSnapshot(params.id, organizationId),
 		subtitleTracks: await getSubtitleTracksForMedia(mediaItem),
 	};
 };

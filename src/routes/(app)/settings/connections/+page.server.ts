@@ -16,13 +16,13 @@ export const load: PageServerLoad = async ({ parent }) => {
 
 	return {
 		settings: {
-			tmdb: { apiKey: settings.tmdb.apiKey },
+			opensubtitles: settings.opensubtitles,
 			prowlarr: {
-				url: settings.prowlarr.url,
 				apiKey: settings.prowlarr.apiKey,
 				minSeeders: settings.prowlarr.minSeeders,
+				url: settings.prowlarr.url,
 			},
-			opensubtitles: settings.opensubtitles,
+			tmdb: { apiKey: settings.tmdb.apiKey },
 		},
 	};
 };
@@ -74,22 +74,21 @@ function parseMinSeeders(value: string | undefined): number {
 }
 
 export const actions: Actions = {
-	tmdb: (event) =>
-		saveConnection(event, (formData) => ({
-			tmdbApiKey: formData.get("tmdbApiKey")?.toString() || "",
-		})),
-
 	opensubtitles: (event) =>
 		saveConnection(event, (formData) => ({
 			opensubtitlesApiKey: formData.get("opensubtitlesApiKey")?.toString() || "",
-			opensubtitlesUsername: formData.get("opensubtitlesUsername")?.toString() || "",
 			opensubtitlesPassword: formData.get("opensubtitlesPassword")?.toString() || "",
+			opensubtitlesUsername: formData.get("opensubtitlesUsername")?.toString() || "",
 		})),
 
 	prowlarr: (event) =>
 		saveConnection(event, (formData) => ({
-			prowlarrUrl: formData.get("prowlarrUrl")?.toString() || "",
 			prowlarrApiKey: formData.get("prowlarrApiKey")?.toString() || "",
 			prowlarrMinSeeders: parseMinSeeders(formData.get("prowlarrMinSeeders")?.toString()),
+			prowlarrUrl: formData.get("prowlarrUrl")?.toString() || "",
+		})),
+	tmdb: (event) =>
+		saveConnection(event, (formData) => ({
+			tmdbApiKey: formData.get("tmdbApiKey")?.toString() || "",
 		})),
 };

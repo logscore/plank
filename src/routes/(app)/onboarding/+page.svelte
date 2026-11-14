@@ -72,8 +72,8 @@
         try {
             const result = await authClient.organization.inviteMember({
                 email: inviteEmail,
-                role: "member",
                 organizationId,
+                role: "member",
             });
 
             if (result.error) {
