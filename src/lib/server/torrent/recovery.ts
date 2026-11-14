@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { mediaDb } from "../db";
 import { isSupportedFormat } from "../ffmpeg";
+import { finalizationProgress } from "../media-progress";
 import {
 	buildMovieFileName,
 	getEpisodeLibraryPath,
@@ -34,8 +35,11 @@ export async function finalizeFromTemp(mediaId: string, videoPath: string, fileN
 		destPath = getEpisodeLibraryPath(show, mediaItem, fileName);
 	}
 
+	finalizationProgress.set(mediaId, 0);
 	try {
-		const finalized = await finalizeMediaToLibrary(videoPath, destPath);
+		const finalized = await finalizeMediaToLibrary(videoPath, destPath, (progress) => {
+			finalizationProgress.set(mediaId, progress);
+		});
 
 		if (mediaItem.type === "episode") {
 			mediaDb.updateFileInfo(mediaId, {
@@ -59,6 +63,8 @@ export async function finalizeFromTemp(mediaId: string, videoPath: string, fileN
 	} catch (e) {
 		console.error(`[Recovery] [${mediaId}] Failed to finalize from temp:`, e);
 		return false;
+	} finally {
+		finalizationProgress.delete(mediaId);
 	}
 }
 

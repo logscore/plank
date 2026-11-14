@@ -4,7 +4,7 @@
 import type { QueueEntry, QueueEpisode } from "$lib/types";
 import { assert } from "$lib/utils";
 import { mediaDb, type QueueRow } from "./db";
-import { getResolvedProgress, getResolvedStatus } from "./media-progress";
+import { finalizationProgress, getResolvedProgress, getResolvedStatus } from "./media-progress";
 import { parseMagnet } from "./torrent/files";
 import { getDownloadStatus, getDownloadStatusByInfohash } from "./torrent/status";
 
@@ -156,7 +156,7 @@ function withLiveStats(entry: QueueEntry): QueueEntry {
 		peers: download?.peers ?? 0,
 		progress: entry.downloadId === null ? getResolvedProgress(entry.media) : (download?.progress ?? entry.progress),
 		status: entry.downloadId === null ? getResolvedStatus(entry.media) : (download?.status ?? entry.status),
-		transcodeProgress: download?.transcodeProgress ?? 0,
+		transcodeProgress: finalizationProgress.get(entry.media.id) ?? download?.transcodeProgress ?? 0,
 	};
 }
 

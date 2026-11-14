@@ -5,6 +5,8 @@ import type { Media } from "$lib/server/db/schema";
 import { mediaDb } from "./db";
 import { getDownloadStatus } from "./torrent/status";
 
+export const finalizationProgress = new Map<string, number>();
+
 export interface MediaProgressSnapshot {
 	downloadSpeed: number;
 	fileSize?: number | null;
@@ -31,7 +33,7 @@ function getEpisodeProgress(mediaItem: Media): number | null {
 }
 
 export function getResolvedProgress(mediaItem: Media): number {
-	if (mediaItem.filePath || mediaItem.status === "complete") {
+	if (finalizationProgress.has(mediaItem.id) || mediaItem.filePath || mediaItem.status === "complete") {
 		return 1;
 	}
 	const episodeProgress = getEpisodeProgress(mediaItem);
@@ -42,6 +44,9 @@ export function getResolvedProgress(mediaItem: Media): number {
 }
 
 export function getResolvedStatus(mediaItem: Media): string {
+	if (finalizationProgress.has(mediaItem.id)) {
+		return "finalizing";
+	}
 	if (mediaItem.filePath || mediaItem.status === "complete") {
 		return "complete";
 	}
@@ -71,6 +76,6 @@ export function getMediaProgressSnapshot(mediaId: string, organizationId?: strin
 		peers: downloadStatus?.peers ?? 0,
 		progress: getResolvedProgress(mediaItem),
 		status,
-		transcodeProgress: downloadStatus?.transcodeProgress ?? 0,
+		transcodeProgress: finalizationProgress.get(mediaId) ?? downloadStatus?.transcodeProgress ?? 0,
 	};
 }
