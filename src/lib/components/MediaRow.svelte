@@ -60,7 +60,7 @@
     }
 
     function statusLabel(status: string | null): string {
-        if (status === "complete" || media.filePath) {
+        if (status === "complete" || (media.filePath && status !== "finalizing")) {
             return "Downloaded";
         }
         switch (status) {
@@ -82,7 +82,7 @@
     }
 
     function statusClass(status: string | null): string {
-        if (status === "complete" || media.filePath) {
+        if (status === "complete" || (media.filePath && status !== "finalizing")) {
             return "bg-emerald-500 text-emerald-100";
         }
         switch (status) {

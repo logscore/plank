@@ -4,7 +4,7 @@
 import type { QueueEntry, QueueEpisode } from "$lib/types";
 import { assert } from "$lib/utils";
 import { mediaDb, type QueueRow } from "./db";
-import { getResolvedProgress, getResolvedStatus } from "./media-progress";
+import { finalizationProgress, getResolvedProgress, getResolvedStatus } from "./media-progress";
 import { parseMagnet } from "./torrent/files";
 import { getDownloadStatus, getDownloadStatusByInfohash } from "./torrent/status";
 
@@ -151,7 +151,7 @@ function withLiveStats(entry: QueueEntry): QueueEntry {
 		progress: entry.downloadId === null ? getResolvedProgress(entry.media) : (download?.progress ?? entry.progress),
 		downloadSpeed: download?.downloadSpeed ?? 0,
 		peers: download?.peers ?? 0,
-		transcodeProgress: download?.transcodeProgress ?? 0,
+		transcodeProgress: finalizationProgress.get(entry.media.id) ?? download?.transcodeProgress ?? 0,
 		episodes: entry.episodes.map((episode) => {
 			const key = episodeKey(episode);
 			const live = key === null ? undefined : liveEpisodes?.get(key);
