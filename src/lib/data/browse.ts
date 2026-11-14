@@ -1,4 +1,4 @@
-import { createInfiniteQuery, createMutation } from "@tanstack/svelte-query";
+import { createInfiniteQuery, createMutation, createQuery } from "@tanstack/svelte-query";
 import { invalidate } from "$app/navigation";
 import { type CatalogFilters, DEFAULT_CATALOG_FILTERS, serializeCatalogSearch } from "$lib/data/search";
 import type { BrowseItem, SeasonSummary } from "$lib/server/tmdb";
@@ -18,7 +18,33 @@ const browseKeys = {
 	details: (tmdbIds: number[]) => ["browse", "details", ...tmdbIds.toSorted()] as const,
 	resolve: (tmdbId: number) => ["browse", "resolve", tmdbId] as const,
 	seasons: (tmdbId: number) => ["browse", "seasons", tmdbId] as const,
+	recommendations: (target: RecommendationTarget | null) => ["browse", "recommendations", target] as const,
 };
+
+/** A title to find similar ones for. Leave unset for the profile's own "for you" rows. */
+export interface RecommendationTarget {
+	tmdbId: number;
+	type: "movie" | "show";
+}
+
+export interface RecommendationsResponse {
+	rows: { title: string; items: BrowseItem[] }[];
+}
+
+export function createRecommendationsQuery(target: () => RecommendationTarget | null) {
+	return createQuery(() => ({
+		queryKey: browseKeys.recommendations(target()),
+		queryFn: () => {
+			const t = target();
+			const params = t ? `?tmdbId=${t.tmdbId}&type=${t.type}` : "";
+			return apiRequest<RecommendationsResponse>(
+				`/api/browse/recommendations${params}`,
+				"Failed to fetch recommendations"
+			);
+		},
+		staleTime: BROWSE_STALE_TIME_MS,
+	}));
+}
 
 export interface BrowseResponse {
 	items: BrowseItem[];
