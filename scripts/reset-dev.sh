@@ -12,7 +12,7 @@ usage() {
     echo "Usage: scripts/reset-dev.sh [--yes] [--include-media]"
     echo
     echo "  --yes            Skip confirmation prompt"
-    echo "  --include-media  Also remove repo-local ./media if it exists"
+    echo "  --include-media  Also remove Docker volumes and repo-local ./media"
 }
 
 for arg in "$@"; do
@@ -40,9 +40,11 @@ confirm() {
         return 0
     fi
 
-    echo "This will remove Docker dev/prod containers, named volumes, and local build artifacts."
+    echo "This will remove Docker dev/prod containers and local build artifacts."
     if [ "$INCLUDE_MEDIA" = true ]; then
-        echo "It will also delete the repo-local media directory."
+        echo "It will also delete Docker volumes (including saved files) and the repo-local media directory."
+    else
+        echo "Docker volumes, including saved files, will be kept."
     fi
     printf "Continue? [y/N] "
     read -r reply
@@ -62,7 +64,11 @@ run_compose_down() {
         return 0
     fi
 
-    docker compose -f "$compose_file" down --volumes --remove-orphans || true
+    if [ "$INCLUDE_MEDIA" = true ]; then
+        docker compose -f "$compose_file" down --volumes --remove-orphans || true
+    else
+        docker compose -f "$compose_file" down --remove-orphans || true
+    fi
 }
 
 remove_path() {

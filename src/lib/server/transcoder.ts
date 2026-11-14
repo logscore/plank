@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { mediaDb } from "./db";
 import { normalizeFileForPlayback, probeFile, requiresBrowserSafePlayback } from "./ffmpeg";
@@ -90,32 +91,35 @@ export async function finalizeMediaToLibrary(
 		`${path.basename(finalPath, path.extname(finalPath))}.finalizing${path.extname(finalPath)}`
 	);
 
-	if (existsSync(tempPath)) {
+	const workDir = await fs.mkdtemp(path.join(tmpdir(), "plank-finalize-"));
+	const preparedPath = needsNormalization ? path.join(workDir, path.basename(finalPath)) : sourcePath;
+	try {
+		if (needsNormalization) {
+			await normalizeFileForPlayback(sourcePath, preparedPath, onProgress);
+		}
+		if (!(await verifyFileIntegrity(preparedPath))) {
+			throw new Error(`Finalized file is invalid: ${preparedPath}`);
+		}
+		if (!(await isDirectPlaybackReady(preparedPath))) {
+			throw new Error(`Finalized file is not browser-safe: ${preparedPath}`);
+		}
+
+		await fs.rm(tempPath, { force: true });
+		await fs.copyFile(preparedPath, tempPath);
+		await fs.rename(tempPath, finalPath);
+		const file = await fs.open(finalPath, "r+");
+		try {
+			await file.sync();
+		} finally {
+			await file.close();
+		}
+		const stats = await fs.stat(finalPath);
+		onProgress?.(1);
+		return { filePath: finalPath, fileSize: stats.size };
+	} finally {
 		await fs.unlink(tempPath).catch(() => undefined);
+		await fs.rm(workDir, { recursive: true, force: true });
 	}
-
-	if (needsNormalization) {
-		await normalizeFileForPlayback(sourcePath, tempPath, onProgress);
-	} else {
-		await fs.copyFile(sourcePath, tempPath);
-	}
-
-	const isValid = await verifyFileIntegrity(tempPath);
-	if (!isValid) {
-		await fs.unlink(tempPath).catch(() => undefined);
-		throw new Error(`Finalized file is invalid: ${tempPath}`);
-	}
-
-	if (!(await isDirectPlaybackReady(tempPath))) {
-		await fs.unlink(tempPath).catch(() => undefined);
-		throw new Error(`Finalized file is not browser-safe: ${tempPath}`);
-	}
-
-	await fs.rename(tempPath, finalPath);
-	const stats = await fs.stat(finalPath);
-	onProgress?.(1);
-
-	return { filePath: finalPath, fileSize: stats.size };
 }
 
 async function normalizeMediaForPlayback(mediaId: string): Promise<string | null> {
@@ -173,35 +177,15 @@ async function shouldNormalizeFile(filePath: string | null): Promise<boolean> {
 }
 
 async function safeNormalize(sourcePath: string, updateDb: (path: string, size: number) => void): Promise<void> {
-	const directory = path.dirname(sourcePath);
-	const name = path.basename(sourcePath, path.extname(sourcePath));
-	const tempPath = path.join(directory, `${name}.transcoding.mp4`);
-	const finalPath = path.join(directory, `${name}.mp4`);
 	try {
-		await normalizeFileForPlayback(sourcePath, tempPath);
-		const isValid = await verifyFileIntegrity(tempPath);
-		if (!isValid) {
-			console.error(`[Transcoder] Transmuxed file corrupt: ${tempPath}`);
-			await fs.unlink(tempPath).catch(() => undefined);
-			return;
-		}
-		if (!(await isDirectPlaybackReady(tempPath))) {
-			console.error(`[Transcoder] Finalized file is not browser-safe: ${tempPath}`);
-			await fs.unlink(tempPath).catch(() => undefined);
-			return;
-		}
-		await fs.rename(tempPath, finalPath);
-		const stats = await fs.stat(finalPath);
-		updateDb(finalPath, stats.size);
-		if (sourcePath !== finalPath) {
+		const finalized = await finalizeMediaToLibrary(sourcePath, sourcePath);
+		updateDb(finalized.filePath, finalized.fileSize);
+		if (sourcePath !== finalized.filePath) {
 			await fs
 				.unlink(sourcePath)
 				.catch((error) => console.warn(`Failed to delete original: ${sourcePath}`, error));
 		}
 	} catch (error) {
 		console.error(`[Transcoder] Failed to transmux ${sourcePath}:`, error);
-		if (existsSync(tempPath)) {
-			await fs.unlink(tempPath).catch(() => undefined);
-		}
 	}
 }

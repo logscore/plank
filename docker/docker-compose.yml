@@ -32,8 +32,7 @@ services:
       - PROWLARR_CONFIG_PATH=/prowlarr-config/config.xml
     volumes:
       - plank-db:/app/db
-      - plank-data:/app/data
-      - ${MEDIA_PATH:-./media}:/app/data/library
+      - ${STORAGE_SOURCE:-plank-data}:/app/data
       # Share Prowlarr config for API key extraction
       - prowlarr-config:/prowlarr-config:ro
     depends_on:

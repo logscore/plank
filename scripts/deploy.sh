@@ -126,13 +126,11 @@ setup_env() {
         PROWLARR_URL=http://prowlarr:9696
         FLARESOLVERR_URL=http://flaresolverr:8191
 
-        DEFAULT_MEDIA_PATH="$(pwd)/media"
-        read -p "Enter Media Library Path [${DEFAULT_MEDIA_PATH}]: " MEDIA_PATH
-        MEDIA_PATH=${MEDIA_PATH:-$DEFAULT_MEDIA_PATH}
+        read -p "Enter Saved Files Host Path (leave blank for a Docker volume): " STORAGE_SOURCE
     else
         DATABASE_URL="$(pwd)/plank.db"
         DATA_PATH="$(pwd)/data"
-        MEDIA_PATH=
+        STORAGE_SOURCE=
 
         read -p "Enter Prowlarr URL [http://localhost:9696]: " PROWLARR_URL
         PROWLARR_URL=${PROWLARR_URL:-http://localhost:9696}
@@ -163,7 +161,7 @@ DATABASE_URL=$(env_value "$DATABASE_URL")
 
 # Storage
 DATA_PATH=$(env_value "$DATA_PATH")
-MEDIA_PATH=$(env_value "$MEDIA_PATH")
+STORAGE_SOURCE=$(env_value "$STORAGE_SOURCE")
 
 # TMDB
 TMDB_API_KEY=$(env_value "$TMDB_API_KEY")

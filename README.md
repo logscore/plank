@@ -104,11 +104,8 @@ Look it up yourself, you filthy animal
 Update your `.env` file with these essential variables:
 
 ```bash
-# Database
-DATABASE_URL=./data/plank.db
-
-# Where the files are saved when downloaded
-DATA_PATH=./data
+# Optional Docker host folder; blank uses the persistent plank-data Docker volume
+STORAGE_SOURCE=
 
 # Get yours here https://www.themoviedb.org/settings/api
 TMDB_API_KEY=your_tmdb_api_key_here
@@ -260,6 +257,18 @@ cp .env.example .env
 docker compose -f docker/docker-compose.yml --env-file .env up -d
 ```
 
+Saved files use the persistent `plank-data` Docker volume at `/app/data` by default. 
+
+Plank supports using S3 as a file system via AWS S3 Files, JuiceFS-like services, and Rclone mounts. See our [docmentation](https://plank-docs.lsreeder.com/guides/remote-storage) for deployment instructions. To use the mount for media storage, change this variable in the `.env`:
+
+```dotenv
+STORAGE_SOURCE=/mnt/path/to/storage
+```
+
+The folder must already exist and allow UID 1000 read/write access. Mount any remote filesystem before starting Plank.
+
+> No matter which you decide to use, internal Docker paths remain the same.
+
 ### Bare Metal
 
 ```bash
@@ -273,12 +282,15 @@ npx drizzle-kit migrate
 node build
 ```
 
+You will need to run Prowlarr, and Flaresolverr as separate services on the machine or in their own deployments. You can use Plank without them, but will not be able to download media from the search or browse pages.
+
 ## Environment Variables
 
 | Variable                 | Description                                                                         | Default                 |
 | ------------------------ | ----------------------------------------------------------------------------------- | ----------------------- |
 | `DATABASE_URL`           | Path to SQLite database                                                             | `./data/plank.db`       |
-| `DATA_PATH`              | Where downloaded files are saved                                                    | `./data`                |
+| `DATA_PATH`              | Saved-files root for bare metal; Docker fixes this to `/app/data`                    | `./data`                |
+| `STORAGE_SOURCE`         | Optional Docker host folder for saved files; replaces the default volume mount       | `plank-data` Docker volume |
 | `TMDB_API_KEY`           | TMDB API key for metadata ([get one here](https://www.themoviedb.org/settings/api)) | -                       |
 | `PROWLARR_URL`           | Prowlarr API URL                                                                    | `http://localhost:9696` |
 | `PUBLIC_PROWLARR_URL`    | Public-facing Prowlarr URL                                                          | Same as `PROWLARR_URL`  |
@@ -291,6 +303,8 @@ node build
 | `PORT`                   | Server port                                                                         | `3300`                  |
 | `ORIGIN`                 | Public URL for CSRF (Docker)                                                        | `http://localhost:3300` |
 
+Torrent downloads and video conversion use local temporary storage, independently of `DATA_PATH`. Finished videos are validated locally, copied to a `.finalizing` file in the library, renamed, and flushed before the download is removed. The OS temp directory respects `TMPDIR`; use a local disk with enough free space for both the download and converted output. A filesystem flush only provides the persistence guarantees of the mount; SeaweedFS asynchronous cloud replication still depends on its own configuration. Old partial downloads under `DATA_PATH/temp` are not migrated.
+
 ## Development
 
 We develop in Docker containers with live reloads. It keeps the dev environment and production closely knit so writing code that runs everywhere is easier.
@@ -300,5 +314,7 @@ Fill in your `.env` then run:
 ```bash
 ./scripts/dev.sh
 ```
+
+Development uses the same `STORAGE_SOURCE` setting and a separate saved-files volume. Its database stays at `data/plank.db` on the host, mounted at `/app/db/plank.db`.
 
 ## [License](./LICENSE)

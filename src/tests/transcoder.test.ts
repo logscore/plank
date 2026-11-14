@@ -1,8 +1,12 @@
 import { existsSync } from "node:fs";
 import * as fs from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mediaDb } from "../lib/server/db";
 import { finalizeMediaToLibrary, transcodeLibrary } from "../lib/server/transcoder";
+
+const file = vi.hoisted(() => ({ sync: vi.fn(), close: vi.fn() }));
 
 vi.mock("node:fs/promises");
 vi.mock("node:fs");
@@ -46,6 +50,11 @@ describe("library transcoder", () => {
 		vi.mocked(fs.rename).mockResolvedValue(undefined);
 		vi.mocked(fs.mkdir).mockResolvedValue(undefined);
 		vi.mocked(fs.copyFile).mockResolvedValue(undefined);
+		vi.mocked(fs.mkdtemp).mockResolvedValue("/local-temp/plank-finalize-test");
+		vi.mocked(fs.rm).mockResolvedValue(undefined);
+		vi.mocked(fs.open).mockResolvedValue(file as never);
+		file.sync.mockResolvedValue(undefined);
+		file.close.mockResolvedValue(undefined);
 	});
 
 	it("normalizes non-mp4 movies and episodes into mp4 files", async () => {
@@ -82,7 +91,33 @@ describe("library transcoder", () => {
 
 		await finalizeMediaToLibrary("/temp/pilot.mkv", "/library/pilot.mkv", onProgress);
 
+		expect(fs.mkdtemp).toHaveBeenCalledWith(path.join(tmpdir(), "plank-finalize-"));
+		expect(normalizeFileForPlayback).toHaveBeenCalledWith(
+			"/temp/pilot.mkv",
+			"/local-temp/plank-finalize-test/pilot.mp4",
+			onProgress
+		);
+		expect(fs.copyFile).toHaveBeenCalledWith(
+			"/local-temp/plank-finalize-test/pilot.mp4",
+			"/library/pilot.finalizing.mp4"
+		);
+		expect(fs.rm).toHaveBeenCalledWith("/local-temp/plank-finalize-test", { recursive: true, force: true });
 		expect(onProgress.mock.calls).toEqual([[0], [0.4], [1]]);
+	});
+
+	it("copies a ready download to the library before renaming it to the final filename", async () => {
+		await finalizeMediaToLibrary("/temp/movie.mp4", "/library/movie.mp4");
+
+		expect(fs.copyFile).toHaveBeenCalledWith("/temp/movie.mp4", "/library/movie.finalizing.mp4");
+		expect(probeFile).toHaveBeenCalledWith("/temp/movie.mp4");
+		expect(fs.rename).toHaveBeenCalledWith("/library/movie.finalizing.mp4", "/library/movie.mp4");
+		expect(fs.copyFile).toHaveBeenCalledBefore(vi.mocked(fs.rename));
+		expect(probeFile).toHaveBeenCalledBefore(vi.mocked(fs.rename));
+		expect(fs.open).toHaveBeenCalledWith("/library/movie.mp4", "r+");
+		expect(fs.rename).toHaveBeenCalledBefore(file.sync);
+		expect(file.sync).toHaveBeenCalledOnce();
+		expect(file.close).toHaveBeenCalledOnce();
+		expect(normalizeFileForPlayback).not.toHaveBeenCalled();
 	});
 
 	it("does not report completion when finalization fails", async () => {
@@ -94,5 +129,29 @@ describe("library transcoder", () => {
 		);
 		expect(onProgress.mock.calls).toEqual([[0]]);
 		expect(vi.mocked(fs.rename)).not.toHaveBeenCalled();
+		expect(vi.mocked(fs.copyFile)).not.toHaveBeenCalled();
+	});
+
+	it("keeps the source and does not publish a file when copying to storage fails", async () => {
+		vi.mocked(fs.copyFile).mockRejectedValueOnce(new Error("Storage unavailable"));
+		const onProgress = vi.fn();
+
+		await expect(finalizeMediaToLibrary("/temp/movie.mp4", "/library/movie.mp4", onProgress)).rejects.toThrow(
+			"Storage unavailable"
+		);
+		expect(fs.rename).not.toHaveBeenCalled();
+		expect(fs.unlink).not.toHaveBeenCalledWith("/temp/movie.mp4");
+		expect(onProgress.mock.calls).toEqual([[0]]);
+	});
+
+	it("does not report completion when storage cannot persist the final file", async () => {
+		file.sync.mockRejectedValueOnce(new Error("Upload failed"));
+		const onProgress = vi.fn();
+
+		await expect(finalizeMediaToLibrary("/temp/movie.mp4", "/library/movie.mp4", onProgress)).rejects.toThrow(
+			"Upload failed"
+		);
+		expect(file.close).toHaveBeenCalledOnce();
+		expect(onProgress.mock.calls).toEqual([[0]]);
 	});
 });

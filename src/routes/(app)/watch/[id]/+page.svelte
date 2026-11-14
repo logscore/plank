@@ -9,12 +9,12 @@
     import { onDestroy, onMount } from "svelte";
     import type { MediaPlayerElement } from "vidstack/elements";
     import { browser } from "$app/environment";
+    import { goto } from "$app/navigation";
     import { connectMediaProgressStream } from "$lib/client/media-progress-stream";
     import PlayerSubtitleMenu from "$lib/components/PlayerSubtitleMenu.svelte";
     import { createSavePositionMutation } from "$lib/data/media";
     import type { ProgressInfo } from "$lib/types";
     import { isTerminalProgressStatus } from "$lib/utils";
-    import { goto } from "$app/navigation";
 
     let { data } = $props();
     let currentMediaId = $state("");

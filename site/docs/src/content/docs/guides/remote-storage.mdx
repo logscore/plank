@@ -1,0 +1,297 @@
+---
+title: Using Plank with Remote Storage
+description: How to store your media on remote storage backends.
+---
+
+Plank does not directly support uploads to blob storage like AWS S3, or Backblaze B2. Plank expects and requires a POSIX file system for things like seeking a video in a player while streaming. This usually comes from the host or the default Docker volume.
+
+However, if you're on a storage limited device like a old laptop, then you have a few options for POSIX file systems with remote storage backing.
+
+This guide will go over basic setup and mounting for these services and the pros and cons of each. There are many many ways to use these services, and this guide will not go over them all. Please consult documentation for more details on your deployment.
+
+## Before you start
+
+Use a stable Linux distro, a dedicated bucket, and credentials with list/read/write/delete access. Replace the bucket, endpoint, region, and credential placeholders. Disable automatic expiration of live filesystem objects.
+
+Run setup as root, using a new, empty mount directory:
+
+```bash
+sudo -i
+apt-get update
+apt-get install -y ca-certificates curl fuse3 jq gnupg unzip
+install -d -o root -g root -m 0555 /mnt/plank-storage
+```
+
+Plank's Docker user is `1000:1000`; the mount must allow it to read and write. Stop Plank before changing mounts. After setting up one backend, [connect it to Plank](#connect-the-mount-to-plank).
+
+## AWS S3 Files
+
+This is a new service provided by AWS itself. It provides a metadata and caching layer on top of the S3 backing and exposes a POSIX system for you to interact with.
+
+For those wanting to just set and forget, and dont care about price, this is probably your best option.
+
+### Setup and mounting
+
+1. Create an S3 general purpose bucket with **versioning enabled** and an Ubuntu EC2 instance in the same Region/VPC. Set up the instance's IAM permissions and security groups (TCP `2049`) using the [AWS prerequisites](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-files-prereq-policies.html).
+
+2. In the S3 console, open the bucket's **File systems** tab → **Create file system**. Select the VPC and a mount target in the instance's Availability Zone. Wait until available. See the [console walkthrough](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-files-getting-started.html).
+
+3. On EC2, install the S3 Files client (`amazon-efs-utils` **3.0.0+**):
+
+   ```bash
+   curl -fsSL https://amazon-efs-utils.aws.com/efs-utils-installer.sh | sh -s -- --install
+   ```
+
+4. Choose **Attach**, select the instance, and use the generated mount command with `/mnt/plank-storage`. Without an access point:
+
+   ```bash
+   mount -t s3files fs-YOUR_ID:/ /mnt/plank-storage
+   chown 1000:1000 /mnt/plank-storage
+   ```
+
+   Use the generated access-point options if applicable, and allow UID/GID `1000:1000` access. See [mounting and boot-time mounts](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-files-mounting.html). Changes sync to S3 asynchronously.
+
+## GeeseFS and TigrisFS
+
+GeeseFS is the file system and caching layer on top of S3 storage from the team at Yandex (they do Clickhouse), TigrisFS is a fork of the project with their own optimizations on top.
+
+If you want, you can sign up for either companies managed services which offer more features on top like symlinks, and file system permissions. They are not needed for this, so you can just self host it with an S3 backend of your choice.
+
+### 1. Install one client
+
+For [GeeseFS](https://github.com/yandex-cloud/geesefs), install the Linux binary (`amd64` below; use `arm64` on ARM):
+
+```bash
+curl -fL https://github.com/yandex-cloud/geesefs/releases/latest/download/geesefs-linux-amd64 \
+  -o /usr/local/bin/geesefs
+chmod 0755 /usr/local/bin/geesefs
+```
+
+For **TigrisFS**, use its [official installer](https://github.com/tigrisdata/tigrisfs#installation) instead:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tigrisdata/tigrisfs/refs/heads/main/install.sh | bash
+```
+
+### 2. Configure credentials
+
+Add this profile to `/root/.aws/credentials`, preserving existing profiles:
+
+```bash
+install -d -m 0700 /root/.aws
+touch /root/.aws/credentials
+chmod 0600 /root/.aws/credentials
+```
+
+```ini
+[plank-storage]
+aws_access_key_id = YOUR_ACCESS_KEY
+aws_secret_access_key = YOUR_SECRET_KEY
+```
+
+### 3. Mount the bucket
+
+```bash
+install -d -m 0700 /var/cache/plank-s3
+geesefs -f --profile plank-storage \
+  --endpoint https://s3.us-east-1.amazonaws.com --region us-east-1 \
+  --uid 1000 --gid 1000 --setuid 0 --setgid 0 -o allow_other \
+  --cache /var/cache/plank-s3 --memory-limit 256 --fsync-on-close \
+  YOUR_BUCKET /mnt/plank-storage
+```
+
+For **TigrisFS**, replace `geesefs` with `tigrisfs`. For Tigris storage, use endpoint `https://t3.storage.dev` and its specified region.
+
+Leave the mount running in this terminal. `--fsync-on-close` persists writes on close; keep it enabled. The memory limit does not cap disk usage. See the [GeeseFS flags](https://github.com/yandex-cloud/geesefs/blob/master/core/cfg/flags.go) and [TigrisFS flags](https://github.com/tigrisdata/tigrisfs/blob/main/core/cfg/flags.go).
+
+Use one writer/mount for this setup; independent mounts are not a coordinated shared filesystem.
+
+## JuiceFS
+
+JuiceFS is considered the defacto service for this kind of use case. Its performant and scales well. WHile its often overkill for what we need, if you ar etruely running petabytes of media through the system, this is a great option, but a bit more complex.
+
+This example uses [standalone mode](https://juicefs.com/docs/community/getting-started/standalone/): local SQLite metadata and cache, with file data in S3.
+
+### 1. Install and prepare local storage
+
+```bash
+curl -fsSL https://d.juicefs.com/install | sh -
+install -d -m 0700 /var/lib/plank-juicefs /var/cache/plank-juicefs
+```
+
+### 2. Create the filesystem once
+
+Use a new bucket. JuiceFS stores its own object format and won't import existing bucket files.
+
+```bash
+read -r -p 'S3 access key: ' ACCESS_KEY
+read -r -s -p 'S3 secret key: ' SECRET_KEY
+printf '\n'
+export ACCESS_KEY SECRET_KEY
+juicefs format --storage s3 \
+  --bucket https://YOUR_BUCKET.s3.us-east-1.amazonaws.com \
+  'sqlite3:///var/lib/plank-juicefs/metadata.db?_sync=FULL' plank
+unset ACCESS_KEY SECRET_KEY
+```
+
+For other providers, use their [JuiceFS bucket URL](https://juicefs.com/docs/community/reference/how_to_set_up_object_storage/).
+
+### 3. Mount it
+
+```bash
+juicefs mount -d -o allow_other \
+  --cache-dir /var/cache/plank-juicefs --cache-size 10240 \
+  'sqlite3:///var/lib/plank-juicefs/metadata.db?_sync=FULL' /mnt/plank-storage
+chown 1000:1000 /mnt/plank-storage
+```
+
+This sets a 10 GiB read cache. Keep [`_sync=FULL`](https://juicefs.com/docs/community/databases_for_metadata/) on every mount so SQLite commits survive a power failure.
+
+**Back up the metadata database** using [JuiceFS's backup procedure](https://juicefs.com/docs/community/metadata_dump_load/). The bucket alone cannot recover your files. Keep this database local and private; it contains storage credentials. Do not share it between hosts.
+
+For restarts, see [Mount JuiceFS at Boot Time](https://juicefs.com/docs/community/mount_juicefs_at_boot_time/).
+
+## ZeroFS
+
+The new Rust kid on the block. ZeroFS takes a different approach and doesnt require a database to back its metadata and filing system. It writes that data directly to S3 itself.
+
+It is simpler than options like JuiceFS and serves the files via [NFS](https://en.wikipedia.org/wiki/Network_File_System), [9P](https://en.wikipedia.org/wiki/9P_(protocol)), and [NBD](https://en.wikipedia.org/wiki/Network_block_device)
+
+This example runs the server and bundled FUSE client on the Plank host. Use a new bucket or unused prefix; existing objects won't be imported. See the [quickstart](https://www.zerofs.net/docs/quickstart).
+
+### 1. Install the native package
+
+```bash
+curl -fsSL https://pkgs.zerofs.net/zerofs.gpg \
+  | gpg --dearmor -o /usr/share/keyrings/zerofs.gpg
+echo 'deb [signed-by=/usr/share/keyrings/zerofs.gpg] https://pkgs.zerofs.net/deb stable main' \
+  > /etc/apt/sources.list.d/zerofs.list
+apt-get update
+apt-get install -y zerofs
+```
+
+The [package](https://github.com/Barre/ZeroFS/blob/main/packaging/README.md) includes the service and `/etc/zerofs` configuration.
+
+### 2. Configure storage and credentials
+
+Edit `/etc/zerofs/zerofs.env` (root-owned, mode `0600`):
+
+```ini
+ZEROFS_PASSWORD=YOUR_LONG_RANDOM_PASSWORD
+AWS_ACCESS_KEY_ID=YOUR_ACCESS_KEY
+AWS_SECRET_ACCESS_KEY=YOUR_SECRET_KEY
+```
+
+**Back up `ZEROFS_PASSWORD` separately.** It is required for recovery.
+
+Set `/etc/zerofs/config.toml`:
+
+```toml
+[cache]
+dir = "/var/cache/zerofs"
+disk_size_gb = 10.0
+memory_size_gb = 0.25
+
+[storage]
+url = "s3://YOUR_BUCKET/plank"
+encryption_password = "${ZEROFS_PASSWORD}"
+
+[aws]
+access_key_id = "${AWS_ACCESS_KEY_ID}"
+secret_access_key = "${AWS_SECRET_ACCESS_KEY}"
+region = "us-east-1"
+endpoint = "https://s3.us-east-1.amazonaws.com"
+
+[servers.ninep]
+addresses = ["127.0.0.1:5564"]
+```
+
+See the [configuration reference](https://www.zerofs.net/docs/configuration) for other providers.
+
+### 3. Start the server and mount it
+
+```bash
+systemctl enable --now zerofs
+zerofs mount --access all 127.0.0.1:5564 /mnt/plank-storage
+```
+
+Leave the mount running. In another root terminal:
+
+```bash
+chown 1000:1000 /mnt/plank-storage
+```
+
+This uses the [bundled 9P FUSE client](https://www.zerofs.net/docs/9p-access), without a custom kernel module.
+
+## Rclone Mount
+
+By far the simplest way to deploy that isnt just paying for a service.
+
+### 1. Install and configure an S3 remote
+
+```bash
+curl -fsSL https://rclone.org/install.sh | bash
+install -d -m 0700 /etc/rclone /var/cache/plank-rclone
+rclone config --config /etc/rclone/plank.conf
+```
+
+Create a remote named `plank-s3`, select **Amazon S3 Compliant Storage Providers**, and enter your [provider's settings](https://rclone.org/s3/). Then protect the configuration:
+
+```bash
+chmod 0600 /etc/rclone/plank.conf
+```
+
+### 2. Mount with a local VFS cache
+
+```bash
+rclone mount plank-s3:YOUR_BUCKET /mnt/plank-storage \
+  --config /etc/rclone/plank.conf \
+  --allow-other --uid 1000 --gid 1000 \
+  --cache-dir /var/cache/plank-rclone \
+  --vfs-cache-mode full --vfs-cache-max-size 10G \
+  --vfs-cache-min-free-space 5G --vfs-write-back 5s
+```
+
+Leave the mount running. **Uploads happen in the background; don't delete the cache while uploads are pending.** Its size can exceed the target limits. Restart with the same configuration and cache to retry pending uploads.
+
+See [Rclone's mount documentation](https://rclone.org/commands/rclone_mount/) and [systemd setup](https://rclone.org/commands/rclone_mount/#systemd).
+
+## Connect the mount to Plank
+
+Use another terminal after mounting:
+
+1. Confirm the mount is active. Stop if this fails:
+
+  ```bash
+  mountpoint -q /mnt/plank-storage
+  ```
+
+2. In the Plank checkout, set this in `.env`:
+
+   ```ini
+   STORAGE_SOURCE=/mnt/plank-storage
+   ```
+
+   This maps the host directory to `/app/data`. Leave it unset for the default Docker volume. Changing it does **not** migrate existing files. For bare metal, set `DATA_PATH` instead and keep `DATABASE_URL` outside the mount.
+
+3. Start Plank, then test a small download, playback, seeking, subtitles, and deletion:
+
+   ```bash
+   docker compose --env-file .env -f docker/docker-compose.yml up -d
+   ```
+
+### Restarts and outages
+
+For unattended use, run the mount client as a host service. Start the mount before Plank; Compose's restart policy doesn't wait for it. ZeroFS needs both its server and client.
+
+After a remount, recreate Plank with `docker compose --env-file .env -f docker/docker-compose.yml up -d --force-recreate plank` so its [bind mount](https://docs.docker.com/engine/storage/bind-mounts/#configure-bind-propagation) sees the restored filesystem. Before unmounting, stop Plank and let pending uploads finish.
+
+## Proxmox and LXC
+
+Mount on Proxmox and [bind it into the LXC](https://github.com/proxmox/pve-docs/blob/master/pct.adoc). On the Proxmox host, with container `123` stopped and `mp0` unused:
+
+```bash
+pct set 123 -mp0 /mnt/plank-storage,mp=/mnt/plank-storage
+```
+
+Mount before starting the LXC. Set `STORAGE_SOURCE` to the path inside the LXC. For unprivileged LXCs, adjust ownership for the container's UID mapping. Bind-mounted data needs its own backup; LXC backups don't include it.

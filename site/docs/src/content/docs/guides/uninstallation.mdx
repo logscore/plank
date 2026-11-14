@@ -38,6 +38,6 @@ rm -rf plank
 
 ## Cleaning Up Data
 
-Downloaded media is stored in the `data/` directory (or wherever `DATA_PATH` points). The database is at `plank.db` (or wherever `DATABASE_URL` points). Both are inside the project folder by default, so removing the folder removes everything.
+Downloaded media is stored in the `plank-data` volume (or wherever `STORAGE_SOURCE` points)
 
-If you changed `DATA_PATH` or `DATABASE_URL` to point elsewhere, remove those locations manually.
+The docker volume is automatically removed with the above command, but you will need to tear down your mount points manually if setup.

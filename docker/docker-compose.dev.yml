@@ -13,7 +13,7 @@ services:
       - "6881:6881/udp"
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=/app/data/plank.db
+      - DATABASE_URL=/app/db/plank.db
       - TMDB_API_KEY=${TMDB_API_KEY}
       - DATA_PATH=/app/data
       # Internal Docker network URLs (always use service names)
@@ -36,7 +36,8 @@ services:
     volumes:
       - ..:/app
       - /app/node_modules
-      - ../data:/app/data
+      - ../data:/app/db
+      - ${STORAGE_SOURCE:-plank-data}:/app/data
       - prowlarr-config:/prowlarr-config:ro
     command: npm run dev -- --host
     depends_on:
@@ -72,4 +73,5 @@ services:
     restart: unless-stopped
 
 volumes:
+  plank-data:
   prowlarr-config:

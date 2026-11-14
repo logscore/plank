@@ -43,7 +43,7 @@ COPY --from=build /app/src/lib/server/db/schema.ts ./src/lib/server/db/schema.ts
 COPY --from=build /app/docker/entrypoint.sh ./docker/entrypoint.sh
 COPY --from=build /app/docker/configure-prowlarr.sh ./docker/configure-prowlarr.sh
 
-RUN mkdir -p /app/db /app/data/library /app/data/temp && \
+RUN mkdir -p /app/db /app/data/library && \
     chmod +x /app/docker/entrypoint.sh /app/docker/configure-prowlarr.sh && \
     chown -R node:node /app
 

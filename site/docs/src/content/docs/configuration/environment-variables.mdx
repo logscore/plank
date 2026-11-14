@@ -3,15 +3,13 @@ title: Environment Variables
 description: Full reference of Plank environment variables.
 ---
 
-All environment variables are set in the `.env` file at the root of the project. Copy `.env.example` to `.env` to get started.
+All environment variables are set in the `.env` file at the root of the project. Copy `.env.example` to `.env` to get started. Dev variables are commented out.
 
 ## Core
 
 | Variable | Description | Default |
 |---|---|---|
 | `PORT` | Port the server listens on | `3300` |
-| `DATABASE_URL` | Path to the SQLite database file | `./data/plank.db` |
-| `DATA_PATH` | Directory where downloaded media is saved | `./data` |
 
 ## Authentication
 
@@ -31,7 +29,6 @@ All environment variables are set in the `.env` file at the root of the project.
 | Variable | Description | Default |
 |---|---|---|
 | `PROWLARR_URL` | URL of your Prowlarr instance | `http://localhost:9696` |
-| `PUBLIC_PROWLARR_URL` | Public-facing Prowlarr URL (if behind a reverse proxy) | Same as `PROWLARR_URL` |
 | `PROWLARR_API_KEY` | Prowlarr API key. Auto-configured in Docker -- leave blank. | (none) |
 
 ## OpenSubtitles
@@ -44,18 +41,16 @@ All environment variables are set in the `.env` file at the root of the project.
 
 ## Docker-Only
 
-These are set in `docker-compose.yml` and generally don't need to be changed.
-
 | Variable | Description | Default |
 |---|---|---|
-| `HOST` | Bind address | `0.0.0.0` |
-| `ORIGIN` | Public URL for CSRF protection | `http://localhost:3300` |
+| `HOST` | Bind address. Leave as is if exposing publicly | `0.0.0.0` |
+| `ORIGIN` | Public URL for CSRF protection. Set to your real URL if exposing publicly. | `http://localhost:3300` |
 | `PROWLARR_CONFIG_PATH` | Path to Prowlarr config inside the container | `/prowlarr-config/config.xml` |
 | `FLARESOLVERR_URL` | FlareSolverr URL | `http://flaresolverr:8191` |
-| `MEDIA_PATH` | Host path for media library mount | `./media` |
-| `TZ` | Timezone for containers | `America/New_York` |
+| `STORAGE_SOURCE` | Optional host folder for saved files, replacing the default `/app/data` volume mount | `plank-data` Docker volume |
 
-## Other
+Leave `STORAGE_SOURCE` unset or blank for the persistent `plank-data` Docker volume. Set it to an absolute host folder such as `/mnt/storage` to use that folder instead.
 
-| Variable | Description | Default |
-|---|---|---|
+See [Using Plank with Remote Storage](/guides/remote-storage/) for S3-backed filesystem setup guides.
+
+SQLite and media processing stay on local storage. Switching `STORAGE_SOURCE` does not move files automatically. We do not support automatic migrations yet.

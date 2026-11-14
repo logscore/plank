@@ -1,3 +1,4 @@
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { mediaDb } from "$lib/server/db";
@@ -16,6 +17,14 @@ import {
 	PATHS,
 } from "$lib/server/paths";
 import { db } from "./setup";
+
+describe("storage paths", () => {
+	it("stages downloads in the system temp directory independently of DATA_PATH", () => {
+		expect(PATHS.temp).toBe(path.join(tmpdir(), "plank"));
+		expect(PATHS.temp).not.toBe(path.join(PATHS.data, "temp"));
+		expect(PATHS.library).toBe(`${PATHS.data}/library`);
+	});
+});
 
 describe("media naming", () => {
 	it("builds deterministic movie filenames", () => {

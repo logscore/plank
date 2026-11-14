@@ -2,6 +2,7 @@
 // for movies, shows, seasons, and episodes.
 // FEATURE: Shared filesystem layout for media storage, naming, and cleanup behavior
 
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { env } from "$env/dynamic/private";
 import { mediaDb } from "./db";
@@ -143,6 +144,6 @@ export const PATHS = {
 		return `${this.data}/library`;
 	},
 	get temp() {
-		return `${this.data}/temp`;
+		return path.join(tmpdir(), "plank");
 	},
 };
