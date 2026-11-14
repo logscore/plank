@@ -1,8 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { nanoid } from "nanoid";
+import type { Media } from "$lib/server/db/schema";
 import type { OpenSubtitleResult } from "$lib/types";
+import { mediaDb } from "./db";
 import { sanitizeFilename } from "./images";
-import { PATHS } from "./paths";
+import { getMovieLibraryRoot, getSeasonLibraryDirectory } from "./paths";
 import { getSettings } from "./settings";
 
 const BASE_URL = "https://api.opensubtitles.com/api/v1";
@@ -290,7 +293,24 @@ export async function searchSubtitles(params: OpenSubtitlesSearchParams): Promis
 // Download
 // ============================================================================
 
-export async function downloadSubtitle(fileId: number, mediaId: string): Promise<{ filePath: string }> {
+export async function downloadSubtitle(
+	fileId: number,
+	media: Pick<Media, "id" | "type" | "title" | "year" | "filePath" | "parentId" | "seasonNumber" | "episodeNumber">,
+	language: string
+): Promise<{ filePath: string }> {
+	let libraryDir: string;
+	if (media.filePath) {
+		libraryDir = path.dirname(media.filePath);
+	} else if (media.type === "episode") {
+		const show = media.parentId ? mediaDb.getById(media.parentId) : undefined;
+		if (!show) {
+			throw new Error("Episode's show not found");
+		}
+		libraryDir = getSeasonLibraryDirectory(show, media.seasonNumber);
+	} else {
+		libraryDir = getMovieLibraryRoot(media);
+	}
+
 	const apiKey = await getApiKey();
 	if (!apiKey) {
 		throw new Error("OpenSubtitles API key not configured");
@@ -321,20 +341,19 @@ export async function downloadSubtitle(fileId: number, mediaId: string): Promise
 	const content = await fileResponse.text();
 
 	// Step 3: Save to disk
-	const subtitleDir = path.join(PATHS.library, sanitizeFilename(mediaId), "subtitles");
+	const subtitleDir = path.join(libraryDir, "subtitles");
 	await fs.mkdir(subtitleDir, { recursive: true });
 
-	// Use a unique filename based on the original plus a timestamp
-	const baseName = path.basename(downloadInfo.file_name, path.extname(downloadInfo.file_name));
-	const safeName = sanitizeFilename(baseName);
-	const fileName = `${safeName}_${Date.now()}.srt`;
+	const episodePrefix = media.type === "episode" ? `E${String(media.episodeNumber ?? 0).padStart(2, "0")}_` : "";
+	const safeName = `${episodePrefix}${sanitizeFilename(getLanguageName(language))}_${nanoid()}`;
+	const fileName = `${safeName}.srt`;
 	const filePath = path.join(subtitleDir, fileName);
 
 	await fs.writeFile(filePath, content, "utf-8");
 
 	// Step 4: Convert to VTT if needed (SRT is most common from OpenSubtitles)
 	const { convertSubtitleToVtt } = await import("./ffmpeg");
-	const vttFileName = `${safeName}_${Date.now()}.vtt`;
+	const vttFileName = `${safeName}.vtt`;
 	const vttPath = path.join(subtitleDir, vttFileName);
 
 	try {

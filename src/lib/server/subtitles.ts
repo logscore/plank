@@ -3,7 +3,6 @@ import path from "node:path";
 import type { Media } from "$lib/server/db/schema";
 import type { SubtitleTrackResponse } from "$lib/types";
 import { subtitlesDb } from "./db";
-import { PATHS } from "./paths";
 
 const SIDECAR_EXTENSIONS = [".srt", ".ass", ".ssa", ".vtt", ".sub"];
 
@@ -57,10 +56,6 @@ function parseLanguageFromFilename(fileName: string): { language: string; label:
 	return { language: "und", label: "Unknown" };
 }
 
-function getSubtitleDir(mediaId: string): string {
-	return path.join(PATHS.library, mediaId, "subtitles");
-}
-
 function isSubtitleFile(fileName: string): boolean {
 	return SIDECAR_EXTENSIONS.includes(path.extname(fileName).toLowerCase());
 }
@@ -77,7 +72,6 @@ async function discoverSidecarSubtitles(mediaId: string, libraryDir: string): Pr
 		return;
 	}
 	const existingPaths = new Set(subtitlesDb.getByMediaId(mediaId).map((subtitle) => subtitle.filePath));
-	await fs.mkdir(getSubtitleDir(mediaId), { recursive: true });
 	for (const fileName of subtitleFiles) {
 		const sourcePath = path.join(libraryDir, fileName);
 		if (existingPaths.has(sourcePath)) {
