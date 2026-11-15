@@ -1,10 +1,11 @@
 <script lang="ts">
     import { Loader, RotateCcw, Upload } from "@lucide/svelte";
+    import { getMediaUpload, startMediaUpload } from "$lib/client/media-upload.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
     import Scroller from "$lib/components/ui/Scroller.svelte";
-    import { createMediaSourcesQuery, createRetryMediaMutation, uploadMediaFile } from "$lib/data/media";
+    import { createMediaSourcesQuery, createRetryMediaMutation } from "$lib/data/media";
     import type { Media, SourceCandidate } from "$lib/types";
     import { formatFileSize } from "$lib/utils";
 
@@ -28,11 +29,13 @@
     );
     let manualSource = $state("");
     let retryError = $state("");
-    let retrying = $state(false);
+    let retryingByMediaId = $state<Record<string, boolean | undefined>>({});
     /** Infohash of the release the user just picked, so only that row shows progress. */
     let pendingInfohash = $state("");
-    /** Upload progress from 0 to 1, or null when no upload runs. */
-    let uploadProgress = $state<number | null>(null);
+    const upload = $derived(getMediaUpload(media?.id));
+    const uploadProgress = $derived(upload?.progress ?? null);
+    const retrying = $derived(Boolean(media && retryingByMediaId[media.id]) || uploadProgress !== null);
+    const actionError = $derived(retryError || upload?.error);
     let fileInput = $state<HTMLInputElement | null>(null);
 
     const title = $derived(media ? `Redownload "${media.title || `Episode ${media.episodeNumber}`}"` : "Redownload");
@@ -46,7 +49,7 @@
     const searchError = $derived(sourcesQuery.error && searchResults.length === 0 ? sourcesQuery.error.message : "");
 
     $effect(() => {
-        if (open) {
+        if (open && media?.id) {
             manualSource = "";
             retryError = "";
             pendingInfohash = "";
@@ -58,18 +61,24 @@
             return;
         }
         const item = media;
-        retrying = true;
+        retryingByMediaId[item.id] = true;
         retryError = "";
         try {
             await retryMutation.mutateAsync({ downloadId, id: item.id, magnetLink, mode });
             await onRetried?.(item);
-            open = false;
+            if (media?.id === item.id) {
+                open = false;
+            }
         } catch (error) {
             console.error("Failed to queue redownload:", error);
-            retryError = error instanceof Error ? error.message : "Redownload failed";
+            if (media?.id === item.id) {
+                retryError = error instanceof Error ? error.message : "Redownload failed";
+            }
         } finally {
-            retrying = false;
-            pendingInfohash = "";
+            delete retryingByMediaId[item.id];
+            if (media?.id === item.id) {
+                pendingInfohash = "";
+            }
         }
     }
 
@@ -82,21 +91,18 @@
             return;
         }
         const item = media;
-        retrying = true;
         retryError = "";
-        uploadProgress = 0;
         try {
-            await uploadMediaFile(item.id, file, (progress) => {
-                uploadProgress = progress;
-            });
+            await startMediaUpload(item.id, file);
             await onRetried?.(item);
-            open = false;
+            if (media?.id === item.id) {
+                open = false;
+            }
         } catch (error) {
             console.error("Failed to upload media:", error);
-            retryError = error instanceof Error ? error.message : "Upload failed";
-        } finally {
-            retrying = false;
-            uploadProgress = null;
+            if (media?.id === item.id) {
+                retryError = error instanceof Error ? error.message : "Upload failed";
+            }
         }
     }
 
@@ -249,8 +255,8 @@
             </div>
         </div>
 
-        {#if retryError}
-            <p class="text-sm text-destructive">{retryError}</p>
+        {#if actionError}
+            <p class="text-sm text-destructive">{actionError}</p>
         {/if}
     </div>
 </Dialog>
