@@ -18,25 +18,25 @@
 
     const PACKAGES = [
         {
-            id: "general",
-            name: "General Entertainment",
             description: "Movies & TV (1337x, YTS, The Pirate Bay)",
             icon: "🎬",
+            id: "general",
             indexers: ["1337x", "YTS", "The Pirate Bay"],
+            name: "General Entertainment",
         },
         {
-            id: "anime",
-            name: "Anime Fan",
             description: "Anime (Nyaa.si, AnimeTosho, AniDex)",
             icon: "🎌",
+            id: "anime",
             indexers: ["Nyaa.si", "AnimeTosho", "AniDex"],
+            name: "Anime Fan",
         },
         {
-            id: "show",
-            name: "TV Show Specialists",
             description: "TV Series (EZTV, TorrentGalaxy, TorLock)",
             icon: "📺",
+            id: "show",
             indexers: ["EZTV", "TorrentGalaxy", "TorLock"],
+            name: "TV Show Specialists",
         },
     ];
 
@@ -57,8 +57,8 @@
     const sortedSchemas = $derived([...schemas].sort((a, b) => a.name.localeCompare(b.name)));
     const schemaOptions = $derived(
         sortedSchemas.map((schema) => ({
-            value: schema.name,
             label: `${schema.name} (${schema.protocol || "torrent"})`,
+            value: schema.name,
         }))
     );
     const loadingIndexers = $derived(
@@ -74,13 +74,13 @@
                 return;
             }
             connection = {
-                status: "failed",
                 message: result.message || result.error || "Connection test failed.",
+                status: "failed",
             };
         } catch (error) {
             connection = {
-                status: "failed",
                 message: error instanceof Error ? error.message : "Unable to reach Prowlarr.",
+                status: "failed",
             };
         }
     }
@@ -117,14 +117,15 @@
             }
             const schema = schemas.find((candidate) => candidate.name === indexerName);
             if (!schema) {
-                skippedCount++;
+                skippedCount += 1;
                 continue;
             }
             try {
+                // biome-ignore lint/performance/noAwaitInLoops: add one at a time; Prowlarr tests each indexer when it is added
                 await addIndexerMutation.mutateAsync(schema);
-                addedCount++;
+                addedCount += 1;
             } catch {
-                skippedCount++;
+                skippedCount += 1;
             }
         }
 

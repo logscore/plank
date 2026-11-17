@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 	findVideoFile: vi.fn(),
 	getClient: vi.fn(async () => ({})),
 	getOrAddTorrent: vi.fn(),
-	mediaGetById: vi.fn(() => ({ id: "media-1", type: "movie", tmdbId: 1 })),
+	mediaGetById: vi.fn(() => ({ id: "media-1", tmdbId: 1, type: "movie" })),
 	mediaUpdateProgress: vi.fn(),
 	mkdir: vi.fn(),
 	moveToLibrary: vi.fn(),
@@ -51,8 +51,8 @@ vi.mock("../lib/server/torrent/client", () => ({
 	activeDownloads: mocks.activeDownloads,
 	cleanupDownload: mocks.cleanupDownload,
 	getClient: mocks.getClient,
-	getDownloadsForMedia: vi.fn(() => Array.from(mocks.activeDownloads.values())),
 	getDownloadOwnerMediaId: vi.fn((media: { id: string }) => media.id),
+	getDownloadsForMedia: vi.fn(() => Array.from(mocks.activeDownloads.values())),
 	getOrAddTorrent: mocks.getOrAddTorrent,
 	pendingDownloads: mocks.pendingDownloads,
 	stopClientIfIdle: mocks.stopClientIfIdle,
@@ -156,13 +156,13 @@ describe("torrent finalization", () => {
 	it("destroys torrent resources when library finalization fails", async () => {
 		const torrent = new FakeTorrent();
 		const videoFile = {
+			deselect: vi.fn(),
+			downloaded: 100,
+			length: 100,
 			name: "Movie.mp4",
 			path: "Movie.mp4",
-			length: 100,
-			downloaded: 100,
 			progress: 1,
 			select: vi.fn(),
-			deselect: vi.fn(),
 		};
 		mocks.getOrAddTorrent.mockResolvedValue(torrent);
 		mocks.findVideoFile.mockReturnValue(videoFile);
@@ -184,13 +184,13 @@ describe("torrent finalization", () => {
 	it("cleans up a ready torrent after five minutes without progress", async () => {
 		const torrent = new FakeTorrent();
 		const videoFile = {
+			deselect: vi.fn(),
+			downloaded: 0,
+			length: 100,
 			name: "Movie.mp4",
 			path: "Movie.mp4",
-			length: 100,
-			downloaded: 0,
 			progress: 0,
 			select: vi.fn(),
-			deselect: vi.fn(),
 		};
 		mocks.getOrAddTorrent.mockResolvedValue(torrent);
 		mocks.findVideoFile.mockReturnValue(videoFile);
@@ -206,8 +206,8 @@ describe("torrent finalization", () => {
 
 		const download = mocks.activeDownloads.get("hash-1");
 		expect(download).toMatchObject({
-			status: "error",
 			error: "Download stalled for 5 minutes with no progress",
+			status: "error",
 		});
 		expect(mocks.downloadUpdateProgress).toHaveBeenCalledWith("download-1", 0, "error");
 		expect(mocks.mediaUpdateProgress).toHaveBeenLastCalledWith("media-1", 0, "error");
@@ -220,13 +220,13 @@ describe("torrent finalization", () => {
 		const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 		const torrent = new FakeTorrent();
 		const videoFile = {
+			deselect: vi.fn(),
+			downloaded: 0,
+			length: 100,
 			name: "Movie.mp4",
 			path: "Movie.mp4",
-			length: 100,
-			downloaded: 0,
 			progress: 0,
 			select: vi.fn(),
-			deselect: vi.fn(),
 		};
 		mocks.getOrAddTorrent.mockResolvedValue(torrent);
 		mocks.findVideoFile.mockReturnValue(videoFile);
@@ -256,18 +256,18 @@ describe("torrent finalization", () => {
 		} as unknown as ActiveDownload["torrent"];
 		const first: ActiveDownload = {
 			abortController: new AbortController(),
-			mediaId: "media-1",
+			episodeMapping: new Map(),
 			infohash: "hash-1",
+			mediaId: "media-1",
 			mediaType: "movie",
+			progress: 1,
+			status: "finalizing",
+			subtitleFiles: [],
 			torrent,
+			totalSize: 100,
+			transcodeProgress: 0.25,
 			videoFile: null,
 			videoFiles: [],
-			subtitleFiles: [],
-			episodeMapping: new Map(),
-			progress: 1,
-			transcodeProgress: 0.25,
-			status: "finalizing",
-			totalSize: 100,
 		};
 		const second: ActiveDownload = {
 			...first,

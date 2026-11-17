@@ -17,11 +17,11 @@ describe("Auth / User Schema", () => {
 
 	it("should create a user", () => {
 		const user = {
-			id: "u1",
-			name: "User 1",
+			createdAt: new Date(),
 			email: "u1@example.com",
 			emailVerified: false,
-			createdAt: new Date(),
+			id: "u1",
+			name: "User 1",
 			updatedAt: new Date(),
 		};
 		db.insert(schema.user).values(user).run();
@@ -32,21 +32,21 @@ describe("Auth / User Schema", () => {
 
 	it("should enforce unique email", () => {
 		const user1 = {
-			id: "u1",
-			name: "User 1",
+			createdAt: new Date(),
 			email: "unique@example.com",
 			emailVerified: false,
-			createdAt: new Date(),
+			id: "u1",
+			name: "User 1",
 			updatedAt: new Date(),
 		};
 		db.insert(schema.user).values(user1).run();
 
 		const user2 = {
-			id: "u2",
-			name: "User 2",
+			createdAt: new Date(),
 			email: "unique@example.com", // Duplicate
 			emailVerified: false,
-			createdAt: new Date(),
+			id: "u2",
+			name: "User 2",
 			updatedAt: new Date(),
 		};
 
@@ -57,22 +57,22 @@ describe("Auth / User Schema", () => {
 
 	it("should cascade delete sessions when user is deleted", () => {
 		const user = {
-			id: "u1",
-			name: "User 1",
+			createdAt: new Date(),
 			email: "u1@example.com",
 			emailVerified: false,
-			createdAt: new Date(),
+			id: "u1",
+			name: "User 1",
 			updatedAt: new Date(),
 		};
 		db.insert(schema.user).values(user).run();
 
 		const session = {
-			id: "s1",
-			userId: "u1",
-			token: "t1",
-			expiresAt: new Date(Date.now() + 10_000),
 			createdAt: new Date(),
+			expiresAt: new Date(Date.now() + 10_000),
+			id: "s1",
+			token: "t1",
 			updatedAt: new Date(),
+			userId: "u1",
 		};
 		db.insert(schema.session).values(session).run();
 

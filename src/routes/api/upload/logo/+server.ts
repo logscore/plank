@@ -22,11 +22,11 @@ export const PUT: RequestHandler = async ({ request, locals, url }) => {
 	}
 
 	const permission = await auth.api.hasPermission({
-		headers: request.headers,
 		body: {
 			organizationId,
 			permissions: { organization: ["update"] },
 		},
+		headers: request.headers,
 	});
 
 	if (!permission.success) {
@@ -61,11 +61,11 @@ export const PUT: RequestHandler = async ({ request, locals, url }) => {
 	}
 
 	await auth.api.updateOrganization({
-		headers: request.headers,
 		body: {
-			organizationId,
 			data: { logo: result.imagePath },
+			organizationId,
 		},
+		headers: request.headers,
 	});
 
 	return json({ logo: result.imagePath, received, success: true });

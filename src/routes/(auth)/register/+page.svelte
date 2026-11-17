@@ -32,8 +32,8 @@
         try {
             const result = await authClient.signUp.email({
                 email,
-                password,
                 name,
+                password,
             });
 
             if (result.error) {
@@ -42,7 +42,7 @@
                 const redirectTo = page.url.searchParams.get("redirectTo");
                 goto(redirectTo || "/profiles");
             }
-        } catch (e) {
+        } catch {
             error = "An error occurred. Please try again.";
         } finally {
             loading = false;

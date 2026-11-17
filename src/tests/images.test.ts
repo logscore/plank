@@ -18,10 +18,10 @@ vi.mock("node:fs/promises", () => ({
 	default: {
 		access: vi.fn(),
 		mkdir: vi.fn(),
-		writeFile: vi.fn(),
-		unlink: vi.fn(),
-		stat: vi.fn(),
 		readFile: vi.fn(),
+		stat: vi.fn(),
+		unlink: vi.fn(),
+		writeFile: vi.fn(),
 	},
 }));
 
@@ -34,7 +34,7 @@ vi.mock("nanoid", () => ({
 
 /** Build a real, decodable image buffer of known dimensions/format. */
 async function makeImage(width: number, height: number, mime: string = JimpMime.png): Promise<Buffer> {
-	const img = new Jimp({ width, height, color: 0xff_00_00_ff });
+	const img = new Jimp({ color: 0xff_00_00_ff, height, width });
 	return img.getBuffer(mime as Parameters<typeof img.getBuffer>[0]);
 }
 
@@ -45,7 +45,7 @@ async function makeImageArrayBuffer(width: number, height: number, mime: string 
 
 /** The buffer handed to the most recent fs.writeFile call. */
 function lastWritten(): Buffer {
-	const calls = vi.mocked(fs.writeFile).mock.calls;
+	const { calls } = vi.mocked(fs.writeFile).mock;
 	if (calls.length === 0) {
 		throw new Error("fs.writeFile was never called");
 	}
@@ -54,7 +54,7 @@ function lastWritten(): Buffer {
 
 async function dimsOf(buf: Buffer): Promise<{ width: number; height: number }> {
 	const img = await Jimp.read(buf);
-	return { width: img.width, height: img.height };
+	return { height: img.height, width: img.width };
 }
 
 const isJpeg = (b: Buffer): boolean => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
@@ -105,20 +105,18 @@ describe("saveImage", () => {
 		expect(isJpeg(lastWritten())).toBe(true);
 	});
 
-	it.each([
-		"library",
-		"posters",
-		"backdrops",
-		"series",
-	])("does NOT resize category '%s' (preserves original dimensions)", async (category) => {
-		await saveImage(category, "id", `${smallId}.jpg`, await makeImage(100, 200));
-		expect(await dimsOf(lastWritten())).toEqual({ width: 100, height: 200 });
-	});
+	it.each(["library", "posters", "backdrops", "series"])(
+		"does NOT resize category '%s' (preserves original dimensions)",
+		async (category) => {
+			await saveImage(category, "id", `${smallId}.jpg`, await makeImage(100, 200));
+			expect(await dimsOf(lastWritten())).toEqual({ height: 200, width: 100 });
+		}
+	);
 
 	it.each(["logos", "avatars"])("resizes category '%s' to 512x512 (cover)", async (category) => {
 		// Non-square input to prove cover crops to an exact square.
 		await saveImage(category, "id", `${smallId}.jpg`, await makeImage(300, 100));
-		expect(await dimsOf(lastWritten())).toEqual({ width: 512, height: 512 });
+		expect(await dimsOf(lastWritten())).toEqual({ height: 512, width: 512 });
 	});
 
 	it("accepts an ArrayBuffer and converts it to a Buffer", async () => {
@@ -223,7 +221,7 @@ describe("replaceImage", () => {
 
 		// Stored under data/avatars/u1/<nanoid>.jpg
 		expect(fs.writeFile).toHaveBeenCalledWith(path.join(DATA, `avatars/u1/${smallId}.jpg`), expect.any(Buffer));
-		expect(await dimsOf(lastWritten())).toEqual({ width: 512, height: 512 });
+		expect(await dimsOf(lastWritten())).toEqual({ height: 512, width: 512 });
 		expect(result).toEqual({ imagePath: `/api/images/avatars/u1/${smallId}.jpg` });
 		expect(fs.unlink).not.toHaveBeenCalled();
 	});
@@ -252,11 +250,11 @@ describe("saveTmdbImages", () => {
 	it("saves both poster and backdrop and returns prefixed urls", async () => {
 		global.fetch = vi
 			.fn()
-			.mockResolvedValueOnce({ ok: true, arrayBuffer: async () => await makeImageArrayBuffer(80, 120) })
-			.mockResolvedValueOnce({ ok: true, arrayBuffer: async () => await makeImageArrayBuffer(120, 80) });
+			.mockResolvedValueOnce({ arrayBuffer: async () => await makeImageArrayBuffer(80, 120), ok: true })
+			.mockResolvedValueOnce({ arrayBuffer: async () => await makeImageArrayBuffer(120, 80), ok: true });
 
 		const result = await savePosterBackdropImages(
-			{ posterUrl: "http://tmdb/poster.jpg", backdropUrl: "http://tmdb/backdrop.jpg" },
+			{ backdropUrl: "http://tmdb/backdrop.jpg", posterUrl: "http://tmdb/poster.jpg" },
 			"library",
 			"1"
 		);
@@ -271,11 +269,11 @@ describe("saveTmdbImages", () => {
 
 	it("keeps the original url and logs when downloaded content is not a valid image", async () => {
 		const notImage = Uint8Array.from(Buffer.from("<html>error</html>")).buffer;
-		global.fetch = vi.fn().mockResolvedValue({ ok: true, arrayBuffer: async () => notImage });
+		global.fetch = vi.fn().mockResolvedValue({ arrayBuffer: async () => notImage, ok: true });
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		const result = await savePosterBackdropImages(
-			{ posterUrl: "http://tmdb/poster.jpg", backdropUrl: null },
+			{ backdropUrl: null, posterUrl: "http://tmdb/poster.jpg" },
 			"library",
 			"1"
 		);
@@ -290,10 +288,10 @@ describe("saveTmdbImages", () => {
 	it("only fetches the poster when backdrop is null", async () => {
 		global.fetch = vi
 			.fn()
-			.mockResolvedValue({ ok: true, arrayBuffer: async () => await makeImageArrayBuffer(80, 120) });
+			.mockResolvedValue({ arrayBuffer: async () => await makeImageArrayBuffer(80, 120), ok: true });
 
 		const result = await savePosterBackdropImages(
-			{ posterUrl: "http://tmdb/poster.jpg", backdropUrl: null },
+			{ backdropUrl: null, posterUrl: "http://tmdb/poster.jpg" },
 			"library",
 			"1"
 		);
@@ -308,7 +306,7 @@ describe("saveTmdbImages", () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		const result = await savePosterBackdropImages(
-			{ posterUrl: "http://tmdb/poster.jpg", backdropUrl: null },
+			{ backdropUrl: null, posterUrl: "http://tmdb/poster.jpg" },
 			"library",
 			"1"
 		);
@@ -323,12 +321,12 @@ describe("saveTmdbImages", () => {
 	it("handles a partial failure (poster ok, backdrop fails) independently", async () => {
 		global.fetch = vi
 			.fn()
-			.mockResolvedValueOnce({ ok: true, arrayBuffer: async () => await makeImageArrayBuffer(80, 120) })
+			.mockResolvedValueOnce({ arrayBuffer: async () => await makeImageArrayBuffer(80, 120), ok: true })
 			.mockResolvedValueOnce({ ok: false, statusText: "Server Error" });
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		const result = await savePosterBackdropImages(
-			{ posterUrl: "http://tmdb/poster.jpg", backdropUrl: "http://tmdb/backdrop.jpg" },
+			{ backdropUrl: "http://tmdb/backdrop.jpg", posterUrl: "http://tmdb/poster.jpg" },
 			"library",
 			"1"
 		);
@@ -341,9 +339,9 @@ describe("saveTmdbImages", () => {
 	});
 
 	it("does nothing and returns nulls when both urls are null", async () => {
-		const result = await savePosterBackdropImages({ posterUrl: null, backdropUrl: null }, "library", "1");
+		const result = await savePosterBackdropImages({ backdropUrl: null, posterUrl: null }, "library", "1");
 
-		expect(result).toEqual({ posterUrl: null, backdropUrl: null });
+		expect(result).toEqual({ backdropUrl: null, posterUrl: null });
 		expect(global.fetch).not.toHaveBeenCalled();
 	});
 });

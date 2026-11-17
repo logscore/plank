@@ -49,8 +49,8 @@
             .map((name) => ({
                 id: 0,
                 name,
-                protocol: "torrent",
                 optimistic: true,
+                protocol: "torrent",
             }));
 
         return [...indexers, ...pendingIndexers];
@@ -62,25 +62,25 @@
     // Constants
     const PACKAGES = [
         {
-            id: "general",
-            name: "General",
             description: "1337x, YTS, TFB",
             icon: "🎬",
+            id: "general",
             indexers: ["1337x", "YTS", "The Pirate Bay"],
+            name: "General",
         },
         {
-            id: "anime",
-            name: "Anime",
             description: "Nyaa, AnimeTosho",
             icon: "🎌",
+            id: "anime",
             indexers: ["Nyaa.si", "AnimeTosho", "AniDex"],
+            name: "Anime",
         },
         {
-            id: "show",
-            name: "TV Shows",
             description: "EZTV, Galaxy",
             icon: "📺",
+            id: "show",
             indexers: ["EZTV", "TorrentGalaxy", "TorLock"],
+            name: "TV Shows",
         },
     ];
 
@@ -101,8 +101,8 @@
         connectionStatus = "unchecked";
         try {
             const result = await testConnectionMutation.mutateAsync({
-                url: prowlarrUrl,
                 apiKey: prowlarrApiKey,
+                url: prowlarrUrl,
             });
             connectionStatus = result.success ? "connected" : "failed";
         } catch {

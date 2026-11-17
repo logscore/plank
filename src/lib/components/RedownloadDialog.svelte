@@ -64,7 +64,7 @@
         retryingByMediaId[item.id] = true;
         retryError = "";
         try {
-            await retryMutation.mutateAsync({ id: item.id, mode, magnetLink, downloadId });
+            await retryMutation.mutateAsync({ downloadId, id: item.id, magnetLink, mode });
             await onRetried?.(item);
             if (media?.id === item.id) {
                 open = false;

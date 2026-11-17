@@ -21,10 +21,10 @@ function searchLibrary(
 		items.filter((item) => item.type === "show").map((item) => [item.id, seasonsDb.getWithEpisodes(item.id)])
 	);
 	return {
-		scope: "library",
 		items,
-		seasonsByMediaId,
 		nextPage: hasNextPage ? request.page + 1 : null,
+		scope: "library",
+		seasonsByMediaId,
 	};
 }
 
@@ -61,9 +61,9 @@ export async function searchCatalog(
 	if (request.filters.scope === "catalog") {
 		const result = await searchTmdbCatalog(request);
 		return {
-			scope: "catalog",
 			items: result.items,
 			nextPage: result.totalPages > request.page ? request.page + 1 : null,
+			scope: "catalog",
 		};
 	}
 
@@ -82,10 +82,10 @@ export async function searchCatalog(
 	const hasNextPage = library.nextPage !== null || catalog.totalPages > request.page;
 
 	return {
-		scope: "all",
-		libraryItems: library.items,
 		catalogItems,
-		seasonsByMediaId: library.seasonsByMediaId,
+		libraryItems: library.items,
 		nextPage: hasNextPage ? request.page + 1 : null,
+		scope: "all",
+		seasonsByMediaId: library.seasonsByMediaId,
 	};
 }

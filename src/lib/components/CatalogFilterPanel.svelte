@@ -33,16 +33,16 @@
     let genreAnchor: HTMLDivElement | undefined = $state();
 
     const sourceOptions = [
-        { value: "all", label: "All" },
-        { value: "library", label: "Library" },
-        { value: "catalog", label: "Catalog" },
+        { label: "All", value: "all" },
+        { label: "Library", value: "library" },
+        { label: "Catalog", value: "catalog" },
     ];
     const sortOptions = [
-        { value: "relevance", label: "Relevance" },
-        { value: "popular", label: "Popularity" },
-        { value: "rating", label: "Rating" },
-        { value: "newest", label: "Newest first" },
-        { value: "oldest", label: "Oldest first" },
+        { label: "Relevance", value: "relevance" },
+        { label: "Popularity", value: "popular" },
+        { label: "Rating", value: "rating" },
+        { label: "Newest first", value: "newest" },
+        { label: "Oldest first", value: "oldest" },
     ];
     const availableGenres = $derived(
         CATALOG_GENRES.filter((genre) => {
@@ -62,13 +62,8 @@
     );
 
     $effect(() => {
-        scope = filters.scope;
-        media = filters.media;
-        rating = filters.rating;
-        yearFrom = filters.yearFrom;
-        yearTo = filters.yearTo;
+        ({ scope, media, rating, yearFrom, yearTo, sort } = filters);
         genres = [...filters.genres];
-        sort = filters.sort;
         genreSearch = "";
     });
 
@@ -100,12 +95,8 @@
 
     function clearFilters() {
         scope = showSource ? "all" : filters.scope;
-        media = DEFAULT_CATALOG_FILTERS.media;
-        rating = DEFAULT_CATALOG_FILTERS.rating;
-        yearFrom = DEFAULT_CATALOG_FILTERS.yearFrom;
-        yearTo = DEFAULT_CATALOG_FILTERS.yearTo;
+        ({ media, rating, yearFrom, yearTo, sort } = DEFAULT_CATALOG_FILTERS);
         genres = [];
-        sort = DEFAULT_CATALOG_FILTERS.sort;
         genreSearch = "";
     }
 
@@ -117,13 +108,13 @@
         }
         onApply({
             ...filters,
-            scope,
+            genres: [...genres],
             media,
             rating,
+            scope,
+            sort,
             yearFrom: normalizedYearFrom,
             yearTo: normalizedYearTo,
-            genres: [...genres],
-            sort,
         });
     }
 </script>

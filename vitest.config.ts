@@ -4,18 +4,18 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
 	plugins: [svelte({ hot: !process.env.VITEST })],
-	test: {
-		include: ["src/tests/**/*.{test,spec}.{js,ts}"],
-		environment: "node",
-		globals: true,
-		setupFiles: ["src/tests/setup.ts"],
-		alias: {
-			$lib: path.resolve(__dirname, "./src/lib"),
-		},
-	},
 	resolve: {
 		alias: {
-			$lib: path.resolve(__dirname, "./src/lib"),
+			$lib: path.resolve(import.meta.dirname, "./src/lib"),
 		},
+	},
+	test: {
+		alias: {
+			$lib: path.resolve(import.meta.dirname, "./src/lib"),
+		},
+		environment: "node",
+		globals: true,
+		include: ["src/tests/**/*.{test,spec}.{js,ts}"],
+		setupFiles: ["src/tests/setup.ts"],
 	},
 });

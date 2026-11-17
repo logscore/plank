@@ -7,30 +7,30 @@ import { subtitlesDb } from "./db";
 const SIDECAR_EXTENSIONS = [".srt", ".ass", ".ssa", ".vtt", ".sub"];
 
 const LANGUAGE_MAP: Record<string, string> = {
-	eng: "English",
-	spa: "Spanish",
-	fre: "French",
-	fra: "French",
-	ger: "German",
+	ara: "Arabic",
+	chi: "Chinese",
+	dan: "Danish",
 	deu: "German",
+	dut: "Dutch",
+	eng: "English",
+	fin: "Finnish",
+	fra: "French",
+	fre: "French",
+	ger: "German",
+	hin: "Hindi",
 	ita: "Italian",
-	por: "Portuguese",
 	jpn: "Japanese",
 	kor: "Korean",
-	chi: "Chinese",
-	zho: "Chinese",
-	ara: "Arabic",
-	rus: "Russian",
-	hin: "Hindi",
-	pol: "Polish",
-	tur: "Turkish",
 	nld: "Dutch",
-	dut: "Dutch",
-	swe: "Swedish",
 	nor: "Norwegian",
-	dan: "Danish",
-	fin: "Finnish",
+	pol: "Polish",
+	por: "Portuguese",
+	rus: "Russian",
+	spa: "Spanish",
+	swe: "Swedish",
+	tur: "Turkish",
 	und: "Unknown",
+	zho: "Chinese",
 };
 
 function parseLanguageFromFilename(fileName: string): { language: string; label: string } {
@@ -38,22 +38,22 @@ function parseLanguageFromFilename(fileName: string): { language: string; label:
 	const parts = nameWithoutExt.split(".");
 	const lastPart = parts.at(-1)?.toLowerCase() ?? "";
 	if (LANGUAGE_MAP[lastPart]) {
-		return { language: lastPart, label: LANGUAGE_MAP[lastPart] };
+		return { label: LANGUAGE_MAP[lastPart], language: lastPart };
 	}
 	for (const [code, name] of Object.entries(LANGUAGE_MAP)) {
 		if (lastPart === name.toLowerCase()) {
-			return { language: code, label: name };
+			return { label: name, language: code };
 		}
 	}
 	if (parts.length >= 2) {
 		const secondLast = parts.at(-2)?.toLowerCase() ?? "";
 		for (const [code, name] of Object.entries(LANGUAGE_MAP)) {
 			if (secondLast === code || secondLast === name.toLowerCase()) {
-				return { language: code, label: name };
+				return { label: name, language: code };
 			}
 		}
 	}
-	return { language: "und", label: "Unknown" };
+	return { label: "Unknown", language: "und" };
 }
 
 function isSubtitleFile(fileName: string): boolean {
@@ -82,11 +82,11 @@ async function discoverSidecarSubtitles(mediaId: string, libraryDir: string): Pr
 		}
 		const { language, label } = parseLanguageFromFilename(fileName);
 		subtitlesDb.create({
-			mediaId,
-			language,
-			label,
-			source: "sidecar",
 			filePath: sourcePath,
+			label,
+			language,
+			mediaId,
+			source: "sidecar",
 		});
 	}
 }
@@ -98,9 +98,9 @@ export async function discoverSubtitles(mediaId: string, libraryDir: string): Pr
 function getSubtitleTracks(mediaId: string): SubtitleTrackResponse[] {
 	return subtitlesDb.getByMediaId(mediaId).map((subtitle) => ({
 		id: subtitle.id,
-		mediaId: subtitle.mediaId,
-		language: subtitle.language,
 		label: subtitle.label,
+		language: subtitle.language,
+		mediaId: subtitle.mediaId,
 		source: subtitle.source,
 		src: `/api/media/${mediaId}/subtitles/${subtitle.id}`,
 	}));

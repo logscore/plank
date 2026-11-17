@@ -26,8 +26,8 @@ export const load: PageServerLoad = async ({ locals, request }) => {
 
 	const memberCounts = db
 		.select({
-			organizationId: schema.member.organizationId,
 			count: sql<number>`count(*)`,
+			organizationId: schema.member.organizationId,
 		})
 		.from(schema.member)
 		.groupBy(schema.member.organizationId)
@@ -37,9 +37,9 @@ export const load: PageServerLoad = async ({ locals, request }) => {
 
 	const profiles = allOrgs.map((org) => ({
 		id: org.id,
-		name: org.name,
 		logo: org.logo,
 		memberCount: countMap.get(org.id) ?? 0,
+		name: org.name,
 	}));
 
 	return { profiles };

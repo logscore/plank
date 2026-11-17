@@ -30,12 +30,8 @@ process.once("sveltekit:shutdown", shutdownApplication);
 function classifyRoute(path: string) {
 	const isAuthPage = path.startsWith("/login") || path.startsWith("/register");
 	return {
-		isAuthPage,
-		isAuthRoute: isAuthPage || path.startsWith("/api/auth"),
-		isApiRoute: path.startsWith("/api"),
-		isProfilesRoute: path === "/profiles" || path.startsWith("/profiles/"),
-		isOnboardingRoute: path.startsWith("/onboarding"),
 		isAcceptInvitation: path.startsWith("/accept-invitation"),
+		isApiRoute: path.startsWith("/api"),
 		isAppRoute:
 			path === "/" ||
 			path.startsWith("/watch") ||
@@ -48,6 +44,10 @@ function classifyRoute(path: string) {
 			path.startsWith("/onboarding") ||
 			path === "/profiles" ||
 			path.startsWith("/profiles/"),
+		isAuthPage,
+		isAuthRoute: isAuthPage || path.startsWith("/api/auth"),
+		isOnboardingRoute: path.startsWith("/onboarding"),
+		isProfilesRoute: path === "/profiles" || path.startsWith("/profiles/"),
 	};
 }
 
@@ -79,8 +79,8 @@ async function enforceProfileSelection(event: RequestEvent, activeOrgId: string 
 
 	if (memberOrgs.length === 1) {
 		await auth.api.setActiveOrganization({
-			headers: event.request.headers,
 			body: { organizationId: memberOrgs[0].id },
+			headers: event.request.headers,
 		});
 		if (event.locals.session) {
 			event.locals.session = {

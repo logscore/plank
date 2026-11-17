@@ -9,11 +9,11 @@ import { parseMagnet } from "./torrent/files";
 import { getDownloadStatus, getDownloadStatusByInfohash } from "./torrent/status";
 
 const QUEUED_MEDIA_STATUS: Record<string, true> = {
-	pending: true,
-	searching: true,
 	downloading: true,
 	error: true,
 	not_found: true,
+	pending: true,
+	searching: true,
 };
 
 const DOWNLOAD_QUEUE_ID_PREFIX = "download:";
@@ -24,12 +24,12 @@ function toQueueEpisode(row: QueueRow): QueueEpisode {
 	const size = media.fileSize ?? 0;
 	const downloaded = media.downloadedBytes ?? 0;
 	return {
-		id: media.id,
-		title: media.title,
-		seasonNumber: media.seasonNumber,
 		episodeNumber: media.episodeNumber,
-		status: media.status,
+		id: media.id,
 		progress: size > 0 ? Math.min(1, downloaded / size) : (media.progress ?? 0),
+		seasonNumber: media.seasonNumber,
+		status: media.status,
+		title: media.title,
 	};
 }
 
@@ -54,18 +54,18 @@ function createQueueEntry(row: QueueRow): QueueEntry {
 		}
 	}
 	return {
-		id: download ? `${DOWNLOAD_QUEUE_ID_PREFIX}${download.id}` : `${MEDIA_QUEUE_ID_PREFIX}${media.id}`,
 		downloadId: download?.id ?? null,
 		downloadInfohash: download?.infohash ?? null,
-		sourceTitle: download ? parseMagnet(download.magnetLink).name || download.infohash.slice(0, 8) : null,
-		media,
-		showTitle: row.showTitle,
-		status,
-		progress,
 		downloadSpeed: 0,
-		peers: 0,
-		transcodeProgress: 0,
 		episodes: [],
+		id: download ? `${DOWNLOAD_QUEUE_ID_PREFIX}${download.id}` : `${MEDIA_QUEUE_ID_PREFIX}${media.id}`,
+		media,
+		peers: 0,
+		progress,
+		showTitle: row.showTitle,
+		sourceTitle: download ? parseMagnet(download.magnetLink).name || download.infohash.slice(0, 8) : null,
+		status,
+		transcodeProgress: 0,
 	};
 }
 
@@ -108,7 +108,7 @@ function foldQueueRows(rows: QueueRow[]): QueueEntry[] {
 	}
 
 	for (const row of episodeRows) {
-		const parentId = row.media.parentId;
+		const { parentId } = row.media;
 		assert(parentId !== null, "foldQueueRows: folded episode must have a parent");
 		const owner = owners.get(parentId);
 		if (owner) {
@@ -147,16 +147,16 @@ function withLiveStats(entry: QueueEntry): QueueEntry {
 	const liveEpisodes = download?.episodeProgress;
 	return {
 		...entry,
-		status: entry.downloadId === null ? getResolvedStatus(entry.media) : (download?.status ?? entry.status),
-		progress: entry.downloadId === null ? getResolvedProgress(entry.media) : (download?.progress ?? entry.progress),
 		downloadSpeed: download?.downloadSpeed ?? 0,
-		peers: download?.peers ?? 0,
-		transcodeProgress: finalizationProgress.get(entry.media.id) ?? download?.transcodeProgress ?? 0,
 		episodes: entry.episodes.map((episode) => {
 			const key = episodeKey(episode);
 			const live = key === null ? undefined : liveEpisodes?.get(key);
 			return live === undefined ? episode : { ...episode, progress: live };
 		}),
+		peers: download?.peers ?? 0,
+		progress: entry.downloadId === null ? getResolvedProgress(entry.media) : (download?.progress ?? entry.progress),
+		status: entry.downloadId === null ? getResolvedStatus(entry.media) : (download?.status ?? entry.status),
+		transcodeProgress: finalizationProgress.get(entry.media.id) ?? download?.transcodeProgress ?? 0,
 	};
 }
 

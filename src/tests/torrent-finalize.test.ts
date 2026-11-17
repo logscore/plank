@@ -63,14 +63,14 @@ vi.mock("../lib/server/transcoder", () => ({
 
 function createVideoFile(name: string): TorrentFile {
 	return {
+		createReadStream: () => new PassThrough(),
+		deselect: vi.fn(),
+		downloaded: 100,
+		length: 100,
 		name,
 		path: name,
-		length: 100,
-		downloaded: 100,
 		progress: 1,
 		select: vi.fn(),
-		deselect: vi.fn(),
-		createReadStream: () => new PassThrough(),
 	};
 }
 
@@ -91,27 +91,27 @@ describe("torrent library finalization", () => {
 		const progress: number[] = [];
 		// Finalization only reads the torrent path and live counters from this boundary object.
 		const torrent = {
-			path: "/temp/show-1/hash-1",
 			downloadSpeed: 0,
 			numPeers: 0,
+			path: "/temp/show-1/hash-1",
 		} as unknown as ActiveDownload["torrent"];
 		const download: ActiveDownload = {
 			abortController: new AbortController(),
-			mediaId: "show-1",
-			infohash: "hash-1",
-			mediaType: "show",
-			torrent,
-			videoFile: null,
-			videoFiles,
-			subtitleFiles: [],
 			episodeMapping: new Map([
 				[101, 0],
 				[102, 1],
 			]),
+			infohash: "hash-1",
+			mediaId: "show-1",
+			mediaType: "show",
 			progress: 1,
-			transcodeProgress: 0,
 			status: "finalizing",
+			subtitleFiles: [],
+			torrent,
 			totalSize: 200,
+			transcodeProgress: 0,
+			videoFile: null,
+			videoFiles,
 		};
 		mocks.finalizeMediaToLibrary.mockImplementation(
 			async (_sourcePath: string, targetPath: string, reportProgress?: (value: number) => void) => {

@@ -11,10 +11,10 @@ global.fetch = fetchMock;
 
 function mockJsonResponse(body: unknown, ok = true) {
 	return {
+		json: async () => body,
 		ok,
 		status: ok ? 200 : 500,
 		statusText: ok ? "OK" : "Error",
-		json: async () => body,
 	};
 }
 
@@ -27,9 +27,9 @@ describe("client data", () => {
 		fetchMock.mockResolvedValue(mockJsonResponse([]));
 
 		await searchOpenSubtitles("123", {
+			episodeNumber: null,
 			languages: "en",
 			seasonNumber: 1,
-			episodeNumber: null,
 		});
 
 		const url = new URL(vi.mocked(fetchMock).mock.calls[0][0] as string, "http://localhost");

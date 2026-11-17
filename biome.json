@@ -35,30 +35,30 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "a11y": {
-        "recommended": true
+        "preset": "recommended"
       },
       "complexity": {
-        "recommended": true
+        "preset": "recommended"
       },
       "correctness": {
-        "recommended": true
+        "preset": "recommended"
       },
       "performance": {
-        "recommended": true
+        "preset": "recommended"
       },
       "security": {
-        "recommended": true
+        "preset": "recommended"
       },
       "style": {
-        "recommended": true,
+        "preset": "recommended",
         "useTemplate": "warn",
         "noUnusedTemplateLiteral": "warn",
         "useImportType": "warn"
       },
       "suspicious": {
-        "recommended": true,
+        "preset": "recommended",
         "useAwait": "off"
       }
     }
@@ -86,7 +86,11 @@
             "useFilenamingConvention": "off"
           },
           "correctness": {
-            "noUndeclaredVariables": "off"
+            "noUndeclaredVariables": "off",
+            "noUnusedVariables": "off"
+          },
+          "suspicious": {
+            "noEmptySource": "off"
           }
         }
       }
@@ -144,6 +148,9 @@
     }
   ],
   "extends": ["ultracite/biome/core", "ultracite/biome/svelte"],
+  "html": {
+    "experimentalFullSupportEnabled": false
+  },
   "css": {
     "parser": {
       "tailwindDirectives": true

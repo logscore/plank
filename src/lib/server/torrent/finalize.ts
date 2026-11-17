@@ -38,10 +38,10 @@ function getOrAddSeason(mediaId: string, seasonNum: number, episodeCount: number
 
 	if (!season) {
 		season = seasonsDb.create({
-			mediaId,
-			seasonNumber: seasonNum,
-			name: `Season ${seasonNum}`,
 			episodeCount,
+			mediaId,
+			name: `Season ${seasonNum}`,
+			seasonNumber: seasonNum,
 		});
 	}
 
@@ -70,20 +70,20 @@ function createNewEpisode(
 ): void {
 	const videoFile = videoFiles[fileIndex];
 	mediaDb.create({
-		userId: showMedia.userId,
-		organizationId: showMedia.organizationId,
-		type: "episode",
-		parentId: showMedia.id,
-		seasonId,
-		seasonNumber,
+		displayOrder,
+		downloadedBytes: 0,
 		episodeNumber,
-		title: `Episode ${episodeNumber}`,
 		fileIndex,
 		filePath: videoFile?.path ?? null,
 		fileSize: videoFile?.length ?? null,
-		downloadedBytes: 0,
-		displayOrder,
+		organizationId: showMedia.organizationId,
+		parentId: showMedia.id,
+		seasonId,
+		seasonNumber,
 		status: "pending",
+		title: `Episode ${episodeNumber}`,
+		type: "episode",
+		userId: showMedia.userId,
 	});
 }
 
@@ -114,13 +114,14 @@ export async function createEpisodesFromMapping(
 	mapping: Map<number, number>
 ): Promise<void> {
 	const mediaItem = mediaDb.getById(mediaId);
-	if (!mediaItem || mediaItem.type !== "show") {
+	if (mediaItem?.type !== "show") {
 		return;
 	}
 
 	const seasonEpisodes = groupEpisodesBySeason(mapping);
 
 	for (const [seasonNum, episodes] of seasonEpisodes.entries()) {
+		// biome-ignore lint/performance/noAwaitInLoops: DB writes and file moves must run in order
 		await processEpisodesForSeason(mediaItem, seasonNum, episodes, videoFiles);
 	}
 }
@@ -154,6 +155,7 @@ async function moveMovieToLibrary(mediaId: string, download: ActiveDownload): Pr
 		try {
 			const subSource = path.join(download.torrent.path, subFile.path);
 			const subDest = path.join(destDir, sanitizeFilename(subFile.name));
+			// biome-ignore lint/performance/noAwaitInLoops: file copies run one at a time on purpose
 			await fs.copyFile(subSource, subDest);
 		} catch (subErr) {
 			console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
@@ -207,6 +209,7 @@ async function updateEpisodeFileInfo(
 				fileSize,
 			});
 			mediaDb.updateEpisodeProgress(episode.id, fileSize, "complete");
+			// biome-ignore lint/performance/noAwaitInLoops: cancellation must await subtitle writes before deleting media
 			await discoverSubtitles(episode.id, path.dirname(filePath)).catch((error) => {
 				console.error(`[${mediaId}] Subtitle discovery failed for ${videoFile.name}:`, error);
 			});
@@ -225,7 +228,6 @@ function getEpisodeForFileIndex(mediaId: string, download: ActiveDownload, fileI
 		const episodeNumber = episodeKey % 100;
 		return mediaDb.getEpisodeByParentAndNumber(mediaId, seasonNumber, episodeNumber);
 	}
-	return undefined;
 }
 
 async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): Promise<void> {
@@ -255,6 +257,7 @@ async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): 
 		try {
 			const subSource = path.join(download.torrent.path, subFile.path);
 			const subDest = path.join(seasonDir, sanitizeFilename(subFile.name));
+			// biome-ignore lint/performance/noAwaitInLoops: file copies run one at a time on purpose
 			await fs.copyFile(subSource, subDest);
 		} catch (subErr) {
 			console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
@@ -301,6 +304,7 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 		try {
 			const subSource = path.join(download.torrent.path, subFile.path);
 			const subDest = path.join(baseDir, sanitizeFilename(subFile.name));
+			// biome-ignore lint/performance/noAwaitInLoops: file copies run one at a time on purpose
 			await fs.copyFile(subSource, subDest);
 		} catch (subErr) {
 			console.error(`${logPrefix} Failed to copy subtitle ${subFile.name}:`, subErr);
@@ -313,6 +317,7 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 
 	for (const [seasonNum, files] of filesBySeason.entries()) {
 		const seasonDir = path.join(baseDir, `Season ${seasonNum.toString().padStart(2, "0")}`);
+		// biome-ignore lint/performance/noAwaitInLoops: transcodes run one at a time
 		await fs.mkdir(seasonDir, { recursive: true });
 
 		for (const videoFile of files) {
@@ -324,6 +329,7 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 				? getEpisodeLibraryPath(show, episode, videoFile.name)
 				: path.join(seasonDir, sanitizeFilename(videoFile.name));
 
+			// biome-ignore lint/performance/noAwaitInLoops: transcodes run one at a time and progress counts completed files
 			const finalized = await finalizeMediaToLibrary(
 				sourcePath,
 				destPath,
@@ -359,7 +365,7 @@ export async function deleteDownloadTempFiles(mediaId: string, infohash: string)
 	const safeInfohash = sanitizeFilename(infohash);
 	assert(safeMediaId.length > 0, "deleteDownloadTempFiles: media id must not be empty");
 	assert(safeInfohash.length > 0, "deleteDownloadTempFiles: infohash must not be empty");
-	await fs.rm(path.join(PATHS.temp, safeMediaId, safeInfohash), { recursive: true, force: true });
+	await fs.rm(path.join(PATHS.temp, safeMediaId, safeInfohash), { force: true, recursive: true });
 }
 
 export async function deleteMediaFiles(mediaId: string): Promise<void> {
@@ -369,7 +375,7 @@ export async function deleteMediaFiles(mediaId: string): Promise<void> {
 		if (mediaItem.filePath) {
 			await fs.rm(mediaItem.filePath, { force: true }).catch(() => undefined);
 		}
-		await fs.rm(path.join(PATHS.temp, safeMediaId), { recursive: true, force: true }).catch(() => undefined);
+		await fs.rm(path.join(PATHS.temp, safeMediaId), { force: true, recursive: true }).catch(() => undefined);
 		return;
 	}
 	let libraryPaths = [path.join(PATHS.library, safeMediaId)];
@@ -390,7 +396,8 @@ export async function deleteMediaFiles(mediaId: string): Promise<void> {
 
 	for (const libraryPath of libraryPaths) {
 		try {
-			await fs.rm(libraryPath, { recursive: true, force: true });
+			// biome-ignore lint/performance/noAwaitInLoops: paths may nest, so delete one at a time
+			await fs.rm(libraryPath, { force: true, recursive: true });
 		} catch (e) {
 			if ((e as NodeJS.ErrnoException).code !== "ENOENT") {
 				console.error(`[${mediaId}] Error deleting library directory:`, e);
@@ -400,7 +407,8 @@ export async function deleteMediaFiles(mediaId: string): Promise<void> {
 
 	for (const tempPath of tempPaths) {
 		try {
-			await fs.rm(tempPath, { recursive: true, force: true });
+			// biome-ignore lint/performance/noAwaitInLoops: paths may nest, so delete one at a time
+			await fs.rm(tempPath, { force: true, recursive: true });
 		} catch (e) {
 			if ((e as NodeJS.ErrnoException).code !== "ENOENT") {
 				console.error(`[${mediaId}] Error deleting temp directory:`, e);

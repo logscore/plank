@@ -26,10 +26,10 @@ export function isSupportedFormat(fileName: string): boolean {
 }
 
 interface TransmuxOptions {
-	inputStream: Readable;
-	start?: number;
 	fileName?: string;
+	inputStream: Readable;
 	onError?: (err: Error) => void;
+	start?: number;
 }
 
 const BROWSER_SAFE_VIDEO_CODECS = new Set(["h264", "vp8", "vp9", "av1"]);
@@ -216,19 +216,19 @@ export async function probeFile(filePath: string): Promise<{
 			);
 
 			resolve({
-				videoCodec: videoStream?.codec_name || null,
+				audioChannels: audioStream?.channels || null,
 				audioCodec: audioStream?.codec_name || null,
 				duration: metadata.format.duration || null,
-				audioChannels: audioStream?.channels || null,
 				hasDataStreams,
+				videoCodec: videoStream?.codec_name || null,
 			});
 		});
 	});
 }
 
 export interface PlaybackCompatibility {
-	audioCodec: string | null;
 	audioChannels: number | null;
+	audioCodec: string | null;
 	needsVideoTranscode: boolean;
 	requiresNormalization: boolean;
 }
@@ -241,8 +241,8 @@ export async function getPlaybackCompatibility(filePath: string): Promise<Playba
 		(probe.audioChannels ?? 0) > 2;
 	const needsDataCleanup = probe.hasDataStreams;
 	return {
-		audioCodec: probe.audioCodec,
 		audioChannels: probe.audioChannels,
+		audioCodec: probe.audioCodec,
 		needsVideoTranscode,
 		requiresNormalization: needsVideoTranscode || needsAudioNormalization || needsDataCleanup,
 	};

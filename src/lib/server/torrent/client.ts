@@ -3,67 +3,69 @@ import WebTorrent from "webtorrent";
 import type { MediaType } from "$lib/types";
 
 export interface TorrentFile {
+	createReadStream: (opts?: { start?: number; end?: number }) => Readable;
+	deselect: () => void;
+	downloaded: number;
+	length: number;
 	name: string;
 	path: string;
-	length: number;
-	downloaded: number;
 	progress: number;
-	select(): void;
-	deselect(): void;
-	createReadStream(opts?: { start?: number; end?: number }): Readable;
+	select: () => void;
 }
 
 export interface Torrent {
+	destroy: (opts?: { destroyStore?: boolean }, callback?: () => void) => void;
+	done: boolean;
+	downloaded: number;
+	downloadSpeed: number;
+	emit: (event: string, ...args: unknown[]) => boolean;
 	files: TorrentFile[];
 	infoHash: string;
 	name: string;
+	numPeers: number;
+	on: {
+		(event: "done" | "metadata" | "ready", callback: () => void): void;
+		(event: "upload" | "download", callback: (bytes: number) => void): void;
+		(event: "wire", callback: (wire: unknown) => void): void;
+		(event: "noPeers", callback: (announceType: string) => void): void;
+		(event: "warning" | "error", callback: (err: Error) => void): void;
+		(event: string, callback: (...args: unknown[]) => void): void;
+	};
 	path: string;
 	progress: number;
-	downloaded: number;
-	downloadSpeed: number;
-	numPeers: number;
-	done: boolean;
 	ready: boolean;
-	destroy(opts?: { destroyStore?: boolean }, callback?: () => void): void;
-	on(event: "done" | "metadata" | "ready", callback: () => void): void;
-	on(event: "upload" | "download", callback: (bytes: number) => void): void;
-	on(event: "wire", callback: (wire: unknown) => void): void;
-	on(event: "noPeers", callback: (announceType: string) => void): void;
-	on(event: "warning" | "error", callback: (err: Error) => void): void;
-	on(event: string, callback: (...args: unknown[]) => void): void;
-	emit(event: string, ...args: unknown[]): boolean;
 }
 
 export interface WebTorrentClient {
-	add(
+	add: (
 		torrentId: string,
 		opts?: { path?: string; announce?: string[] },
 		callback?: (torrent: Torrent) => void
-	): Torrent;
-	remove(torrentId: string, opts?: { destroyStore?: boolean }, callback?: () => void): void;
-	get(torrentId: string): Promise<Torrent | null>;
-	on(event: "error", callback: (error: Error) => void): void;
-	destroy(callback?: (error?: Error | null) => void): void;
+	) => Torrent;
+	destroy: (callback?: (error?: Error | null) => void) => void;
+	get: (torrentId: string) => Promise<Torrent | null>;
+	on: (event: "error", callback: (error: Error) => void) => void;
+	remove: (torrentId: string, opts?: { destroyStore?: boolean }, callback?: () => void) => void;
 }
 
 // shortcut: cancellation covers active torrents, extend it to uploads/recovery with the future job system.
 export interface ActiveDownload {
 	abortController: AbortController;
-	finalization?: Promise<void>;
-	mediaId: string;
-	infohash: string;
-	mediaType: MediaType;
-	torrent: Torrent;
-	videoFile: TorrentFile | null;
-	videoFiles: TorrentFile[];
-	subtitleFiles: TorrentFile[];
 	episodeMapping: Map<number, number>;
+	error?: string;
+	finalization?: Promise<void>;
+	infohash: string;
+	mediaId: string;
+	mediaType: MediaType;
 	progress: number;
+	status: "initializing" | "downloading" | "finalizing" | "complete" | "error";
+	subtitleFiles: TorrentFile[];
+	torrent: Torrent;
+	totalSize: number;
 	/** Finalization progress from 0 to 1. */
 	transcodeProgress: number;
-	status: "initializing" | "downloading" | "finalizing" | "complete" | "error";
-	totalSize: number;
-	error?: string;
+	videoFile: TorrentFile | null;
+	videoFiles: TorrentFile[];
 }
 
 // Store active downloads keyed by infohash (allows multiple downloads per media)
@@ -91,8 +93,8 @@ export function getClient(): Promise<WebTorrentClient> {
 	}
 	if (!clientPromise) {
 		const torrentClient = new WebTorrent({
-			maxConns: 55,
 			downloadLimit: -1,
+			maxConns: 55,
 			uploadLimit: -1,
 		}) as unknown as WebTorrentClient;
 		torrentClient.on("error", (error) => {
@@ -199,8 +201,8 @@ export async function getOrAddTorrent(
 	}
 
 	return torrentClient.add(magnetLink, {
-		path: downloadPath,
 		announce: TRACKERS,
+		path: downloadPath,
 	});
 }
 

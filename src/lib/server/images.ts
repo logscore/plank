@@ -65,7 +65,7 @@ export async function saveImage(
 	const filePath = path.join(absDir, safeFilename);
 	const image = await Jimp.read(buffer);
 	if (category === "logos" || category === "avatars") {
-		image.cover({ w: OUTPUT_SIZE, h: OUTPUT_SIZE });
+		image.cover({ h: OUTPUT_SIZE, w: OUTPUT_SIZE });
 	}
 	const processed = await image.getBuffer(JimpMime.jpeg, { quality: OUTPUT_QUALITY });
 
@@ -144,8 +144,8 @@ export async function savePosterBackdropImages(
 	id: string
 ): Promise<{ posterUrl: string | null; backdropUrl: string | null }> {
 	const result = {
-		posterUrl: metadata.posterUrl,
 		backdropUrl: metadata.backdropUrl,
+		posterUrl: metadata.posterUrl,
 	};
 
 	if (metadata.posterUrl) {
@@ -173,8 +173,8 @@ export async function savePosterBackdropImages(
 async function validateImage(buffer: Buffer): Promise<{ valid: boolean; error?: string }> {
 	if (buffer.length > MAX_FILE_SIZE) {
 		return {
-			valid: false,
 			error: `File size exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit`,
+			valid: false,
 		};
 	}
 
@@ -184,13 +184,13 @@ async function validateImage(buffer: Buffer): Promise<{ valid: boolean; error?: 
 		image = await Jimp.fromBuffer(buffer);
 	} catch {
 		return {
-			valid: false,
 			error: "Invalid image format. Allowed: JPEG, PNG, GIF",
+			valid: false,
 		};
 	}
 
 	if (!(image.mime && ALLOWED_TYPES.includes(image.mime as AllowedType))) {
-		return { valid: false, error: "Invalid image type" };
+		return { error: "Invalid image type", valid: false };
 	}
 
 	return { valid: true };

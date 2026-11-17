@@ -18,32 +18,31 @@
 
     function formValues() {
         return {
-            tmdbApiKey: data.settings.tmdb.apiKey,
             opensubtitlesApiKey: data.settings.opensubtitles.apiKey,
-            opensubtitlesUsername: data.settings.opensubtitles.username,
             opensubtitlesPassword: data.settings.opensubtitles.password,
-            prowlarrUrl: data.settings.prowlarr.url,
+            opensubtitlesUsername: data.settings.opensubtitles.username,
             prowlarrApiKey: data.settings.prowlarr.apiKey,
             prowlarrMinSeeders: String(data.settings.prowlarr.minSeeders),
+            prowlarrUrl: data.settings.prowlarr.url,
+            tmdbApiKey: data.settings.tmdb.apiKey,
         };
     }
 
     // Seeded once. A save reloads data.settings, which clears `dirty` on its own.
     let values = $state(untrack(() => formValues()));
     let testStates = $state<Record<ConnectionTarget, TestState>>({
-        tmdb: "idle",
         opensubtitles: "idle",
         prowlarr: "idle",
+        tmdb: "idle",
     });
     let savingTarget = $state<ConnectionTarget | null>(null);
 
     const configured = $derived<Record<ConnectionTarget, boolean>>({
-        tmdb: values.tmdbApiKey.length > 0,
         opensubtitles: values.opensubtitlesApiKey.length > 0,
         prowlarr: values.prowlarrUrl.length > 0 && values.prowlarrApiKey.length > 0,
+        tmdb: values.tmdbApiKey.length > 0,
     });
     const dirty = $derived<Record<ConnectionTarget, boolean>>({
-        tmdb: values.tmdbApiKey !== data.settings.tmdb.apiKey,
         opensubtitles:
             values.opensubtitlesApiKey !== data.settings.opensubtitles.apiKey ||
             values.opensubtitlesUsername !== data.settings.opensubtitles.username ||
@@ -52,6 +51,7 @@
             values.prowlarrUrl !== data.settings.prowlarr.url ||
             values.prowlarrApiKey !== data.settings.prowlarr.apiKey ||
             values.prowlarrMinSeeders !== String(data.settings.prowlarr.minSeeders),
+        tmdb: values.tmdbApiKey !== data.settings.tmdb.apiKey,
     });
 
     function statusLabel(target: ConnectionTarget): string {
@@ -73,13 +73,13 @@
 
         try {
             const result = await testConnectionMutation.mutateAsync({
+                opensubtitlesApiKey: values.opensubtitlesApiKey,
+                opensubtitlesPassword: values.opensubtitlesPassword,
+                opensubtitlesUsername: values.opensubtitlesUsername,
+                prowlarrApiKey: values.prowlarrApiKey,
+                prowlarrUrl: values.prowlarrUrl,
                 target,
                 tmdbApiKey: values.tmdbApiKey,
-                prowlarrUrl: values.prowlarrUrl,
-                prowlarrApiKey: values.prowlarrApiKey,
-                opensubtitlesApiKey: values.opensubtitlesApiKey,
-                opensubtitlesUsername: values.opensubtitlesUsername,
-                opensubtitlesPassword: values.opensubtitlesPassword,
             });
             testStates[target] = result.success ? "success" : "error";
         } catch {

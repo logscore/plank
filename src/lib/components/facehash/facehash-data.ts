@@ -12,19 +12,19 @@ type FaceType = "round" | "cross" | "line" | "curved";
 const FACE_TYPES = ["round", "cross", "line", "curved"] as const;
 
 export interface FacehashData {
-	/** The face type to render */
-	faceType: FaceType;
-	/** Index into the colors array */
-	colorIndex: number;
-	/** Rotation position for 3D effect (-1, 0, or 1 for each axis) */
-	rotation: { x: number; y: number };
-	/** First letter of the name, uppercase */
-	initial: string;
 	/** Blink animation timings */
 	blinkTimings: {
 		left: { delay: number; duration: number };
 		right: { delay: number; duration: number };
 	};
+	/** Index into the colors array */
+	colorIndex: number;
+	/** The face type to render */
+	faceType: FaceType;
+	/** First letter of the name, uppercase */
+	initial: string;
+	/** Rotation position for 3D effect (-1, 0, or 1 for each axis) */
+	rotation: { x: number; y: number };
 }
 
 // ============================================================================
@@ -44,25 +44,25 @@ const SPHERE_POSITIONS = [
 ] as const;
 
 export const INTENSITY_PRESETS = {
-	none: {
-		rotateRange: 0,
-		translateZ: 0,
-		perspective: "none",
-	},
-	subtle: {
-		rotateRange: 5,
-		translateZ: 4,
-		perspective: "800px",
-	},
-	medium: {
-		rotateRange: 10,
-		translateZ: 8,
-		perspective: "500px",
-	},
 	dramatic: {
+		perspective: "300px",
 		rotateRange: 15,
 		translateZ: 12,
-		perspective: "300px",
+	},
+	medium: {
+		perspective: "500px",
+		rotateRange: 10,
+		translateZ: 8,
+	},
+	none: {
+		perspective: "none",
+		rotateRange: 0,
+		translateZ: 0,
+	},
+	subtle: {
+		perspective: "800px",
+		rotateRange: 5,
+		translateZ: 4,
 	},
 } as const;
 
@@ -88,14 +88,14 @@ export function computeFacehash(name: string): FacehashData {
 	const timing = { delay: blinkDelay, duration: blinkDuration };
 
 	return {
-		faceType: FACE_TYPES[faceIndex] ?? "round",
-		colorIndex,
-		rotation: position,
-		initial: name.charAt(0).toUpperCase(),
 		blinkTimings: {
 			left: timing,
 			right: timing,
 		},
+		colorIndex,
+		faceType: FACE_TYPES[faceIndex] ?? "round",
+		initial: name.charAt(0).toUpperCase(),
+		rotation: position,
 	};
 }
 

@@ -104,14 +104,14 @@
         try {
             if (pendingLogoFile) {
                 await uploadLogoMutation.mutateAsync({
-                    organizationId: editingId,
                     file: pendingLogoFile,
+                    organizationId: editingId,
                 });
             }
 
             const res = await authClient.organization.update({
-                organizationId: editingId,
                 data: { name: editName.trim() },
+                organizationId: editingId,
             });
 
             if (res.error) {

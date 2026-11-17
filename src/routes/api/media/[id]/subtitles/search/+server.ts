@@ -24,15 +24,15 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 	try {
 		const results = await searchSubtitles({
-			tmdbId: show ? undefined : (mediaItem.tmdbId ?? undefined),
-			imdbId: show ? undefined : (mediaItem.imdbId ?? undefined),
-			parentTmdbId: show?.tmdbId ?? undefined,
-			parentImdbId: show?.imdbId ?? undefined,
-			query: title.tmdbId || title.imdbId ? undefined : title.title,
-			year: isEpisode ? undefined : (mediaItem.year ?? undefined),
-			languages,
-			seasonNumber,
 			episodeNumber,
+			imdbId: show ? undefined : (mediaItem.imdbId ?? undefined),
+			languages,
+			parentImdbId: show?.imdbId ?? undefined,
+			parentTmdbId: show?.tmdbId ?? undefined,
+			query: title.tmdbId || title.imdbId ? undefined : title.title,
+			seasonNumber,
+			tmdbId: show ? undefined : (mediaItem.tmdbId ?? undefined),
+			year: isEpisode ? undefined : (mediaItem.year ?? undefined),
 		});
 		return json(results);
 	} catch (err) {

@@ -20,32 +20,32 @@ vi.mock("$lib/server/tmdb", () => ({
 }));
 
 const testUser = {
-	id: "search-user",
-	name: "Search User",
 	email: "search@example.com",
 	emailVerified: true,
+	id: "search-user",
+	name: "Search User",
 };
 const testOrg = {
+	createdAt: new Date(),
 	id: "search-org",
 	name: "Search Org",
 	slug: "search-org",
-	createdAt: new Date(),
 };
 
 function createCatalogItem(overrides: Partial<BrowseItem>): BrowseItem {
 	return {
-		tmdbId: 0,
-		imdbId: null,
-		title: "Untitled",
-		year: null,
-		posterUrl: null,
 		backdropUrl: null,
-		overview: null,
-		voteAverage: null,
-		genres: [],
-		mediaType: "movie",
 		certification: null,
+		genres: [],
+		imdbId: null,
+		mediaType: "movie",
 		needsResolve: true,
+		overview: null,
+		posterUrl: null,
+		title: "Untitled",
+		tmdbId: 0,
+		voteAverage: null,
+		year: null,
 		...overrides,
 	};
 }
@@ -59,40 +59,40 @@ beforeEach(() => {
 describe("unified search", () => {
 	it("groups library and TMDB results without duplicate media", async () => {
 		const savedMovie = mediaDb.create({
-			userId: testUser.id,
-			organizationId: testOrg.id,
-			type: "movie",
-			title: "Arrival",
-			year: 2016,
-			tmdbId: 329_865,
 			imdbId: "tt2543164",
+			organizationId: testOrg.id,
+			title: "Arrival",
+			tmdbId: 329_865,
+			type: "movie",
+			userId: testUser.id,
+			year: 2016,
 		});
 		searchTmdbCatalogMock.mockResolvedValue({
 			items: [
 				createCatalogItem({
-					tmdbId: 329_865,
 					imdbId: "tt2543164",
 					title: "Arrival",
+					tmdbId: 329_865,
 					year: 2016,
 				}),
-				createCatalogItem({ tmdbId: 438_631, title: "Dune", year: 2021 }),
+				createCatalogItem({ title: "Dune", tmdbId: 438_631, year: 2021 }),
 			],
 			page: 1,
 			totalPages: 1,
 		});
 		const request: CatalogSearchRequest = {
-			query: "",
-			page: 1,
 			filters: { ...DEFAULT_CATALOG_FILTERS, scope: "all" },
+			page: 1,
+			query: "",
 		};
 
 		const response = await searchCatalog(testOrg.id, request);
 
 		expect(response).toMatchObject({
-			scope: "all",
+			catalogItems: [{ title: "Dune", tmdbId: 438_631 }],
 			libraryItems: [{ id: savedMovie.id, title: "Arrival" }],
-			catalogItems: [{ tmdbId: 438_631, title: "Dune" }],
 			nextPage: null,
+			scope: "all",
 		});
 		if (response.scope !== "all") {
 			throw new Error("Expected an all-source response");

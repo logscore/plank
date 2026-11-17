@@ -13,17 +13,17 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	try {
 		const { filePath } = await downloadSubtitle(fileId, mediaItem, language);
 		const subtitle = subtitlesDb.create({
-			mediaId: params.id,
-			language: getIso2Code(language),
-			label: getLanguageName(language),
-			source: "opensubtitles",
 			filePath,
+			label: getLanguageName(language),
+			language: getIso2Code(language),
+			mediaId: params.id,
+			source: "opensubtitles",
 		});
 		return json({
 			id: subtitle.id,
-			mediaId: subtitle.mediaId,
-			language: subtitle.language,
 			label: subtitle.label,
+			language: subtitle.language,
+			mediaId: subtitle.mediaId,
 			source: subtitle.source,
 			src: `/api/media/${params.id}/subtitles/${subtitle.id}`,
 		});
