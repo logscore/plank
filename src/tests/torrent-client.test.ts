@@ -39,6 +39,24 @@ describe("WebTorrent client lifecycle", () => {
 		expect(webTorrentMock.construct).toHaveBeenCalledTimes(1);
 	});
 
+	it.each([true, false])("awaits torrent lookup before reusing or adding a torrent (exists: %s)", async (exists) => {
+		const { getOrAddTorrent } = await import("../lib/server/torrent/client");
+		const torrent = { infoHash: "0123456789abcdef0123456789abcdef01234567" };
+		const lookup = Promise.withResolvers<typeof torrent | null>();
+		const client = { add: vi.fn(() => torrent), get: vi.fn(() => lookup.promise) };
+		const magnet = `magnet:?xt=urn:btih:${torrent.infoHash}`;
+		const result = getOrAddTorrent(client as never, magnet, "/temp/movie");
+		expect(client.get).toHaveBeenCalledWith(magnet);
+		expect(client.add).not.toHaveBeenCalled();
+		lookup.resolve(exists ? torrent : null);
+		expect(await result).toBe(torrent);
+		if (exists) {
+			expect(client.add).not.toHaveBeenCalled();
+		} else {
+			expect(client.add).toHaveBeenCalledWith(magnet, expect.objectContaining({ path: "/temp/movie" }));
+		}
+	});
+
 	it("applies the peer and cache limits that keep memory bounded", async () => {
 		const { getClient } = await import("../lib/server/torrent/client");
 
@@ -53,8 +71,8 @@ describe("WebTorrent client lifecycle", () => {
 		const { activeDownloads, cleanupDownload, getClient } = await import("../lib/server/torrent/client");
 		const client = await getClient();
 		const torrent = { destroy: vi.fn((_opts: unknown, callback: () => void) => callback) };
-		activeDownloads.set("hash-1", { torrent } as never);
-		activeDownloads.set("hash-2", { torrent } as never);
+		activeDownloads.set("hash-1", { abortController: new AbortController(), torrent } as never);
+		activeDownloads.set("hash-2", { abortController: new AbortController(), torrent } as never);
 
 		cleanupDownload("hash-1", false);
 		await Promise.resolve();

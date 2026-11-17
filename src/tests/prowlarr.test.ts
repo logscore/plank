@@ -5,6 +5,7 @@ import {
 	findBestTorrent,
 	type IndexerResult,
 	parseProwlarrResults,
+	resolveMagnetLink,
 	searchProwlarr,
 	searchSourceCandidates,
 	selectBestTorrent,
@@ -20,6 +21,27 @@ describe("Prowlarr Client", () => {
 		vi.clearAllMocks();
 		global.fetch = mockFetch;
 		await updateSettings({ prowlarrApiKey: "", prowlarrUrl: "" });
+	});
+
+	it.each(["application/x-bittorrent", "application/octet-stream"])(
+		"resolves a binary %s response to a magnet",
+		async (contentType) => {
+			const torrent = Buffer.from(
+				"d4:infod6:lengthi1e4:name8:test.mp412:piece lengthi16384e6:pieces20:00000000000000000000ee"
+			);
+			mockFetch.mockResolvedValueOnce(new Response(torrent, { headers: { "Content-Type": contentType } }));
+			const magnet = await resolveMagnetLink("https://indexer.example/download");
+			expect(magnet).toBe("magnet:?xt=urn:btih:cb42885d06c559cd323c63fd08a1cc9625109205&dn=test.mp4");
+		}
+	);
+
+	it("keeps the URL fallback when torrent parsing rejects asynchronously", async () => {
+		const url = "https://indexer.example/download";
+		mockFetch.mockResolvedValueOnce(
+			new Response("invalid torrent", { headers: { "Content-Type": "application/x-bittorrent" } })
+		);
+		expect(await resolveMagnetLink(url)).toBe(url);
+		expect(mockFetch).toHaveBeenCalledOnce();
 	});
 
 	describe("settings integration", () => {

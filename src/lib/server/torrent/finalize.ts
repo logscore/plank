@@ -142,9 +142,14 @@ async function moveMovieToLibrary(mediaId: string, download: ActiveDownload): Pr
 	const destPath = path.join(destDir, fileName);
 
 	await fs.mkdir(destDir, { recursive: true });
-	const finalized = await finalizeMediaToLibrary(sourcePath, destPath, (progress) => {
-		download.transcodeProgress = progress;
-	});
+	const finalized = await finalizeMediaToLibrary(
+		sourcePath,
+		destPath,
+		(progress) => {
+			download.transcodeProgress = progress;
+		},
+		download.abortController.signal
+	);
 
 	for (const subFile of download.subtitleFiles) {
 		try {
@@ -159,7 +164,7 @@ async function moveMovieToLibrary(mediaId: string, download: ActiveDownload): Pr
 
 	mediaDb.updateFilePath(mediaId, finalized.filePath, finalized.fileSize);
 
-	discoverSubtitles(mediaId, destDir).catch((err) => {
+	await discoverSubtitles(mediaId, destDir).catch((err) => {
 		console.error(`${logPrefix} Subtitle discovery failed:`, err);
 	});
 }
@@ -204,7 +209,8 @@ async function updateEpisodeFileInfo(
 				fileSize,
 			});
 			mediaDb.updateEpisodeProgress(episode.id, fileSize, "complete");
-			discoverSubtitles(episode.id, path.dirname(filePath)).catch((error) => {
+			// biome-ignore lint/performance/noAwaitInLoops: cancellation must await subtitle writes before deleting media
+			await discoverSubtitles(episode.id, path.dirname(filePath)).catch((error) => {
 				console.error(`[${mediaId}] Subtitle discovery failed for ${videoFile.name}:`, error);
 			});
 		} else {
@@ -239,9 +245,14 @@ async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): 
 	const destPath = getEpisodeLibraryPath(show, episode, download.videoFile.name);
 
 	await fs.mkdir(seasonDir, { recursive: true });
-	const finalized = await finalizeMediaToLibrary(sourcePath, destPath, (progress) => {
-		download.transcodeProgress = progress;
-	});
+	const finalized = await finalizeMediaToLibrary(
+		sourcePath,
+		destPath,
+		(progress) => {
+			download.transcodeProgress = progress;
+		},
+		download.abortController.signal
+	);
 	for (const subFile of download.subtitleFiles) {
 		try {
 			const subSource = path.join(download.torrent.path, subFile.path);
@@ -258,7 +269,7 @@ async function moveEpisodeToLibrary(mediaId: string, download: ActiveDownload): 
 		fileSize: finalized.fileSize,
 	});
 	mediaDb.updateEpisodeProgress(mediaId, finalized.fileSize, "complete");
-	discoverSubtitles(mediaId, seasonDir).catch((errorValue) => {
+	await discoverSubtitles(mediaId, seasonDir).catch((errorValue) => {
 		console.error(`${logPrefix} Subtitle discovery failed:`, errorValue);
 	});
 }
@@ -310,6 +321,7 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 		await fs.mkdir(seasonDir, { recursive: true });
 
 		for (const videoFile of files) {
+			download.abortController.signal.throwIfAborted();
 			const fileIndex = download.videoFiles.indexOf(videoFile);
 			const episode = getEpisodeForFileIndex(mediaId, download, fileIndex);
 			const sourcePath = path.join(download.torrent.path, videoFile.path);
@@ -318,9 +330,14 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 				: path.join(seasonDir, sanitizeFilename(videoFile.name));
 
 			// biome-ignore lint/performance/noAwaitInLoops: transcodes run one at a time and progress counts completed files
-			const finalized = await finalizeMediaToLibrary(sourcePath, destPath, (progress) => {
-				download.transcodeProgress = (completedFiles + progress) / fileCount;
-			});
+			const finalized = await finalizeMediaToLibrary(
+				sourcePath,
+				destPath,
+				(progress) => {
+					download.transcodeProgress = (completedFiles + progress) / fileCount;
+				},
+				download.abortController.signal
+			);
 			await updateEpisodeFileInfo(mediaId, download, videoFile, finalized.filePath, finalized.fileSize);
 			completedFiles += 1;
 		}
@@ -329,6 +346,7 @@ async function moveTVShowToLibrary(mediaId: string, download: ActiveDownload): P
 }
 
 export async function moveToLibrary(mediaId: string, download: ActiveDownload): Promise<void> {
+	download.abortController.signal.throwIfAborted();
 	const mediaItem = mediaDb.getById(mediaId);
 	if (mediaItem?.type === "episode") {
 		await moveEpisodeToLibrary(mediaId, download);

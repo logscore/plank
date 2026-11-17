@@ -255,9 +255,12 @@ export async function requiresBrowserSafePlayback(filePath: string): Promise<boo
 export async function normalizeFileForPlayback(
 	inputPath: string,
 	outputPath: string,
-	onProgress?: (progress: number) => void
+	onProgress?: (progress: number) => void,
+	signal?: AbortSignal
 ): Promise<void> {
+	signal?.throwIfAborted();
 	const compatibility = await getPlaybackCompatibility(inputPath);
+	signal?.throwIfAborted();
 	return new Promise((resolve, reject) => {
 		const command = ffmpeg(inputPath)
 			.output(outputPath)
@@ -283,8 +286,25 @@ export async function normalizeFileForPlayback(
 			command.outputOptions(["-c:v", "copy"]);
 		}
 
+		let started = false;
+		const abort = () => {
+			if (started) {
+				command.kill("SIGKILL");
+			}
+		};
+		signal?.addEventListener("abort", abort, { once: true });
+		command.on("start", () => {
+			started = true;
+			if (signal?.aborted) {
+				abort();
+			}
+		});
+
 		if (onProgress) {
 			command.on("progress", (progress) => {
+				if (signal?.aborted) {
+					return;
+				}
 				const { percent } = progress;
 				if (percent === undefined || !Number.isFinite(percent)) {
 					return;
@@ -295,11 +315,21 @@ export async function normalizeFileForPlayback(
 
 		command
 			.on("error", (err: Error) => {
+				signal?.removeEventListener("abort", abort);
+				if (signal?.aborted) {
+					reject(signal.reason);
+					return;
+				}
 				console.error("[Transcoder] Normalize error:", err.message);
 				reject(err);
 			})
 			.on("end", () => {
-				resolve();
+				signal?.removeEventListener("abort", abort);
+				if (signal?.aborted) {
+					reject(signal.reason);
+				} else {
+					resolve();
+				}
 			})
 			.run();
 	});

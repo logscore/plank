@@ -94,7 +94,8 @@ describe("library transcoder", () => {
 		expect(normalizeFileForPlayback).toHaveBeenCalledWith(
 			"/temp/pilot.mkv",
 			"/local-temp/plank-finalize-test/pilot.mp4",
-			onProgress
+			onProgress,
+			undefined
 		);
 		expect(fs.copyFile).toHaveBeenCalledWith(
 			"/local-temp/plank-finalize-test/pilot.mp4",
@@ -102,6 +103,17 @@ describe("library transcoder", () => {
 		);
 		expect(fs.rm).toHaveBeenCalledWith("/local-temp/plank-finalize-test", { force: true, recursive: true });
 		expect(onProgress.mock.calls).toEqual([[0], [0.4], [1]]);
+	});
+
+	it("does not publish a file cancelled during the storage copy", async () => {
+		const controller = new AbortController();
+		vi.mocked(fs.copyFile).mockImplementationOnce(async () => controller.abort());
+		await expect(
+			finalizeMediaToLibrary("/temp/movie.mp4", "/library/movie.mp4", undefined, controller.signal)
+		).rejects.toMatchObject({ name: "AbortError" });
+		expect(fs.rename).not.toHaveBeenCalled();
+		expect(fs.unlink).toHaveBeenCalledWith("/library/movie.finalizing.mp4");
+		expect(fs.rm).toHaveBeenCalledWith("/local-temp/plank-finalize-test", { force: true, recursive: true });
 	});
 
 	it("copies a ready download to the library before renaming it to the final filename", async () => {

@@ -1,5 +1,4 @@
 import type { Readable } from "node:stream";
-import parseTorrent from "parse-torrent";
 import WebTorrent from "webtorrent";
 import type { MediaType } from "$lib/types";
 
@@ -44,14 +43,17 @@ export interface WebTorrentClient {
 		callback?: (torrent: Torrent) => void
 	) => Torrent;
 	destroy: (callback?: (error?: Error | null) => void) => void;
-	get: (torrentId: string) => Torrent | null;
+	get: (torrentId: string) => Promise<Torrent | null>;
 	on: (event: "error", callback: (error: Error) => void) => void;
 	remove: (torrentId: string, opts?: { destroyStore?: boolean }, callback?: () => void) => void;
 }
 
+// shortcut: cancellation covers active torrents, extend it to uploads/recovery with the future job system.
 export interface ActiveDownload {
+	abortController: AbortController;
 	episodeMapping: Map<number, number>;
 	error?: string;
+	finalization?: Promise<void>;
 	infohash: string;
 	mediaId: string;
 	mediaType: MediaType;
@@ -188,27 +190,13 @@ export function resolveEpisodeFileIndex(
 }
 
 /** Get or add torrent to client */
-export function getOrAddTorrent(
+export async function getOrAddTorrent(
 	torrentClient: WebTorrentClient,
 	magnetLink: string,
-	downloadPath: string,
-	mediaId: string
-): Torrent | null {
-	let infoHash: string | undefined;
-	try {
-		const parsed = parseTorrent(magnetLink);
-		if (typeof parsed === "string") {
-			infoHash = parsed;
-		} else if (parsed && typeof parsed === "object" && "infoHash" in parsed) {
-			({ infoHash } = parsed);
-		}
-	} catch (e) {
-		console.warn(`[${mediaId}] Failed to parse magnet link for infoHash check`, e);
-	}
-
-	const existing = infoHash ? torrentClient.get(infoHash) : null;
+	downloadPath: string
+): Promise<Torrent> {
+	const existing = await torrentClient.get(magnetLink);
 	if (existing) {
-		// console.log(`[${mediaId}] Torrent already exists (cached), reusing: ${infoHash}`);
 		return existing;
 	}
 
@@ -249,6 +237,7 @@ export function cleanupDownload(infohash: string, removeFiles: boolean): void {
 		return;
 	}
 
+	download.abortController.abort();
 	download.torrent.destroy({ destroyStore: removeFiles });
 
 	activeDownloads.delete(infohash);

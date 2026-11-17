@@ -130,7 +130,9 @@ export async function startDownload(mediaId: string, magnetLink: string): Promis
 	try {
 		await downloadPromise;
 	} finally {
-		pendingDownloads.delete(infohash);
+		if (pendingDownloads.get(infohash) === downloadPromise) {
+			pendingDownloads.delete(infohash);
+		}
 	}
 }
 
@@ -138,7 +140,7 @@ async function handleDownloadComplete(infohash: string, download: ActiveDownload
 	// const logPrefix = `[${download.mediaId}:${infohash.slice(0, 8)}]`;
 
 	// Prevent double-completion
-	if (download.status === "complete" || download.status === "finalizing") {
+	if (download.abortController.signal.aborted || download.status === "complete" || download.status === "finalizing") {
 		// console.log(`${logPrefix} Already marked complete, skipping`);
 		return;
 	}
@@ -155,8 +157,12 @@ async function handleDownloadComplete(infohash: string, download: ActiveDownload
 	// console.log(`${logPrefix} Stopped seeding`);
 
 	try {
-		await moveToLibrary(download.mediaId, download);
+		download.finalization = moveToLibrary(download.mediaId, download);
+		await download.finalization;
 	} catch (err) {
+		if (download.abortController.signal.aborted) {
+			return;
+		}
 		console.error("[Finalizer] Post-download finalization failed:", err);
 		download.status = "error";
 		download.error = err instanceof Error ? err.message : "Failed to finalize download";
@@ -166,6 +172,9 @@ async function handleDownloadComplete(infohash: string, download: ActiveDownload
 		}
 		updateMediaStatusFromDownloads(download.mediaId);
 		cleanupDownload(infohash, false);
+		return;
+	}
+	if (download.abortController.signal.aborted) {
 		return;
 	}
 	download.status = "complete";
@@ -264,8 +273,8 @@ async function handleTVShowReady(
 		console.error(`${logPrefix} No supported video files found. Files: ${allFiles}`);
 		download.status = "error";
 		download.error = `No supported video file found. Supported formats: ${SUPPORTED_VIDEO_FORMATS.join(", ")}`;
-		cleanupDownload(download.infohash, true);
 		reject(new Error("No supported video file found in torrent"));
+		cleanupDownload(download.infohash, true);
 		return false;
 	}
 
@@ -327,8 +336,8 @@ function handleMovieReady(
 		console.error(`${logPrefix} No supported video file found. Files: ${allFiles}`);
 		download.status = "error";
 		download.error = `No supported video file found. Supported formats: ${SUPPORTED_VIDEO_FORMATS.join(", ")}`;
-		cleanupDownload(download.infohash, true);
 		reject(new Error("No supported video file found in torrent"));
+		cleanupDownload(download.infohash, true);
 		return false;
 	}
 
@@ -396,23 +405,17 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 	mediaDb.updateProgress(mediaId, 0, "downloading");
 
 	const torrentClient = await getClient();
+	let torrent: Torrent;
+	try {
+		torrent = await getOrAddTorrent(torrentClient, magnetLink, downloadPath);
+	} catch (e) {
+		console.error(`[${mediaId}:${infohash.slice(0, 8)}] Failed to add torrent:`, e);
+		throw e;
+	}
 
 	return new Promise((resolve, reject) => {
-		let torrent: Torrent | null;
-
-		try {
-			torrent = getOrAddTorrent(torrentClient, magnetLink, downloadPath, mediaId);
-			if (!torrent) {
-				reject(new Error("Failed to add torrent"));
-				return;
-			}
-		} catch (e) {
-			console.error(`[${mediaId}:${infohash.slice(0, 8)}] Failed to add torrent:`, e);
-			reject(e);
-			return;
-		}
-
 		const download: ActiveDownload = {
+			abortController: new AbortController(),
 			episodeMapping: new Map(),
 			infohash,
 			mediaId,
@@ -428,6 +431,7 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 		};
 
 		activeDownloads.set(infohash, download);
+		download.abortController.signal.addEventListener("abort", () => resolve(), { once: true });
 
 		const logPrefix = `[${mediaId}:${infohash.slice(0, 8)}]`;
 
@@ -444,7 +448,7 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 		// });
 
 		torrent.on("ready", async () => {
-			if (!torrent) {
+			if (!torrent || download.abortController.signal.aborted) {
 				return;
 			}
 			// console.log(`${logPrefix} Torrent ready: ${torrent.infoHash}`);
@@ -454,7 +458,7 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 					? await handleTVShowReady(mediaId, download, torrent, reject)
 					: handleMovieReady(mediaId, actualMediaType, download, torrent, reject);
 
-			if (!success) {
+			if (!success || download.abortController.signal.aborted) {
 				return;
 			}
 
@@ -486,6 +490,9 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 		});
 
 		torrent.on("error", (err: Error) => {
+			if (download.abortController.signal.aborted) {
+				return;
+			}
 			console.error(`${logPrefix} Torrent error:`, err);
 			download.status = "error";
 			download.error = err.message;
@@ -495,12 +502,12 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 			}
 			mediaDb.updateProgress(mediaId, download.progress, "error");
 			// Tear down errored torrents so peer connections, timers, and buffers do not linger.
-			cleanupDownload(infohash, false);
 			reject(err);
+			cleanupDownload(infohash, false);
 		});
 
 		setTimeout(() => {
-			if (download.status === "initializing") {
+			if (download.status === "initializing" && !download.abortController.signal.aborted) {
 				const timeoutError = "No seeders found - the torrent may be dead or unavailable";
 				download.status = "error";
 				download.error = timeoutError;
@@ -509,14 +516,14 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 					downloadsDb.updateProgress(downloadRecord.id, 0, "error");
 				}
 				mediaDb.updateProgress(mediaId, 0, "error");
-				cleanupDownload(infohash, true);
 				reject(new Error(timeoutError));
+				cleanupDownload(infohash, true);
 			}
 		}, 120_000);
 
 		if (torrent.ready) {
 			setImmediate(() => {
-				torrent?.emit("ready");
+				torrent.emit("ready");
 			});
 		}
 	});
@@ -530,6 +537,8 @@ export async function cancelDownloadByInfohash(mediaId: string, infohash: string
 		return;
 	}
 	assert(download.mediaId === mediaId, "cancelDownloadByInfohash: download owner must match");
+	download.abortController.abort();
+	await download.finalization?.catch(() => undefined);
 	await new Promise<void>((resolve) => {
 		download.torrent.destroy({ destroyStore: true }, () => {
 			activeDownloads.delete(infohash);
@@ -547,6 +556,10 @@ export async function cancelDownload(mediaId: string): Promise<void> {
 			? [mediaId, ...mediaDb.getEpisodesByParentId(mediaId).map((episode) => episode.id)]
 			: [mediaId];
 	const downloads = targetMediaIds.flatMap((targetMediaId) => getDownloadsForMedia(targetMediaId));
+	for (const download of downloads) {
+		download.abortController.abort();
+	}
+	await Promise.all(downloads.map((download) => download.finalization?.catch(() => undefined)));
 
 	// Also remove any pending downloads for this media
 	for (const [infohash, download] of activeDownloads.entries()) {

@@ -5,8 +5,8 @@ declare module "parse-torrent" {
 		[key: string]: any;
 	}
 
-	function parseTorrent(torrentId: string | Buffer): ParsedTorrent;
-	export = parseTorrent;
+	export default function parseTorrent(torrentId: string | Buffer): Promise<ParsedTorrent>;
+	export function toMagnetURI(torrent: ParsedTorrent): string;
 }
 
 declare module "parse-torrent-title" {
@@ -85,7 +85,7 @@ declare module "webtorrent" {
 		add(torrentId: string | Buffer, opts?: AddOptions, callback?: (torrent: Torrent) => void): Torrent;
 		seed(input: unknown, opts?: object, callback?: (torrent: Torrent) => void): Torrent;
 		remove(torrentId: string | Torrent, opts?: { destroyStore?: boolean }, callback?: () => void): void;
-		get(torrentId: string): Torrent | null;
+		get(torrentId: string): Promise<Torrent | null>;
 		destroy(callback?: () => void): void;
 		downloadSpeed: number;
 		uploadSpeed: number;

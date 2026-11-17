@@ -96,6 +96,7 @@ describe("torrent library finalization", () => {
 			path: "/temp/show-1/hash-1",
 		} as unknown as ActiveDownload["torrent"];
 		const download: ActiveDownload = {
+			abortController: new AbortController(),
 			episodeMapping: new Map([
 				[101, 0],
 				[102, 1],
@@ -126,5 +127,8 @@ describe("torrent library finalization", () => {
 
 		expect(progress).toEqual([0.25, 0.5, 0.75, 1]);
 		expect(download.transcodeProgress).toBe(1);
+		expect(
+			mocks.finalizeMediaToLibrary.mock.calls.every((call) => call[3] === download.abortController.signal)
+		).toBe(true);
 	});
 });

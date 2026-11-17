@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ActiveDownload } from "../lib/server/torrent/client";
-import { startDownload } from "../lib/server/torrent/download";
+import { cancelDownload, cancelDownloadByInfohash, startDownload } from "../lib/server/torrent/download";
 import { getDownloadStatus } from "../lib/server/torrent/status";
 
 const mocks = vi.hoisted(() => ({
@@ -73,6 +73,7 @@ vi.mock("../lib/server/torrent/finalize", () => ({
 }));
 
 class FakeTorrent extends EventEmitter {
+	destroy = vi.fn((_options: unknown, callback: () => void) => callback());
 	files: unknown[] = [];
 	infoHash = "hash-1";
 	downloaded = 0;
@@ -93,6 +94,65 @@ describe("torrent finalization", () => {
 		vi.useRealTimers();
 	});
 
+	it("reports an asynchronous torrent lookup failure without registering a download", async () => {
+		const failure = new Error("Torrent lookup failed");
+		mocks.getOrAddTorrent.mockRejectedValueOnce(failure);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		await expect(startDownload("media-1", "magnet:?xt=urn:btih:hash-1")).rejects.toBe(failure);
+		expect(mocks.activeDownloads.size).toBe(0);
+		expect(mocks.pendingDownloads.size).toBe(0);
+		consoleError.mockRestore();
+	});
+
+	it.each(["one", "all"])("cancels %s torrent finalization before destroying its files", async (scope) => {
+		const torrent = new FakeTorrent();
+		const finalization = Promise.withResolvers<void>();
+		mocks.getOrAddTorrent.mockResolvedValueOnce(torrent);
+		mocks.findVideoFile.mockReturnValue({
+			deselect: vi.fn(),
+			length: 100,
+			name: "Movie.mp4",
+			progress: 0,
+			select: vi.fn(),
+		});
+		mocks.moveToLibrary.mockReturnValueOnce(finalization.promise);
+		const start = startDownload("media-1", "magnet:?xt=urn:btih:hash-1");
+		await vi.advanceTimersByTimeAsync(0);
+		torrent.emit("ready");
+		await start;
+		torrent.emit("done");
+		const download = mocks.activeDownloads.get("hash-1");
+		mocks.mediaUpdateProgress.mockClear();
+		const cancellation =
+			scope === "one" ? cancelDownloadByInfohash("media-1", "hash-1") : cancelDownload("media-1");
+		expect(download?.abortController.signal.aborted).toBe(true);
+		expect(torrent.destroy).not.toHaveBeenCalled();
+		finalization.reject(download?.abortController.signal.reason);
+		await cancellation;
+		torrent.emit("done");
+		torrent.emit("error", new Error("late error"));
+		await vi.advanceTimersByTimeAsync(120_000);
+		expect(torrent.destroy).toHaveBeenCalledOnce();
+		expect(mocks.moveToLibrary).toHaveBeenCalledOnce();
+		expect(mocks.mediaUpdateProgress).not.toHaveBeenCalled();
+		expect(mocks.downloadUpdateProgress).not.toHaveBeenCalled();
+	});
+
+	it("still reports torrent errors when cleanup aborts initialization", async () => {
+		const torrent = new FakeTorrent();
+		mocks.getOrAddTorrent.mockResolvedValueOnce(torrent);
+		mocks.cleanupDownload.mockImplementationOnce(() =>
+			mocks.activeDownloads.get("hash-1")?.abortController.abort()
+		);
+		const failure = new Error("No seeders");
+		const start = expect(startDownload("media-1", "magnet:?xt=urn:btih:hash-1")).rejects.toBe(failure);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		await vi.advanceTimersByTimeAsync(0);
+		torrent.emit("error", failure);
+		await start;
+		consoleError.mockRestore();
+	});
+
 	it("destroys torrent resources when library finalization fails", async () => {
 		const torrent = new FakeTorrent();
 		const videoFile = {
@@ -104,7 +164,7 @@ describe("torrent finalization", () => {
 			progress: 1,
 			select: vi.fn(),
 		};
-		mocks.getOrAddTorrent.mockReturnValue(torrent);
+		mocks.getOrAddTorrent.mockResolvedValue(torrent);
 		mocks.findVideoFile.mockReturnValue(videoFile);
 		mocks.moveToLibrary.mockRejectedValue(new Error("disk failure"));
 		const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -132,7 +192,7 @@ describe("torrent finalization", () => {
 			progress: 0,
 			select: vi.fn(),
 		};
-		mocks.getOrAddTorrent.mockReturnValue(torrent);
+		mocks.getOrAddTorrent.mockResolvedValue(torrent);
 		mocks.findVideoFile.mockReturnValue(videoFile);
 		const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
@@ -168,7 +228,7 @@ describe("torrent finalization", () => {
 			progress: 0,
 			select: vi.fn(),
 		};
-		mocks.getOrAddTorrent.mockReturnValue(torrent);
+		mocks.getOrAddTorrent.mockResolvedValue(torrent);
 		mocks.findVideoFile.mockReturnValue(videoFile);
 
 		const startPromise = startDownload("media-1", "magnet:?xt=urn:btih:hash-1");
@@ -195,6 +255,7 @@ describe("torrent finalization", () => {
 			numPeers: 0,
 		} as unknown as ActiveDownload["torrent"];
 		const first: ActiveDownload = {
+			abortController: new AbortController(),
 			episodeMapping: new Map(),
 			infohash: "hash-1",
 			mediaId: "media-1",

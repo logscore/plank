@@ -5,7 +5,7 @@
  * Filters for high-quality releases from trusted groups.
  */
 
-import parseTorrent from "parse-torrent";
+import parseTorrent, { toMagnetURI } from "parse-torrent";
 import ptt from "parse-torrent-title";
 import { getSettings } from "$lib/server/settings";
 
@@ -175,13 +175,12 @@ function isLocalhost(hostname: string): boolean {
 /**
  * Try to extract magnet from response body (torrent file or text)
  */
-function extractMagnetFromBody(buffer: ArrayBuffer, contentType: string): string | null {
+async function extractMagnetFromBody(buffer: ArrayBuffer, contentType: string): Promise<string | null> {
 	// Check if it's a torrent file
 	if (contentType.includes("torrent") || contentType.includes("octet-stream")) {
-		const parsed = parseTorrent(Buffer.from(buffer));
+		const parsed = await parseTorrent(Buffer.from(buffer));
 		if (parsed?.infoHash) {
-			// @ts-expect-error - types missing for toMagnetURI
-			return parseTorrent.toMagnetURI(parsed);
+			return toMagnetURI(parsed);
 		}
 	}
 
@@ -243,7 +242,7 @@ async function tryFetchMagnet(fetchUrl: string): Promise<string | null> {
 		// Parse response body for magnet
 		const contentType = response.headers.get("content-type") || "";
 		const buffer = await response.arrayBuffer();
-		return extractMagnetFromBody(buffer, contentType);
+		return await extractMagnetFromBody(buffer, contentType);
 	} catch {
 		return null;
 	}

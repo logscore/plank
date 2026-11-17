@@ -20,6 +20,7 @@ const { mockFfmpegConstructor, mockFfmpegCommand } = vi.hoisted(() => {
 	const mockCommand = {
 		inputFormat: vi.fn().mockReturnThis(),
 		inputOptions: vi.fn().mockReturnThis(),
+		kill: vi.fn().mockReturnThis(),
 		on: vi.fn().mockReturnThis(),
 		output: vi.fn().mockReturnThis(),
 		outputFormat: vi.fn().mockReturnThis(),
@@ -227,6 +228,37 @@ describe("FFmpeg Service", () => {
 	});
 
 	describe("normalizeFileForPlayback", () => {
+		it.each([false, true])(
+			"kills cancelled FFmpeg even when cancellation precedes process startup: %s",
+			async (cancelBeforeStart) => {
+				const controller = new AbortController();
+				const handlers = new Map<string, (...args: unknown[]) => void>();
+				mockFfmpegCommand.on.mockImplementation((event, callback) => {
+					handlers.set(event, callback);
+					return mockFfmpegCommand;
+				});
+				mockFfmpegCommand.kill.mockImplementation(() => {
+					queueMicrotask(() => handlers.get("error")?.(new Error("killed")));
+					return mockFfmpegCommand;
+				});
+				mockFfmpegCommand.run.mockImplementation(() => {
+					if (cancelBeforeStart) {
+						controller.abort();
+					}
+					handlers.get("start")?.();
+					if (!cancelBeforeStart) {
+						controller.abort();
+					}
+				});
+
+				await expect(
+					normalizeFileForPlayback("input.mkv", "output.mp4", undefined, controller.signal)
+				).rejects.toMatchObject({ name: "AbortError" });
+				expect(mockFfmpegCommand.kill).toHaveBeenCalledOnce();
+				expect(mockFfmpegCommand.kill).toHaveBeenCalledWith("SIGKILL");
+			}
+		);
+
 		it.each([
 			["h264", "aac", 2, "copy", "copy"],
 			["h264", "mp3", 1, "copy", "copy"],

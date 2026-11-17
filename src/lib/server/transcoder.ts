@@ -79,8 +79,10 @@ async function scanShows(): Promise<void> {
 export async function finalizeMediaToLibrary(
 	sourcePath: string,
 	targetPath: string,
-	onProgress?: (progress: number) => void
+	onProgress?: (progress: number) => void,
+	signal?: AbortSignal
 ): Promise<{ filePath: string; fileSize: number }> {
+	signal?.throwIfAborted();
 	onProgress?.(0);
 	await fs.mkdir(path.dirname(targetPath), { recursive: true });
 
@@ -96,8 +98,9 @@ export async function finalizeMediaToLibrary(
 	const workDir = await fs.mkdtemp(path.join(tmpdir(), "plank-finalize-"));
 	const preparedPath = needsNormalization ? path.join(workDir, path.basename(finalPath)) : sourcePath;
 	try {
+		signal?.throwIfAborted();
 		if (needsNormalization) {
-			await normalizeFileForPlayback(sourcePath, preparedPath, onProgress);
+			await normalizeFileForPlayback(sourcePath, preparedPath, onProgress, signal);
 		}
 		if (!(await verifyFileIntegrity(preparedPath))) {
 			throw new Error(`Finalized file is invalid: ${preparedPath}`);
@@ -107,7 +110,9 @@ export async function finalizeMediaToLibrary(
 		}
 
 		await fs.rm(tempPath, { force: true });
+		signal?.throwIfAborted();
 		await fs.copyFile(preparedPath, tempPath);
+		signal?.throwIfAborted();
 		await fs.rename(tempPath, finalPath);
 		const file = await fs.open(finalPath, "r+");
 		try {
