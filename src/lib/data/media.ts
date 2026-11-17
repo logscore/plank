@@ -5,18 +5,18 @@ import { apiRequest, uploadInChunks } from "./client";
 
 export interface AddMediaParams {
 	magnetLink: string;
-	title?: string;
-	tmdbId?: number;
 	type?: MediaType;
+	title?: string;
 	year?: number;
+	tmdbId?: number;
 }
 
 export function createAddMediaMutation() {
 	return createMutation<Media, Error, AddMediaParams>(() => ({
 		mutationFn: (params) =>
 			apiRequest<Media>("/api/media", "Failed to add media", {
-				json: params,
 				method: "POST",
+				json: params,
 			}),
 		onSuccess: async () => {
 			await invalidate("/api/media");
@@ -48,10 +48,10 @@ export function createMarkWatchedMutation() {
 }
 
 export interface RetryMediaInput {
-	downloadId?: string | null;
 	id: string;
-	magnetLink?: string;
 	mode?: "same" | "replace" | "remove";
+	magnetLink?: string;
+	downloadId?: string | null;
 }
 
 export function createRetryMediaMutation() {
@@ -59,8 +59,8 @@ export function createRetryMediaMutation() {
 		mutationFn: ({ id, mode, magnetLink, downloadId }) => {
 			const hasBody = mode !== undefined || magnetLink !== undefined || downloadId !== undefined;
 			return apiRequest<void>(`/api/media/${id}/retry`, "Media action failed", {
-				json: hasBody ? { downloadId, magnetLink, mode } : undefined,
 				method: "POST",
+				json: hasBody ? { mode, magnetLink, downloadId } : undefined,
 			});
 		},
 		onSuccess: async (_result, input) => {
@@ -79,26 +79,26 @@ export async function uploadMediaFile(
 }
 
 export interface DownloadSubtitleParams {
+	mediaId: string;
 	fileId: number;
 	language: string;
-	mediaId: string;
 }
 
 export function createDownloadSubtitleMutation() {
 	return createMutation<SubtitleTrackResponse, Error, DownloadSubtitleParams>(() => ({
+		retry: false,
 		mutationFn: (params) =>
 			apiRequest<SubtitleTrackResponse>(
 				`/api/media/${params.mediaId}/subtitles/download`,
 				"Failed to download subtitle",
 				{
-					json: { fileId: params.fileId, language: params.language },
 					method: "POST",
+					json: { fileId: params.fileId, language: params.language },
 				}
 			),
 		onSuccess: async (_data, params) => {
 			await invalidate(`/api/media/${params.mediaId}`);
 		},
-		retry: false,
 	}));
 }
 
@@ -120,17 +120,17 @@ export function createDeleteSubtitleMutation() {
 }
 
 export interface SavePositionParams {
-	duration?: number;
 	id: string;
 	position: number;
+	duration?: number;
 }
 
 export function createSavePositionMutation() {
 	return createMutation<void, Error, SavePositionParams>(() => ({
 		mutationFn: (params) =>
 			apiRequest<void>(`/api/media/${params.id}/position`, "Failed to save position", {
-				json: { duration: params.duration, position: params.position },
 				method: "PUT",
+				json: { position: params.position, duration: params.duration },
 			}),
 	}));
 }
@@ -155,9 +155,9 @@ function searchMediaSources(mediaId: string): Promise<SourceSearchResult> {
 /** Cached indexer releases for one title. Reopening the dialog reuses the last search. */
 export function createMediaSourcesQuery(mediaId: () => string | null, enabled: () => boolean) {
 	return createQuery(() => ({
-		enabled: enabled() && mediaId() !== null,
-		queryFn: () => searchMediaSources(mediaId() as string),
 		queryKey: mediaKeys.sources(mediaId()),
+		queryFn: () => searchMediaSources(mediaId() as string),
+		enabled: enabled() && mediaId() !== null,
 		staleTime: SOURCES_STALE_TIME_MS,
 	}));
 }
@@ -177,7 +177,7 @@ export async function searchOpenSubtitles(
 	if (options?.seasonNumber !== undefined) {
 		params.set("seasonNumber", String(options.seasonNumber));
 	}
-	if (options?.episodeNumber !== undefined && options.episodeNumber !== null) {
+	if (options?.episodeNumber != null) {
 		params.set("episodeNumber", String(options.episodeNumber));
 	}
 	return apiRequest(`/api/media/${mediaId}/subtitles/search?${params}`, "Failed to search subtitles");

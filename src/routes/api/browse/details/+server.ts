@@ -11,15 +11,15 @@ import { getCachedTorrents } from "$lib/server/torrent-cache";
 import type { RequestHandler } from "./$types";
 
 interface DetailRequest {
-	mediaType: "movie" | "show";
 	tmdbId: number;
+	mediaType: "movie" | "show";
 }
 
 interface DetailResult {
-	certification: string | null;
-	imdbId: string | null;
-	magnetLink?: string;
 	tmdbId: number;
+	imdbId: string | null;
+	certification: string | null;
+	magnetLink?: string;
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -40,7 +40,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const details = await Promise.all(
 		items.map(async ({ tmdbId, mediaType }): Promise<DetailResult> => {
 			const result = await getBrowseItemDetails(tmdbId, mediaType);
-			return { certification: result.certification, imdbId: result.imdbId, tmdbId };
+			return { tmdbId, imdbId: result.imdbId, certification: result.certification };
 		})
 	);
 

@@ -5,36 +5,36 @@ import { schema } from "$lib/server/db/schema";
 import { db } from "./setup";
 
 const testUser = {
-	email: "test@example.com",
-	emailVerified: true,
 	id: "user-1",
 	name: "Test User",
+	email: "test@example.com",
+	emailVerified: true,
 };
 
 const testOrg = {
-	createdAt: new Date(),
 	id: "org-1",
 	name: "Test Org",
 	slug: "test-org",
+	createdAt: new Date(),
 };
 
 function createMovie() {
 	return mediaDb.create({
-		infohash: "movie123",
-		magnetLink: "magnet:?xt=urn:btih:movie123",
-		organizationId: testOrg.id,
-		title: "Test Movie",
-		type: "movie",
 		userId: testUser.id,
+		organizationId: testOrg.id,
+		type: "movie",
+		title: "Test Movie",
+		magnetLink: "magnet:?xt=urn:btih:movie123",
+		infohash: "movie123",
 	});
 }
 
 function createShow() {
 	return mediaDb.create({
-		organizationId: testOrg.id,
-		title: "Test Show",
-		type: "show",
 		userId: testUser.id,
+		organizationId: testOrg.id,
+		type: "show",
+		title: "Test Show",
 	});
 }
 
@@ -53,18 +53,18 @@ describe("mediaDb", () => {
 
 	it("stores episodes on the media table", () => {
 		const show = createShow();
-		const season = seasonsDb.create({ mediaId: show.id, name: "Season 1", seasonNumber: 1 });
+		const season = seasonsDb.create({ mediaId: show.id, seasonNumber: 1, name: "Season 1" });
 		const episode = mediaDb.create({
-			displayOrder: 0,
-			episodeNumber: 1,
+			userId: testUser.id,
 			organizationId: testOrg.id,
+			type: "episode",
 			parentId: show.id,
 			seasonId: season.id,
 			seasonNumber: 1,
-			status: "pending",
+			episodeNumber: 1,
+			displayOrder: 0,
 			title: "Pilot",
-			type: "episode",
-			userId: testUser.id,
+			status: "pending",
 		});
 
 		expect(mediaDb.getEpisodesBySeasonId(season.id).map((item) => item.id)).toEqual([episode.id]);
@@ -74,18 +74,18 @@ describe("mediaDb", () => {
 
 	it("updates episode file info and playback position", () => {
 		const show = createShow();
-		const season = seasonsDb.create({ mediaId: show.id, name: "Season 1", seasonNumber: 1 });
+		const season = seasonsDb.create({ mediaId: show.id, seasonNumber: 1, name: "Season 1" });
 		const episode = mediaDb.create({
-			displayOrder: 0,
-			episodeNumber: 1,
+			userId: testUser.id,
 			organizationId: testOrg.id,
+			type: "episode",
 			parentId: show.id,
 			seasonId: season.id,
 			seasonNumber: 1,
-			status: "pending",
+			episodeNumber: 1,
+			displayOrder: 0,
 			title: "Pilot",
-			type: "episode",
-			userId: testUser.id,
+			status: "pending",
 		});
 
 		mediaDb.updateFileInfo(episode.id, { fileIndex: 0, filePath: "/library/pilot.mkv", fileSize: 1234 });
@@ -103,40 +103,40 @@ describe("mediaDb", () => {
 
 	it("filters library titles by media, rating, year, and genre", () => {
 		const actionMovie = mediaDb.create({
-			genres: JSON.stringify(["Action"]),
+			userId: testUser.id,
 			organizationId: testOrg.id,
+			type: "movie",
 			title: "Action Movie",
-			type: "movie",
-			userId: testUser.id,
-			voteAverage: 8,
 			year: 2020,
-		});
-		mediaDb.create({
-			genres: JSON.stringify(["Drama"]),
-			organizationId: testOrg.id,
-			title: "Drama Movie",
-			type: "movie",
-			userId: testUser.id,
-			voteAverage: 9,
-			year: 2010,
-		});
-		mediaDb.create({
+			voteAverage: 8,
 			genres: JSON.stringify(["Action"]),
-			organizationId: testOrg.id,
-			title: "Action Show",
-			type: "show",
+		});
+		mediaDb.create({
 			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "Drama Movie",
+			year: 2010,
 			voteAverage: 9,
+			genres: JSON.stringify(["Drama"]),
+		});
+		mediaDb.create({
+			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "show",
+			title: "Action Show",
 			year: 2021,
+			voteAverage: 9,
+			genres: JSON.stringify(["Action"]),
 		});
 
 		const results = mediaDb.search(testOrg.id, "", {
 			...DEFAULT_CATALOG_FILTERS,
-			genres: ["action"],
+			scope: "library",
 			media: "movie",
 			rating: 7.5,
-			scope: "library",
 			yearFrom: 2015,
+			genres: ["action"],
 		});
 
 		expect(results.map((item) => item.id)).toEqual([actionMovie.id]);
@@ -144,30 +144,30 @@ describe("mediaDb", () => {
 
 	it("filters the library by rating with the default sort", () => {
 		mediaDb.create({
-			organizationId: testOrg.id,
-			title: "Below Threshold",
-			type: "movie",
 			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "Below Threshold",
 			voteAverage: 6.9,
 		});
 		const included = mediaDb.create({
-			organizationId: testOrg.id,
-			title: "At Threshold",
-			type: "movie",
 			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "At Threshold",
 			voteAverage: 7,
 		});
 		const unrated = mediaDb.create({
-			organizationId: testOrg.id,
-			title: "Legacy Unrated",
-			type: "movie",
 			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "Legacy Unrated",
 		});
 
 		const results = mediaDb.search(testOrg.id, "", {
 			...DEFAULT_CATALOG_FILTERS,
-			rating: 7,
 			scope: "library",
+			rating: 7,
 		});
 
 		expect(results.map((item) => item.id).toSorted()).toEqual([included.id, unrated.id].toSorted());
@@ -175,16 +175,16 @@ describe("mediaDb", () => {
 
 	it("treats title wildcard characters as text", () => {
 		const literalMatch = mediaDb.create({
-			organizationId: testOrg.id,
-			title: "100% Fun",
-			type: "movie",
 			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "100% Fun",
 		});
 		mediaDb.create({
-			organizationId: testOrg.id,
-			title: "1000 Fun",
-			type: "movie",
 			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "1000 Fun",
 		});
 
 		const results = mediaDb.search(testOrg.id, "%", {
@@ -197,23 +197,23 @@ describe("mediaDb", () => {
 
 	it("sorts unknown years after known years", () => {
 		const unknown = mediaDb.create({
-			organizationId: testOrg.id,
-			title: "Unknown",
-			type: "movie",
 			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "Unknown",
 		});
 		const recent = mediaDb.create({
-			organizationId: testOrg.id,
-			title: "Recent",
-			type: "movie",
 			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "Recent",
 			year: 2020,
 		});
 		const old = mediaDb.create({
-			organizationId: testOrg.id,
-			title: "Old",
-			type: "movie",
 			userId: testUser.id,
+			organizationId: testOrg.id,
+			type: "movie",
+			title: "Old",
 			year: 1980,
 		});
 
@@ -239,15 +239,15 @@ describe("mediaDb", () => {
 	it("lists one queue row per show download", () => {
 		const show = createShow();
 		const first = downloadsDb.create({
-			infohash: "season1",
-			magnetLink: "magnet:?xt=urn:btih:season1",
 			mediaId: show.id,
+			magnetLink: "magnet:?xt=urn:btih:season1",
+			infohash: "season1",
 			status: "error",
 		});
 		const second = downloadsDb.create({
-			infohash: "season2",
-			magnetLink: "magnet:?xt=urn:btih:season2",
 			mediaId: show.id,
+			magnetLink: "magnet:?xt=urn:btih:season2",
+			infohash: "season2",
 			status: "added",
 		});
 
@@ -262,9 +262,9 @@ describe("downloadsDb", () => {
 	it("creates and retrieves downloads", () => {
 		const movie = createMovie();
 		const download = downloadsDb.create({
-			infohash: "movie123",
-			magnetLink: "magnet:?xt=urn:btih:movie123",
 			mediaId: movie.id,
+			magnetLink: "magnet:?xt=urn:btih:movie123",
+			infohash: "movie123",
 			status: "added",
 		});
 
@@ -277,18 +277,18 @@ describe("subtitlesDb", () => {
 	it("stores subtitles by media id only", () => {
 		const movie = createMovie();
 		const subtitleA = subtitlesDb.create({
-			filePath: "/subs/en.vtt",
-			label: "English",
-			language: "en",
 			mediaId: movie.id,
+			language: "en",
+			label: "English",
 			source: "manual",
+			filePath: "/subs/en.vtt",
 		});
 		const subtitleB = subtitlesDb.create({
-			filePath: "/subs/es.vtt",
-			label: "Spanish",
-			language: "es",
 			mediaId: movie.id,
+			language: "es",
+			label: "Spanish",
 			source: "manual",
+			filePath: "/subs/es.vtt",
 		});
 
 		const subtitles = subtitlesDb.getByMediaId(movie.id);

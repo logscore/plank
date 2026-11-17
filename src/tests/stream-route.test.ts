@@ -51,8 +51,8 @@ describe("stream route", () => {
 
 		await expect(
 			GET({
-				locals: {} as App.Locals,
 				params: { id: "show-1" },
+				locals: {} as App.Locals,
 				request: new Request("http://localhost"),
 			} as never)
 		).rejects.toMatchObject({ status: 400 });
@@ -65,18 +65,18 @@ describe("stream route", () => {
 
 		requireMediaAccess.mockReturnValue({
 			mediaItem: {
-				fileIndex: 0,
-				filePath,
 				id: "episode-1",
+				type: "episode",
+				filePath,
+				fileIndex: 0,
 				magnetLink: null,
 				status: "complete",
-				type: "episode",
 			},
 		});
 
 		const response = await GET({
-			locals: {} as App.Locals,
 			params: { id: "episode-1" },
+			locals: {} as App.Locals,
 			request: new Request("http://localhost"),
 		} as never);
 
@@ -84,7 +84,7 @@ describe("stream route", () => {
 		expect(response.headers.get("content-type")).toBe("video/mp4");
 		expect(vi.mocked(ffmpeg.createTransmuxStream)).not.toHaveBeenCalled();
 
-		await rm(directory, { force: true, recursive: true });
+		await rm(directory, { recursive: true, force: true });
 	});
 
 	it("rejects completed library files that are not direct-playback safe", async () => {
@@ -94,48 +94,48 @@ describe("stream route", () => {
 
 		requireMediaAccess.mockReturnValue({
 			mediaItem: {
-				fileIndex: 0,
-				filePath,
 				id: "episode-1",
+				type: "episode",
+				filePath,
+				fileIndex: 0,
 				magnetLink: null,
 				status: "complete",
-				type: "episode",
 			},
 		});
 		vi.mocked(ffmpeg.requiresBrowserSafePlayback).mockResolvedValue(true);
 
 		await expect(
 			GET({
-				locals: {} as App.Locals,
 				params: { id: "episode-1" },
+				locals: {} as App.Locals,
 				request: new Request("http://localhost"),
 			} as never)
 		).rejects.toMatchObject({ status: 503 });
 		expect(vi.mocked(ffmpeg.createTransmuxStream)).not.toHaveBeenCalled();
 
-		await rm(directory, { force: true, recursive: true });
+		await rm(directory, { recursive: true, force: true });
 	});
 
 	it("returns buffering response while download is warming up", async () => {
 		requireMediaAccess.mockReturnValue({
 			mediaItem: {
-				fileIndex: 0,
-				filePath: null,
 				id: "episode-1",
+				type: "episode",
+				filePath: null,
+				fileIndex: 0,
 				magnetLink: "magnet:?xt=urn:btih:episode123",
 				status: "pending",
-				type: "episode",
 			},
 		});
 		vi.mocked(torrentStatus.getDownloadStatus).mockReturnValue({
+			progress: 0,
 			downloadSpeed: 0,
 			peers: 0,
-			progress: 0,
 			status: "initializing",
 			transcodeProgress: 0,
 		});
 
-		const response = await HEAD({ locals: {} as App.Locals, params: { id: "episode-1" } } as never);
+		const response = await HEAD({ params: { id: "episode-1" }, locals: {} as App.Locals } as never);
 
 		expect(response.status).toBe(202);
 		expect(vi.mocked(torrentDownload.startDownload)).toHaveBeenCalledWith(

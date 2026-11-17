@@ -42,12 +42,12 @@ describe("streaming route behavior", () => {
 	it("returns 404 when torrent streaming cannot resolve a file", async () => {
 		requireMediaAccess.mockReturnValue({
 			mediaItem: {
-				fileIndex: 0,
-				filePath: null,
 				id: "episode-1",
+				type: "episode",
+				filePath: null,
+				fileIndex: 0,
 				magnetLink: "magnet:?xt=urn:btih:episode123",
 				status: "downloading",
-				type: "episode",
 			},
 		});
 		vi.mocked(torrentStatus.waitForVideoReady).mockResolvedValue(true);
@@ -55,8 +55,8 @@ describe("streaming route behavior", () => {
 
 		await expect(
 			GET({
-				locals: {} as App.Locals,
 				params: { id: "episode-1" },
+				locals: {} as App.Locals,
 				request: new Request("http://localhost"),
 			} as never)
 		).rejects.toMatchObject({ status: 404 });
@@ -65,26 +65,26 @@ describe("streaming route behavior", () => {
 	it("serves torrent streams when media is ready", async () => {
 		requireMediaAccess.mockReturnValue({
 			mediaItem: {
-				fileIndex: 0,
-				filePath: null,
 				id: "episode-1",
+				type: "episode",
+				filePath: null,
+				fileIndex: 0,
 				magnetLink: "magnet:?xt=urn:btih:episode123",
 				status: "downloading",
-				type: "episode",
 			},
 		});
 		vi.mocked(torrentStatus.waitForVideoReady).mockResolvedValue(true);
 		vi.mocked(torrentStream.getVideoStream).mockResolvedValue({
-			fileName: "pilot.mp4",
-			fileSize: 5,
-			isComplete: false,
-			mimeType: "video/mp4",
 			stream: Readable.from(["video"]),
+			fileSize: 5,
+			fileName: "pilot.mp4",
+			mimeType: "video/mp4",
+			isComplete: false,
 		});
 
 		const response = await GET({
-			locals: {} as App.Locals,
 			params: { id: "episode-1" },
+			locals: {} as App.Locals,
 			request: new Request("http://localhost"),
 		} as never);
 
@@ -96,27 +96,27 @@ describe("streaming route behavior", () => {
 	it("rejects completed torrent streams without a finalized library file", async () => {
 		requireMediaAccess.mockReturnValue({
 			mediaItem: {
-				fileIndex: 0,
-				filePath: null,
 				id: "episode-1",
+				type: "episode",
+				filePath: null,
+				fileIndex: 0,
 				magnetLink: "magnet:?xt=urn:btih:episode123",
 				status: "downloading",
-				type: "episode",
 			},
 		});
 		vi.mocked(torrentStatus.waitForVideoReady).mockResolvedValue(true);
 		vi.mocked(torrentStream.getVideoStream).mockResolvedValue({
-			fileName: "pilot.mp4",
-			fileSize: 5,
-			isComplete: true,
-			mimeType: "video/mp4",
 			stream: Readable.from(["video"]),
+			fileSize: 5,
+			fileName: "pilot.mp4",
+			mimeType: "video/mp4",
+			isComplete: true,
 		});
 
 		await expect(
 			GET({
-				locals: {} as App.Locals,
 				params: { id: "episode-1" },
+				locals: {} as App.Locals,
 				request: new Request("http://localhost"),
 			} as never)
 		).rejects.toMatchObject({ status: 503 });

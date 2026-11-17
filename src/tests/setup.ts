@@ -12,20 +12,22 @@ export const db = drizzle(testDb, { schema });
 // Mock environment variables
 vi.mock("$env/dynamic/private", () => ({
 	env: {
+		DATABASE_URL: ":memory:",
 		BETTER_AUTH_SECRET: "test-secret-key-for-testing-purposes",
 		BETTER_AUTH_URL: "http://localhost:5173",
-		DATA_PATH: "/mock/data",
-		DATABASE_URL: ":memory:",
-		PROWLARR_API_KEY: "test-api-key",
-		PROWLARR_URL: "http://localhost:9696",
 		TMDB_API_KEY: "test-tmdb-api-key",
+		DATA_PATH: "/mock/data",
+		PROWLARR_URL: "http://localhost:9696",
+		PROWLARR_API_KEY: "test-api-key",
 	},
 }));
 
 // Mock the database module to use our test instance
-vi.mock("$lib/server/db/index", async () => ({
-	db: drizzle(testDb, { schema }),
-}));
+vi.mock("$lib/server/db/index", async () => {
+	return {
+		db: drizzle(testDb, { schema }),
+	};
+});
 
 // Create tables before all tests
 beforeAll(() => {

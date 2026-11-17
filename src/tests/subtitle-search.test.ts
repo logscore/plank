@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { requireMediaAccess, getById, searchSubtitles } = vi.hoisted(() => ({
-	getById: vi.fn(),
 	requireMediaAccess: vi.fn(),
+	getById: vi.fn(),
 	searchSubtitles: vi.fn(),
 }));
 
@@ -14,8 +14,8 @@ import { GET } from "../routes/api/media/[id]/subtitles/search/+server";
 
 function search(query = "") {
 	return GET({
-		locals: {},
 		params: { id: "media-1" },
+		locals: {},
 		url: new URL(`http://localhost/api/media/media-1/subtitles/search${query}`),
 	} as never);
 }
@@ -28,14 +28,14 @@ describe("subtitle search route", () => {
 
 	it("searches movies by their identity without an additional title filter", async () => {
 		requireMediaAccess.mockReturnValue({
-			mediaItem: { title: "Translated title", tmdbId: 123, type: "movie", year: 2020 },
+			mediaItem: { type: "movie", title: "Translated title", tmdbId: 123, year: 2020 },
 		});
 
 		const response = await search("?languages=en,es");
 
 		expect(response.status).toBe(200);
 		expect(searchSubtitles).toHaveBeenCalledWith(
-			expect.objectContaining({ languages: "en,es", query: undefined, tmdbId: 123, year: 2020 })
+			expect.objectContaining({ tmdbId: 123, query: undefined, year: 2020, languages: "en,es" })
 		);
 		expect(getById).not.toHaveBeenCalled();
 	});
@@ -43,53 +43,53 @@ describe("subtitle search route", () => {
 	it("uses the parent show and stored episode numbers from the watch page", async () => {
 		requireMediaAccess.mockReturnValue({
 			mediaItem: {
-				episodeNumber: 2,
+				type: "episode",
 				parentId: "show-1",
-				seasonNumber: 0,
 				title: "Pilot",
 				tmdbId: 999,
-				type: "episode",
+				seasonNumber: 0,
+				episodeNumber: 2,
 				year: 2024,
 			},
 		});
-		getById.mockReturnValue({ imdbId: "tt456", title: "Example show", tmdbId: 123, year: 2018 });
+		getById.mockReturnValue({ title: "Example show", tmdbId: 123, imdbId: "tt456", year: 2018 });
 
 		await search("?languages=en&seasonNumber=1&episodeNumber=1");
 
 		expect(getById).toHaveBeenCalledWith("show-1");
 		expect(searchSubtitles).toHaveBeenCalledWith(
 			expect.objectContaining({
-				episodeNumber: 2,
-				parentImdbId: "tt456",
 				parentTmdbId: 123,
-				query: undefined,
-				seasonNumber: 0,
+				parentImdbId: "tt456",
 				tmdbId: undefined,
+				query: undefined,
 				year: undefined,
+				seasonNumber: 0,
+				episodeNumber: 2,
 			})
 		);
 	});
 
 	it("falls back to the show title when external identifiers are missing", async () => {
 		requireMediaAccess.mockReturnValue({
-			mediaItem: { episodeNumber: 1, parentId: "show-1", seasonNumber: 1, title: "Pilot", type: "episode" },
+			mediaItem: { type: "episode", parentId: "show-1", title: "Pilot", seasonNumber: 1, episodeNumber: 1 },
 		});
 		getById.mockReturnValue({ title: "Example show" });
 
 		await search();
 
 		expect(searchSubtitles).toHaveBeenCalledWith(
-			expect.objectContaining({ episodeNumber: 1, query: "Example show", seasonNumber: 1 })
+			expect.objectContaining({ query: "Example show", seasonNumber: 1, episodeNumber: 1 })
 		);
 	});
 
 	it("preserves useful provider errors for the search popover", async () => {
-		requireMediaAccess.mockReturnValue({ mediaItem: { title: "Example", type: "movie" } });
+		requireMediaAccess.mockReturnValue({ mediaItem: { type: "movie", title: "Example" } });
 		searchSubtitles.mockRejectedValue(new Error("OpenSubtitles API key not configured"));
 
 		await expect(search()).rejects.toMatchObject({
-			body: { message: "OpenSubtitles API key not configured" },
 			status: 500,
+			body: { message: "OpenSubtitles API key not configured" },
 		});
 	});
 

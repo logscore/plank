@@ -81,18 +81,18 @@ async function fetchAndUpdateMetadata(mediaId: string, fileName: string, mediaTy
 			// console.log(`[${mediaId}] TMDB returned ${results.length} results`);
 
 			if (results.length > 0) {
-				const [tmdbData] = results;
+				const tmdbData = results[0];
 				// console.log(
 				// 	`[${mediaId}] Using TMDB result: "${tmdbData.title}" (${tmdbData.year}), poster: ${tmdbData.posterUrl}`
 				// );
 				mediaDb.updateMetadata(mediaId, {
+					title: tmdbData.title,
+					year: tmdbData.year,
+					posterUrl: tmdbData.posterUrl,
 					backdropUrl: tmdbData.backdropUrl,
 					overview: tmdbData.overview,
-					posterUrl: tmdbData.posterUrl,
-					title: tmdbData.title,
 					tmdbId: tmdbData.tmdbId,
 					totalSeasons: tmdbData.totalSeasons,
-					year: tmdbData.year,
 				});
 			}
 		}
@@ -241,7 +241,7 @@ function startCompletionChecker(infohash: string, download: ActiveDownload, torr
 			}
 		}
 
-		const { downloaded } = torrent;
+		const downloaded = torrent.downloaded;
 		if (downloaded !== lastDownloaded) {
 			lastDownloaded = downloaded;
 			stalledChecks = 0;
@@ -416,18 +416,18 @@ async function initializeDownload(mediaId: string, magnetLink: string, infohash:
 	return new Promise((resolve, reject) => {
 		const download: ActiveDownload = {
 			abortController: new AbortController(),
-			episodeMapping: new Map(),
-			infohash,
 			mediaId,
+			infohash,
 			mediaType,
-			progress: 0,
-			status: "initializing",
-			subtitleFiles: [],
 			torrent,
-			totalSize: 0,
-			transcodeProgress: 0,
 			videoFile: null,
 			videoFiles: [],
+			subtitleFiles: [],
+			episodeMapping: new Map(),
+			progress: 0,
+			transcodeProgress: 0,
+			status: "initializing",
+			totalSize: 0,
 		};
 
 		activeDownloads.set(infohash, download);

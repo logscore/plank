@@ -6,14 +6,14 @@ import { type AnySQLiteColumn, index, integer, real, sqliteTable, text, uniqueIn
 // ============================================================================
 
 export const user = sqliteTable("user", {
+	id: text("id").primaryKey(),
+	name: text("name").notNull(),
+	email: text("email").notNull().unique(),
+	emailVerified: integer("email_verified", { mode: "boolean" }).default(false).notNull(),
+	image: text("image"),
 	createdAt: integer("created_at", { mode: "timestamp_ms" })
 		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 		.notNull(),
-	email: text("email").notNull().unique(),
-	emailVerified: integer("email_verified", { mode: "boolean" }).default(false).notNull(),
-	id: text("id").primaryKey(),
-	image: text("image"),
-	name: text("name").notNull(),
 	updatedAt: integer("updated_at", { mode: "timestamp_ms" })
 		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 		.$onUpdate(() => /* @__PURE__ */ new Date())
@@ -23,21 +23,21 @@ export const user = sqliteTable("user", {
 export const session = sqliteTable(
 	"session",
 	{
-		activeOrganizationId: text("active_organization_id"),
+		id: text("id").primaryKey(),
+		expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+		token: text("token").notNull().unique(),
 		createdAt: integer("created_at", { mode: "timestamp_ms" })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 			.notNull(),
-		expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
-		id: text("id").primaryKey(),
-		ipAddress: text("ip_address"),
-		token: text("token").notNull().unique(),
 		updatedAt: integer("updated_at", { mode: "timestamp_ms" })
 			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
+		ipAddress: text("ip_address"),
 		userAgent: text("user_agent"),
 		userId: text("user_id")
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
+		activeOrganizationId: text("active_organization_id"),
 	},
 	(table) => [index("session_userId_idx").on(table.userId)]
 );
@@ -45,29 +45,29 @@ export const session = sqliteTable(
 export const account = sqliteTable(
 	"account",
 	{
+		id: text("id").primaryKey(),
+		accountId: text("account_id").notNull(),
+		providerId: text("provider_id").notNull(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
 		accessToken: text("access_token"),
+		refreshToken: text("refresh_token"),
+		idToken: text("id_token"),
 		accessTokenExpiresAt: integer("access_token_expires_at", {
 			mode: "timestamp_ms",
 		}),
-		accountId: text("account_id").notNull(),
-		createdAt: integer("created_at", { mode: "timestamp_ms" })
-			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-			.notNull(),
-		id: text("id").primaryKey(),
-		idToken: text("id_token"),
-		password: text("password"),
-		providerId: text("provider_id").notNull(),
-		refreshToken: text("refresh_token"),
 		refreshTokenExpiresAt: integer("refresh_token_expires_at", {
 			mode: "timestamp_ms",
 		}),
 		scope: text("scope"),
+		password: text("password"),
+		createdAt: integer("created_at", { mode: "timestamp_ms" })
+			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+			.notNull(),
 		updatedAt: integer("updated_at", { mode: "timestamp_ms" })
 			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
-		userId: text("user_id")
-			.notNull()
-			.references(() => user.id, { onDelete: "cascade" }),
 	},
 	(table) => [index("account_userId_idx").on(table.userId)]
 );
@@ -75,42 +75,42 @@ export const account = sqliteTable(
 export const verification = sqliteTable(
 	"verification",
 	{
+		id: text("id").primaryKey(),
+		identifier: text("identifier").notNull(),
+		value: text("value").notNull(),
+		expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
 		createdAt: integer("created_at", { mode: "timestamp_ms" })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 			.notNull(),
-		expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
-		id: text("id").primaryKey(),
-		identifier: text("identifier").notNull(),
 		updatedAt: integer("updated_at", { mode: "timestamp_ms" })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
-		value: text("value").notNull(),
 	},
 	(table) => [index("verification_identifier_idx").on(table.identifier)]
 );
 
 export const organization = sqliteTable("organization", {
-	createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 	id: text("id").primaryKey(),
-	logo: text("logo"),
-	metadata: text("metadata"),
 	name: text("name").notNull(),
 	slug: text("slug").notNull().unique(),
+	logo: text("logo"),
+	createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+	metadata: text("metadata"),
 });
 
 export const member = sqliteTable(
 	"member",
 	{
-		createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 		id: text("id").primaryKey(),
 		organizationId: text("organization_id")
 			.notNull()
 			.references(() => organization.id, { onDelete: "cascade" }),
-		role: text("role").default("member").notNull(),
 		userId: text("user_id")
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
+		role: text("role").default("member").notNull(),
+		createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 	},
 	(table) => [
 		index("member_organizationId_idx").on(table.organizationId),
@@ -121,20 +121,20 @@ export const member = sqliteTable(
 export const invitation = sqliteTable(
 	"invitation",
 	{
-		createdAt: integer("created_at", { mode: "timestamp_ms" })
-			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-			.notNull(),
-		email: text("email").notNull(),
-		expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
 		id: text("id").primaryKey(),
-		inviterId: text("inviter_id")
-			.notNull()
-			.references(() => user.id, { onDelete: "cascade" }),
 		organizationId: text("organization_id")
 			.notNull()
 			.references(() => organization.id, { onDelete: "cascade" }),
+		email: text("email").notNull(),
 		role: text("role"),
 		status: text("status").default("pending").notNull(),
+		expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+		createdAt: integer("created_at", { mode: "timestamp_ms" })
+			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+			.notNull(),
+		inviterId: text("inviter_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
 	},
 	(table) => [
 		index("invitation_organizationId_idx").on(table.organizationId),
@@ -149,50 +149,50 @@ export const invitation = sqliteTable(
 export const media = sqliteTable(
 	"media",
 	{
-		addedAt: integer("added_at", { mode: "timestamp_ms" })
-			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-			.notNull(),
-		airDate: text("air_date"),
-		backdropUrl: text("backdrop_url"),
-		certification: text("certification"),
-		displayOrder: integer("display_order"),
-		downloadedBytes: integer("downloaded_bytes").default(0),
-		episodeNumber: integer("episode_number"),
-		fileIndex: integer("file_index"),
-		filePath: text("file_path"),
-		fileSize: integer("file_size"),
-		genres: text("genres"),
 		id: text("id").primaryKey(),
-		imdbId: text("imdb_id"),
-		infohash: text("infohash"),
-		lastPlayedAt: integer("last_played_at", { mode: "timestamp_ms" }),
-		magnetLink: text("magnet_link"),
-		organizationId: text("organization_id").references(() => organization.id, { onDelete: "set null" }),
-		originalLanguage: text("original_language"),
-		overview: text("overview"),
-		parentId: text("parent_id").references((): AnySQLiteColumn => media.id, { onDelete: "cascade" }),
-		playDuration: real("play_duration"),
-		playPosition: real("play_position").default(0),
-		posterUrl: text("poster_url"),
-		progress: real("progress").default(0),
-		runtime: integer("runtime"),
-		seasonId: text("season_id").references((): AnySQLiteColumn => seasons.id, { onDelete: "cascade" }),
-		seasonNumber: integer("season_number"),
-		status: text("status", {
-			enum: ["pending", "searching", "downloading", "complete", "error", "not_found", "removed"],
-		}).default("pending"),
-		stillPath: text("still_path"),
-		title: text("title").notNull(),
-		tmdbId: integer("tmdb_id"),
-		totalSeasons: integer("total_seasons"),
-		type: text("type", { enum: ["movie", "show", "episode"] })
-			.default("movie")
-			.notNull(),
 		userId: text("user_id")
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
-		voteAverage: real("vote_average"),
+		organizationId: text("organization_id").references(() => organization.id, { onDelete: "set null" }),
+		type: text("type", { enum: ["movie", "show", "episode"] })
+			.default("movie")
+			.notNull(),
+		title: text("title").notNull(),
+		overview: text("overview"),
 		year: integer("year"),
+		voteAverage: real("vote_average"),
+		tmdbId: integer("tmdb_id"),
+		imdbId: text("imdb_id"),
+		runtime: integer("runtime"),
+		originalLanguage: text("original_language"),
+		addedAt: integer("added_at", { mode: "timestamp_ms" })
+			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+			.notNull(),
+		posterUrl: text("poster_url"),
+		backdropUrl: text("backdrop_url"),
+		genres: text("genres"),
+		certification: text("certification"),
+		totalSeasons: integer("total_seasons"),
+		parentId: text("parent_id").references((): AnySQLiteColumn => media.id, { onDelete: "cascade" }),
+		seasonId: text("season_id").references((): AnySQLiteColumn => seasons.id, { onDelete: "cascade" }),
+		episodeNumber: integer("episode_number"),
+		seasonNumber: integer("season_number"),
+		displayOrder: integer("display_order"),
+		stillPath: text("still_path"),
+		airDate: text("air_date"),
+		magnetLink: text("magnet_link"),
+		infohash: text("infohash"),
+		status: text("status", {
+			enum: ["pending", "searching", "downloading", "complete", "error", "not_found", "removed"],
+		}).default("pending"),
+		progress: real("progress").default(0),
+		filePath: text("file_path"),
+		fileSize: integer("file_size"),
+		fileIndex: integer("file_index"),
+		downloadedBytes: integer("downloaded_bytes").default(0),
+		lastPlayedAt: integer("last_played_at", { mode: "timestamp_ms" }),
+		playPosition: real("play_position").default(0),
+		playDuration: real("play_duration"),
 	},
 	(table) => [
 		uniqueIndex("media_organization_infohash_unique")
@@ -212,13 +212,13 @@ export const media = sqliteTable(
 export const seasons = sqliteTable(
 	"seasons",
 	{
-		episodeCount: integer("episode_count").default(0),
 		id: text("id").primaryKey(),
 		mediaId: text("media_id")
 			.notNull()
 			.references((): AnySQLiteColumn => media.id, { onDelete: "cascade" }),
-		name: text("name"),
 		seasonNumber: integer("season_number").notNull(),
+		name: text("name"),
+		episodeCount: integer("episode_count").default(0),
 	},
 	(table) => [uniqueIndex("seasons_media_number_unique").on(table.mediaId, table.seasonNumber)]
 );
@@ -226,17 +226,17 @@ export const seasons = sqliteTable(
 export const downloads = sqliteTable(
 	"downloads",
 	{
-		addedAt: integer("added_at", { mode: "timestamp_ms" })
-			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-			.notNull(),
 		id: text("id").primaryKey(),
-		infohash: text("infohash").notNull(),
-		magnetLink: text("magnet_link").notNull(),
 		mediaId: text("media_id")
 			.notNull()
 			.references(() => media.id, { onDelete: "cascade" }),
-		progress: real("progress").default(0),
+		magnetLink: text("magnet_link").notNull(),
+		infohash: text("infohash").notNull(),
 		status: text("status", { enum: ["added", "downloading", "complete", "error"] }).default("added"),
+		progress: real("progress").default(0),
+		addedAt: integer("added_at", { mode: "timestamp_ms" })
+			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+			.notNull(),
 	},
 	(table) => [
 		uniqueIndex("downloads_media_infohash_unique").on(table.mediaId, table.infohash),
@@ -246,35 +246,35 @@ export const downloads = sqliteTable(
 
 export const torrentCache = sqliteTable("torrent_cache", {
 	imdbId: text("imdb_id").primaryKey(),
-	infohash: text("infohash").notNull(),
 	magnetLink: text("magnet_link").notNull(),
+	infohash: text("infohash").notNull(),
 });
 
 export const configuration = sqliteTable("configuration", {
 	id: text("id")
 		.primaryKey()
 		.$default(() => "default"),
-	opensubtitlesApiKey: text("opensubtitles_api_key"),
-	opensubtitlesPassword: text("opensubtitles_password"),
-	opensubtitlesUsername: text("opensubtitles_username"),
-	prowlarrApiKey: text("prowlarr_api_key"),
-	prowlarrMinSeeders: integer("prowlarr_min_seeders").default(5),
-	prowlarrTrustedGroups: text("prowlarr_trusted_groups"), // JSON array
-	prowlarrUrl: text("prowlarr_url"),
 	tmdbApiKey: text("tmdb_api_key"),
+	prowlarrUrl: text("prowlarr_url"),
+	prowlarrApiKey: text("prowlarr_api_key"),
+	prowlarrTrustedGroups: text("prowlarr_trusted_groups"), // JSON array
+	prowlarrMinSeeders: integer("prowlarr_min_seeders").default(5),
+	opensubtitlesApiKey: text("opensubtitles_api_key"),
+	opensubtitlesUsername: text("opensubtitles_username"),
+	opensubtitlesPassword: text("opensubtitles_password"),
 });
 
 export const subtitles = sqliteTable(
 	"subtitles",
 	{
-		filePath: text("file_path"),
 		id: text("id").primaryKey(),
-		label: text("label").notNull(),
-		language: text("language").notNull(),
 		mediaId: text("media_id")
 			.notNull()
 			.references(() => media.id, { onDelete: "cascade" }),
+		language: text("language").notNull(),
+		label: text("label").notNull(),
 		source: text("source", { enum: ["sidecar", "embedded", "opensubtitles", "manual"] }).notNull(),
+		filePath: text("file_path"),
 	},
 	(table) => [index("idx_subtitles_media").on(table.mediaId)]
 );
@@ -297,17 +297,17 @@ export type NewSubtitle = typeof subtitles.$inferInsert;
 // ============================================================================
 
 export const schema = {
+	user,
+	session,
 	account,
-	configuration,
-	downloads,
+	verification,
+	organization,
+	member,
 	invitation,
 	media,
-	member,
-	organization,
 	seasons,
-	session,
-	subtitles,
+	downloads,
 	torrentCache,
-	user,
-	verification,
+	configuration,
+	subtitles,
 } as const;

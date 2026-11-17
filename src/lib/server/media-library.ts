@@ -10,44 +10,44 @@ import { startDownload } from "./torrent/download";
 import { parseMagnet } from "./torrent/files";
 
 interface MediaMetadata {
+	title: string;
+	year: number | null;
+	voteAverage: number | null;
+	posterUrl: string | null;
 	backdropUrl: string | null;
-	certification: string | null;
+	overview: string | null;
+	tmdbId: number | null;
+	runtime: number | null;
 	genres: string | null;
 	originalLanguage: string | null;
-	overview: string | null;
-	posterUrl: string | null;
-	runtime: number | null;
-	title: string;
-	tmdbId: number | null;
+	certification: string | null;
 	totalSeasons: number | null;
-	voteAverage: number | null;
-	year: number | null;
 }
 
 interface BrowseSeasonRequest {
-	backdropUrl?: string | null;
-	certification?: string | null;
-	genres?: string[] | null;
 	mode: "browse-season";
-	overview?: string | null;
-	posterUrl?: string | null;
+	tmdbId: number;
 	seasonNumber: number;
 	title: string;
-	tmdbId: number;
 	year?: number | null;
+	posterUrl?: string | null;
+	backdropUrl?: string | null;
+	overview?: string | null;
+	genres?: string[] | null;
+	certification?: string | null;
 }
 
 export interface AddMediaFromMagnetParams {
-	backdropUrl?: string | null;
-	certification?: string | null;
-	genres?: string[] | null;
 	magnetLink: string;
-	overview?: string | null;
-	posterUrl?: string | null;
-	title?: string;
-	tmdbId?: number;
 	type?: MediaType;
+	tmdbId?: number;
+	title?: string;
 	year?: number | null;
+	posterUrl?: string | null;
+	backdropUrl?: string | null;
+	overview?: string | null;
+	genres?: string[] | null;
+	certification?: string | null;
 }
 
 interface ExistingMediaResult {
@@ -68,18 +68,18 @@ export function isBrowseSeasonRequest(body: unknown): body is BrowseSeasonReques
 
 function createDefaultMetadata(title: string, year: number | null | undefined, tmdbId?: number): MediaMetadata {
 	return {
+		title: title || "Unknown",
+		year: year || null,
+		voteAverage: null,
+		posterUrl: null,
 		backdropUrl: null,
-		certification: null,
+		overview: null,
+		tmdbId: tmdbId || null,
+		runtime: null,
 		genres: null,
 		originalLanguage: null,
-		overview: null,
-		posterUrl: null,
-		runtime: null,
-		title: title || "Unknown",
-		tmdbId: tmdbId || null,
+		certification: null,
 		totalSeasons: null,
-		voteAverage: null,
-		year: year || null,
 	};
 }
 
@@ -109,7 +109,7 @@ async function fetchTmdbMetadata(
 		}
 
 		const results = mediaType === "show" ? await searchTVShow(title, year) : await searchMovie(title, year);
-		const [basicResult] = results;
+		const basicResult = results[0];
 		if (!basicResult) {
 			return metadata;
 		}
@@ -143,18 +143,18 @@ async function enrichBrowseMetadata(
 	certification: string | null
 ): Promise<MediaMetadata> {
 	const metadata: MediaMetadata = {
+		title,
+		year,
+		voteAverage: null,
+		posterUrl,
 		backdropUrl,
-		certification,
+		overview,
+		tmdbId,
+		runtime: null,
 		genres: genres ? JSON.stringify(genres) : null,
 		originalLanguage: null,
-		overview,
-		posterUrl,
-		runtime: null,
-		title,
-		tmdbId,
+		certification,
 		totalSeasons: null,
-		voteAverage: null,
-		year,
 	};
 
 	// Fetch full details for fields the browse view doesn't provide
@@ -245,12 +245,12 @@ async function resolveMetadata(
 			tmdbId as number,
 			mediaType,
 			(browseTitle as string) || magnetTitle,
-			body.year ?? magnetYear ?? null,
-			posterUrl ?? null,
-			backdropUrl ?? null,
-			overview ?? null,
-			genres ?? null,
-			certification ?? null
+			(body.year as number) ?? magnetYear ?? null,
+			(posterUrl as string) ?? null,
+			(backdropUrl as string) ?? null,
+			(overview as string) ?? null,
+			(genres as string[]) ?? null,
+			(certification as string) ?? null
 		);
 	}
 
@@ -267,14 +267,14 @@ function saveImagesInBackground(mediaItem: Media, metadata: MediaMetadata, media
 			? getShowLibraryDirectoryId({ id: mediaItem.id, title: metadata.title, year: metadata.year })
 			: getMovieLibraryDirectoryId({ id: mediaItem.id, title: metadata.title, year: metadata.year });
 	savePosterBackdropImages(
-		{ backdropUrl: metadata.backdropUrl, posterUrl: metadata.posterUrl },
+		{ posterUrl: metadata.posterUrl, backdropUrl: metadata.backdropUrl },
 		"library",
 		directoryId
 	)
 		.then((updatedImages) => {
 			mediaDb.updateMetadata(mediaItem.id, {
-				backdropUrl: updatedImages.backdropUrl,
 				posterUrl: updatedImages.posterUrl,
+				backdropUrl: updatedImages.backdropUrl,
 			});
 		})
 		.catch((e) => {
@@ -314,11 +314,11 @@ export async function addMediaFromMagnet(
 		const existingShow = mediaDb.getByTmdbId(metadata.tmdbId, organizationId, "show");
 		if (existingShow) {
 			const download = downloadsDb.create({
-				infohash,
-				magnetLink,
 				mediaId: existingShow.id,
-				progress: 0,
+				magnetLink,
+				infohash,
 				status: "added",
+				progress: 0,
 			});
 
 			startDownload(existingShow.id, magnetLink).catch((e: Error) => {
@@ -331,31 +331,31 @@ export async function addMediaFromMagnet(
 	}
 
 	const mediaItem = mediaDb.create({
-		backdropUrl: metadata.backdropUrl,
-		certification: metadata.certification,
-		genres: metadata.genres,
-		infohash,
-		magnetLink,
-		organizationId,
-		originalLanguage: metadata.originalLanguage,
-		overview: metadata.overview,
-		posterUrl: metadata.posterUrl,
-		runtime: metadata.runtime,
-		title: metadata.title,
-		tmdbId: metadata.tmdbId,
-		totalSeasons: metadata.totalSeasons,
-		type: mediaType,
 		userId,
-		voteAverage: metadata.voteAverage,
+		organizationId,
+		type: mediaType,
+		title: metadata.title,
 		year: metadata.year,
+		voteAverage: metadata.voteAverage,
+		posterUrl: metadata.posterUrl,
+		backdropUrl: metadata.backdropUrl,
+		overview: metadata.overview,
+		magnetLink,
+		infohash,
+		tmdbId: metadata.tmdbId,
+		runtime: metadata.runtime,
+		genres: metadata.genres,
+		originalLanguage: metadata.originalLanguage,
+		certification: metadata.certification,
+		totalSeasons: metadata.totalSeasons,
 	});
 
 	downloadsDb.create({
-		infohash,
-		magnetLink,
 		mediaId: mediaItem.id,
-		progress: 0,
+		magnetLink,
+		infohash,
 		status: "added",
+		progress: 0,
 	});
 
 	saveImagesInBackground(mediaItem, metadata, mediaType);

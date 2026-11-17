@@ -10,16 +10,16 @@ vi.mock("$lib/server/torrent/download", () => ({
 }));
 
 const testUser = {
-	email: "adult-guard@example.com",
-	emailVerified: true,
 	id: "adult-guard-user",
 	name: "Adult Guard User",
+	email: "adult-guard@example.com",
+	emailVerified: true,
 };
 const testOrg = {
-	createdAt: new Date(),
 	id: "adult-guard-org",
 	name: "Adult Guard Org",
 	slug: "adult-guard-org",
+	createdAt: new Date(),
 };
 const fetchMock = vi.fn();
 global.fetch = fetchMock;
@@ -35,18 +35,18 @@ describe("media library adult-content guard", () => {
 	it("rejects identified adult media before persistence or download", async () => {
 		fetchMock.mockResolvedValue(
 			Response.json({
-				adult: true,
 				id: 123,
 				title: "Blocked",
+				adult: true,
 			})
 		);
 
 		const result = addMediaFromMagnet(testUser.id, testOrg.id, {
 			magnetLink: "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Blocked.2024.1080p",
-			posterUrl: "https://image.example/poster.jpg",
-			title: "Blocked",
-			tmdbId: 123,
 			type: "movie",
+			tmdbId: 123,
+			title: "Blocked",
+			posterUrl: "https://image.example/poster.jpg",
 		});
 
 		await expect(result).rejects.toMatchObject({ status: 400 });

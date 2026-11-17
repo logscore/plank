@@ -21,7 +21,7 @@ function extractInfohash(magnetLink: string): string {
 	// Match btih (BitTorrent Info Hash) in magnet link
 	const match = magnetLink.match(INFOHASH_REGEX);
 	if (match) {
-		const [, hash] = match;
+		const hash = match[1];
 		// Convert base32 to hex if necessary
 		if (hash.length === 32) {
 			const hex = base32ToHex(hash).toLowerCase();
@@ -56,7 +56,7 @@ function base32ToHex(base32: string): string {
 	}
 	let hex = "";
 	for (let i = 0; i < bits.length; i += 4) {
-		hex += Number.parseInt(bits.slice(i, i + 4), 2).toString(16);
+		hex += Number.parseInt(bits.substr(i, 4), 2).toString(16);
 	}
 	return hex;
 }
@@ -79,12 +79,12 @@ export function parseMagnet(magnetLink: string) {
 export function getMimeType(fileName: string): string {
 	const ext = path.extname(fileName).toLowerCase();
 	const mimeTypes: Record<string, string> = {
-		".avi": "video/x-msvideo",
-		".m4v": "video/x-m4v",
-		".mkv": "video/x-matroska",
-		".mov": "video/quicktime",
 		".mp4": "video/mp4",
+		".mkv": "video/x-matroska",
 		".webm": "video/webm",
+		".avi": "video/x-msvideo",
+		".mov": "video/quicktime",
+		".m4v": "video/x-m4v",
 	};
 	return mimeTypes[ext] || "application/octet-stream";
 }
@@ -100,7 +100,7 @@ export function findVideoFile(files: TorrentFile[]): TorrentFile | null {
 	}
 
 	// Fallback: get any supported video file regardless of size
-	const [anyVideo] = files.filter((f) => isSupportedFormat(f.name)).sort((a, b) => b.length - a.length);
+	const anyVideo = files.filter((f) => isSupportedFormat(f.name)).sort((a, b) => b.length - a.length)[0];
 
 	return anyVideo || null;
 }
@@ -141,7 +141,12 @@ export function mapFilesToEpisodes(files: TorrentFile[], defaultSeason?: number)
 			// Standard S01E01 format
 			const episodeKey = parsed.season * 100 + parsed.episode;
 			mapping.set(episodeKey, index);
-		} else if (parsed.episode === undefined) {
+		} else if (parsed.episode !== undefined) {
+			// Episode only (assume default season or season 1)
+			const season = defaultSeason ?? 1;
+			const episodeKey = season * 100 + parsed.episode;
+			mapping.set(episodeKey, index);
+		} else {
 			// Try regex patterns directly on filename
 			const sxxexx = file.name.match(SXXEXX_PATTERN);
 			if (sxxexx) {
@@ -159,11 +164,6 @@ export function mapFilesToEpisodes(files: TorrentFile[], defaultSeason?: number)
 				const episodeKey = season * 100 + episode;
 				mapping.set(episodeKey, index);
 			}
-		} else {
-			// Episode only (assume default season or season 1)
-			const season = defaultSeason ?? 1;
-			const episodeKey = season * 100 + parsed.episode;
-			mapping.set(episodeKey, index);
 		}
 	}
 

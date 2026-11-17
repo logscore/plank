@@ -23,9 +23,9 @@ describe("health request hook", () => {
 	it("bypasses session and database work", async () => {
 		const response = await handle({
 			event: {
-				locals: {},
-				request: new Request("http://localhost/health"),
 				url: new URL("http://localhost/health"),
+				request: new Request("http://localhost/health"),
+				locals: {},
 			},
 			resolve: mocks.resolve,
 		} as never);

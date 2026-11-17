@@ -82,7 +82,7 @@
         if (!open) {
             return;
         }
-        const { controls } = player;
+        const controls = player.controls;
         controls.pause();
         return () => controls.resume();
     });
@@ -106,10 +106,10 @@
         if (!player.textTracks.getById(track.id)) {
             player.textTracks.add({
                 id: track.id,
-                kind: "subtitles",
+                src: track.src,
                 label: track.label,
                 language: track.language,
-                src: track.src,
+                kind: "subtitles",
                 type: "vtt",
             });
         }

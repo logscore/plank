@@ -5,10 +5,11 @@ import { db } from "$lib/server/db/index";
 import { configuration } from "$lib/server/db/schema";
 
 export interface AppSettings {
-	opensubtitles: {
+	tmdb: {
 		apiKey: string;
-		username: string;
-		password: string;
+		baseUrl: string;
+		imageBaseUrl: string;
+		language: string;
 	};
 	prowlarr: {
 		url: string;
@@ -16,33 +17,32 @@ export interface AppSettings {
 		trustedGroups: string[];
 		minSeeders: number;
 	};
-	tmdb: {
+	opensubtitles: {
 		apiKey: string;
-		baseUrl: string;
-		imageBaseUrl: string;
-		language: string;
+		username: string;
+		password: string;
 	};
 }
 
 const DEFAULT_CONFIG: AppSettings = {
-	opensubtitles: {
-		apiKey: env.OPENSUBTITLES_API_KEY || "",
-		password: env.OPENSUBTITLES_PASSWORD || "",
-		username: env.OPENSUBTITLES_USERNAME || "",
-	},
-	prowlarr: {
-		apiKey: env.PROWLARR_API_KEY || "",
-		// Minimum seeders for a valid torrent
-		minSeeders: 5,
-		// Trusted release groups for high-quality content
-		trustedGroups: ["YTS", "YIFY", ".BONE.", "x1337", "TVTEAM"],
-		url: env.PROWLARR_URL || "http://localhost:9696",
-	},
 	tmdb: {
 		apiKey: env.TMDB_API_KEY || "",
 		baseUrl: "https://api.themoviedb.org/3",
 		imageBaseUrl: "https://image.tmdb.org/t/p",
 		language: "en-US",
+	},
+	prowlarr: {
+		url: env.PROWLARR_URL || "http://localhost:9696",
+		apiKey: env.PROWLARR_API_KEY || "",
+		// Trusted release groups for high-quality content
+		trustedGroups: ["YTS", "YIFY", ".BONE.", "x1337", "TVTEAM"],
+		// Minimum seeders for a valid torrent
+		minSeeders: 5,
+	},
+	opensubtitles: {
+		apiKey: env.OPENSUBTITLES_API_KEY || "",
+		username: env.OPENSUBTITLES_USERNAME || "",
+		password: env.OPENSUBTITLES_PASSWORD || "",
 	},
 };
 
@@ -105,22 +105,22 @@ export async function getSettings(): Promise<AppSettings> {
 		}
 
 		const settings: AppSettings = {
-			opensubtitles: {
-				apiKey: decrypt(stored?.opensubtitlesApiKey || "") || DEFAULT_CONFIG.opensubtitles.apiKey,
-				password: decrypt(stored?.opensubtitlesPassword || "") || DEFAULT_CONFIG.opensubtitles.password,
-				username: decrypt(stored?.opensubtitlesUsername || "") || DEFAULT_CONFIG.opensubtitles.username,
-			},
-			prowlarr: {
-				apiKey: decrypt(stored?.prowlarrApiKey || "") || DEFAULT_CONFIG.prowlarr.apiKey,
-				minSeeders: stored?.prowlarrMinSeeders ?? DEFAULT_CONFIG.prowlarr.minSeeders,
-				trustedGroups,
-				url: stored?.prowlarrUrl || DEFAULT_CONFIG.prowlarr.url,
-			},
 			tmdb: {
 				apiKey: decrypt(stored?.tmdbApiKey || "") || DEFAULT_CONFIG.tmdb.apiKey,
 				baseUrl: DEFAULT_CONFIG.tmdb.baseUrl,
 				imageBaseUrl: DEFAULT_CONFIG.tmdb.imageBaseUrl,
 				language: "en-US",
+			},
+			prowlarr: {
+				url: stored?.prowlarrUrl || DEFAULT_CONFIG.prowlarr.url,
+				apiKey: decrypt(stored?.prowlarrApiKey || "") || DEFAULT_CONFIG.prowlarr.apiKey,
+				trustedGroups,
+				minSeeders: stored?.prowlarrMinSeeders ?? DEFAULT_CONFIG.prowlarr.minSeeders,
+			},
+			opensubtitles: {
+				apiKey: decrypt(stored?.opensubtitlesApiKey || "") || DEFAULT_CONFIG.opensubtitles.apiKey,
+				username: decrypt(stored?.opensubtitlesUsername || "") || DEFAULT_CONFIG.opensubtitles.username,
+				password: decrypt(stored?.opensubtitlesPassword || "") || DEFAULT_CONFIG.opensubtitles.password,
 			},
 		};
 
@@ -130,9 +130,9 @@ export async function getSettings(): Promise<AppSettings> {
 	} catch (e) {
 		console.error("Failed to load settings from DB, falling back to env:", e);
 		return {
-			opensubtitles: DEFAULT_CONFIG.opensubtitles,
-			prowlarr: DEFAULT_CONFIG.prowlarr,
 			tmdb: DEFAULT_CONFIG.tmdb,
+			prowlarr: DEFAULT_CONFIG.prowlarr,
+			opensubtitles: DEFAULT_CONFIG.opensubtitles,
 		};
 	}
 }
@@ -165,7 +165,7 @@ export async function updateSettings(updates: SettingsUpdate) {
 	await db
 		.insert(configuration)
 		.values({ id: "default", ...values })
-		.onConflictDoUpdate({ set: values, target: configuration.id });
+		.onConflictDoUpdate({ target: configuration.id, set: values });
 
 	invalidateSettingsCache();
 }

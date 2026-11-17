@@ -76,10 +76,10 @@ export function buildEpisodeFileName(
 // --- Library path resolution ---
 
 interface MovieDirectoryMedia {
-	filePath?: string | null;
 	id: string;
 	title: string;
 	year: number | null;
+	filePath?: string | null;
 }
 
 interface ShowDirectoryMedia {
@@ -89,9 +89,9 @@ interface ShowDirectoryMedia {
 }
 
 interface EpisodeDirectoryMedia {
-	episodeNumber: number | null;
-	seasonNumber: number | null;
 	title: string;
+	seasonNumber: number | null;
+	episodeNumber: number | null;
 }
 
 function getExistingShowLibraryRoot(showId: string): string | null {

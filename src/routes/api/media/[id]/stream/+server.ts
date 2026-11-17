@@ -12,12 +12,12 @@ const FILE_EXTENSION_REGEX = /\.[^.]+$/;
 const RANGE_BYTES_REGEX = /bytes=/;
 
 const MIME_TYPES: Record<string, string> = {
-	".avi": "video/x-msvideo",
-	".m4v": "video/x-m4v",
-	".mkv": "video/x-matroska",
-	".mov": "video/quicktime",
 	".mp4": "video/mp4",
 	".webm": "video/webm",
+	".mkv": "video/x-matroska",
+	".avi": "video/x-msvideo",
+	".mov": "video/quicktime",
+	".m4v": "video/x-m4v",
 };
 
 function getMimeType(fileName: string): string {
@@ -76,30 +76,30 @@ async function ensureVideoReady(
 		}
 		if (status?.status === "initializing") {
 			return new Response(JSON.stringify({ message: "Torrent is initializing, please try again shortly" }), {
-				headers: { "Content-Type": "application/json" },
 				status: 202,
+				headers: { "Content-Type": "application/json" },
 			});
 		}
 		return new Response(JSON.stringify({ message: "Video is buffering, please wait..." }), {
-			headers: { "Content-Type": "application/json" },
 			status: 202,
+			headers: { "Content-Type": "application/json" },
 		});
 	}
 }
 
 function createTransmuxResponse(inputStream: import("node:stream").Readable, fileName: string): Response {
 	const transmuxedStream = createTransmuxStream({
-		fileName,
 		inputStream,
+		fileName,
 		onError: (errorValue: Error) => console.error("[Stream] Transmux error:", errorValue),
 	});
 	return new Response(silenceAbortErrors(transmuxedStream), {
-		headers: {
-			"Cache-Control": "no-cache",
-			"Content-Disposition": `inline; filename="${fileName.replace(FILE_EXTENSION_REGEX, ".mp4")}"`,
-			"Content-Type": "video/mp4",
-		},
 		status: 200,
+		headers: {
+			"Content-Type": "video/mp4",
+			"Content-Disposition": `inline; filename="${fileName.replace(FILE_EXTENSION_REGEX, ".mp4")}"`,
+			"Cache-Control": "no-cache",
+		},
 	});
 }
 
@@ -142,15 +142,15 @@ async function handleRangeRequest(
 	}
 	const contentLength = clampedEnd - start + 1;
 	return new Response(silenceAbortErrors(streamInfo.stream), {
-		headers: {
-			"Accept-Ranges": "bytes",
-			"Cache-Control": streamInfo.isComplete ? "private, max-age=3600" : "no-cache",
-			"Content-Disposition": `inline; filename="${fileName}"`,
-			"Content-Length": contentLength.toString(),
-			"Content-Range": `bytes ${start}-${clampedEnd}/${fileSize}`,
-			"Content-Type": mimeType,
-		},
 		status: 206,
+		headers: {
+			"Content-Range": `bytes ${start}-${clampedEnd}/${fileSize}`,
+			"Accept-Ranges": "bytes",
+			"Content-Length": contentLength.toString(),
+			"Content-Type": mimeType,
+			"Content-Disposition": `inline; filename="${fileName}"`,
+			"Cache-Control": streamInfo.isComplete ? "private, max-age=3600" : "no-cache",
+		},
 	});
 }
 
@@ -159,7 +159,7 @@ function resolveMedia(params: { id: string }, locals: App.Locals) {
 	if (mediaItem.type === "show") {
 		throw error(400, "Shows are not directly streamable");
 	}
-	return { fileIndex: mediaItem.fileIndex ?? undefined, mediaItem };
+	return { mediaItem, fileIndex: mediaItem.fileIndex ?? undefined };
 }
 
 function serveLibraryRange(
@@ -177,16 +177,16 @@ function serveLibraryRange(
 	}
 	const clampedEnd = Math.min(end, fileSize - 1);
 	const contentLength = clampedEnd - start + 1;
-	return new Response(silenceAbortErrors(createReadStream(filePath, { end: clampedEnd, start })), {
-		headers: {
-			"Accept-Ranges": "bytes",
-			"Cache-Control": "private, max-age=3600",
-			"Content-Disposition": `inline; filename="${fileName}"`,
-			"Content-Length": contentLength.toString(),
-			"Content-Range": `bytes ${start}-${clampedEnd}/${fileSize}`,
-			"Content-Type": mimeType,
-		},
+	return new Response(silenceAbortErrors(createReadStream(filePath, { start, end: clampedEnd })), {
 		status: 206,
+		headers: {
+			"Content-Range": `bytes ${start}-${clampedEnd}/${fileSize}`,
+			"Accept-Ranges": "bytes",
+			"Content-Length": contentLength.toString(),
+			"Content-Type": mimeType,
+			"Content-Disposition": `inline; filename="${fileName}"`,
+			"Cache-Control": "private, max-age=3600",
+		},
 	});
 }
 
@@ -201,19 +201,19 @@ export const HEAD: RequestHandler = async ({ params, locals }) => {
 		const fileName = path.basename(libraryPath);
 		const headers: Record<string, string> = {
 			"Accept-Ranges": "bytes",
-			"Cache-Control": "private, max-age=3600",
-			"Content-Disposition": `inline; filename="${fileName}"`,
 			"Content-Type": getMimeType(fileName),
+			"Content-Disposition": `inline; filename="${fileName}"`,
+			"Cache-Control": "private, max-age=3600",
 		};
 		headers["Content-Length"] = stats.size.toString();
 		return new Response(null, {
-			headers,
 			status: 200,
+			headers,
 		});
 	}
 	const readyResponse = await ensureVideoReady(mediaItem.id, mediaItem.magnetLink, mediaItem.status, fileIndex);
 	if (readyResponse) {
-		return new Response(null, { headers: readyResponse.headers, status: readyResponse.status });
+		return new Response(null, { status: readyResponse.status, headers: readyResponse.headers });
 	}
 	const streamInfo = await getVideoStream(params.id);
 	if (!streamInfo) {
@@ -226,16 +226,16 @@ export const HEAD: RequestHandler = async ({ params, locals }) => {
 	const isTransmux = shouldUseTransmuxForActiveStream(streamInfo.fileName);
 	const headers: Record<string, string> = {
 		"Accept-Ranges": isTransmux ? "none" : "bytes",
-		"Cache-Control": streamInfo.isComplete ? "private, max-age=3600" : "no-cache",
-		"Content-Disposition": `inline; filename="${isTransmux ? streamInfo.fileName.replace(FILE_EXTENSION_REGEX, ".mp4") : streamInfo.fileName}"`,
 		"Content-Type": isTransmux ? "video/mp4" : streamInfo.mimeType,
+		"Content-Disposition": `inline; filename="${isTransmux ? streamInfo.fileName.replace(FILE_EXTENSION_REGEX, ".mp4") : streamInfo.fileName}"`,
+		"Cache-Control": streamInfo.isComplete ? "private, max-age=3600" : "no-cache",
 	};
 	if (!isTransmux) {
 		headers["Content-Length"] = streamInfo.fileSize.toString();
 	}
 	return new Response(null, {
-		headers,
 		status: 200,
+		headers,
 	});
 };
 
@@ -254,14 +254,14 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 			return serveLibraryRange(libraryPath, range, stats.size, fileName, mimeType);
 		}
 		return new Response(silenceAbortErrors(createReadStream(libraryPath)), {
+			status: 200,
 			headers: {
 				"Accept-Ranges": "bytes",
-				"Cache-Control": "private, max-age=3600",
-				"Content-Disposition": `inline; filename="${fileName}"`,
 				"Content-Length": stats.size.toString(),
 				"Content-Type": mimeType,
+				"Content-Disposition": `inline; filename="${fileName}"`,
+				"Cache-Control": "private, max-age=3600",
 			},
-			status: 200,
 		});
 	}
 	const readyResponse = await ensureVideoReady(mediaItem.id, mediaItem.magnetLink, mediaItem.status, fileIndex);
@@ -285,13 +285,13 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 		return handleRangeRequest(params.id, range, streamInfo.fileSize, streamInfo.fileName, streamInfo.mimeType);
 	}
 	return new Response(silenceAbortErrors(streamInfo.stream), {
+		status: 200,
 		headers: {
 			"Accept-Ranges": "bytes",
-			"Cache-Control": streamInfo.isComplete ? "private, max-age=3600" : "no-cache",
-			"Content-Disposition": `inline; filename="${streamInfo.fileName}"`,
 			"Content-Length": streamInfo.fileSize.toString(),
 			"Content-Type": streamInfo.mimeType,
+			"Content-Disposition": `inline; filename="${streamInfo.fileName}"`,
+			"Cache-Control": streamInfo.isComplete ? "private, max-age=3600" : "no-cache",
 		},
-		status: 200,
 	});
 };

@@ -27,7 +27,7 @@
                 const redirectTo = page.url.searchParams.get("redirectTo");
                 goto(redirectTo || "/profiles", { invalidateAll: true });
             }
-        } catch {
+        } catch (e) {
             error = "An error occurred. Please try again.";
         } finally {
             loading = false;

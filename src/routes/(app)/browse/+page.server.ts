@@ -6,8 +6,8 @@ export const load: PageServerLoad = ({ url }) => {
 	return {
 		request: {
 			...parsedRequest,
-			filters: { ...parsedRequest.filters, scope: "catalog" as const },
 			query: "",
+			filters: { ...parsedRequest.filters, scope: "catalog" as const },
 		},
 	};
 };

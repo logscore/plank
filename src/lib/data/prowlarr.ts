@@ -4,9 +4,9 @@ import { apiRequest, queryClient } from "./client";
 const STATUS_STALE_TIME_MS = 60 * 60 * 1000;
 
 const prowlarrKeys = {
+	status: ["prowlarr", "status"] as const,
 	indexers: ["prowlarr", "indexers"] as const,
 	schemas: ["prowlarr", "schemas"] as const,
-	status: ["prowlarr", "status"] as const,
 };
 
 export interface ProwlarrStatus {
@@ -17,13 +17,13 @@ export interface ProwlarrStatus {
 export interface ProwlarrIndexer {
 	id: number;
 	name: string;
-	optimistic?: boolean;
 	protocol: string;
+	optimistic?: boolean;
 }
 
 export interface ProwlarrIndexerSchema {
-	implementation: string;
 	name: string;
+	implementation: string;
 	protocol?: string;
 }
 
@@ -53,32 +53,32 @@ async function fetchProwlarrIndexerSchemas(): Promise<ProwlarrIndexerSchema[]> {
 
 export function createProwlarrStatusQuery() {
 	return createQuery(() => ({
-		queryFn: fetchProwlarrStatus,
 		queryKey: prowlarrKeys.status,
+		queryFn: fetchProwlarrStatus,
 		staleTime: STATUS_STALE_TIME_MS,
 	}));
 }
 
 export function createProwlarrIndexersQuery(enabled: () => boolean) {
 	return createQuery(() => ({
-		enabled: enabled(),
-		queryFn: fetchProwlarrIndexers,
 		queryKey: prowlarrKeys.indexers,
+		queryFn: fetchProwlarrIndexers,
+		enabled: enabled(),
 	}));
 }
 
 export function createProwlarrIndexerSchemasQuery(enabled: () => boolean) {
 	return createQuery(() => ({
-		enabled: enabled(),
-		queryFn: fetchProwlarrIndexerSchemas,
 		queryKey: prowlarrKeys.schemas,
+		queryFn: fetchProwlarrIndexerSchemas,
+		enabled: enabled(),
 	}));
 }
 
 export function prefetchProwlarrStatus(): void {
 	queryClient.prefetchQuery({
-		queryFn: fetchProwlarrStatus,
 		queryKey: prowlarrKeys.status,
+		queryFn: fetchProwlarrStatus,
 		staleTime: STATUS_STALE_TIME_MS,
 	});
 }
@@ -87,8 +87,8 @@ export function createAddProwlarrIndexerMutation() {
 	return createMutation<{ success: true }, Error, ProwlarrIndexerSchema>(() => ({
 		mutationFn: (schema) =>
 			apiRequest("/api/prowlarr/indexer", `Failed to add ${schema.name}`, {
-				json: schema,
 				method: "POST",
+				json: schema,
 			}),
 		onSettled: async () => {
 			await queryClient.invalidateQueries({ queryKey: prowlarrKeys.indexers });
@@ -107,14 +107,14 @@ export function createDeleteProwlarrIndexerMutation() {
 }
 
 export interface TestProwlarrConnectionInput {
-	apiKey?: string;
 	url?: string;
+	apiKey?: string;
 }
 
 export interface ProwlarrConnectionResult {
-	error?: string;
-	message?: string;
 	success: boolean;
+	message?: string;
+	error?: string;
 }
 
 export function createTestProwlarrConnectionMutation() {
@@ -123,9 +123,9 @@ export function createTestProwlarrConnectionMutation() {
 			const result = await apiRequest<ProwlarrConnectionResult | undefined>(
 				"/api/prowlarr/test",
 				"Connection test failed",
-				{ json: input, method: "POST" }
+				{ method: "POST", json: input }
 			);
-			return result ?? { message: "Connection test returned no data", success: false };
+			return result ?? { success: false, message: "Connection test returned no data" };
 		},
 	}));
 }

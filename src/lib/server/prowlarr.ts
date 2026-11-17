@@ -13,25 +13,25 @@ import { getSettings } from "$lib/server/settings";
  * Standardized Indexer search result
  */
 export interface IndexerResult {
-	indexer: string;
-	infohash: string;
-	magnetUri: string;
-	seeders: number;
-	size: number;
 	title: string;
+	magnetUri: string;
+	infohash: string;
+	size: number;
+	seeders: number;
+	indexer: string;
 }
 
 /**
  * Raw Prowlarr API response item
  */
 interface ProwlarrResultItem {
-	downloadUrl?: string;
-	indexer?: string;
-	infoHash?: string;
-	magnetUrl?: string;
-	seeders?: number;
-	size: number;
 	title: string;
+	magnetUrl?: string;
+	downloadUrl?: string;
+	infoHash?: string;
+	size: number;
+	seeders?: number;
+	indexer?: string;
 }
 
 /**
@@ -56,11 +56,11 @@ const LOW_QUALITY_PATTERNS = [
  * Keys are uppercase to match extractQuality output
  */
 const QUALITY_SCORES: Record<string, number> = {
-	"4K": 40,
-	"720P": 60,
 	"1080P": 100,
 	"2160P": 85,
 	UHD: 80,
+	"720P": 60,
+	"4K": 40,
 };
 
 /**
@@ -69,8 +69,8 @@ const QUALITY_SCORES: Record<string, number> = {
 const QUALITY_PATTERN = /\b(2160p|4K|UHD|1080p|720p|480p)\b/i;
 const INDEXER_PREFERENCE_SCORES: Record<string, number> = {
 	"1337x": 3,
-	"The Pirate Bay": 1,
 	YTS: 2,
+	"The Pirate Bay": 1,
 };
 
 const TV_SEARCH_CATEGORY = "5000";
@@ -92,13 +92,13 @@ export function parseProwlarrResults(results: ProwlarrResultItem[]): IndexerResu
 			return hasLink && r.infoHash;
 		})
 		.map((r) => ({
-			indexer: r.indexer || "Unknown",
-			infohash: (r.infoHash as string).toLowerCase(),
+			title: r.title,
 			// Prefer magnetUrl, fall back to downloadUrl (which may be HTTP and resolved later)
 			magnetUri: (r.magnetUrl || r.downloadUrl) as string,
-			seeders: r.seeders || 0,
+			infohash: (r.infoHash as string).toLowerCase(),
 			size: r.size,
-			title: r.title,
+			seeders: r.seeders || 0,
+			indexer: r.indexer || "Unknown",
 		}));
 }
 
@@ -120,7 +120,9 @@ export function filterByReleaseGroup(results: IndexerResult[], trustedGroups: st
  * Filter out low quality releases (CAM, TS, etc.)
  */
 export function filterByQuality(results: IndexerResult[]): IndexerResult[] {
-	return results.filter((result) => !LOW_QUALITY_PATTERNS.some((pattern) => pattern.test(result.title)));
+	return results.filter((result) => {
+		return !LOW_QUALITY_PATTERNS.some((pattern) => pattern.test(result.title));
+	});
 }
 
 /**
@@ -225,8 +227,8 @@ async function tryFetchMagnet(fetchUrl: string): Promise<string | null> {
 	try {
 		// Use redirect: 'manual' to capture magnet: redirects (Node's fetch can't follow non-HTTP)
 		const response = await fetch(fetchUrl, {
-			headers: { "User-Agent": "Plank/1.0" },
 			redirect: "manual",
+			headers: { "User-Agent": "Plank/1.0" },
 		});
 
 		// Handle redirects (3xx status)
@@ -391,13 +393,13 @@ export async function searchProwlarr(query: string, category?: string): Promise<
 }
 
 export interface FindBestTorrentOptions {
-	episodeNumber?: number;
-	episodeTitle?: string | null;
 	mediaType?: "movie" | "episode";
 	seasonNumber?: number;
+	episodeNumber?: number;
 	showTitle?: string;
 	/** Movie title, searched when no indexer answers the IMDb id */
 	title?: string;
+	episodeTitle?: string | null;
 	year?: number | null;
 }
 
@@ -497,7 +499,6 @@ async function searchEpisodeTorrent(imdbId: string, options: FindBestTorrentOpti
 	const queries = buildEpisodeSearchQueries(imdbId, options);
 	const collectedResults: IndexerResult[] = [];
 	for (const query of queries) {
-		// biome-ignore lint/performance/noAwaitInLoops: rate-limited indexer API, stops early on an exact match
 		const queryResults = await searchProwlarr(query, TV_SEARCH_CATEGORY);
 		console.log(`[Prowlarr] Query ${episodeLabel}: "${query}" -> ${queryResults.length} results`);
 		collectedResults.push(...queryResults);
@@ -737,7 +738,7 @@ function filterForEpisodeResults(
  */
 function filterForSeasonPacks(results: IndexerResult[], seasonNumber: number): IndexerResult[] {
 	return results.filter((result) => {
-		const { title } = result;
+		const title = result.title;
 
 		// Must match the season number
 		if (!matchesSeasonNumber(title, seasonNumber)) {
@@ -790,7 +791,6 @@ export async function searchSeasonTorrent(
 	const seenInfohashes = new Set<string>();
 
 	for (const query of searchQueries) {
-		// biome-ignore lint/performance/noAwaitInLoops: rate-limited indexer API, stops early when the IMDB query hits
 		const results = await searchProwlarr(query);
 
 		// Deduplicate
@@ -859,24 +859,29 @@ export async function findBestSeasonTorrent(
 // =============================================================================
 
 export interface ProwlarrIndexer {
-	configContract: string;
-	enable: boolean;
+	id: number;
+	name: string;
 	fields: Array<{
 		name: string;
 		value?: string | number | boolean | null;
 	}>;
-	id: number;
-	implementation: string;
 	implementationName: string;
+	implementation: string;
+	configContract: string;
 	infoLink: string;
-	name: string;
-	priority: number;
-	protocol: string;
 	tags: number[];
+	enable: boolean;
+	protocol: string;
+	priority: number;
 }
 
 export interface ProwlarrIndexerSchema {
+	id: number;
+	name: string;
+	implementation: string;
+	implementationName: string;
 	configContract: string;
+	infoLink: string;
 	fields: Array<{
 		order: number;
 		name: string;
@@ -890,11 +895,6 @@ export interface ProwlarrIndexerSchema {
 			name: string;
 		}>;
 	}>;
-	id: number;
-	implementation: string;
-	implementationName: string;
-	infoLink: string;
-	name: string;
 	tags: number[];
 }
 
@@ -925,12 +925,12 @@ async function getOrCreateFlaresolverrTag(url: string, apiKey: string): Promise<
 	}
 
 	const createResponse = await fetch(`${url}/api/v1/tag`, {
-		body: JSON.stringify({ label: FLARESOLVERR_TAG_LABEL }),
-		headers: {
-			"Content-Type": "application/json",
-			"X-Api-Key": apiKey,
-		},
 		method: "POST",
+		headers: {
+			"X-Api-Key": apiKey,
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({ label: FLARESOLVERR_TAG_LABEL }),
 	});
 
 	if (!createResponse.ok) {
@@ -1006,10 +1006,10 @@ export async function addProwlarrIndexer(indexer: Partial<ProwlarrIndexer>): Pro
 		// Ensure basic fields are present
 		const payload = {
 			...indexer,
-			appProfileId: 1, // Default profile
-			enable: true,
 			id: 0, // Force ID to 0 for creation
+			enable: true,
 			priority: 25,
+			appProfileId: 1, // Default profile
 		};
 
 		if (requiresFlaresolverr(payload)) {
@@ -1022,12 +1022,12 @@ export async function addProwlarrIndexer(indexer: Partial<ProwlarrIndexer>): Pro
 		console.log("Adding Prowlarr indexer with payload:", JSON.stringify(payload));
 
 		const response = await fetch(`${url}/api/v1/indexer`, {
-			body: JSON.stringify(payload),
-			headers: {
-				"Content-Type": "application/json",
-				"X-Api-Key": apiKey,
-			},
 			method: "POST",
+			headers: {
+				"X-Api-Key": apiKey,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(payload),
 		});
 
 		if (!response.ok) {
@@ -1056,8 +1056,8 @@ export async function deleteProwlarrIndexer(id: number): Promise<boolean> {
 
 	try {
 		const response = await fetch(`${url}/api/v1/indexer/${id}`, {
-			headers: { "X-Api-Key": apiKey },
 			method: "DELETE",
+			headers: { "X-Api-Key": apiKey },
 		});
 
 		return response.ok;
@@ -1079,7 +1079,7 @@ export async function testProwlarrConnection(
 	const apiKey = prowlarrApiKey || settings.prowlarr.apiKey;
 
 	if (!(url && apiKey)) {
-		return { message: "URL or API Key missing", success: false };
+		return { success: false, message: "URL or API Key missing" };
 	}
 
 	try {
@@ -1092,8 +1092,8 @@ export async function testProwlarrConnection(
 		if (response.ok) {
 			return { success: true };
 		}
-		return { message: `Status: ${response.status}`, success: false };
+		return { success: false, message: `Status: ${response.status}` };
 	} catch (error) {
-		return { message: error instanceof Error ? error.message : "Connection failed", success: false };
+		return { success: false, message: error instanceof Error ? error.message : "Connection failed" };
 	}
 }

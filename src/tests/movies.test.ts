@@ -14,38 +14,38 @@ const REAL_MAGNET =
 const REAL_INFOHASH = "c39fe3eefbdb62da9c27eb6398ff4a7d2e26e7ab";
 
 const testUser = {
-	createdAt: new Date(),
+	id: "test-user-123",
+	name: "Test User",
 	email: "test@example.com",
 	emailVerified: false,
-	id: "test-user-123",
 	image: null,
-	name: "Test User",
+	createdAt: new Date(),
 	updatedAt: new Date(),
 };
 
 const testUser2 = {
-	createdAt: new Date(),
+	id: "test-user-456",
+	name: "Other User",
 	email: "other@example.com",
 	emailVerified: false,
-	id: "test-user-456",
 	image: null,
-	name: "Other User",
+	createdAt: new Date(),
 	updatedAt: new Date(),
 };
 
 const testOrg = {
-	createdAt: new Date(),
 	id: "org-1",
 	name: "Test Org",
 	slug: "test-org",
+	createdAt: new Date(),
 	updatedAt: new Date(),
 };
 
 const testOrg2 = {
-	createdAt: new Date(),
 	id: "org-2",
 	name: "Other Org",
 	slug: "other-org",
+	createdAt: new Date(),
 	updatedAt: new Date(),
 };
 
@@ -64,12 +64,12 @@ describe("Media API / DB Logic", () => {
 	describe("Core Media Operations", () => {
 		it("should create media", () => {
 			const created = mediaDb.create({
-				infohash: REAL_INFOHASH,
-				magnetLink: REAL_MAGNET,
+				userId: testUser.id,
 				organizationId: testOrg.id,
 				title: "Test Movie",
+				magnetLink: REAL_MAGNET,
+				infohash: REAL_INFOHASH,
 				type: "movie",
-				userId: testUser.id,
 			});
 
 			expect(created.id).toBeDefined();
@@ -84,56 +84,56 @@ describe("Media API / DB Logic", () => {
 
 		it("should not allow duplicate magnet links for the same user", () => {
 			mediaDb.create({
-				infohash: REAL_INFOHASH,
-				magnetLink: REAL_MAGNET,
+				userId: testUser.id,
 				organizationId: testOrg.id,
 				title: "Test Movie",
+				magnetLink: REAL_MAGNET,
+				infohash: REAL_INFOHASH,
 				type: "movie",
-				userId: testUser.id,
 			});
 
 			expect(() => {
 				mediaDb.create({
-					infohash: REAL_INFOHASH,
-					magnetLink: REAL_MAGNET,
+					userId: testUser.id,
 					organizationId: testOrg.id,
 					title: "Test Movie Copy",
+					magnetLink: REAL_MAGNET,
+					infohash: REAL_INFOHASH,
 					type: "movie",
-					userId: testUser.id,
 				});
 			}).toThrow(/UNIQUE constraint failed/);
 		});
 
 		it("should allow same magnet for different users", () => {
 			mediaDb.create({
-				infohash: REAL_INFOHASH,
-				magnetLink: REAL_MAGNET,
+				userId: testUser.id,
 				organizationId: testOrg.id,
 				title: "Test Movie",
+				magnetLink: REAL_MAGNET,
+				infohash: REAL_INFOHASH,
 				type: "movie",
-				userId: testUser.id,
 			});
 
 			expect(() => {
 				mediaDb.create({
-					infohash: REAL_INFOHASH,
-					magnetLink: REAL_MAGNET,
+					userId: testUser2.id,
 					organizationId: testOrg2.id,
 					title: "Test Movie 2",
+					magnetLink: REAL_MAGNET,
+					infohash: REAL_INFOHASH,
 					type: "movie",
-					userId: testUser2.id,
 				});
 			}).not.toThrow();
 		});
 
 		it("should update progress", () => {
 			const created = mediaDb.create({
-				infohash: REAL_INFOHASH,
-				magnetLink: REAL_MAGNET,
+				userId: testUser.id,
 				organizationId: testOrg.id,
 				title: "Test Movie",
+				magnetLink: REAL_MAGNET,
+				infohash: REAL_INFOHASH,
 				type: "movie",
-				userId: testUser.id,
 			});
 
 			mediaDb.updateProgress(created.id, 0.5, "downloading");
@@ -149,19 +149,19 @@ describe("Media API / DB Logic", () => {
 
 		it("should update metadata", () => {
 			const created = mediaDb.create({
-				infohash: REAL_INFOHASH,
-				magnetLink: REAL_MAGNET,
+				userId: testUser.id,
 				organizationId: testOrg.id,
 				title: "Test Movie",
+				magnetLink: REAL_MAGNET,
+				infohash: REAL_INFOHASH,
 				type: "movie",
-				userId: testUser.id,
 			});
 
 			mediaDb.updateMetadata(created.id, {
-				certification: "PG-13",
 				overview: "Updated overview",
-				runtime: 120,
 				year: 2025,
+				runtime: 120,
+				certification: "PG-13",
 			});
 
 			const fetched = mediaDb.get(created.id, testOrg.id);
@@ -173,12 +173,12 @@ describe("Media API / DB Logic", () => {
 
 		it("should update file path", () => {
 			const created = mediaDb.create({
-				infohash: REAL_INFOHASH,
-				magnetLink: REAL_MAGNET,
+				userId: testUser.id,
 				organizationId: testOrg.id,
 				title: "Test Movie",
+				magnetLink: REAL_MAGNET,
+				infohash: REAL_INFOHASH,
 				type: "movie",
-				userId: testUser.id,
 			});
 
 			mediaDb.updateFilePath(created.id, "/path/to/file.mp4", 1024);
@@ -190,12 +190,12 @@ describe("Media API / DB Logic", () => {
 
 		it("should delete media", () => {
 			const created = mediaDb.create({
-				infohash: REAL_INFOHASH,
-				magnetLink: REAL_MAGNET,
+				userId: testUser.id,
 				organizationId: testOrg.id,
 				title: "Test Movie",
+				magnetLink: REAL_MAGNET,
+				infohash: REAL_INFOHASH,
 				type: "movie",
-				userId: testUser.id,
 			});
 
 			mediaDb.delete(created.id, testOrg.id);
@@ -207,28 +207,28 @@ describe("Media API / DB Logic", () => {
 	describe("Isolation", () => {
 		it("should list only user media", () => {
 			mediaDb.create({
-				infohash: "h1",
-				magnetLink: "m1",
+				userId: testUser.id,
 				organizationId: testOrg.id,
 				title: "U1",
+				magnetLink: "m1",
+				infohash: "h1",
 				type: "movie",
-				userId: testUser.id,
 			});
 			mediaDb.create({
-				infohash: "h2",
-				magnetLink: "m2",
+				userId: testUser.id,
 				organizationId: testOrg.id,
 				title: "U1_2",
+				magnetLink: "m2",
+				infohash: "h2",
 				type: "movie",
-				userId: testUser.id,
 			});
 			mediaDb.create({
-				infohash: "h3",
-				magnetLink: "m3",
+				userId: testUser2.id,
 				organizationId: testOrg2.id,
 				title: "U2",
+				magnetLink: "m3",
+				infohash: "h3",
 				type: "movie",
-				userId: testUser2.id,
 			});
 
 			const list1 = mediaDb.list(testOrg.id);
@@ -240,20 +240,20 @@ describe("Media API / DB Logic", () => {
 
 		it("should filter by type", () => {
 			mediaDb.create({
-				infohash: "h1",
-				magnetLink: "m1",
+				userId: testUser.id,
 				organizationId: testOrg.id,
 				title: "Movie 1",
+				magnetLink: "m1",
+				infohash: "h1",
 				type: "movie",
-				userId: testUser.id,
 			});
 			mediaDb.create({
-				infohash: "h2",
-				magnetLink: "m2",
+				userId: testUser.id,
 				organizationId: testOrg.id,
 				title: "TV Show 1",
+				magnetLink: "m2",
+				infohash: "h2",
 				type: "show",
-				userId: testUser.id,
 			});
 
 			const movies = mediaDb.list(testOrg.id, "movie");

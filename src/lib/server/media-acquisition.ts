@@ -8,14 +8,14 @@ import { getDownloadStatus } from "./torrent/status";
 import { cacheTorrent, getCachedTorrent } from "./torrent-cache";
 
 export interface AcquireMediaOptions {
-	episodeNumber?: number | null;
 	mediaType?: "movie" | "episode";
 	seasonNumber?: number | null;
+	episodeNumber?: number | null;
 }
 
 export interface AcquireMediaResult {
-	mediaId: string;
 	status: "started" | "active" | "complete" | "not_found" | "error";
+	mediaId: string;
 }
 
 function getMediaLogLabel(mediaId: string): string {
@@ -35,14 +35,14 @@ function getMediaLogLabel(mediaId: string): string {
 function getSearchOptions(mediaId: string, options?: AcquireMediaOptions): FindBestTorrentOptions | undefined {
 	const mediaItem = mediaDb.getById(mediaId);
 	const show = mediaItem?.parentId ? mediaDb.getById(mediaItem.parentId) : null;
-	if (mediaItem?.type !== "episode") {
+	if (!mediaItem || mediaItem.type !== "episode") {
 		if (options?.mediaType === "episode" && options.seasonNumber && options.episodeNumber) {
 			return {
-				episodeNumber: options.episodeNumber,
-				episodeTitle: mediaItem?.title,
 				mediaType: "episode",
 				seasonNumber: options.seasonNumber,
+				episodeNumber: options.episodeNumber,
 				showTitle: show?.title,
+				episodeTitle: mediaItem?.title,
 				year: show?.year,
 			};
 		}
@@ -54,11 +54,11 @@ function getSearchOptions(mediaId: string, options?: AcquireMediaOptions): FindB
 		return undefined;
 	}
 	return {
-		episodeNumber: options?.episodeNumber ?? mediaItem.episodeNumber,
-		episodeTitle: mediaItem.title,
 		mediaType: "episode",
 		seasonNumber: options?.seasonNumber ?? mediaItem.seasonNumber,
+		episodeNumber: options?.episodeNumber ?? mediaItem.episodeNumber,
 		showTitle: show?.title,
+		episodeTitle: mediaItem.title,
 		year: show?.year,
 	};
 }
@@ -69,11 +69,11 @@ async function createDownloadIfNeeded(mediaId: string, magnetLink: string, infoh
 		return;
 	}
 	downloadsDb.create({
-		infohash,
-		magnetLink,
 		mediaId,
-		progress: 0,
+		magnetLink,
+		infohash,
 		status: "added",
+		progress: 0,
 	});
 }
 
@@ -84,14 +84,14 @@ async function startAttachedDownload(
 ): Promise<AcquireMediaResult> {
 	const mediaLabel = getMediaLogLabel(mediaId);
 	mediaDb.update(mediaId, {
-		infohash,
 		magnetLink,
+		infohash,
 	});
 	await createDownloadIfNeeded(mediaId, magnetLink, infohash);
 	try {
 		console.log(`[Acquire] Starting download for ${mediaLabel}`);
 		await startDownload(mediaId, magnetLink);
-		return { mediaId, status: "started" };
+		return { status: "started", mediaId };
 	} catch (errorValue) {
 		console.error(`[Acquire] Failed to start download for ${mediaId}:`, errorValue);
 		mediaDb.updateProgress(mediaId, 0, "error");
@@ -99,7 +99,7 @@ async function startAttachedDownload(
 		if (download) {
 			downloadsDb.updateProgress(download.id, 0, "error");
 		}
-		return { mediaId, status: "error" };
+		return { status: "error", mediaId };
 	}
 }
 
@@ -107,14 +107,14 @@ export async function acquireMediaByImdb(mediaId: string, options?: AcquireMedia
 	const mediaItem = mediaDb.getById(mediaId);
 	const mediaLabel = getMediaLogLabel(mediaId);
 	if (!(mediaItem && mediaItem.type !== "show")) {
-		return { mediaId, status: "error" };
+		return { status: "error", mediaId };
 	}
 	if (mediaItem.filePath || mediaItem.status === "complete") {
-		return { mediaId, status: "complete" };
+		return { status: "complete", mediaId };
 	}
 	const activeStatus = getDownloadStatus(mediaId);
 	if (activeStatus && activeStatus.status !== "error" && activeStatus.status !== "complete") {
-		return { mediaId, status: "active" };
+		return { status: "active", mediaId };
 	}
 	if (mediaItem.magnetLink && mediaItem.infohash) {
 		return startAttachedDownload(mediaId, mediaItem.magnetLink, mediaItem.infohash);
@@ -122,10 +122,10 @@ export async function acquireMediaByImdb(mediaId: string, options?: AcquireMedia
 	if (!mediaItem.imdbId) {
 		console.log(`[Acquire] No IMDb id for ${mediaLabel}, marking as not found`);
 		mediaDb.updateProgress(mediaId, 0, "not_found");
-		return { mediaId, status: "not_found" };
+		return { status: "not_found", mediaId };
 	}
 	console.log(`[Acquire] Searching Prowlarr for ${mediaLabel}`);
-	mediaDb.update(mediaId, { progress: 0, status: "searching" });
+	mediaDb.update(mediaId, { status: "searching", progress: 0 });
 	const cachedTorrent = await getCachedTorrent(mediaItem.imdbId);
 	if (cachedTorrent) {
 		console.log(`[Acquire] Using cached torrent for ${mediaLabel}`);
@@ -135,13 +135,13 @@ export async function acquireMediaByImdb(mediaId: string, options?: AcquireMedia
 	if (!result) {
 		console.log(`[Acquire] No torrent found for ${mediaLabel}`);
 		mediaDb.updateProgress(mediaId, 0, "not_found");
-		return { mediaId, status: "not_found" };
+		return { status: "not_found", mediaId };
 	}
 	console.log(`[Acquire] Found torrent for ${mediaLabel}: ${result.title}`);
 	await cacheTorrent({
 		imdbId: mediaItem.imdbId,
-		infohash: result.infohash,
 		magnetLink: result.magnetUri,
+		infohash: result.infohash,
 	});
 	return startAttachedDownload(mediaId, result.magnetUri, result.infohash);
 }
@@ -149,7 +149,7 @@ export async function acquireMediaByImdb(mediaId: string, options?: AcquireMedia
 export async function waitForTerminalMediaState(
 	mediaId: string
 ): Promise<"complete" | "error" | "not_found" | "removed"> {
-	for (;;) {
+	while (true) {
 		const mediaItem = mediaDb.getById(mediaId);
 		if (!mediaItem) {
 			return "error";
@@ -170,7 +170,6 @@ export async function waitForTerminalMediaState(
 			mediaDb.updateProgress(mediaId, 0, "error");
 			return "error";
 		}
-		// biome-ignore lint/performance/noAwaitInLoops: polling loop, each wait must finish before the next check
 		await new Promise((resolve) => setTimeout(resolve, 2000));
 	}
 }

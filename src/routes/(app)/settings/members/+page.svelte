@@ -28,13 +28,14 @@
         const label = newRole === "admin" ? "Make admin" : "Make member";
 
         openConfirmation({
-            confirmLabel: label,
+            title: label,
             description: `Change the role of ${name} to ${newRole}?`,
+            confirmLabel: label,
             onConfirm: async () => {
                 const res = await authClient.organization.updateMemberRole({
                     memberId,
-                    organizationId: data.organization.id,
                     role: newRole,
+                    organizationId: data.organization.id,
                 });
                 if (res.error) {
                     toast.error(`Failed to update the role: ${res.error.message}`);
@@ -43,7 +44,6 @@
                 toast.success("Role updated");
                 await invalidateAll();
             },
-            title: label,
         });
     }
 

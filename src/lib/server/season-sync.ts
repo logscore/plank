@@ -12,29 +12,29 @@ const SEASON_DOWNLOAD_CONCURRENCY = 3;
 const activeSeasonJobs = new Map<string, Promise<void>>();
 
 export interface AddSeasonFromBrowseParams {
-	backdropUrl?: string | null;
-	certification?: string | null;
-	genres?: string[] | null;
-	overview?: string | null;
-	posterUrl?: string | null;
+	tmdbId: number;
 	seasonNumber: number;
 	title: string;
-	tmdbId: number;
 	year?: number | null;
+	posterUrl?: string | null;
+	backdropUrl?: string | null;
+	overview?: string | null;
+	genres?: string[] | null;
+	certification?: string | null;
 }
 
 interface ShowMetadata {
+	title: string;
+	year: number | null;
+	voteAverage: number | null;
+	posterUrl: string | null;
 	backdropUrl: string | null;
-	certification: string | null;
+	overview: string | null;
+	runtime: number | null;
 	genres: string | null;
 	originalLanguage: string | null;
-	overview: string | null;
-	posterUrl: string | null;
-	runtime: number | null;
-	title: string;
+	certification: string | null;
 	totalSeasons: number | null;
-	voteAverage: number | null;
-	year: number | null;
 }
 
 function isEpisodeAired(airDate: string | null): boolean {
@@ -65,33 +65,33 @@ async function resolveShowMetadata(params: AddSeasonFromBrowseParams): Promise<S
 	try {
 		const details = await getTVDetails(params.tmdbId);
 		return {
+			title: params.title || details.title,
+			year: params.year ?? details.year ?? null,
+			voteAverage: details.voteAverage ?? null,
+			posterUrl: params.posterUrl ?? details.posterUrl,
 			backdropUrl: params.backdropUrl ?? details.backdropUrl,
-			certification: params.certification ?? details.certification ?? null,
+			overview: params.overview ?? details.overview,
+			runtime: details.runtime ?? null,
 			genres: params.genres ? JSON.stringify(params.genres) : (details.genres ?? null),
 			originalLanguage: details.originalLanguage ?? null,
-			overview: params.overview ?? details.overview,
-			posterUrl: params.posterUrl ?? details.posterUrl,
-			runtime: details.runtime ?? null,
-			title: params.title || details.title,
+			certification: params.certification ?? details.certification ?? null,
 			totalSeasons: details.totalSeasons ?? null,
-			voteAverage: details.voteAverage ?? null,
-			year: params.year ?? details.year ?? null,
 		};
 	} catch (errorValue) {
 		rejectAdultContent(errorValue);
 		console.error(`[Season Sync] Failed to resolve TV metadata for ${params.tmdbId}:`, errorValue);
 		return {
+			title: params.title,
+			year: params.year ?? null,
+			voteAverage: null,
+			posterUrl: params.posterUrl ?? null,
 			backdropUrl: params.backdropUrl ?? null,
-			certification: params.certification ?? null,
+			overview: params.overview ?? null,
+			runtime: null,
 			genres: params.genres ? JSON.stringify(params.genres) : null,
 			originalLanguage: null,
-			overview: params.overview ?? null,
-			posterUrl: params.posterUrl ?? null,
-			runtime: null,
-			title: params.title,
+			certification: params.certification ?? null,
 			totalSeasons: null,
-			voteAverage: null,
-			year: params.year ?? null,
 		};
 	}
 }
@@ -104,15 +104,15 @@ async function saveShowImages(showId: string, metadata: ShowMetadata): Promise<v
 		const showDirectoryId = getShowLibraryDirectoryId({ id: showId, title: metadata.title, year: metadata.year });
 		const savedImages = await savePosterBackdropImages(
 			{
-				backdropUrl: metadata.backdropUrl,
 				posterUrl: metadata.posterUrl,
+				backdropUrl: metadata.backdropUrl,
 			},
 			"library",
 			showDirectoryId
 		);
 		mediaDb.updateMetadata(showId, {
-			backdropUrl: savedImages.backdropUrl,
 			posterUrl: savedImages.posterUrl,
+			backdropUrl: savedImages.backdropUrl,
 		});
 	} catch (errorValue) {
 		console.error(`[Season Sync] Failed to save images for ${showId}:`, errorValue);
@@ -124,38 +124,38 @@ async function upsertShow(userId: string, organizationId: string, params: AddSea
 	const existingShow = mediaDb.getByTmdbId(params.tmdbId, organizationId, "show");
 	if (existingShow) {
 		mediaDb.updateMetadata(existingShow.id, {
+			title: metadata.title,
+			year: metadata.year,
+			voteAverage: metadata.voteAverage,
+			posterUrl: metadata.posterUrl,
 			backdropUrl: metadata.backdropUrl,
-			certification: metadata.certification,
+			overview: metadata.overview,
+			tmdbId: params.tmdbId,
+			runtime: metadata.runtime,
 			genres: metadata.genres,
 			originalLanguage: metadata.originalLanguage,
-			overview: metadata.overview,
-			posterUrl: metadata.posterUrl,
-			runtime: metadata.runtime,
-			title: metadata.title,
-			tmdbId: params.tmdbId,
+			certification: metadata.certification,
 			totalSeasons: metadata.totalSeasons,
-			voteAverage: metadata.voteAverage,
-			year: metadata.year,
 		});
 		saveShowImages(existingShow.id, metadata).catch(() => undefined);
 		return existingShow.id;
 	}
 	const show = mediaDb.create({
-		backdropUrl: metadata.backdropUrl,
-		certification: metadata.certification,
-		genres: metadata.genres,
-		organizationId,
-		originalLanguage: metadata.originalLanguage,
-		overview: metadata.overview,
-		posterUrl: metadata.posterUrl,
-		runtime: metadata.runtime,
-		title: metadata.title,
-		tmdbId: params.tmdbId,
-		totalSeasons: metadata.totalSeasons,
-		type: "show",
 		userId,
-		voteAverage: metadata.voteAverage,
+		organizationId,
+		type: "show",
+		title: metadata.title,
 		year: metadata.year,
+		voteAverage: metadata.voteAverage,
+		posterUrl: metadata.posterUrl,
+		backdropUrl: metadata.backdropUrl,
+		overview: metadata.overview,
+		tmdbId: params.tmdbId,
+		runtime: metadata.runtime,
+		genres: metadata.genres,
+		originalLanguage: metadata.originalLanguage,
+		certification: metadata.certification,
+		totalSeasons: metadata.totalSeasons,
 	});
 	saveShowImages(show.id, metadata).catch(() => undefined);
 	return show.id;
@@ -172,16 +172,16 @@ async function syncSeasonMetadata(showId: string, tmdbId: number, seasonNumber: 
 	const season = existingSeason
 		? (() => {
 				seasonsDb.update(existingSeason.id, {
-					episodeCount: airedEpisodes.length,
 					name: seasonDetails.name,
+					episodeCount: airedEpisodes.length,
 				});
 				return seasonsDb.getById(existingSeason.id) ?? existingSeason;
 			})()
 		: seasonsDb.create({
-				episodeCount: airedEpisodes.length,
 				mediaId: showId,
-				name: seasonDetails.name,
 				seasonNumber: seasonDetails.seasonNumber,
+				name: seasonDetails.name,
+				episodeCount: airedEpisodes.length,
 			});
 
 	for (const [displayOrder, episode] of airedEpisodes.entries()) {
@@ -192,46 +192,46 @@ async function syncSeasonMetadata(showId: string, tmdbId: number, seasonNumber: 
 		);
 		const nextStatus = episode.imdbId ? "pending" : "not_found";
 		if (existingEpisode) {
-			let { status } = existingEpisode;
+			let status = existingEpisode.status;
 			if (!(episode.imdbId || existingEpisode.filePath || existingEpisode.magnetLink)) {
 				status = nextStatus;
 			} else if (existingEpisode.status === "not_found" && episode.imdbId && !existingEpisode.filePath) {
 				status = "pending";
 			}
 			mediaDb.update(existingEpisode.id, {
-				airDate: episode.airDate,
-				displayOrder,
-				episodeNumber: episode.episodeNumber,
-				imdbId: episode.imdbId,
-				overview: episode.overview,
 				parentId: showId,
-				runtime: episode.runtime,
 				seasonId: season.id,
 				seasonNumber: seasonDetails.seasonNumber,
-				status,
-				stillPath: episode.stillPath,
+				episodeNumber: episode.episodeNumber,
+				displayOrder,
 				title: episode.title ?? `Episode ${episode.episodeNumber}`,
+				overview: episode.overview,
+				stillPath: episode.stillPath,
+				runtime: episode.runtime,
+				airDate: episode.airDate,
 				tmdbId: episode.tmdbId,
+				imdbId: episode.imdbId,
+				status,
 			});
 			continue;
 		}
 		mediaDb.create({
-			airDate: episode.airDate,
-			displayOrder,
-			episodeNumber: episode.episodeNumber,
-			imdbId: episode.imdbId,
+			userId: show.userId,
 			organizationId: show.organizationId,
-			overview: episode.overview,
+			type: "episode",
 			parentId: showId,
-			runtime: episode.runtime,
 			seasonId: season.id,
 			seasonNumber: seasonDetails.seasonNumber,
-			status: nextStatus,
-			stillPath: episode.stillPath,
+			episodeNumber: episode.episodeNumber,
+			displayOrder,
 			title: episode.title ?? `Episode ${episode.episodeNumber}`,
+			overview: episode.overview,
+			stillPath: episode.stillPath,
+			runtime: episode.runtime,
+			airDate: episode.airDate,
 			tmdbId: episode.tmdbId,
-			type: "episode",
-			userId: show.userId,
+			imdbId: episode.imdbId,
+			status: nextStatus,
 		});
 	}
 
@@ -243,11 +243,11 @@ async function processSeasonEpisode(mediaId: string): Promise<void> {
 	if (!(episode && episode.type === "episode" && shouldQueueEpisode(episode))) {
 		return;
 	}
-	mediaDb.update(mediaId, { progress: 0, status: "searching" });
+	mediaDb.update(mediaId, { status: "searching", progress: 0 });
 	const result = await acquireMediaByImdb(mediaId, {
-		episodeNumber: episode.episodeNumber,
 		mediaType: "episode",
 		seasonNumber: episode.seasonNumber,
+		episodeNumber: episode.episodeNumber,
 	});
 	if (result.status === "started" || result.status === "active") {
 		await waitForTerminalMediaState(mediaId);
@@ -265,7 +265,6 @@ async function runSeasonQueue(seasonId: string): Promise<void> {
 		while (nextIndex < episodeIds.length) {
 			const episodeId = episodeIds[nextIndex];
 			nextIndex += 1;
-			// biome-ignore lint/performance/noAwaitInLoops: worker pool caps concurrency at SEASON_DOWNLOAD_CONCURRENCY
 			await processSeasonEpisode(episodeId);
 		}
 	});

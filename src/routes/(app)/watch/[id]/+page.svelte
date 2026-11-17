@@ -128,7 +128,7 @@
     }
 
     async function handlePlayNext() {
-        const { nextEpisode } = data;
+        const nextEpisode = data.nextEpisode;
         if (!nextEpisode) {
             return;
         }
@@ -139,9 +139,9 @@
                 blockStalePositionSave = true;
                 try {
                     await savePositionMutation.mutateAsync({
-                        duration,
                         id: data.media.id,
                         position: duration,
+                        duration,
                     });
                 } catch (error) {
                     blockStalePositionSave = false;
@@ -169,15 +169,15 @@
 
     // Play position: save current time
     function savePosition(currentTime: number, duration?: number) {
-        const { id } = data.media;
+        const id = data.media.id;
         if (!id || blockStalePositionSave || currentTime <= 0) {
             return;
         }
 
         savePositionMutation.mutate({
-            duration,
             id,
             position: currentTime,
+            duration,
         });
     }
 
@@ -320,13 +320,14 @@
         stopLiveProgressStream();
         if (browser) {
             // Save final position via sendBeacon on page leave
-            const { id } = data.media;
+            const id = data.media.id;
             if (!blockStalePositionSave && id && playerEl) {
-                const { currentTime, duration } = playerEl;
+                const currentTime = playerEl.currentTime;
+                const duration = playerEl.duration;
                 if (currentTime > 0) {
                     const payload = JSON.stringify({
-                        duration,
                         position: currentTime,
+                        duration,
                     });
                     navigator.sendBeacon(`/api/media/${id}/position`, payload);
                 }

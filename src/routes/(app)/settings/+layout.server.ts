@@ -4,7 +4,7 @@ import type { LayoutServerLoad } from "./$types";
 import { toSettingsRole } from "./sections";
 
 export const load: LayoutServerLoad = async ({ locals, request }) => {
-	const { user } = locals;
+	const user = locals.user;
 	if (!user) {
 		throw redirect(302, "/login");
 	}
@@ -29,13 +29,13 @@ export const load: LayoutServerLoad = async ({ locals, request }) => {
 	const currentMember = members.find((member) => member.userId === user.id);
 
 	return {
-		members,
+		user,
 		organization: {
 			id: organization.id,
-			logo: organization.logo,
 			name: organization.name,
+			logo: organization.logo,
 		},
-		user,
+		members,
 		userRole: toSettingsRole(currentMember?.role),
 	};
 };

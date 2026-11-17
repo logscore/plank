@@ -16,7 +16,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const canManageProfiles = userMembers.some((m) => m.role === "owner");
 
 	const allOrgs = db
-		.select({ id: schema.organization.id, logo: schema.organization.logo, name: schema.organization.name })
+		.select({ id: schema.organization.id, name: schema.organization.name, logo: schema.organization.logo })
 		.from(schema.organization)
 		.all();
 
@@ -26,13 +26,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const profiles = allOrgs.map((org) => ({
 		id: memberOrgIds.has(org.id) ? org.id : null,
-		isMember: memberOrgIds.has(org.id),
-		logo: memberOrgIds.has(org.id) ? org.logo : null,
 		name: org.name,
+		logo: memberOrgIds.has(org.id) ? org.logo : null,
+		isMember: memberOrgIds.has(org.id),
 	}));
 
 	return {
-		canManageProfiles,
 		profiles,
+		canManageProfiles,
 	};
 };

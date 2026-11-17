@@ -4,18 +4,18 @@ import { apiRequest } from "./client";
 export type ConnectionTarget = "tmdb" | "opensubtitles" | "prowlarr";
 
 export interface TestSettingsConnectionInput {
-	opensubtitlesApiKey?: string;
-	opensubtitlesPassword?: string;
-	opensubtitlesUsername?: string;
-	prowlarrApiKey?: string;
-	prowlarrUrl?: string;
 	target: ConnectionTarget;
 	tmdbApiKey?: string;
+	prowlarrUrl?: string;
+	prowlarrApiKey?: string;
+	opensubtitlesApiKey?: string;
+	opensubtitlesUsername?: string;
+	opensubtitlesPassword?: string;
 }
 
 export interface SettingsConnectionResult {
-	message: string;
 	success: boolean;
+	message: string;
 }
 
 export function createTestSettingsConnectionMutation() {
@@ -24,9 +24,9 @@ export function createTestSettingsConnectionMutation() {
 			const result = await apiRequest<SettingsConnectionResult | undefined>(
 				"/api/settings/test-connection",
 				"Connection test failed",
-				{ json: input, method: "POST" }
+				{ method: "POST", json: input }
 			);
-			return result ?? { message: "Connection test returned no data", success: false };
+			return result ?? { success: false, message: "Connection test returned no data" };
 		},
 	}));
 }

@@ -14,8 +14,8 @@ const SEASONS_STALE_TIME_MS = 60 * 60 * 1000;
 const IMAGE_PRELOAD_COUNT = 18;
 
 const browseKeys = {
-	details: (tmdbIds: number[]) => ["browse", "details", ...tmdbIds.toSorted()] as const,
 	infinite: (filters: CatalogFilters) => ["browse", "infinite", filters] as const,
+	details: (tmdbIds: number[]) => ["browse", "details", ...tmdbIds.toSorted()] as const,
 	resolve: (tmdbId: number) => ["browse", "resolve", tmdbId] as const,
 	seasons: (tmdbId: number) => ["browse", "seasons", tmdbId] as const,
 };
@@ -27,19 +27,19 @@ export interface BrowseResponse {
 }
 
 export interface ResolveResponse {
+	success: boolean;
 	error?: string;
 	message?: string;
-	success: boolean;
 	torrent?: {
 		magnetLink: string;
 	};
 }
 
 export interface BrowseDetailItem {
-	certification: string | null;
-	imdbId: string | null;
-	magnetLink?: string;
 	tmdbId: number;
+	imdbId: string | null;
+	certification: string | null;
+	magnetLink?: string;
 }
 
 interface BrowseDetailsResponse {
@@ -62,16 +62,16 @@ function fetchBrowseDetails(items: { tmdbId: number; mediaType: "movie" | "show"
 		return Promise.resolve({ details: [] });
 	}
 	return apiRequest("/api/browse/details", "Failed to fetch browse details", {
-		json: { items },
 		method: "POST",
+		json: { items },
 	});
 }
 
 export function fetchBrowse(filters: CatalogFilters, page = 1): Promise<BrowseResponse> {
 	const params = serializeCatalogSearch({
-		filters: { ...filters, scope: "catalog" },
-		page,
 		query: "",
+		page,
+		filters: { ...filters, scope: "catalog" },
 	});
 	params.delete("scope");
 	return apiRequest(`/api/browse?${params}`, "Failed to fetch browse titles");
@@ -79,8 +79,8 @@ export function fetchBrowse(filters: CatalogFilters, page = 1): Promise<BrowseRe
 
 export function resolveTorrent(item: ResolveInput): Promise<ResolveResponse> {
 	return apiRequest("/api/browse/resolve", "Failed to resolve torrent", {
-		json: item,
 		method: "POST",
+		json: item,
 	});
 }
 
@@ -90,12 +90,12 @@ export function fetchSeasons(tmdbId: number): Promise<SeasonsResponse> {
 
 export function createBrowseInfiniteQuery(filters: () => CatalogFilters, enabled: () => boolean) {
 	return createInfiniteQuery(() => ({
-		enabled: enabled(),
+		queryKey: browseKeys.infinite(filters()),
+		queryFn: ({ pageParam }) => fetchBrowse(filters(), pageParam),
+		initialPageParam: 1,
 		getNextPageParam: (lastPage: BrowseResponse) =>
 			lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined,
-		initialPageParam: 1,
-		queryFn: ({ pageParam }) => fetchBrowse(filters(), pageParam),
-		queryKey: browseKeys.infinite(filters()),
+		enabled: enabled(),
 		staleTime: BROWSE_STALE_TIME_MS,
 	}));
 }
@@ -104,24 +104,24 @@ export function fetchBrowseDetailsCached(
 	items: { tmdbId: number; mediaType: "movie" | "show" }[]
 ): Promise<BrowseDetailsResponse> {
 	return queryClient.fetchQuery({
-		queryFn: () => fetchBrowseDetails(items),
 		queryKey: browseKeys.details(items.map((item) => item.tmdbId)),
+		queryFn: () => fetchBrowseDetails(items),
 		staleTime: BROWSE_STALE_TIME_MS,
 	});
 }
 
 export function resolveTorrentCached(item: ResolveInput): Promise<ResolveResponse> {
 	return queryClient.fetchQuery({
-		queryFn: () => resolveTorrent(item),
 		queryKey: browseKeys.resolve(item.tmdbId),
+		queryFn: () => resolveTorrent(item),
 		staleTime: RESOLVE_STALE_TIME_MS,
 	});
 }
 
 export function fetchSeasonsCached(tmdbId: number): Promise<SeasonsResponse> {
 	return queryClient.fetchQuery({
-		queryFn: () => fetchSeasons(tmdbId),
 		queryKey: browseKeys.seasons(tmdbId),
+		queryFn: () => fetchSeasons(tmdbId),
 		staleTime: SEASONS_STALE_TIME_MS,
 	});
 }
@@ -147,9 +147,9 @@ function preloadImages(items: { posterUrl: string | null }[]): void {
 function prefetchBrowse(filters: CatalogFilters = DEFAULT_CATALOG_FILTERS): void {
 	queryClient
 		.prefetchInfiniteQuery({
-			initialPageParam: 1,
-			queryFn: ({ pageParam }) => fetchBrowse(filters, pageParam),
 			queryKey: browseKeys.infinite(filters),
+			queryFn: ({ pageParam }) => fetchBrowse(filters, pageParam),
+			initialPageParam: 1,
 			staleTime: BROWSE_STALE_TIME_MS,
 		})
 		.then(() => {
@@ -167,24 +167,24 @@ export function prefetchBrowseData(): void {
 }
 
 interface AddFromBrowseMagnetParams {
-	magnetLink: string;
 	mode?: "magnet";
+	magnetLink: string;
 	title: string;
-	tmdbId?: number;
 	year?: number | null;
+	tmdbId?: number;
 }
 
 interface AddSeasonFromBrowseParams {
-	backdropUrl?: string | null;
-	certification?: string | null;
-	genres?: string[] | null;
 	mode: "browse-season";
-	overview?: string | null;
-	posterUrl?: string | null;
+	tmdbId: number;
 	seasonNumber: number;
 	title: string;
-	tmdbId: number;
 	year?: number | null;
+	posterUrl?: string | null;
+	backdropUrl?: string | null;
+	overview?: string | null;
+	genres?: string[] | null;
+	certification?: string | null;
 }
 
 export type AddFromBrowseParams = AddFromBrowseMagnetParams | AddSeasonFromBrowseParams;
@@ -194,8 +194,8 @@ export function createAddFromBrowseMutation() {
 	return createMutation<AddFromBrowseResponse, Error, AddFromBrowseParams>(() => ({
 		mutationFn: (params) =>
 			apiRequest("/api/media", "Failed to add to library", {
-				json: params,
 				method: "POST",
+				json: params,
 			}),
 		onSuccess: async () => {
 			await invalidate("/api/media");

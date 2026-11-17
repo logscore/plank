@@ -9,9 +9,9 @@ import { deleteDownloadTempFiles, deleteMediaFiles } from "$lib/server/torrent/f
 import type { RequestHandler } from "./$types";
 
 interface RetryBody {
-	downloadId?: string;
-	magnetLink?: string;
 	mode?: "same" | "replace" | "remove";
+	magnetLink?: string;
+	downloadId?: string;
 }
 
 async function removeExistingDownload(mediaId: string): Promise<void> {
@@ -25,11 +25,11 @@ function ensureDownloadRecord(mediaId: string, magnetLink: string, infohash: str
 		return;
 	}
 	downloadsDb.create({
-		infohash,
-		magnetLink,
 		mediaId,
-		progress: 0,
+		magnetLink,
+		infohash,
 		status: "added",
+		progress: 0,
 	});
 }
 
@@ -49,23 +49,23 @@ function queueDownloadStart(mediaId: string, magnetLink: string, infohash: strin
 }
 
 interface Source {
-	infohash: string;
 	magnetLink: string;
+	infohash: string;
 }
 
 /** Resolve a pasted magnet link or torrent URL. Gives a 400 response when it cannot. */
 async function resolveNewSource(magnetLink: string): Promise<Source | Response> {
-	const fail = (message: string) => json({ message, success: false }, { status: 400 });
+	const fail = (message: string) => json({ success: false, message }, { status: 400 });
 	try {
 		const resolvedMagnet = magnetLink.startsWith("http") ? await resolveMagnetLink(magnetLink) : magnetLink;
 		if (!resolvedMagnet.startsWith("magnet:")) {
 			return fail("Could not resolve a magnet link");
 		}
-		const { infohash } = parseMagnet(resolvedMagnet);
+		const infohash = parseMagnet(resolvedMagnet).infohash;
 		if (!infohash) {
 			return fail("Could not parse magnet infohash");
 		}
-		return { infohash, magnetLink: resolvedMagnet };
+		return { magnetLink: resolvedMagnet, infohash };
 	} catch (error) {
 		return fail(error instanceof Error ? error.message : "Failed to replace source");
 	}
@@ -73,31 +73,31 @@ async function resolveNewSource(magnetLink: string): Promise<Source | Response> 
 
 function queueReplacementSource(mediaId: string, magnetLink: string, infohash: string): Response {
 	mediaDb.update(mediaId, {
-		infohash,
 		magnetLink,
+		infohash,
 	});
 	ensureDownloadRecord(mediaId, magnetLink, infohash);
 	queueDownloadStart(mediaId, magnetLink, infohash);
-	return json({ message: "Retry queued with manual source", success: true }, { status: 202 });
+	return json({ success: true, message: "Retry queued with manual source" }, { status: 202 });
 }
 
 function queueCurrentSource(mediaItem: Media): Response {
 	if (!mediaItem.magnetLink) {
 		return json(
-			{ message: "No saved source is available. Paste a magnet link or torrent URL instead.", success: false },
+			{ success: false, message: "No saved source is available. Paste a magnet link or torrent URL instead." },
 			{ status: 400 }
 		);
 	}
 	const infohash = mediaItem.infohash ?? parseMagnet(mediaItem.magnetLink).infohash;
 	if (!infohash) {
 		return json(
-			{ message: "Could not parse the saved magnet link. Paste a new source instead.", success: false },
+			{ success: false, message: "Could not parse the saved magnet link. Paste a new source instead." },
 			{ status: 400 }
 		);
 	}
 	ensureDownloadRecord(mediaItem.id, mediaItem.magnetLink, infohash);
 	queueDownloadStart(mediaItem.id, mediaItem.magnetLink, infohash);
-	return json({ message: "Retry queued with saved source", success: true }, { status: 202 });
+	return json({ success: true, message: "Retry queued with saved source" }, { status: 202 });
 }
 
 async function restartWithReplacementSource(mediaId: string, magnetLink: string): Promise<Response> {
@@ -113,7 +113,7 @@ async function restartWithReplacementSource(mediaId: string, magnetLink: string)
 async function restartWithCurrentSource(mediaItem: Media): Promise<Response> {
 	if (!mediaItem.magnetLink) {
 		return json(
-			{ message: "No saved source is available. Paste a magnet link or torrent URL instead.", success: false },
+			{ success: false, message: "No saved source is available. Paste a magnet link or torrent URL instead." },
 			{ status: 400 }
 		);
 	}
@@ -121,7 +121,7 @@ async function restartWithCurrentSource(mediaItem: Media): Promise<Response> {
 	const infohash = mediaItem.infohash ?? parseMagnet(mediaItem.magnetLink).infohash;
 	if (!infohash) {
 		return json(
-			{ message: "Could not parse the saved magnet link. Paste a new source instead.", success: false },
+			{ success: false, message: "Could not parse the saved magnet link. Paste a new source instead." },
 			{ status: 400 }
 		);
 	}
@@ -153,20 +153,20 @@ async function removeShowDownload(download: Download): Promise<Response> {
 	await deleteDownloadTempFiles(download.mediaId, download.infohash);
 	downloadsDb.delete(download.id);
 	updateShowStatusFromDownloads(download.mediaId);
-	return json({ message: "Show download removed", success: true });
+	return json({ success: true, message: "Show download removed" });
 }
 
 async function restartShowDownload(download: Download, magnetLink: string, infohash: string): Promise<Response> {
 	const duplicate = downloadsDb.getByInfohash(download.mediaId, infohash);
 	if (duplicate && duplicate.id !== download.id) {
-		return json({ message: "This source is already attached to the show", success: false }, { status: 409 });
+		return json({ success: false, message: "This source is already attached to the show" }, { status: 409 });
 	}
 	await cancelDownloadByInfohash(download.mediaId, download.infohash);
 	await deleteDownloadTempFiles(download.mediaId, download.infohash);
 	downloadsDb.updateSource(download.id, magnetLink, infohash);
 	mediaDb.updateProgress(download.mediaId, 0, "pending");
 	queueDownloadStart(download.mediaId, magnetLink, infohash);
-	return json({ message: "Show download retry queued", success: true }, { status: 202 });
+	return json({ success: true, message: "Show download retry queued" }, { status: 202 });
 }
 
 /** A show can hold more than one season pack, so a retry works on one download row. */
@@ -174,7 +174,7 @@ async function handleShowRetry(mediaItem: Media, body: RetryBody): Promise<Respo
 	const mode = body.mode ?? "same";
 	const download = body.downloadId ? downloadsDb.getById(body.downloadId) : undefined;
 	if (body.downloadId && download?.mediaId !== mediaItem.id) {
-		return json({ message: "Show download not found", success: false }, { status: 404 });
+		return json({ success: false, message: "Show download not found" }, { status: 404 });
 	}
 
 	if (mode === "remove") {
@@ -182,13 +182,13 @@ async function handleShowRetry(mediaItem: Media, body: RetryBody): Promise<Respo
 			return removeShowDownload(download);
 		}
 		mediaDb.markDownloadRemoved(mediaItem.id);
-		return json({ message: "Show download removed", success: true });
+		return json({ success: true, message: "Show download removed" });
 	}
 
-	let source: Source = download ?? { infohash: "", magnetLink: "" };
+	let source: Source = download ?? { magnetLink: "", infohash: "" };
 	if (mode === "replace") {
 		if (!body.magnetLink) {
-			return json({ message: "A magnet link or torrent URL is required", success: false }, { status: 400 });
+			return json({ success: false, message: "A magnet link or torrent URL is required" }, { status: 400 });
 		}
 		const resolved = await resolveNewSource(body.magnetLink);
 		if (resolved instanceof Response) {
@@ -222,11 +222,11 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	if (mode === "remove") {
 		await removeExistingDownload(mediaItem.id);
 		mediaDb.markDownloadRemoved(mediaItem.id);
-		return json({ message: "Download removed", success: true });
+		return json({ success: true, message: "Download removed" });
 	}
 	if (mode === "replace") {
 		if (!body.magnetLink) {
-			return json({ message: "A magnet link or torrent URL is required", success: false }, { status: 400 });
+			return json({ success: false, message: "A magnet link or torrent URL is required" }, { status: 400 });
 		}
 		return restartWithReplacementSource(mediaItem.id, body.magnetLink);
 	}

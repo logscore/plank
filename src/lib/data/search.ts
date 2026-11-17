@@ -6,27 +6,27 @@ export type CatalogMediaType = "all" | "movie" | "show";
 export type CatalogSort = "relevance" | "rating" | "newest" | "oldest" | "popular";
 
 interface CatalogGenre {
-	aliases?: string[];
 	key: string;
 	label: string;
 	movieId?: number;
 	showId?: number;
+	aliases?: string[];
 }
 
 export interface CatalogFilters {
-	genres: string[];
+	scope: SearchScope;
 	media: CatalogMediaType;
 	rating: number;
-	scope: SearchScope;
-	sort: CatalogSort;
 	yearFrom: number | null;
 	yearTo: number | null;
+	genres: string[];
+	sort: CatalogSort;
 }
 
 export interface CatalogSearchRequest {
-	filters: CatalogFilters;
-	page: number;
 	query: string;
+	page: number;
+	filters: CatalogFilters;
 }
 
 export type CatalogSearchResponse =
@@ -125,11 +125,11 @@ function seasonsFromJson(
 export function emptyCatalogSearchResponse(scope: SearchScope): CatalogSearchResponse {
 	switch (scope) {
 		case "catalog":
-			return { items: [], nextPage: null, scope: "catalog" };
+			return { scope: "catalog", items: [], nextPage: null };
 		case "library":
-			return { items: [], nextPage: null, scope: "library", seasonsByMediaId: {} };
+			return { scope: "library", items: [], seasonsByMediaId: {}, nextPage: null };
 		default:
-			return { catalogItems: [], libraryItems: [], nextPage: null, scope: "all", seasonsByMediaId: {} };
+			return { scope: "all", libraryItems: [], catalogItems: [], seasonsByMediaId: {}, nextPage: null };
 	}
 }
 
@@ -170,15 +170,15 @@ export function fromCatalogSearchJson(response: CatalogSearchJsonResponse): Cata
 }
 
 export const CATALOG_GENRES: CatalogGenre[] = [
-	{ aliases: ["Action & Adventure"], key: "action", label: "Action", movieId: 28, showId: 10_759 },
-	{ aliases: ["Action & Adventure"], key: "adventure", label: "Adventure", movieId: 12, showId: 10_759 },
+	{ key: "action", label: "Action", movieId: 28, showId: 10_759, aliases: ["Action & Adventure"] },
+	{ key: "adventure", label: "Adventure", movieId: 12, showId: 10_759, aliases: ["Action & Adventure"] },
 	{ key: "animation", label: "Animation", movieId: 16, showId: 16 },
 	{ key: "comedy", label: "Comedy", movieId: 35, showId: 35 },
 	{ key: "crime", label: "Crime", movieId: 80, showId: 80 },
 	{ key: "documentary", label: "Documentary", movieId: 99, showId: 99 },
 	{ key: "drama", label: "Drama", movieId: 18, showId: 18 },
 	{ key: "family", label: "Family", movieId: 10_751, showId: 10_751 },
-	{ aliases: ["Sci-Fi & Fantasy"], key: "fantasy", label: "Fantasy", movieId: 14, showId: 10_765 },
+	{ key: "fantasy", label: "Fantasy", movieId: 14, showId: 10_765, aliases: ["Sci-Fi & Fantasy"] },
 	{ key: "history", label: "History", movieId: 36 },
 	{ key: "horror", label: "Horror", movieId: 27 },
 	{ key: "kids", label: "Kids", showId: 10_762 },
@@ -186,30 +186,30 @@ export const CATALOG_GENRES: CatalogGenre[] = [
 	{ key: "mystery", label: "Mystery", movieId: 9648, showId: 9648 },
 	{ key: "reality", label: "Reality", showId: 10_764 },
 	{ key: "romance", label: "Romance", movieId: 10_749 },
-	{ aliases: ["Sci-Fi & Fantasy"], key: "science-fiction", label: "Science Fiction", movieId: 878, showId: 10_765 },
+	{ key: "science-fiction", label: "Science Fiction", movieId: 878, showId: 10_765, aliases: ["Sci-Fi & Fantasy"] },
 	{ key: "thriller", label: "Thriller", movieId: 53 },
-	{ aliases: ["War & Politics"], key: "war", label: "War", movieId: 10_752, showId: 10_768 },
+	{ key: "war", label: "War", movieId: 10_752, showId: 10_768, aliases: ["War & Politics"] },
 	{ key: "western", label: "Western", movieId: 37, showId: 37 },
 ];
 
 export const DEFAULT_CATALOG_FILTERS: CatalogFilters = {
-	genres: [],
+	scope: "all",
 	media: "all",
 	rating: 0,
-	scope: "all",
-	sort: "relevance",
 	yearFrom: null,
 	yearTo: null,
+	genres: [],
+	sort: "relevance",
 };
 
-const VALID_SCOPES: Record<SearchScope, true> = { all: true, catalog: true, library: true };
+const VALID_SCOPES: Record<SearchScope, true> = { all: true, library: true, catalog: true };
 const VALID_MEDIA_TYPES: Record<CatalogMediaType, true> = { all: true, movie: true, show: true };
 const VALID_SORTS: Record<CatalogSort, true> = {
+	relevance: true,
+	rating: true,
 	newest: true,
 	oldest: true,
 	popular: true,
-	rating: true,
-	relevance: true,
 };
 const VALID_GENRES: Record<string, true> = Object.fromEntries(
 	CATALOG_GENRES.map((genre) => [genre.key, true] as const)
@@ -267,17 +267,17 @@ export function parseCatalogSearchParams(
 	const genres = [...new Set(searchParams.getAll("genre"))].filter((genre) => VALID_GENRES[genre]);
 
 	return {
+		query: searchParams.get("q")?.trim().slice(0, 200) ?? "",
+		page: parsePage(searchParams.get("page")),
 		filters: {
-			genres,
+			scope: parseEnum(searchParams.get("scope"), VALID_SCOPES, DEFAULT_CATALOG_FILTERS.scope),
 			media: parseEnum(searchParams.get("media"), VALID_MEDIA_TYPES, DEFAULT_CATALOG_FILTERS.media),
 			rating: parseRating(searchParams.get("rating")),
-			scope: parseEnum(searchParams.get("scope"), VALID_SCOPES, DEFAULT_CATALOG_FILTERS.scope),
-			sort: parseEnum(searchParams.get("sort"), VALID_SORTS, DEFAULT_CATALOG_FILTERS.sort),
 			yearFrom,
 			yearTo,
+			genres,
+			sort: parseEnum(searchParams.get("sort"), VALID_SORTS, DEFAULT_CATALOG_FILTERS.sort),
 		},
-		page: parsePage(searchParams.get("page")),
-		query: searchParams.get("q")?.trim().slice(0, 200) ?? "",
 	};
 }
 

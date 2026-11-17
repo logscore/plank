@@ -53,17 +53,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	if (!torrent) {
 		return json({
+			success: false,
 			error: "No suitable torrent found",
 			message: "Could not find a high-quality torrent from trusted sources",
-			success: false,
 		});
 	}
 
 	// Cache the result
 	await cacheTorrent({
 		imdbId: resolvedImdbId,
-		infohash: torrent.infohash,
 		magnetLink: torrent.magnetUri,
+		infohash: torrent.infohash,
 	});
 
 	return json({

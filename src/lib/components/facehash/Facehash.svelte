@@ -43,7 +43,7 @@
     // Calculate 3D transform
     const transform = $derived.by(() => {
         if (intensity3d === "none") {
-            return;
+            return undefined;
         }
         const rotateX = isHovered && interactive ? 0 : faceData.rotation.x * preset.rotateRange;
         const rotateY = isHovered && interactive ? 0 : faceData.rotation.y * preset.rotateRange;

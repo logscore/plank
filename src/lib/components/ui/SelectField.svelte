@@ -4,9 +4,9 @@
     import { cn } from "$lib/utils";
 
     interface SelectOption {
-        disabled?: boolean;
-        label: string;
         value: string;
+        label: string;
+        disabled?: boolean;
     }
 
     let {

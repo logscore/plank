@@ -13,7 +13,7 @@ export function tempFolderCleanupJob(): ScheduledTask {
 				console.log("[Cron] Skipping temp cleanup because downloads are still active");
 				return;
 			}
-			await fs.rm(PATHS.temp, { force: true, recursive: true });
+			await fs.rm(PATHS.temp, { recursive: true, force: true });
 			await fs.mkdir(PATHS.temp, { recursive: true });
 			console.log("[Cron] Temp folder cleaned successfully");
 		} catch (e) {

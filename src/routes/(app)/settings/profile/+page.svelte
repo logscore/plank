@@ -37,14 +37,14 @@
         try {
             if (pendingLogo) {
                 await uploadLogoMutation.mutateAsync({
-                    file: pendingLogo,
                     organizationId: data.organization.id,
+                    file: pendingLogo,
                 });
             }
 
             const res = await authClient.organization.update({
-                data: { name: trimmedName },
                 organizationId: data.organization.id,
+                data: { name: trimmedName },
             });
 
             if (res.error) {

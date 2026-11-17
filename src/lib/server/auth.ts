@@ -7,19 +7,27 @@ import { db } from "./db/index";
 import { member, schema } from "./db/schema";
 
 export const auth = betterAuth({
+	secret: env.BETTER_AUTH_SECRET,
 	baseURL: env.BETTER_AUTH_URL,
 	database: drizzleAdapter(db, {
 		provider: "sqlite",
 		schema: {
-			account: schema.account,
-			invitation: schema.invitation,
-			member: schema.member,
-			organization: schema.organization,
-			session: schema.session,
 			user: schema.user,
+			session: schema.session,
+			account: schema.account,
 			verification: schema.verification,
+			organization: schema.organization,
+			member: schema.member,
+			invitation: schema.invitation,
 		},
 	}),
+	emailAndPassword: {
+		enabled: true,
+	},
+	session: {
+		expiresIn: 60 * 60 * 24 * 7, // 7 days
+		updateAge: 60 * 60 * 24, // 1 day
+	},
 	databaseHooks: {
 		user: {
 			create: {
@@ -53,9 +61,6 @@ export const auth = betterAuth({
 			},
 		},
 	},
-	emailAndPassword: {
-		enabled: true,
-	},
 	plugins: [
 		organization({
 			allowUserToCreateOrganization: async (user) => {
@@ -74,7 +79,7 @@ export const auth = betterAuth({
 				return Boolean(ownerMembership);
 			},
 			organizationHooks: {
-				beforeDeleteOrganization: async ({ organization: targetOrganization }) => {
+				beforeDeleteOrganization: async ({ organization }) => {
 					// If its the last organization, reject the request
 					const organizationCount =
 						db.select({ count: sql<number>`count(*)` }).from(schema.organization).get()?.count ?? 0;
@@ -84,17 +89,12 @@ export const auth = betterAuth({
 
 					// Deletes member from the organization by removing them from the member table
 					db.delete(member)
-						.where(and(eq(member.organizationId, targetOrganization.id)))
+						.where(and(eq(member.organizationId, organization.id)))
 						.run();
 				},
 			},
 		}),
 	],
-	secret: env.BETTER_AUTH_SECRET,
-	session: {
-		expiresIn: 60 * 60 * 24 * 7, // 7 days
-		updateAge: 60 * 60 * 24, // 1 day
-	},
 	telemetry: {
 		enabled: false,
 	},

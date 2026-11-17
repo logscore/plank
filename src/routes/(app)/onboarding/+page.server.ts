@@ -14,8 +14,8 @@ export const load: PageServerLoad = async () => {
 	return {
 		settings: {
 			prowlarr: {
-				apiKey: settings.prowlarr.apiKey,
 				url: settings.prowlarr.url,
+				apiKey: settings.prowlarr.apiKey,
 			},
 		},
 	};

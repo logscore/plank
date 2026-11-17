@@ -35,17 +35,17 @@
         try {
             const result = await authClient.organization.inviteMember({
                 email,
-                organizationId: activeOrganizationId,
                 role: "member",
+                organizationId: activeOrganizationId,
             });
 
             if (result.error) {
                 error = result.error.message || "Failed to create invitation";
             } else if (result.data) {
-                const { origin } = window.location;
+                const origin = window.location.origin;
                 inviteLink = `${origin}/accept-invitation/${result.data.id}`;
             }
-        } catch {
+        } catch (e) {
             error = "An error occurred";
         } finally {
             loading = false;

@@ -12,16 +12,16 @@ export const load: PageServerLoad = async ({ depends, locals, url }) => {
 	const parsedRequest = parseCatalogSearchParams(url.searchParams);
 	const request = {
 		...parsedRequest,
+		query: "",
 		filters: {
 			...parsedRequest.filters,
 			scope: "library" as const,
 		},
-		query: "",
 	};
 	return {
-		continueWatching: mediaDb.getRecentlyWatched(organizationId, 20),
-		errorCount: mediaDb.countDownloadErrors(organizationId),
 		request,
 		response: await searchCatalog(organizationId, request),
+		continueWatching: mediaDb.getRecentlyWatched(organizationId, 20),
+		errorCount: mediaDb.countDownloadErrors(organizationId),
 	};
 };

@@ -16,14 +16,13 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	try {
 		content = await fs.readFile(subtitle.filePath, "utf-8");
 	} catch {
-		// biome-ignore lint/style/useErrorCause: SvelteKit error() has no cause option
 		throw error(404, "Subtitle file not found on disk");
 	}
 
 	return new Response(content, {
 		headers: {
-			"Cache-Control": "private, max-age=86400",
 			"Content-Type": "text/vtt; charset=utf-8",
+			"Cache-Control": "private, max-age=86400",
 		},
 	});
 };

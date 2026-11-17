@@ -54,7 +54,7 @@ export async function finalizeFromTemp(mediaId: string, videoPath: string, fileN
 		mediaDb.updateProgress(mediaId, 1, "complete");
 
 		try {
-			await fs.rm(path.join(PATHS.temp, mediaId), { force: true, recursive: true });
+			await fs.rm(path.join(PATHS.temp, mediaId), { recursive: true, force: true });
 		} catch {
 			// Ignore cleanup errors.
 		}
@@ -77,7 +77,6 @@ async function findVideoInDirectory(dirPath: string): Promise<{ path: string; na
 			const fullPath = path.join(dirPath, entry.name);
 
 			if (entry.isDirectory()) {
-				// biome-ignore lint/performance/noAwaitInLoops: sequential walk keeps open file handles bounded
 				const nested = await findVideoInDirectory(fullPath);
 				if (nested && (!bestVideo || nested.size > bestVideo.size)) {
 					bestVideo = nested;
@@ -85,7 +84,7 @@ async function findVideoInDirectory(dirPath: string): Promise<{ path: string; na
 			} else if (entry.isFile() && isSupportedFormat(entry.name)) {
 				const stats = await fs.stat(fullPath);
 				if (!bestVideo || stats.size > bestVideo.size) {
-					bestVideo = { name: entry.name, path: fullPath, size: stats.size };
+					bestVideo = { path: fullPath, name: entry.name, size: stats.size };
 				}
 			}
 		}
@@ -148,7 +147,6 @@ export async function recoverDownloads(): Promise<void> {
 	}
 
 	for (const mediaItem of incompleteMedia) {
-		// biome-ignore lint/performance/noAwaitInLoops: torrent recovery runs one item at a time
 		await recoverSingleMedia(mediaItem);
 	}
 }

@@ -20,20 +20,20 @@ describe("Prowlarr Client", () => {
 	beforeEach(async () => {
 		vi.clearAllMocks();
 		global.fetch = mockFetch;
-		await updateSettings({ prowlarrApiKey: "", prowlarrUrl: "" });
+		await updateSettings({ prowlarrUrl: "", prowlarrApiKey: "" });
 	});
 
-	it.each(["application/x-bittorrent", "application/octet-stream"])(
-		"resolves a binary %s response to a magnet",
-		async (contentType) => {
-			const torrent = Buffer.from(
-				"d4:infod6:lengthi1e4:name8:test.mp412:piece lengthi16384e6:pieces20:00000000000000000000ee"
-			);
-			mockFetch.mockResolvedValueOnce(new Response(torrent, { headers: { "Content-Type": contentType } }));
-			const magnet = await resolveMagnetLink("https://indexer.example/download");
-			expect(magnet).toBe("magnet:?xt=urn:btih:cb42885d06c559cd323c63fd08a1cc9625109205&dn=test.mp4");
-		}
-	);
+	it.each([
+		"application/x-bittorrent",
+		"application/octet-stream",
+	])("resolves a binary %s response to a magnet", async (contentType) => {
+		const torrent = Buffer.from(
+			"d4:infod6:lengthi1e4:name8:test.mp412:piece lengthi16384e6:pieces20:00000000000000000000ee"
+		);
+		mockFetch.mockResolvedValueOnce(new Response(torrent, { headers: { "Content-Type": contentType } }));
+		const magnet = await resolveMagnetLink("https://indexer.example/download");
+		expect(magnet).toBe("magnet:?xt=urn:btih:cb42885d06c559cd323c63fd08a1cc9625109205&dn=test.mp4");
+	});
 
 	it("keeps the URL fallback when torrent parsing rejects asynchronously", async () => {
 		const url = "https://indexer.example/download";
@@ -47,8 +47,8 @@ describe("Prowlarr Client", () => {
 	describe("settings integration", () => {
 		it("uses Prowlarr settings from env when DB settings are empty", async () => {
 			mockFetch.mockResolvedValueOnce({
-				json: async () => [],
 				ok: true,
+				json: async () => [],
 			});
 
 			await searchProwlarr("tt1234567");
@@ -59,10 +59,10 @@ describe("Prowlarr Client", () => {
 		});
 
 		it("uses Prowlarr settings from DB over env", async () => {
-			await updateSettings({ prowlarrApiKey: "db-prowlarr-api-key", prowlarrUrl: "http://db-prowlarr:9696" });
+			await updateSettings({ prowlarrUrl: "http://db-prowlarr:9696", prowlarrApiKey: "db-prowlarr-api-key" });
 			mockFetch.mockResolvedValueOnce({
-				json: async () => [],
 				ok: true,
+				json: async () => [],
 			});
 
 			await searchProwlarr("tt1234567");
@@ -78,20 +78,20 @@ describe("Prowlarr Client", () => {
 		it("should parse Prowlarr JSON response", () => {
 			const mockResponse = [
 				{
-					indexer: "YTS",
-					infoHash: "abc123",
-					magnetUrl: "magnet:?xt=urn:btih:abc123",
-					seeders: 150,
-					size: 2_147_483_648,
 					title: "Movie.2024.1080p.BluRay.x264-YTS",
+					magnetUrl: "magnet:?xt=urn:btih:abc123",
+					infoHash: "abc123",
+					size: 2_147_483_648,
+					seeders: 150,
+					indexer: "YTS",
 				},
 				{
-					downloadUrl: "magnet:?xt=urn:btih:def456",
-					indexer: "RARBG",
-					infoHash: "def456",
-					seeders: 75,
-					size: 1_073_741_824,
 					title: "Movie.2024.720p.WEB-DL-RARBG",
+					downloadUrl: "magnet:?xt=urn:btih:def456",
+					infoHash: "def456",
+					size: 1_073_741_824,
+					seeders: 75,
+					indexer: "RARBG",
 				},
 			];
 
@@ -114,17 +114,17 @@ describe("Prowlarr Client", () => {
 		it("should filter out results without magnet links or infohash", () => {
 			const mockResponse = [
 				{
-					infoHash: "abc123",
-					magnetUrl: "magnet:?xt=urn:btih:abc123",
-					seeders: 100,
-					size: 2_147_483_648,
 					title: "Movie.2024.1080p.BluRay",
+					magnetUrl: "magnet:?xt=urn:btih:abc123",
+					infoHash: "abc123",
+					size: 2_147_483_648,
+					seeders: 100,
 				},
 				{
-					seeders: 50,
+					title: "Movie.2024.720p.WEB-DL",
 					// No magnet
 					size: 1_073_741_824,
-					title: "Movie.2024.720p.WEB-DL",
+					seeders: 50,
 				},
 			];
 
@@ -136,12 +136,12 @@ describe("Prowlarr Client", () => {
 
 	describe("filterByReleaseGroup", () => {
 		const createResult = (title: string, seeders = 100): IndexerResult => ({
-			indexer: "Test",
-			infohash: "hash",
-			magnetUri: "magnet:?xt=urn:btih:hash",
-			seeders,
-			size: 2_147_483_648,
 			title,
+			magnetUri: "magnet:?xt=urn:btih:hash",
+			infohash: "hash",
+			size: 2_147_483_648,
+			seeders,
+			indexer: "Test",
 		});
 
 		it("should filter for trusted release groups", () => {
@@ -176,12 +176,12 @@ describe("Prowlarr Client", () => {
 
 	describe("filterByQuality", () => {
 		const createResult = (title: string, seeders = 100): IndexerResult => ({
-			indexer: "Test",
-			infohash: "hash",
-			magnetUri: "magnet:?xt=urn:btih:hash",
-			seeders,
-			size: 2_147_483_648,
 			title,
+			magnetUri: "magnet:?xt=urn:btih:hash",
+			infohash: "hash",
+			size: 2_147_483_648,
+			seeders,
+			indexer: "Test",
 		});
 
 		it("should filter out low quality releases (CAM, TS, etc)", () => {
@@ -216,12 +216,12 @@ describe("Prowlarr Client", () => {
 
 	describe("selectBestTorrent", () => {
 		const createResult = (title: string, seeders: number, size: number): IndexerResult => ({
-			indexer: "Test",
-			infohash: title,
-			magnetUri: `magnet:?xt=urn:btih:${title}`,
-			seeders,
-			size,
 			title,
+			magnetUri: `magnet:?xt=urn:btih:${title}`,
+			infohash: title,
+			size,
+			seeders,
+			indexer: "Test",
 		});
 
 		it("should select torrent with most seeders", () => {
@@ -267,17 +267,17 @@ describe("Prowlarr Client", () => {
 		it("should search Prowlarr", async () => {
 			const mockResponse = [
 				{
-					infoHash: "abc123",
-					magnetUrl: "magnet:?xt=urn:btih:abc123",
-					seeders: 150,
-					size: 2_147_483_648,
 					title: "Movie.2024.1080p.BluRay.x264-YTS",
+					magnetUrl: "magnet:?xt=urn:btih:abc123",
+					infoHash: "abc123",
+					size: 2_147_483_648,
+					seeders: 150,
 				},
 			];
 
 			mockFetch.mockResolvedValueOnce({
-				json: async () => mockResponse,
 				ok: true,
+				json: async () => mockResponse,
 			});
 
 			const results = await searchProwlarr("tt1234567");
@@ -398,37 +398,37 @@ describe("Prowlarr Client", () => {
 	describe("searchSourceCandidates", () => {
 		const rawResults = [
 			{
+				title: "Movie.2024.720p.WEBRip-GROUP",
 				downloadUrl: "http://localhost:9696/1/download?apikey=secret&link=abc",
 				infoHash: "aaa",
-				seeders: 10,
 				size: 1_000_000_000,
-				title: "Movie.2024.720p.WEBRip-GROUP",
+				seeders: 10,
 			},
 			{
+				title: "Movie.2024.1080p.BluRay-GROUP",
+				magnetUrl: "magnet:?xt=urn:btih:bbb",
 				infoHash: "bbb",
-				magnetUrl: "magnet:?xt=urn:btih:bbb",
-				seeders: 200,
 				size: 2_000_000_000,
-				title: "Movie.2024.1080p.BluRay-GROUP",
+				seeders: 200,
 			},
 			{
-				infoHash: "ccc",
-				magnetUrl: "magnet:?xt=urn:btih:ccc",
-				seeders: 900,
-				size: 700_000_000,
 				title: "Movie.2024.CAM.XviD",
+				magnetUrl: "magnet:?xt=urn:btih:ccc",
+				infoHash: "ccc",
+				size: 700_000_000,
+				seeders: 900,
 			},
 			{
-				infoHash: "BBB",
-				magnetUrl: "magnet:?xt=urn:btih:bbb",
-				seeders: 200,
-				size: 2_000_000_000,
 				title: "Movie.2024.1080p.BluRay-GROUP",
+				magnetUrl: "magnet:?xt=urn:btih:bbb",
+				infoHash: "BBB",
+				size: 2_000_000_000,
+				seeders: 200,
 			},
 		];
 
 		it("keeps every acceptable release, best first, without duplicates", async () => {
-			mockFetch.mockResolvedValueOnce({ json: async () => rawResults, ok: true });
+			mockFetch.mockResolvedValueOnce({ ok: true, json: async () => rawResults });
 
 			const results = await searchSourceCandidates("Movie 2024", false);
 
@@ -436,7 +436,7 @@ describe("Prowlarr Client", () => {
 		});
 
 		it("searches the TV category for an episode", async () => {
-			mockFetch.mockResolvedValueOnce({ json: async () => [], ok: true });
+			mockFetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
 
 			await searchSourceCandidates("Show S01E02", true);
 
@@ -445,7 +445,7 @@ describe("Prowlarr Client", () => {
 		});
 
 		it("strips the Prowlarr API key from download links", async () => {
-			mockFetch.mockResolvedValueOnce({ json: async () => rawResults, ok: true });
+			mockFetch.mockResolvedValueOnce({ ok: true, json: async () => rawResults });
 
 			const results = await searchSourceCandidates("Movie 2024", false);
 
@@ -456,19 +456,19 @@ describe("Prowlarr Client", () => {
 
 	describe("Season Search", () => {
 		const createSeasonResult = (title: string, seeders = 50, size = 5_000_000_000): IndexerResult => ({
-			indexer: "Test",
-			infohash: title,
-			magnetUri: `magnet:?xt=urn:btih:${title}`,
-			seeders,
-			size,
 			title,
+			magnetUri: `magnet:?xt=urn:btih:${title}`,
+			infohash: title,
+			size,
+			seeders,
+			indexer: "Test",
 		});
 
 		describe("searchSeasonTorrent", () => {
 			it("should search with multiple queries", async () => {
 				mockFetch.mockResolvedValue({
-					json: async () => [],
 					ok: true,
+					json: async () => [],
 				});
 
 				await import("$lib/server/prowlarr").then((m) => m.searchSeasonTorrent("Show Title", 1, "tt1234567"));
@@ -489,8 +489,8 @@ describe("Prowlarr Client", () => {
 		describe("findBestSeasonTorrent", () => {
 			it("should return null when no results found", async () => {
 				mockFetch.mockResolvedValue({
-					json: async () => [],
 					ok: true,
+					json: async () => [],
 				});
 
 				const { findBestSeasonTorrent } = await import("$lib/server/prowlarr");
@@ -502,36 +502,36 @@ describe("Prowlarr Client", () => {
 
 	describe("Episode Fallback Search", () => {
 		const createEpisodeResult = (title: string, seeders = 50): IndexerResult => ({
-			indexer: "Test",
-			infohash: `${title}-${seeders}`.toLowerCase(),
-			magnetUri: `magnet:?xt=urn:btih:${seeders}`,
-			seeders,
-			size: 2_000_000_000,
 			title,
+			magnetUri: `magnet:?xt=urn:btih:${seeders}`,
+			infohash: `${title}-${seeders}`.toLowerCase(),
+			size: 2_000_000_000,
+			seeders,
+			indexer: "Test",
 		});
 
 		it("falls back from imdb to show season episode queries", async () => {
-			mockFetch.mockResolvedValueOnce({ json: async () => [], ok: true });
-			mockFetch.mockResolvedValueOnce({ json: async () => [], ok: true });
+			mockFetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+			mockFetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
 			mockFetch.mockResolvedValueOnce({
+				ok: true,
 				json: async () => [
 					{
-						infoHash: "abc123",
-						magnetUrl: "magnet:?xt=urn:btih:abc123",
-						seeders: 25,
-						size: 2_147_483_648,
 						title: "Show Title S01E02 1080p WEB-DL-TEST",
+						magnetUrl: "magnet:?xt=urn:btih:abc123",
+						infoHash: "abc123",
+						size: 2_147_483_648,
+						seeders: 25,
 					},
 				],
-				ok: true,
 			});
 
 			const result = await findBestTorrent("tt1234567", {
+				mediaType: "episode",
+				showTitle: "Show Title",
+				seasonNumber: 1,
 				episodeNumber: 2,
 				episodeTitle: "Episode Name",
-				mediaType: "episode",
-				seasonNumber: 1,
-				showTitle: "Show Title",
 			});
 
 			expect(result?.title).toBe("Show Title S01E02 1080p WEB-DL-TEST");
@@ -544,23 +544,23 @@ describe("Prowlarr Client", () => {
 
 		it("filters season packs out of fallback episode matches", async () => {
 			mockFetch.mockResolvedValue({
+				ok: true,
 				json: async () => [
 					{
-						infoHash: "seasonpack",
-						magnetUrl: "magnet:?xt=urn:btih:seasonpack",
-						seeders: 100,
-						size: 9_000_000_000,
 						title: "Show Title Season 1 Complete 1080p",
+						magnetUrl: "magnet:?xt=urn:btih:seasonpack",
+						infoHash: "seasonpack",
+						size: 9_000_000_000,
+						seeders: 100,
 					},
 				],
-				ok: true,
 			});
 
 			const result = await findBestTorrent("tt1234567", {
-				episodeNumber: 2,
 				mediaType: "episode",
-				seasonNumber: 1,
 				showTitle: "Show Title",
+				seasonNumber: 1,
+				episodeNumber: 2,
 			});
 
 			expect(result).toBeNull();

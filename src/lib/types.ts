@@ -3,50 +3,50 @@ export type MediaType = "movie" | "show" | "episode";
 export type MediaStatus = "pending" | "searching" | "downloading" | "complete" | "error" | "not_found" | "removed";
 
 export interface Media {
+	id: string;
+	userId: string;
+	organizationId: string | null;
+	type: MediaType;
+	title: string;
+	overview: string | null;
+	year: number | null;
+	voteAverage: number | null;
+	tmdbId: number | null;
+	imdbId: string | null;
+	runtime: number | null;
+	originalLanguage: string | null;
 	addedAt: Date;
-	airDate: string | null;
+	posterUrl: string | null;
 	backdropUrl: string | null;
+	genres: string | null;
 	certification: string | null;
-	displayOrder: number | null;
-	downloadedBytes: number | null;
+	totalSeasons: number | null;
+	parentId: string | null;
+	seasonId: string | null;
 	episodeNumber: number | null;
-	fileIndex: number | null;
+	seasonNumber: number | null;
+	displayOrder: number | null;
+	stillPath: string | null;
+	airDate: string | null;
+	magnetLink: string | null;
+	infohash: string | null;
+	status: MediaStatus | null;
+	progress: number | null;
 	filePath: string | null;
 	fileSize: number | null;
-	genres: string | null;
-	id: string;
-	imdbId: string | null;
-	infohash: string | null;
-	lastPlayedAt: Date | null;
-	magnetLink: string | null;
-	organizationId: string | null;
-	originalLanguage: string | null;
-	overview: string | null;
-	parentId: string | null;
-	playDuration: number | null;
+	fileIndex: number | null;
+	downloadedBytes: number | null;
 	playPosition: number | null;
-	posterUrl: string | null;
-	progress: number | null;
-	runtime: number | null;
-	seasonId: string | null;
-	seasonNumber: number | null;
-	status: MediaStatus | null;
-	stillPath: string | null;
-	title: string;
-	tmdbId: number | null;
-	totalSeasons: number | null;
-	type: MediaType;
-	userId: string;
-	voteAverage: number | null;
-	year: number | null;
+	playDuration: number | null;
+	lastPlayedAt: Date | null;
 }
 
 export interface Season {
-	episodeCount: number | null;
 	id: string;
 	mediaId: string;
-	name: string | null;
 	seasonNumber: number;
+	name: string | null;
+	episodeCount: number | null;
 }
 
 export type SeasonWithEpisodes = Season & {
@@ -54,78 +54,78 @@ export type SeasonWithEpisodes = Season & {
 };
 
 export interface CatalogSeason {
-	episodeCount: number;
-	name: string;
 	seasonNumber: number;
+	name: string;
+	episodeCount: number;
 }
 export interface SubtitleTrackResponse {
 	id: string;
-	label: string;
-	language: string;
 	mediaId: string;
+	language: string;
+	label: string;
 	source: string;
 	src: string;
 }
 export interface ProgressInfo {
-	downloadSpeed: number;
-	fileSize?: number | null;
-	peers: number;
-	progress: number;
 	status: string;
+	progress: number;
+	downloadSpeed: number;
+	peers: number;
 	/** Finalization progress from 0 to 1. Zero unless the status is finalizing. */
 	transcodeProgress: number;
+	fileSize?: number | null;
 }
 
 /** One indexer release a person can pick as a new download source. */
 export interface SourceCandidate {
-	indexer: string;
-	infohash: string;
-	magnetUri: string;
-	seeders: number;
-	size: number;
 	title: string;
+	magnetUri: string;
+	infohash: string;
+	size: number;
+	seeders: number;
+	indexer: string;
 }
 
 export interface OpenSubtitleResult {
-	aiTranslated: boolean;
-	downloadCount: number;
+	id: string;
 	fileId: number;
 	fileName: string;
-	fps: number;
-	fromTrusted: boolean;
-	hearingImpaired: boolean;
-	id: string;
 	language: string;
 	languageName: string;
-	ratings: number;
 	release: string;
+	downloadCount: number;
+	hearingImpaired: boolean;
+	aiTranslated: boolean;
+	fromTrusted: boolean;
+	fps: number;
+	ratings: number;
 }
 
 /** One queued download, plus the episodes that use its files. */
 export interface QueueEntry {
-	downloadId: string | null;
-	downloadInfohash: string | null;
-	/** Live torrent stats. Zero when no torrent is running. */
-	downloadSpeed: number;
-	episodes: QueueEpisode[];
 	/** Stable queue identity. Download rows and media-only work use separate prefixes. */
 	id: string;
+	downloadId: string | null;
+	downloadInfohash: string | null;
+	sourceTitle: string | null;
 	media: Media;
-	peers: number;
-	progress: number;
 	/** Parent show title. Set only when the owner is an episode. */
 	showTitle: string | null;
-	sourceTitle: string | null;
 	status: string;
+	progress: number;
+	/** Live torrent stats. Zero when no torrent is running. */
+	downloadSpeed: number;
+	peers: number;
 	/** Finalization progress from 0 to 1. Zero unless the status is finalizing. */
 	transcodeProgress: number;
+	episodes: QueueEpisode[];
 }
 
 export interface QueueEpisode {
-	episodeNumber: number | null;
 	id: string;
-	progress: number;
-	seasonNumber: number | null;
-	status: MediaStatus | null;
 	title: string;
+	seasonNumber: number | null;
+	episodeNumber: number | null;
+	status: MediaStatus | null;
+	progress: number;
 }

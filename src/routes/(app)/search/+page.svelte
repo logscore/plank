@@ -67,7 +67,7 @@
             query = incomingQuery;
         }
         filters = { ...data.request.filters, genres: [...data.request.filters.genres] };
-        ({ response } = data);
+        response = data.response;
     });
 
     function getSearchPlaceholder(scope: SearchScope): string {
@@ -95,9 +95,9 @@
         filters = { ...nextFilters, genres: [...nextFilters.genres] };
         syncedQuery = query.trim();
         const params = serializeCatalogSearch({
-            filters,
-            page: 1,
             query: syncedQuery,
+            page: 1,
+            filters,
         });
         searching = true;
         try {
@@ -175,9 +175,9 @@
         loadMoreController?.abort();
         loadMoreController = new AbortController();
         const params = serializeCatalogSearch({
-            filters,
-            page: response.nextPage,
             query: query.trim(),
+            page: response.nextPage,
+            filters,
         });
         loadingMore = true;
         try {
@@ -194,15 +194,15 @@
                 const seenCatalog = new Set(response.catalogItems.map((item) => `${item.mediaType}:${item.tmdbId}`));
                 response = {
                     ...nextResponse,
+                    libraryItems: [
+                        ...response.libraryItems,
+                        ...nextResponse.libraryItems.filter((item) => !seenLibrary.has(item.id)),
+                    ],
                     catalogItems: [
                         ...response.catalogItems,
                         ...nextResponse.catalogItems.filter(
                             (item) => !seenCatalog.has(`${item.mediaType}:${item.tmdbId}`)
                         ),
-                    ],
-                    libraryItems: [
-                        ...response.libraryItems,
-                        ...nextResponse.libraryItems.filter((item) => !seenLibrary.has(item.id)),
                     ],
                     seasonsByMediaId: {
                         ...response.seasonsByMediaId,
@@ -277,8 +277,8 @@
             const media = await addToLibraryMutation.mutateAsync({
                 magnetLink,
                 title: item.title,
-                tmdbId: item.tmdbId,
                 year: item.year,
+                tmdbId: item.tmdbId,
             });
             if (watchNow && media) {
                 await goto(`/watch/${media.id}`);
@@ -304,9 +304,9 @@
         try {
             const seasonResponse = await fetchSeasonsCached(item.tmdbId);
             const seasonData: CatalogSeason[] = seasonResponse.seasons.map((season: SeasonSummary) => ({
-                episodeCount: season.episodeCount,
-                name: season.name,
                 seasonNumber: season.seasonNumber,
+                name: season.name,
+                episodeCount: season.episodeCount,
             }));
             seasonsCache = new Map(seasonsCache).set(item.tmdbId, seasonData);
         } catch (cause) {
@@ -331,16 +331,16 @@
         addingItems = new Set(addingItems).add(item.tmdbId);
         try {
             await addToLibraryMutation.mutateAsync({
-                backdropUrl: item.backdropUrl,
-                certification: item.certification,
-                genres: item.genres,
                 mode: "browse-season",
-                overview: item.overview,
-                posterUrl: item.posterUrl,
-                seasonNumber,
                 title: item.title,
-                tmdbId: item.tmdbId,
                 year: item.year,
+                tmdbId: item.tmdbId,
+                seasonNumber,
+                posterUrl: item.posterUrl,
+                backdropUrl: item.backdropUrl,
+                overview: item.overview,
+                genres: item.genres,
+                certification: item.certification,
             });
         } catch (cause) {
             console.error("Failed to add season to library:", cause);

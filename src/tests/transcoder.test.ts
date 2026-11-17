@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mediaDb } from "../lib/server/db";
 import { finalizeMediaToLibrary, transcodeLibrary } from "../lib/server/transcoder";
 
-const file = vi.hoisted(() => ({ close: vi.fn(), sync: vi.fn() }));
+const file = vi.hoisted(() => ({ sync: vi.fn(), close: vi.fn() }));
 
 vi.mock("node:fs/promises");
 vi.mock("node:fs");
@@ -15,8 +15,8 @@ vi.mock("../lib/server/db", () => ({
 		getAll: vi.fn(),
 		getById: vi.fn(),
 		getEpisodesByParentId: vi.fn(),
-		updateFileInfo: vi.fn(),
 		updateFilePath: vi.fn(),
+		updateFileInfo: vi.fn(),
 	},
 }));
 
@@ -37,11 +37,11 @@ describe("library transcoder", () => {
 		vi.clearAllMocks();
 		vi.mocked(existsSync).mockReturnValue(true);
 		vi.mocked(probeFile).mockResolvedValue({
-			audioChannels: 2,
+			videoCodec: "h264",
 			audioCodec: "aac",
 			duration: 100,
+			audioChannels: 2,
 			hasDataStreams: false,
-			videoCodec: "h264",
 		} as never);
 		vi.mocked(normalizeFileForPlayback).mockResolvedValue(undefined);
 		vi.mocked(requiresBrowserSafePlayback).mockResolvedValue(false);
@@ -58,9 +58,9 @@ describe("library transcoder", () => {
 	});
 
 	it("normalizes non-mp4 movies and episodes into mp4 files", async () => {
-		const movie = { filePath: "/lib/movie.mkv", id: "movie-1", type: "movie" };
-		const episode = { fileIndex: 0, filePath: "/lib/show/s01e01.mkv", id: "episode-1", type: "episode" };
-		vi.mocked(mediaDb.getAll).mockReturnValue([movie, { filePath: null, id: "show-1", type: "show" }] as never);
+		const movie = { id: "movie-1", type: "movie", filePath: "/lib/movie.mkv" };
+		const episode = { id: "episode-1", type: "episode", filePath: "/lib/show/s01e01.mkv", fileIndex: 0 };
+		vi.mocked(mediaDb.getAll).mockReturnValue([movie, { id: "show-1", type: "show", filePath: null }] as never);
 		vi.mocked(mediaDb.getEpisodesByParentId).mockReturnValue([episode] as never);
 		vi.mocked(mediaDb.getById).mockImplementation(((id: string) => {
 			if (id === movie.id) {
@@ -69,6 +69,7 @@ describe("library transcoder", () => {
 			if (id === episode.id) {
 				return episode;
 			}
+			return undefined;
 		}) as never);
 
 		await transcodeLibrary();
@@ -101,7 +102,7 @@ describe("library transcoder", () => {
 			"/local-temp/plank-finalize-test/pilot.mp4",
 			"/library/pilot.finalizing.mp4"
 		);
-		expect(fs.rm).toHaveBeenCalledWith("/local-temp/plank-finalize-test", { force: true, recursive: true });
+		expect(fs.rm).toHaveBeenCalledWith("/local-temp/plank-finalize-test", { recursive: true, force: true });
 		expect(onProgress.mock.calls).toEqual([[0], [0.4], [1]]);
 	});
 

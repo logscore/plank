@@ -20,11 +20,11 @@
         "/profiles/manage": "Manage Profiles",
         "/search": "Search",
         "/settings/account": "Account",
+        "/settings/security": "Security",
+        "/settings/profile": "Profile",
+        "/settings/members": "Members",
         "/settings/connections": "Connections",
         "/settings/indexers": "Indexers",
-        "/settings/members": "Members",
-        "/settings/profile": "Profile",
-        "/settings/security": "Security",
     };
 
     const pageTitle = $derived.by(() => {

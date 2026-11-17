@@ -12,47 +12,47 @@ const ROLE_ORDER: SettingsRole[] = ["member", "admin", "owner"];
 const FALLBACK_HREF = "/settings/account";
 
 export interface SettingsSection {
-	group: string;
 	href: string;
 	label: string;
+	group: string;
 	minRole: SettingsRole;
 }
 
 const SECTIONS: SettingsSection[] = [
 	{
-		group: "Personal",
 		href: FALLBACK_HREF,
 		label: "Account",
+		group: "Personal",
 		minRole: "member",
 	},
 	{
-		group: "Personal",
 		href: "/settings/security",
 		label: "Security",
+		group: "Personal",
 		minRole: "member",
 	},
 	{
-		group: "Profile",
 		href: "/settings/profile",
 		label: "Profile",
+		group: "Profile",
 		minRole: "member",
 	},
 	{
-		group: "Profile",
 		href: "/settings/members",
 		label: "Members",
+		group: "Profile",
 		minRole: "admin",
 	},
 	{
-		group: "System",
 		href: "/settings/connections",
 		label: "Connections",
+		group: "System",
 		minRole: "owner",
 	},
 	{
-		group: "System",
 		href: "/settings/indexers",
 		label: "Indexers",
+		group: "System",
 		minRole: "owner",
 	},
 ];

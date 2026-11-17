@@ -7,9 +7,9 @@ import type { Media, SeasonWithEpisodes, SubtitleTrackResponse } from "$lib/type
 import type { PageServerLoad } from "./$types";
 
 interface ShowPageData {
-	episodeProgressByMediaId: Record<string, MediaProgressSnapshot | null>;
 	media: Media;
 	seasons: SeasonWithEpisodes[];
+	episodeProgressByMediaId: Record<string, MediaProgressSnapshot | null>;
 	subtitleTracksByMediaId: Record<string, SubtitleTrackResponse[]>;
 }
 
@@ -38,5 +38,5 @@ export const load: PageServerLoad<ShowPageData> = async ({ depends, locals, para
 		)
 	);
 
-	return { episodeProgressByMediaId, media: mediaItem, seasons, subtitleTracksByMediaId };
+	return { media: mediaItem, seasons, episodeProgressByMediaId, subtitleTracksByMediaId };
 };

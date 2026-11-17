@@ -48,10 +48,10 @@ export async function cacheTorrent(torrent: CachedTorrent): Promise<void> {
 		.insert(torrentCache)
 		.values(torrent)
 		.onConflictDoUpdate({
-			set: {
-				infohash: torrent.infohash,
-				magnetLink: torrent.magnetLink,
-			},
 			target: torrentCache.imdbId,
+			set: {
+				magnetLink: torrent.magnetLink,
+				infohash: torrent.infohash,
+			},
 		});
 }

@@ -33,9 +33,6 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 	};
 
 	const stream = new ReadableStream({
-		cancel() {
-			cleanup();
-		},
 		start(controller) {
 			if (request.signal.aborted) {
 				cleanup();
@@ -108,13 +105,16 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 
 			interval = setInterval(sendData, 1000);
 		},
+		cancel() {
+			cleanup();
+		},
 	});
 
 	return new Response(stream, {
 		headers: {
+			"Content-Type": "text/event-stream",
 			"Cache-Control": "no-cache",
 			Connection: "keep-alive",
-			"Content-Type": "text/event-stream",
 		},
 	});
 };

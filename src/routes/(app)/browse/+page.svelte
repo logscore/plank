@@ -35,9 +35,9 @@
 
     async function applyFilters(nextFilters: CatalogFilters) {
         const params = serializeCatalogSearch({
-            filters: { ...nextFilters, scope: "catalog" },
-            page: 1,
             query: "",
+            page: 1,
+            filters: { ...nextFilters, scope: "catalog" },
         });
         params.delete("scope");
         await goto(`/browse?${params}`, { noScroll: true });
@@ -93,8 +93,8 @@
 
         // Fire the batch request (uses server-side in-memory cache for repeat items)
         const batch = unenriched.map((item) => ({
-            mediaType: item.mediaType,
             tmdbId: item.tmdbId,
+            mediaType: item.mediaType,
         }));
         fetchBrowseDetailsCached(batch).then((response) => {
             const updated = new Map(enrichmentMap);
@@ -107,18 +107,18 @@
 
     // Merge enrichment data into display items
     const displayItems = $derived.by(() => {
-        const ctx = String(serializeCatalogSearch({ filters, page: 1, query: "" }));
+        const ctx = String(serializeCatalogSearch({ query: "", page: 1, filters }));
 
         return rawItems.map((item) => {
             const detail = enrichmentMap.get(item.tmdbId);
             if (detail) {
                 return {
                     ...item,
-                    _key: `${ctx}-${item.tmdbId}`,
-                    certification: detail.certification ?? item.certification,
                     imdbId: detail.imdbId ?? item.imdbId,
+                    certification: detail.certification ?? item.certification,
                     magnetLink: detail.magnetLink ?? item.magnetLink,
                     needsResolve: !detail.magnetLink && item.needsResolve,
+                    _key: `${ctx}-${item.tmdbId}`,
                 };
             }
             return { ...item, _key: `${ctx}-${item.tmdbId}` };
@@ -149,7 +149,7 @@
 
         const observer = new IntersectionObserver(
             (entries) => {
-                const [entry] = entries;
+                const entry = entries[0];
                 if (entry.isIntersecting && hasMore && !isFetchingMore) {
                     browseQuery.fetchNextPage();
                 }
@@ -207,8 +207,8 @@
             await addToLibraryMutation.mutateAsync({
                 magnetLink,
                 title: item.title,
-                tmdbId: item.tmdbId,
                 year: item.year,
+                tmdbId: item.tmdbId,
             });
             toast.success("Added to library");
         } catch (err) {
@@ -241,8 +241,8 @@
             const media = await addToLibraryMutation.mutateAsync({
                 magnetLink,
                 title: item.title,
-                tmdbId: item.tmdbId,
                 year: item.year,
+                tmdbId: item.tmdbId,
             });
             if (media) {
                 goto(`/watch/${media.id}`);
@@ -281,9 +281,9 @@
             const response = await fetchSeasonsCached(item.tmdbId);
 
             const seasonData: CatalogSeason[] = response.seasons.map((s: SeasonSummary) => ({
-                episodeCount: s.episodeCount,
-                name: s.name,
                 seasonNumber: s.seasonNumber,
+                name: s.name,
+                episodeCount: s.episodeCount,
             }));
             seasonsCache = new Map(seasonsCache).set(item.tmdbId, seasonData);
         } catch (err) {
@@ -319,16 +319,16 @@
 
         try {
             await addToLibraryMutation.mutateAsync({
-                backdropUrl: item.backdropUrl,
-                certification: item.certification,
-                genres: item.genres,
                 mode: "browse-season",
-                overview: item.overview,
-                posterUrl: item.posterUrl,
-                seasonNumber,
                 title: item.title,
-                tmdbId: item.tmdbId,
                 year: item.year,
+                tmdbId: item.tmdbId,
+                seasonNumber,
+                posterUrl: item.posterUrl,
+                backdropUrl: item.backdropUrl,
+                overview: item.overview,
+                genres: item.genres,
+                certification: item.certification,
             });
             toast.success(`Season ${seasonNumber} queued`);
         } catch (err) {

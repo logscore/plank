@@ -12,11 +12,11 @@ import {
 import { getMimeType } from "./files";
 
 export interface StreamInfo {
-	fileName: string;
-	fileSize: number;
-	isComplete: boolean;
-	mimeType: string;
 	stream: Readable;
+	fileSize: number;
+	fileName: string;
+	mimeType: string;
+	isComplete: boolean;
 }
 
 /** Create stream from library file */
@@ -34,11 +34,11 @@ function createLibraryStream(filePath: string, start?: number, end?: number): St
 		}
 
 		return {
-			fileName,
-			fileSize: stats.size,
-			isComplete: true,
-			mimeType: getMimeType(fileName),
 			stream: createReadStream(filePath, streamOptions),
+			fileSize: stats.size,
+			fileName,
+			mimeType: getMimeType(fileName),
+			isComplete: true,
 		};
 	} catch (e) {
 		console.error(`Error reading file from library: ${e}`);
@@ -140,10 +140,10 @@ function createTorrentStream(
 	const torrentStream = videoFile.createReadStream(streamOptions);
 
 	return {
-		fileName,
-		fileSize,
-		isComplete: download.status === "complete",
-		mimeType: getMimeType(fileName),
 		stream: torrentStream,
+		fileSize,
+		fileName,
+		mimeType: getMimeType(fileName),
+		isComplete: download.status === "complete",
 	};
 }

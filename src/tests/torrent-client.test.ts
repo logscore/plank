@@ -63,7 +63,7 @@ describe("WebTorrent client lifecycle", () => {
 		await getClient();
 
 		expect(webTorrentMock.construct).toHaveBeenCalledWith(
-			expect.objectContaining({ downloadLimit: -1, maxConns: 55, uploadLimit: -1 })
+			expect.objectContaining({ maxConns: 55, downloadLimit: -1, uploadLimit: -1 })
 		);
 	});
 
