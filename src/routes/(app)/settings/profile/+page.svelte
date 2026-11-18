@@ -63,7 +63,7 @@
     }
 </script>
 
-<div class="divide-y divide-white/10">
+<div class="space-y-6">
     <Section title="Logo" description="Shown on the profile picker.">
         <AvatarField
             bind:file={pendingLogo}
@@ -87,7 +87,7 @@
     </Section>
 
     <Section title="Usage" description="Media stored for this profile.">
-        <dl class="max-w-sm divide-y divide-white/8 border-y border-white/8">
+        <dl class="-my-3 max-w-sm divide-y divide-white/8">
             <div class="flex items-baseline justify-between py-3">
                 <dt class="text-sm text-muted-foreground">Media items</dt>
                 <dd class="text-sm font-medium tabular-nums">{data.stats.total}</dd>

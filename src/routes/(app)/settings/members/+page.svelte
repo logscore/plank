@@ -73,7 +73,7 @@
     }
 </script>
 
-<div class="divide-y divide-white/10">
+<div class="space-y-6">
     <Section title="Members" description="People who share this profile.">
         {#snippet action()}
             <Button variant="outline" size="sm" onclick={() => uiState.toggleInviteMemberDialog()}>
@@ -81,7 +81,7 @@
             </Button>
         {/snippet}
 
-        <ul class="divide-y divide-white/8 border-y border-white/8">
+        <ul class="-my-4 divide-y divide-white/8">
             {#each data.members as member (member.id)}
                 {@const name = memberName(member)}
                 {@const isSelf = member.userId === data.user.id}
@@ -155,7 +155,7 @@
 
     {#if data.invitations.length > 0}
         <Section title="Pending invitations" description="Invitations that nobody accepted yet.">
-            <ul class="divide-y divide-white/8 border-y border-white/8">
+            <ul class="-my-4 divide-y divide-white/8">
                 {#each data.invitations as invite (invite.id)}
                     <li class="flex items-center gap-4 py-4">
                         <div class="min-w-0 flex-1">

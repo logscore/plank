@@ -14,10 +14,10 @@
     } = $props();
 </script>
 
-<section class="py-10">
+<section class="rounded-2xl border border-white/10 bg-card/60 p-6">
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div class="min-w-0">
-            <h3 class="text-base font-medium text-foreground">{title}</h3>
+            <h3 class="text-lg font-semibold text-white">{title}</h3>
             {#if description}
                 <p class="mt-1 max-w-prose text-sm text-muted-foreground text-pretty">{description}</p>
             {/if}
@@ -26,5 +26,5 @@
             <div class="shrink-0">{@render action()}</div>
         {/if}
     </div>
-    <div class="mt-6">{@render children()}</div>
+    <div class="mt-5">{@render children()}</div>
 </section>

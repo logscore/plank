@@ -152,7 +152,7 @@
                         accept=".mp4,.webm,.mkv,.avi,.mov,.m4v"
                         class="hidden"
                         onchange={uploadFile}
-                    />
+                    >
                 {/if}
             </div>
             {#if media && !hasSavedSource}

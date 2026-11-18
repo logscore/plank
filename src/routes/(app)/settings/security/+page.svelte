@@ -56,7 +56,7 @@
     }
 </script>
 
-<div class="divide-y divide-white/10">
+<div class="space-y-6">
     <Section title="Password" description="A change signs you out of all other devices.">
         <form class="max-w-sm space-y-6" onsubmit={changePassword}>
             <div>

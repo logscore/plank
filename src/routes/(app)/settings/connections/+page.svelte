@@ -144,7 +144,7 @@
     </div>
 {/snippet}
 
-<div class="divide-y divide-white/10">
+<div class="space-y-6">
     <Section title="TMDB" description="Titles, posters, and metadata.">
         {#snippet action()}
             {@render status("tmdb")}

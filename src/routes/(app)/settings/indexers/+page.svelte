@@ -6,11 +6,9 @@
     let { data } = $props<{ data: PageData }>();
 </script>
 
-<div class="divide-y divide-white/10">
+<div class="space-y-6">
     {#if data.hasProwlarr}
-        <div class="py-10">
-            <IndexerManager />
-        </div>
+        <IndexerManager />
     {:else}
         <Section
             title="Prowlarr is not connected"

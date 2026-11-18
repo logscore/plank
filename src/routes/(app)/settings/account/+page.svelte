@@ -50,7 +50,7 @@
     }
 </script>
 
-<div class="divide-y divide-white/10">
+<div class="space-y-6">
     <Section title="Photo" description="Shown on your profile picker and in the account menu.">
         <AvatarField
             bind:file={pendingPhoto}
