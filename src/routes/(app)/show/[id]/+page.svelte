@@ -1,6 +1,7 @@
 <script lang="ts">
-    import { ArrowLeft, Calendar, Database, Film, Trash2 } from "@lucide/svelte";
-    import { Tabs } from "bits-ui";
+    import { ArrowLeft, Calendar, Database, Film, Loader2, Play, Plus, Trash2 } from "@lucide/svelte";
+    import { DropdownMenu, Tabs } from "bits-ui";
+    import { toast } from "svelte-sonner";
     import { goto, invalidate, replaceState } from "$app/navigation";
     import { page } from "$app/state";
     import EpisodeSelector from "$lib/components/EpisodeSelector.svelte";
@@ -8,10 +9,11 @@
     import OpenSubtitlesDialog from "$lib/components/OpenSubtitlesDialog.svelte";
     import RedownloadDialog from "$lib/components/RedownloadDialog.svelte";
     import Button from "$lib/components/ui/Button.svelte";
+    import { createAddFromBrowseMutation, fetchSeasonsCached, type SeasonSummary } from "$lib/data/browse";
     import { createDeleteMediaMutation, createRetryMediaMutation } from "$lib/data/media";
     import type { Media, SeasonWithEpisodes } from "$lib/types";
     import { confirmDelete } from "$lib/ui-state.svelte";
-    import { canPlayEpisode, formatFileSize } from "$lib/utils";
+    import { canPlayEpisode, formatFileSize, getPlayTarget } from "$lib/utils";
     import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
@@ -31,6 +33,55 @@
     let subtitleDialogTitle = $state("");
     const deleteMediaMutation = createDeleteMediaMutation();
     const retryMediaMutation = createRetryMediaMutation();
+    const addSeasonMutation = createAddFromBrowseMutation();
+    // Null means the TMDB season list is not loaded yet.
+    let tmdbSeasons = $state<SeasonSummary[] | null>(null);
+    let addSeasonMenuOpen = $state(false);
+    let addingSeason = $state(false);
+    const missingSeasons = $derived(
+        (tmdbSeasons ?? []).filter((tmdbSeason) =>
+            seasons.every((season) => season.seasonNumber !== tmdbSeason.seasonNumber)
+        )
+    );
+
+    async function handleAddSeasonMenuOpen(open: boolean) {
+        const tmdbId = media.tmdbId;
+        if (!(open && tmdbId) || tmdbSeasons !== null) {
+            return;
+        }
+        try {
+            tmdbSeasons = (await fetchSeasonsCached(tmdbId)).seasons;
+        } catch (error) {
+            console.error("Failed to fetch seasons:", error);
+            toast.error("Failed to fetch seasons");
+            addSeasonMenuOpen = false;
+        }
+    }
+
+    async function handleAddSeason(seasonNumber: number) {
+        const tmdbId = media.tmdbId;
+        if (!tmdbId || addingSeason) {
+            return;
+        }
+        addingSeason = true;
+        try {
+            await addSeasonMutation.mutateAsync({
+                mode: "browse-season",
+                tmdbId,
+                seasonNumber,
+                title: media.title,
+                year: media.year,
+            });
+            await invalidate(`/api/media/${media.id}`);
+            handleSelectSeason(seasonNumber);
+            toast.success(`Season ${seasonNumber} queued`);
+        } catch (error) {
+            console.error("Failed to add season:", error);
+            toast.error("Failed to add season");
+        } finally {
+            addingSeason = false;
+        }
+    }
 
     function openSubtitlesForEpisode(episode: Media) {
         subtitleDialogMediaId = episode.id;
@@ -177,6 +228,10 @@
 
     const currentSeason = $derived(seasons.find((s) => s.seasonNumber === selectedSeason));
     const allEpisodes = $derived(seasons.flatMap((season) => season.episodes));
+    const playTarget = $derived(getPlayTarget(allEpisodes));
+    const playTargetCode = $derived(
+        playTarget ? `S${playTarget.episode.seasonNumber}E${playTarget.episode.episodeNumber}` : ""
+    );
     const downloadedEpisodeCount = $derived(
         allEpisodes.filter((episode) => episode.status === "complete" || episode.filePath).length
     );
@@ -330,7 +385,28 @@
 
                 <!-- Action Buttons -->
                 <div class="flex flex-wrap items-center gap-3 pt-2">
-                    <EpisodeSelector {seasons} onPlayEpisode={handlePlayEpisode} />
+                    <Button
+                        size="lg"
+                        disabled={!playTarget || playTarget.mode === "waiting"}
+                        onclick={() => playTarget && handlePlayEpisode(playTarget.episode)}
+                    >
+                        <Play class="mr-2 h-5 w-5 fill-current" />
+                        {#if playTarget?.mode === "resume"}
+                            Resume {playTargetCode}
+                        {:else if playTarget?.mode === "play"}
+                            Play {playTargetCode}
+                        {:else if playTarget?.mode === "restart"}
+                            Watch Again
+                        {:else if playTarget?.mode === "waiting"}
+                            {playTargetCode}
+                            <span class="ml-2 capitalize opacity-70"
+                                >· {playTarget.episode.status?.replace("_", " ")}</span
+                            >
+                        {:else}
+                            Play
+                        {/if}
+                    </Button>
+                    <!-- <EpisodeSelector {seasons} onPlayEpisode={handlePlayEpisode} /> -->
                     <Button
                         variant="ghost"
                         size="lg"
@@ -368,16 +444,69 @@
                     value={String(selectedSeason ?? "")}
                     onValueChange={(value) => handleSelectSeason(Number(value))}
                 >
-                    <Tabs.List class="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
-                        {#each seasons as season (season.seasonNumber)}
-                            <Tabs.Trigger
-                                value={String(season.seasonNumber)}
-                                class="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-colors cursor-pointer hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:hover:bg-primary/90"
-                            >
-                                {season.name || `Season ${season.seasonNumber}`}
-                            </Tabs.Trigger>
-                        {/each}
-                    </Tabs.List>
+                    <div class="mb-6 flex items-start gap-2">
+                        <Tabs.List class="flex min-w-0 gap-2 overflow-x-auto pb-2 no-scrollbar">
+                            {#each seasons as season (season.seasonNumber)}
+                                <Tabs.Trigger
+                                    value={String(season.seasonNumber)}
+                                    class="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-colors cursor-pointer hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:hover:bg-primary/90"
+                                >
+                                    {season.name || `Season ${season.seasonNumber}`}
+                                </Tabs.Trigger>
+                            {/each}
+                        </Tabs.List>
+                        {#if media.tmdbId}
+                            <DropdownMenu.Root bind:open={addSeasonMenuOpen} onOpenChange={handleAddSeasonMenuOpen}>
+                                <DropdownMenu.Trigger
+                                    disabled={addingSeason}
+                                    class="inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors cursor-pointer hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                                >
+                                    {#if addingSeason}
+                                        <Loader2 class="h-4 w-4 animate-spin" />
+                                    {:else}
+                                        <Plus class="h-4 w-4" />
+                                    {/if}
+                                </DropdownMenu.Trigger>
+                                <DropdownMenu.Portal>
+                                    <DropdownMenu.Content
+                                        side="bottom"
+                                        align="start"
+                                        sideOffset={8}
+                                        class="z-50 max-h-96 w-72 overflow-y-auto rounded-xl border border-white/10 bg-black/95 p-1.5 text-white shadow-2xl backdrop-blur-xl focus:outline-none"
+                                    >
+                                        {#if tmdbSeasons === null}
+                                            <div
+                                                class="flex items-center justify-center gap-2 px-4 py-6 text-sm text-muted-foreground"
+                                            >
+                                                <Loader2 class="h-4 w-4 animate-spin" />
+                                                Loading seasons...
+                                            </div>
+                                        {:else if missingSeasons.length === 0}
+                                            <div class="px-4 py-5 text-center text-sm text-muted-foreground">
+                                                All seasons are in your library
+                                            </div>
+                                        {:else}
+                                            {#each missingSeasons as season (season.seasonNumber)}
+                                                <DropdownMenu.Item
+                                                    onSelect={() => handleAddSeason(season.seasonNumber)}
+                                                    class="flex min-h-11 cursor-default select-none flex-col justify-center rounded-lg px-3 py-2 text-left outline-none data-highlighted:bg-white/10"
+                                                >
+                                                    <span class="truncate text-sm font-medium">
+                                                        {season.name || `Season ${season.seasonNumber}`}
+                                                    </span>
+                                                    {#if season.episodeCount > 0}
+                                                        <span class="text-xs text-muted-foreground">
+                                                            {season.episodeCount} episodes
+                                                        </span>
+                                                    {/if}
+                                                </DropdownMenu.Item>
+                                            {/each}
+                                        {/if}
+                                    </DropdownMenu.Content>
+                                </DropdownMenu.Portal>
+                            </DropdownMenu.Root>
+                        {/if}
+                    </div>
 
                     <!-- Episode List -->
                     {#if currentSeason}

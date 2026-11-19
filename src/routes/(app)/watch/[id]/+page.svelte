@@ -14,7 +14,7 @@
     import PlayerSubtitleMenu from "$lib/components/PlayerSubtitleMenu.svelte";
     import { createSavePositionMutation } from "$lib/data/media";
     import type { ProgressInfo } from "$lib/types";
-    import { isTerminalProgressStatus } from "$lib/utils";
+    import { hasUnfinishedPlayback, isTerminalProgressStatus } from "$lib/utils";
 
     let { data } = $props();
     let currentMediaId = $state("");
@@ -43,7 +43,8 @@
     let showStats = $state(false);
 
     // Play position state
-    const initialPosition = $derived((data.media.playPosition ?? 0) > 0 ? data.media.playPosition : null);
+    // A finished title starts again from the beginning.
+    const initialPosition = $derived(hasUnfinishedPlayback(data.media) ? data.media.playPosition : null);
     let positionRestored = $state(false);
     const savePositionMutation = createSavePositionMutation();
     let lastSaveTime = 0;

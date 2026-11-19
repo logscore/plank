@@ -15,6 +15,42 @@ export function canPlayEpisode(episode: Pick<Media, "filePath" | "fileIndex" | "
 	);
 }
 
+// Same rule as mediaDb.getRecentlyWatched: playback is done at 95% of the duration.
+const WATCHED_RATIO = 0.95;
+
+export function hasUnfinishedPlayback(media: Pick<Media, "playPosition" | "playDuration">): boolean {
+	const position = media.playPosition ?? 0;
+	if (position <= 0) {
+		return false;
+	}
+	return media.playDuration === null || position < media.playDuration * WATCHED_RATIO;
+}
+
+export interface PlayTarget {
+	episode: Media;
+	mode: "resume" | "play" | "restart" | "waiting";
+}
+
+/** Picks what the show Play button starts. The episodes must be in watch order. */
+export function getPlayTarget(episodes: Media[]): PlayTarget | null {
+	const lastPlayedTimes = episodes.map((episode) => episode.lastPlayedAt?.getTime() ?? 0);
+	const lastPlayedTime = Math.max(0, ...lastPlayedTimes);
+	const lastIndex = lastPlayedTime > 0 ? lastPlayedTimes.indexOf(lastPlayedTime) : -1;
+	const last = episodes[lastIndex];
+	const lastDone = !last || ((last.playPosition ?? 0) > 0 && !hasUnfinishedPlayback(last));
+	const remaining = episodes.slice(lastDone ? lastIndex + 1 : lastIndex);
+	const next = remaining.find(canPlayEpisode);
+	if (next) {
+		return { episode: next, mode: hasUnfinishedPlayback(next) ? "resume" : "play" };
+	}
+	// The next episode is not ready yet, so the button shows its status.
+	if (remaining.length > 0) {
+		return { episode: remaining[0], mode: "waiting" };
+	}
+	const first = episodes.find(canPlayEpisode);
+	return first ? { episode: first, mode: "restart" } : null;
+}
+
 export function isTerminalProgressStatus(status: string | null | undefined): boolean {
 	return status === "complete" || status === "error" || status === "not_found" || status === "removed";
 }
