@@ -340,7 +340,6 @@
                 backdropUrl: item.backdropUrl,
                 overview: item.overview,
                 genres: item.genres,
-                certification: item.certification,
             });
         } catch (cause) {
             console.error("Failed to add season to library:", cause);

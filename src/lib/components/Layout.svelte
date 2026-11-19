@@ -159,31 +159,35 @@
                         </Tooltip.Root>
                     {/each}
 
-                    <div class="w-px h-8 bg-white/10 mx-1"></div>
+                    {#if !page.data.ratingLimit}
+                        <div class="w-px h-8 bg-white/10 mx-1"></div>
 
-                    <Tooltip.Root>
-                        <Tooltip.Trigger
-                            onclick={() => uiState.toggleAddMediaDialog()}
-                            class="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            aria-label="Add Media"
-                        >
-                            <Plus class="w-6 h-6" />
-                        </Tooltip.Trigger>
-                        <Tooltip.Portal>
-                            <Tooltip.Content
-                                side="top"
-                                sideOffset={8}
-                                class="z-60 rounded-lg border border-white/10 bg-zinc-950 px-2.5 py-1.5 text-xs text-white shadow-xl"
+                        <Tooltip.Root>
+                            <Tooltip.Trigger
+                                onclick={() => uiState.toggleAddMediaDialog()}
+                                class="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                aria-label="Add Media"
                             >
-                                Add Media
-                            </Tooltip.Content>
-                        </Tooltip.Portal>
-                    </Tooltip.Root>
+                                <Plus class="w-6 h-6" />
+                            </Tooltip.Trigger>
+                            <Tooltip.Portal>
+                                <Tooltip.Content
+                                    side="top"
+                                    sideOffset={8}
+                                    class="z-60 rounded-lg border border-white/10 bg-zinc-950 px-2.5 py-1.5 text-xs text-white shadow-xl"
+                                >
+                                    Add Media
+                                </Tooltip.Content>
+                            </Tooltip.Portal>
+                        </Tooltip.Root>
+                    {/if}
                 </nav>
             </Tooltip.Provider>
         </div>
 
-        <!-- Mounts with the nav: the + button above is its only trigger. -->
-        <AddMediaDialog />
+        {#if !page.data.ratingLimit}
+            <!-- Mounts with the nav: the + button above is its only trigger. -->
+            <AddMediaDialog />
+        {/if}
     {/if}
 </div>

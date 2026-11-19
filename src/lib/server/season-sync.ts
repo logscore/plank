@@ -20,7 +20,6 @@ export interface AddSeasonFromBrowseParams {
 	backdropUrl?: string | null;
 	overview?: string | null;
 	genres?: string[] | null;
-	certification?: string | null;
 }
 
 interface ShowMetadata {
@@ -74,7 +73,8 @@ async function resolveShowMetadata(params: AddSeasonFromBrowseParams): Promise<S
 			runtime: details.runtime ?? null,
 			genres: params.genres ? JSON.stringify(params.genres) : (details.genres ?? null),
 			originalLanguage: details.originalLanguage ?? null,
-			certification: params.certification ?? details.certification ?? null,
+			// The rating always comes from TMDB, because rating limits trust it.
+			certification: details.certification ?? null,
 			totalSeasons: details.totalSeasons ?? null,
 		};
 	} catch (errorValue) {
@@ -90,7 +90,7 @@ async function resolveShowMetadata(params: AddSeasonFromBrowseParams): Promise<S
 			runtime: null,
 			genres: params.genres ? JSON.stringify(params.genres) : null,
 			originalLanguage: null,
-			certification: params.certification ?? null,
+			certification: null,
 			totalSeasons: null,
 		};
 	}

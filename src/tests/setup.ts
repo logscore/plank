@@ -64,6 +64,7 @@ beforeAll(() => {
       organization_id TEXT NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
       role TEXT DEFAULT 'member' NOT NULL,
       created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+      max_rating TEXT,
       UNIQUE(user_id, organization_id)
     );
   `);

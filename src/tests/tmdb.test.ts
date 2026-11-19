@@ -1,6 +1,8 @@
 // TODO: unreviewed
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_CATALOG_FILTERS } from "$lib/data/search";
+import { allowedRatings } from "$lib/rating-limit";
 import { updateSettings } from "$lib/server/settings";
 import * as tmdb from "$lib/server/tmdb";
 
@@ -173,6 +175,23 @@ describe("TMDB Service", () => {
 			expect(url.searchParams.get("with_genres")).toBe("28");
 			expect(result.items.map((item) => item.title)).toEqual(["Visible"]);
 			expect(result.totalPages).toBe(4);
+		});
+
+		it("pre-filters movie discovery by the rating limit", async () => {
+			const fetchMock = vi.mocked(global.fetch);
+			fetchMock.mockImplementation(async () => Response.json({ page: 1, total_pages: 1, results: [] }));
+
+			await tmdb.searchTmdbCatalog(
+				{ query: "", page: 1, filters: { ...DEFAULT_CATALOG_FILTERS, scope: "catalog" } },
+				allowedRatings("PG-13")
+			);
+
+			const urls = fetchMock.mock.calls.map((call) => new URL(String(call[0])));
+			const movie = urls.find((url) => url.pathname === "/3/discover/movie");
+			const show = urls.find((url) => url.pathname === "/3/discover/tv");
+			expect(movie?.searchParams.get("certification_country")).toBe("US");
+			expect(movie?.searchParams.get("certification")).toBe("G|PG|PG-13");
+			expect(show?.searchParams.has("certification")).toBe(false);
 		});
 	});
 	describe("isTVShowFilename", () => {

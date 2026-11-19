@@ -86,7 +86,7 @@ describe("unified search", () => {
 			filters: { ...DEFAULT_CATALOG_FILTERS, scope: "all" },
 		};
 
-		const response = await searchCatalog(testOrg.id, request);
+		const response = await searchCatalog(testOrg.id, null, request);
 
 		expect(response).toMatchObject({
 			scope: "all",

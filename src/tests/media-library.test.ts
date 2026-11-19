@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mediaDb } from "$lib/server/db";
 import { schema } from "$lib/server/db/schema";
-import { addMediaFromMagnet } from "$lib/server/media-library";
+import { type AddMediaFromMagnetParams, addMediaFromMagnet } from "$lib/server/media-library";
 import { startDownload } from "$lib/server/torrent/download";
 import { db } from "./setup";
 
@@ -52,5 +52,29 @@ describe("media library adult-content guard", () => {
 		await expect(result).rejects.toMatchObject({ status: 400 });
 		expect(mediaDb.list(testOrg.id)).toEqual([]);
 		expect(startDownload).not.toHaveBeenCalled();
+	});
+
+	it("stores the TMDB rating, not the rating the client sent", async () => {
+		vi.mocked(startDownload).mockResolvedValue(undefined as never);
+		fetchMock.mockImplementation(async () =>
+			Response.json({
+				id: 124,
+				title: "Alien",
+				release_dates: { results: [{ iso_3166_1: "US", release_dates: [{ type: 3, certification: "R" }] }] },
+			})
+		);
+		// A crafted request still sends a rating, so the test keeps the field the type no longer has.
+		const params = {
+			magnetLink: "magnet:?xt=urn:btih:1123456789abcdef0123456789abcdef01234567&dn=Alien.1979.1080p",
+			type: "movie",
+			tmdbId: 124,
+			title: "Alien",
+			overview: "In space no one can hear you scream.",
+			certification: "G",
+		} as AddMediaFromMagnetParams;
+
+		const { body } = await addMediaFromMagnet(testUser.id, testOrg.id, params);
+
+		expect(body.certification).toBe("R");
 	});
 });

@@ -1,17 +1,21 @@
 <script lang="ts">
-    import { EllipsisVertical } from "@lucide/svelte";
+    import { Check, ChevronRight, EllipsisVertical } from "@lucide/svelte";
     import { DropdownMenu } from "bits-ui";
     import { toast } from "svelte-sonner";
     import { invalidateAll } from "$app/navigation";
     import { authClient } from "$lib/auth-client";
     import Facehash from "$lib/components/facehash/Facehash.svelte";
     import Button from "$lib/components/ui/Button.svelte";
+    import { apiRequest } from "$lib/data/client";
+    import { RATING_LIMITS, toRatingLimit } from "$lib/rating-limit";
     import { confirmDelete, openConfirmation, uiState } from "$lib/ui-state.svelte";
     import Section from "../Section.svelte";
     import type { PageData } from "./$types";
 
     const MENU_ITEM_CLASS =
         "flex h-9 cursor-default select-none items-center rounded-md px-3 text-sm outline-none data-highlighted:bg-white/10";
+    /** "none" stands for no limit, because a menu value must be a string. */
+    const RATING_OPTIONS = [{ value: "none", label: "No limit" }, ...RATING_LIMITS];
 
     let { data } = $props<{ data: PageData }>();
     const isOwner = $derived(data.userRole === "owner");
@@ -45,6 +49,19 @@
                 await invalidateAll();
             },
         });
+    }
+
+    async function setRatingLimit(memberId: string, value: string) {
+        try {
+            await apiRequest(`/api/members/${memberId}`, "Failed to change the rating limit", {
+                method: "PATCH",
+                json: { maxRating: toRatingLimit(value) },
+            });
+            toast.success("Rating limit updated");
+            await invalidateAll();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to change the rating limit");
+        }
     }
 
     async function removeMember(memberId: string, name: string) {
@@ -85,6 +102,7 @@
             {#each data.members as member (member.id)}
                 {@const name = memberName(member)}
                 {@const isSelf = member.userId === data.user.id}
+                {@const ratingLimit = data.ratingLimits[member.id] ?? null}
                 <li class="flex items-center gap-4 py-4">
                     {#if member.user.image}
                         <img src={member.user.image} alt={name} class="size-9 shrink-0 rounded-full object-cover">
@@ -99,7 +117,12 @@
                                 <span class="text-muted-foreground">(you)</span>
                             {/if}
                         </p>
-                        <p class="truncate text-xs text-muted-foreground">{member.user.email}</p>
+                        <p class="truncate text-xs text-muted-foreground">
+                            {#if ratingLimit}
+                                <span class="text-foreground">Up to {ratingLimit}</span> ·
+                            {/if}
+                            {member.user.email}
+                        </p>
                     </div>
 
                     <span class="shrink-0 text-sm capitalize text-muted-foreground">{member.role}</span>
@@ -116,7 +139,7 @@
                                 <DropdownMenu.Content
                                     align="end"
                                     sideOffset={6}
-                                    class="z-50 w-48 rounded-xl border border-white/10 bg-zinc-950 p-1.5 text-gray-200 shadow-2xl focus:outline-none"
+                                    class="z-50 w-52 rounded-xl border border-white/10 bg-zinc-950 p-1.5 text-gray-200 shadow-2xl focus:outline-none"
                                 >
                                     {#if isOwner && member.role === "member"}
                                         <DropdownMenu.Item
@@ -133,6 +156,41 @@
                                             Make member
                                         </DropdownMenu.Item>
                                     {/if}
+
+                                    <DropdownMenu.Sub>
+                                        <DropdownMenu.SubTrigger
+                                            class="{MENU_ITEM_CLASS} gap-2 data-[state=open]:bg-white/10"
+                                        >
+                                            Age rating
+                                            <span class="ml-auto text-xs text-muted-foreground"
+                                                >{ratingLimit ?? "No limit"}</span
+                                            >
+                                            <ChevronRight class="size-4 text-muted-foreground" />
+                                        </DropdownMenu.SubTrigger>
+                                        <DropdownMenu.SubContent
+                                            sideOffset={8}
+                                            class="z-50 w-44 rounded-xl border border-white/10 bg-zinc-950 p-1.5 text-gray-200 shadow-2xl focus:outline-none"
+                                        >
+                                            <DropdownMenu.RadioGroup
+                                                value={ratingLimit ?? "none"}
+                                                onValueChange={(value) => setRatingLimit(member.id, value)}
+                                            >
+                                                {#each RATING_OPTIONS as option (option.value)}
+                                                    <DropdownMenu.RadioItem
+                                                        value={option.value}
+                                                        class={MENU_ITEM_CLASS}
+                                                    >
+                                                        {#snippet children({ checked })}
+                                                            {option.label}
+                                                            {#if checked}
+                                                                <Check class="ml-auto size-4 text-primary" />
+                                                            {/if}
+                                                        {/snippet}
+                                                    </DropdownMenu.RadioItem>
+                                                {/each}
+                                            </DropdownMenu.RadioGroup>
+                                        </DropdownMenu.SubContent>
+                                    </DropdownMenu.Sub>
 
                                     {#if canRemove(member.role)}
                                         <DropdownMenu.Item

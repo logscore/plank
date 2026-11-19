@@ -3,8 +3,8 @@ import { buildQueue } from "$lib/server/queue";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ depends, locals }) => {
-	const { organizationId } = requireOrganizationAccess(locals);
+	const { organizationId, allowedRatings } = requireOrganizationAccess(locals);
 	depends("/api/media");
 
-	return { entries: buildQueue(organizationId) };
+	return { entries: buildQueue(organizationId, allowedRatings) };
 };

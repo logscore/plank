@@ -1,5 +1,6 @@
 import type { Invitation } from "better-auth/plugins";
 import { auth } from "$lib/server/auth";
+import { listRatingLimits } from "$lib/server/rating-limit";
 import { requireSection } from "../sections";
 import type { PageServerLoad } from "./$types";
 
@@ -18,5 +19,5 @@ export const load: PageServerLoad = async ({ parent, request }) => {
 		console.error("Failed to list invitations:", e);
 	}
 
-	return { invitations };
+	return { invitations, ratingLimits: listRatingLimits(organization.id) };
 };

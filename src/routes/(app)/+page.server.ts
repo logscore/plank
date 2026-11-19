@@ -5,7 +5,7 @@ import { searchCatalog } from "$lib/server/search";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ depends, locals, url }) => {
-	const { organizationId } = requireOrganizationAccess(locals);
+	const { organizationId, allowedRatings } = requireOrganizationAccess(locals);
 	depends("/api/media");
 	depends("/api/search");
 
@@ -20,8 +20,8 @@ export const load: PageServerLoad = async ({ depends, locals, url }) => {
 	};
 	return {
 		request,
-		response: await searchCatalog(organizationId, request),
-		continueWatching: mediaDb.getRecentlyWatched(organizationId, 20),
-		errorCount: mediaDb.countDownloadErrors(organizationId),
+		response: await searchCatalog(organizationId, allowedRatings, request),
+		continueWatching: mediaDb.getRecentlyWatched(organizationId, allowedRatings),
+		errorCount: mediaDb.countDownloadErrors(organizationId, allowedRatings),
 	};
 };

@@ -184,7 +184,6 @@ interface AddSeasonFromBrowseParams {
 	backdropUrl?: string | null;
 	overview?: string | null;
 	genres?: string[] | null;
-	certification?: string | null;
 }
 
 export type AddFromBrowseParams = AddFromBrowseMagnetParams | AddSeasonFromBrowseParams;

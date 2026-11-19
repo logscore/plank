@@ -111,6 +111,8 @@ export const member = sqliteTable(
 			.references(() => user.id, { onDelete: "cascade" }),
 		role: text("role").default("member").notNull(),
 		createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+		/** The highest age rating this member sees in this profile. Null shows every title. */
+		maxRating: text("max_rating"),
 	},
 	(table) => [
 		index("member_organizationId_idx").on(table.organizationId),

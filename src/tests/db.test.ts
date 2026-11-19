@@ -130,7 +130,7 @@ describe("mediaDb", () => {
 			genres: JSON.stringify(["Action"]),
 		});
 
-		const results = mediaDb.search(testOrg.id, "", {
+		const results = mediaDb.search(testOrg.id, null, "", {
 			...DEFAULT_CATALOG_FILTERS,
 			scope: "library",
 			media: "movie",
@@ -164,7 +164,7 @@ describe("mediaDb", () => {
 			title: "Legacy Unrated",
 		});
 
-		const results = mediaDb.search(testOrg.id, "", {
+		const results = mediaDb.search(testOrg.id, null, "", {
 			...DEFAULT_CATALOG_FILTERS,
 			scope: "library",
 			rating: 7,
@@ -187,7 +187,7 @@ describe("mediaDb", () => {
 			title: "1000 Fun",
 		});
 
-		const results = mediaDb.search(testOrg.id, "%", {
+		const results = mediaDb.search(testOrg.id, null, "%", {
 			...DEFAULT_CATALOG_FILTERS,
 			scope: "library",
 		});
@@ -217,7 +217,7 @@ describe("mediaDb", () => {
 			year: 1980,
 		});
 
-		const results = mediaDb.search(testOrg.id, "", {
+		const results = mediaDb.search(testOrg.id, null, "", {
 			...DEFAULT_CATALOG_FILTERS,
 			scope: "library",
 			sort: "oldest",
@@ -230,10 +230,10 @@ describe("mediaDb", () => {
 		const show = createShow();
 		mediaDb.updateProgress(show.id, 0, "error");
 
-		const rows = mediaDb.listQueueRows(testOrg.id);
+		const rows = mediaDb.listQueueRows(testOrg.id, null);
 
 		expect(rows.map((row) => row.media.id)).toContain(show.id);
-		expect(rows.length).toBe(mediaDb.countDownloadErrors(testOrg.id));
+		expect(rows.length).toBe(mediaDb.countDownloadErrors(testOrg.id, null));
 	});
 
 	it("lists one queue row per show download", () => {
@@ -251,7 +251,7 @@ describe("mediaDb", () => {
 			status: "added",
 		});
 
-		const rows = mediaDb.listQueueRows(testOrg.id);
+		const rows = mediaDb.listQueueRows(testOrg.id, null);
 		const showDownloads = rows.filter((row) => row.media.id === show.id).map((row) => row.download?.id);
 
 		expect(showDownloads.toSorted()).toEqual([first.id, second.id].toSorted());

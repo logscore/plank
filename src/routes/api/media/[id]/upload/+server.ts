@@ -8,7 +8,11 @@ import type { RequestHandler } from "./$types";
 
 /** Receive one chunk of a video file. The body is the raw chunk bytes. */
 export const PUT: RequestHandler = async ({ locals, params, request, url }) => {
-	const { mediaItem } = requireMediaAccess(locals, params.id);
+	const { mediaItem, allowedRatings } = requireMediaAccess(locals, params.id);
+	// The server cannot check what a file holds, so a limited member cannot upload.
+	if (allowedRatings) {
+		throw error(403, "Your rating limit blocks uploads");
+	}
 	if (mediaItem.type === "show") {
 		throw error(400, "Upload a file to one episode, not to the whole show");
 	}

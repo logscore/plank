@@ -161,6 +161,6 @@ function withLiveStats(entry: QueueEntry): QueueEntry {
 }
 
 /** One live snapshot of every queue entry in an organization. */
-export function buildQueue(organizationId: string): QueueEntry[] {
-	return foldQueueRows(mediaDb.listQueueRows(organizationId)).map(withLiveStats);
+export function buildQueue(organizationId: string, allowed: readonly string[] | null): QueueEntry[] {
+	return foldQueueRows(mediaDb.listQueueRows(organizationId, allowed)).map(withLiveStats);
 }

@@ -143,7 +143,9 @@
 
     // Intersection observer for infinite scroll
     $effect(() => {
-        if (!loadMoreTrigger) {
+        // Observe again after each page. A short page leaves the trigger in view, and only a new observer reports it.
+        const pageCount = browseQuery.data?.pages.length ?? 0;
+        if (!loadMoreTrigger || pageCount === 0) {
             return;
         }
 
@@ -328,7 +330,6 @@
                 backdropUrl: item.backdropUrl,
                 overview: item.overview,
                 genres: item.genres,
-                certification: item.certification,
             });
             toast.success(`Season ${seasonNumber} queued`);
         } catch (err) {

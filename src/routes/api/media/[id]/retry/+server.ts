@@ -1,4 +1,4 @@
-import { json } from "@sveltejs/kit";
+import { error, json } from "@sveltejs/kit";
 import { requireMediaAccess } from "$lib/server/api-guard";
 import { downloadsDb, mediaDb } from "$lib/server/db";
 import type { Download, Media } from "$lib/server/db/schema";
@@ -207,12 +207,16 @@ async function handleShowRetry(mediaItem: Media, body: RetryBody): Promise<Respo
 }
 
 export const POST: RequestHandler = async ({ params, locals, request }) => {
-	const { mediaItem } = requireMediaAccess(locals, params.id);
+	const { mediaItem, allowedRatings } = requireMediaAccess(locals, params.id);
 	let body: RetryBody = {};
 	try {
 		body = await request.json();
 	} catch {
 		body = {};
+	}
+	// The server cannot check what a torrent holds, so a limited member keeps the source the server picked.
+	if (allowedRatings && body.mode === "replace") {
+		error(403, "Your rating limit blocks a new source");
 	}
 
 	if (mediaItem.type === "show") {

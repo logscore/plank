@@ -1,5 +1,6 @@
 <script lang="ts">
     import { Loader, RotateCcw, Upload } from "@lucide/svelte";
+    import { page } from "$app/state";
     import { getMediaUpload, startMediaUpload } from "$lib/client/media-upload.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Dialog from "$lib/components/ui/Dialog.svelte";
@@ -23,9 +24,11 @@
     } = $props();
 
     const retryMutation = createRetryMediaMutation();
+    // The server rejects a new source or an upload from a member with a rating limit.
+    const canPickSource = $derived(!page.data.ratingLimit);
     const sourcesQuery = createMediaSourcesQuery(
         () => media?.id ?? null,
-        () => open
+        () => open && canPickSource
     );
     let manualSource = $state("");
     let retryError = $state("");
@@ -43,7 +46,7 @@
     const searchResults = $derived<SourceCandidate[]>(sourcesQuery.data?.results ?? []);
     const hasSavedSource = $derived(Boolean(media?.magnetLink || downloadId));
     // A show holds many files, so a file goes to one movie or one episode.
-    const canUpload = $derived(Boolean(media && media.type !== "show"));
+    const canUpload = $derived(Boolean(media && media.type !== "show") && canPickSource);
     // Cached releases stay on screen while a stale search refetches behind them.
     const searching = $derived(sourcesQuery.isFetching && searchResults.length === 0);
     const searchError = $derived(sourcesQuery.error && searchResults.length === 0 ? sourcesQuery.error.message : "");
@@ -155,105 +158,107 @@
                     >
                 {/if}
             </div>
-            {#if media && !hasSavedSource}
+            {#if media && !hasSavedSource && canPickSource}
                 <p class="text-sm text-muted-foreground">
                     This title does not have a saved source yet. Paste a new one below.
                 </p>
             {/if}
         </div>
 
-        <div class="space-y-3 border-t border-border pt-4">
-            <div class="space-y-1">
-                <p class="text-sm font-medium">Other sources</p>
-                {#if searchQuery}
-                    <p class="text-sm text-muted-foreground">Indexer results for "{searchQuery}"</p>
+        {#if canPickSource}
+            <div class="space-y-3 border-t border-border pt-4">
+                <div class="space-y-1">
+                    <p class="text-sm font-medium">Other sources</p>
+                    {#if searchQuery}
+                        <p class="text-sm text-muted-foreground">Indexer results for "{searchQuery}"</p>
+                    {/if}
+                </div>
+
+                {#if searchError}
+                    <p class="text-sm text-destructive">{searchError}</p>
+                {:else}
+                    <div class="overflow-hidden rounded-lg border border-border/60">
+                        <div
+                            class="{SOURCE_COLUMNS} border-b border-border/60 bg-white/5 px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground"
+                        >
+                            <span>Release</span>
+                            <span class="text-right">Size</span>
+                            <span class="text-right">Seeders</span>
+                            <span class="hidden sm:block">Source</span>
+                        </div>
+                        {#if searching}
+                            <div class="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
+                                <Loader class="h-4 w-4 animate-spin" />
+                                Searching indexers...
+                            </div>
+                        {:else if searchResults.length === 0}
+                            <p class="px-3 py-4 text-sm text-muted-foreground">
+                                No releases found. Paste a source below instead.
+                            </p>
+                        {:else}
+                            <Scroller class="max-h-64">
+                                <div class="divide-y divide-border/40">
+                                    {#each searchResults as candidate (candidate.infohash)}
+                                        <button
+                                            type="button"
+                                            class="{SOURCE_COLUMNS} w-full px-3 py-2 text-left transition-colors hover:bg-white/5 disabled:opacity-50"
+                                            disabled={retrying}
+                                            onclick={() => useCandidate(candidate)}
+                                        >
+                                            <span class="flex min-w-0 items-center gap-1.5">
+                                                {#if pendingInfohash === candidate.infohash}
+                                                    <Loader class="h-3 w-3 shrink-0 animate-spin" />
+                                                {/if}
+                                                <!--
+                                                    Long release names scroll sideways here, so the other columns
+                                                    stay put. The mask fades the text into the right edge, which
+                                                    shows there is more to read.
+                                                -->
+                                                <span
+                                                    class="no-scrollbar mask-r-from-[calc(100%-1.5rem)] min-w-0 overflow-x-auto whitespace-nowrap text-sm text-white"
+                                                    title={candidate.title}
+                                                >
+                                                    {candidate.title}
+                                                </span>
+                                            </span>
+                                            <span class="text-right text-xs tabular-nums text-muted-foreground">
+                                                {formatSize(candidate.size)}
+                                            </span>
+                                            <span class="text-right text-xs tabular-nums text-muted-foreground">
+                                                {candidate.seeders}
+                                            </span>
+                                            <span
+                                                class="hidden truncate text-xs text-muted-foreground sm:block"
+                                                title={candidate.indexer}
+                                            >
+                                                {candidate.indexer}
+                                            </span>
+                                        </button>
+                                    {/each}
+                                </div>
+                            </Scroller>
+                        {/if}
+                    </div>
                 {/if}
             </div>
 
-            {#if searchError}
-                <p class="text-sm text-destructive">{searchError}</p>
-            {:else}
-                <div class="overflow-hidden rounded-lg border border-border/60">
-                    <div
-                        class="{SOURCE_COLUMNS} border-b border-border/60 bg-white/5 px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground"
-                    >
-                        <span>Release</span>
-                        <span class="text-right">Size</span>
-                        <span class="text-right">Seeders</span>
-                        <span class="hidden sm:block">Source</span>
-                    </div>
-                    {#if searching}
-                        <div class="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-                            <Loader class="h-4 w-4 animate-spin" />
-                            Searching indexers...
-                        </div>
-                    {:else if searchResults.length === 0}
-                        <p class="px-3 py-4 text-sm text-muted-foreground">
-                            No releases found. Paste a source below instead.
-                        </p>
-                    {:else}
-                        <Scroller class="max-h-64">
-                            <div class="divide-y divide-border/40">
-                                {#each searchResults as candidate (candidate.infohash)}
-                                    <button
-                                        type="button"
-                                        class="{SOURCE_COLUMNS} w-full px-3 py-2 text-left transition-colors hover:bg-white/5 disabled:opacity-50"
-                                        disabled={retrying}
-                                        onclick={() => useCandidate(candidate)}
-                                    >
-                                        <span class="flex min-w-0 items-center gap-1.5">
-                                            {#if pendingInfohash === candidate.infohash}
-                                                <Loader class="h-3 w-3 shrink-0 animate-spin" />
-                                            {/if}
-                                            <!--
-                                                Long release names scroll sideways here, so the other columns
-                                                stay put. The mask fades the text into the right edge, which
-                                                shows there is more to read.
-                                            -->
-                                            <span
-                                                class="no-scrollbar mask-r-from-[calc(100%-1.5rem)] min-w-0 overflow-x-auto whitespace-nowrap text-sm text-white"
-                                                title={candidate.title}
-                                            >
-                                                {candidate.title}
-                                            </span>
-                                        </span>
-                                        <span class="text-right text-xs tabular-nums text-muted-foreground">
-                                            {formatSize(candidate.size)}
-                                        </span>
-                                        <span class="text-right text-xs tabular-nums text-muted-foreground">
-                                            {candidate.seeders}
-                                        </span>
-                                        <span
-                                            class="hidden truncate text-xs text-muted-foreground sm:block"
-                                            title={candidate.indexer}
-                                        >
-                                            {candidate.indexer}
-                                        </span>
-                                    </button>
-                                {/each}
-                            </div>
-                        </Scroller>
-                    {/if}
+            <div class="space-y-3 border-t border-border pt-4">
+                <div class="space-y-1">
+                    <p class="text-sm font-medium">Manual source</p>
                 </div>
-            {/if}
-        </div>
-
-        <div class="space-y-3 border-t border-border pt-4">
-            <div class="space-y-1">
-                <p class="text-sm font-medium">Manual source</p>
+                <Input
+                    bind:value={manualSource}
+                    placeholder="magnet:?xt=urn:btih:... or https://..."
+                    onkeydown={(event) => event.key === "Enter" && handleManualSubmit()}
+                />
+                <div class="flex justify-end gap-2">
+                    <Button variant="ghost" onclick={() => (open = false)}>Cancel</Button>
+                    <Button onclick={handleManualSubmit} disabled={retrying || !manualSource.trim()}>
+                        {retrying ? "Starting..." : "Use manual source"}
+                    </Button>
+                </div>
             </div>
-            <Input
-                bind:value={manualSource}
-                placeholder="magnet:?xt=urn:btih:... or https://..."
-                onkeydown={(event) => event.key === "Enter" && handleManualSubmit()}
-            />
-            <div class="flex justify-end gap-2">
-                <Button variant="ghost" onclick={() => (open = false)}>Cancel</Button>
-                <Button onclick={handleManualSubmit} disabled={retrying || !manualSource.trim()}>
-                    {retrying ? "Starting..." : "Use manual source"}
-                </Button>
-            </div>
-        </div>
+        {/if}
 
         {#if actionError}
             <p class="text-sm text-destructive">{actionError}</p>

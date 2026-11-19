@@ -509,7 +509,8 @@ interface CatalogBranch {
 function getCatalogRequestDetails(
 	request: CatalogSearchRequest,
 	mediaType: "movie" | "show",
-	genreIds: number[]
+	genreIds: number[],
+	allowed: readonly string[] | null
 ): { endpoint: string; params: Record<string, string> } {
 	const tmdbType = mediaType === "show" ? "tv" : "movie";
 	const params: Record<string, string> = { page: String(request.page) };
@@ -530,6 +531,11 @@ function getCatalogRequestDetails(
 	}
 	if (genreIds.length > 0) {
 		params.with_genres = genreIds.join("|");
+	}
+	if (allowed && mediaType === "movie") {
+		// TMDB has no rating filter for TV, so only movies are pre-filtered here.
+		params.certification_country = "US";
+		params.certification = allowed.filter((rating) => !rating.startsWith("TV-")).join("|");
 	}
 	switch (request.filters.sort) {
 		case "rating":
@@ -566,13 +572,14 @@ function matchesCatalogFilters(item: TMDBTrendingItem, request: CatalogSearchReq
 async function searchCatalogBranch(
 	settings: AppSettings,
 	request: CatalogSearchRequest,
-	mediaType: "movie" | "show"
+	mediaType: "movie" | "show",
+	allowed: readonly string[] | null
 ): Promise<CatalogBranch> {
 	const genreIds = getCatalogGenreIds(request.filters.genres, mediaType);
 	if (genreIds === null) {
 		return { candidates: [], totalPages: 0 };
 	}
-	const { endpoint, params } = getCatalogRequestDetails(request, mediaType, genreIds);
+	const { endpoint, params } = getCatalogRequestDetails(request, mediaType, genreIds, allowed);
 	const data = await fetchTmdbCatalogPage(settings, endpoint, params);
 	const candidates = data.results
 		.filter((item) => matchesCatalogFilters(item, request, genreIds))
@@ -618,7 +625,11 @@ function sortCatalogCandidates(candidates: CatalogCandidate[], request: CatalogS
 	});
 }
 
-export async function searchTmdbCatalog(request: CatalogSearchRequest): Promise<TmdbCatalogSearchResult> {
+/** A rating limit pre-filters movie discovery by US rating. Callers still filter the results. */
+export async function searchTmdbCatalog(
+	request: CatalogSearchRequest,
+	allowed: readonly string[] | null = null
+): Promise<TmdbCatalogSearchResult> {
 	const { filters, page, query } = request;
 	if (query.length === 1) {
 		return { items: [], page: 1, totalPages: 0 };
@@ -627,7 +638,7 @@ export async function searchTmdbCatalog(request: CatalogSearchRequest): Promise<
 	const settings = await getSettings();
 	const mediaTypes: Array<"movie" | "show"> = filters.media === "all" ? ["movie", "show"] : [filters.media];
 	const branches = await Promise.all(
-		mediaTypes.map((mediaType) => searchCatalogBranch(settings, request, mediaType))
+		mediaTypes.map((mediaType) => searchCatalogBranch(settings, request, mediaType, allowed))
 	);
 	const seen = new Set<string>();
 	const candidates = branches

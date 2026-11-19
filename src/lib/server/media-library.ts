@@ -47,7 +47,6 @@ export interface AddMediaFromMagnetParams {
 	backdropUrl?: string | null;
 	overview?: string | null;
 	genres?: string[] | null;
-	certification?: string | null;
 }
 
 interface ExistingMediaResult {
@@ -139,8 +138,7 @@ async function enrichBrowseMetadata(
 	posterUrl: string | null,
 	backdropUrl: string | null,
 	overview: string | null,
-	genres: string[] | null,
-	certification: string | null
+	genres: string[] | null
 ): Promise<MediaMetadata> {
 	const metadata: MediaMetadata = {
 		title,
@@ -153,7 +151,7 @@ async function enrichBrowseMetadata(
 		runtime: null,
 		genres: genres ? JSON.stringify(genres) : null,
 		originalLanguage: null,
-		certification,
+		certification: null,
 		totalSeasons: null,
 	};
 
@@ -166,13 +164,11 @@ async function enrichBrowseMetadata(
 			metadata.runtime = details.runtime ?? null;
 			metadata.originalLanguage = details.originalLanguage ?? null;
 			metadata.totalSeasons = details.totalSeasons ?? null;
-			// Use browse genres/certification if provided, otherwise use details
+			// Use browse genres if provided. The rating always comes from TMDB, because rating limits trust it.
 			if (!metadata.genres) {
 				metadata.genres = details.genres ?? null;
 			}
-			if (!metadata.certification) {
-				metadata.certification = details.certification ?? null;
-			}
+			metadata.certification = details.certification ?? null;
 		} catch (cause) {
 			rethrowAdultContent(cause);
 			console.error(`[TMDB] Failed to enrich browse metadata for ${tmdbId}:`, cause);
@@ -237,7 +233,7 @@ async function resolveMetadata(
 	magnetYear: number | undefined,
 	mediaType: MediaType
 ): Promise<MediaMetadata> {
-	const { tmdbId, title: browseTitle, posterUrl, backdropUrl, overview, genres, certification } = body;
+	const { tmdbId, title: browseTitle, posterUrl, backdropUrl, overview, genres } = body;
 	const hasBrowseMetadata = posterUrl || backdropUrl || overview;
 
 	if (hasBrowseMetadata && tmdbId) {
@@ -249,8 +245,7 @@ async function resolveMetadata(
 			(posterUrl as string) ?? null,
 			(backdropUrl as string) ?? null,
 			(overview as string) ?? null,
-			(genres as string[]) ?? null,
-			(certification as string) ?? null
+			(genres as string[]) ?? null
 		);
 	}
 

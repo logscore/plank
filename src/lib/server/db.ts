@@ -1,4 +1,19 @@
-import { and, asc, desc, eq, gte, inArray, isNull, like, lte, notExists, or, type SQL, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	getTableColumns,
+	gte,
+	inArray,
+	isNull,
+	like,
+	lte,
+	notExists,
+	or,
+	type SQL,
+	sql,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { type CatalogFilters, getCatalogGenreLabels } from "$lib/data/search";
 import {
@@ -22,11 +37,19 @@ function removeUndefinedFromObject<T extends Record<string, unknown>>(obj: T): P
 	return Object.fromEntries(Object.entries(obj).filter(([, value]) => value !== undefined)) as Partial<T>;
 }
 
-function getCatalogMediaConditions(organizationId: string, query: string, filters: CatalogFilters): SQL[] {
+function getCatalogMediaConditions(
+	organizationId: string,
+	allowed: readonly string[] | null,
+	query: string,
+	filters: CatalogFilters
+): SQL[] {
 	const conditions: SQL[] = [
 		eq(mediaTable.organizationId, organizationId),
 		sql`${mediaTable.type} IN ('movie', 'show')`,
 	];
+	if (allowed) {
+		conditions.push(inArray(mediaTable.certification, [...allowed]));
+	}
 	if (query) {
 		conditions.push(sql`instr(lower(${mediaTable.title}), lower(${query})) > 0`);
 	}
@@ -73,6 +96,15 @@ const QUEUE_ROW_LIMIT = 500;
 
 const parentMediaTable = alias(mediaTable, "parent_media");
 
+/** Keep rows with an allowed rating. An episode takes the rating of its show, so the query must join parentMediaTable. */
+function ratingConditions(allowed: readonly string[] | null): SQL[] {
+	if (!allowed) {
+		return [];
+	}
+	const rating = sql`CASE WHEN ${mediaTable.parentId} IS NULL THEN ${mediaTable.certification} ELSE ${parentMediaTable.certification} END`;
+	return [inArray(rating, [...allowed])];
+}
+
 /** One raw queue row and the download that owns it, when one exists. */
 export interface QueueRow {
 	media: Media;
@@ -82,14 +114,16 @@ export interface QueueRow {
 }
 
 export const mediaDb = {
-	countDownloadErrors(organizationId: string): number {
+	countDownloadErrors(organizationId: string, allowed: readonly string[] | null): number {
 		const row = db
 			.select({ total: sql<number>`count(*)` })
 			.from(mediaTable)
+			.leftJoin(parentMediaTable, eq(mediaTable.parentId, parentMediaTable.id))
 			.where(
 				and(
 					eq(mediaTable.organizationId, organizationId),
-					inArray(mediaTable.status, [...DOWNLOAD_ERROR_STATUSES])
+					inArray(mediaTable.status, [...DOWNLOAD_ERROR_STATUSES]),
+					...ratingConditions(allowed)
 				)
 			)
 			.get();
@@ -97,7 +131,8 @@ export const mediaDb = {
 	},
 
 	/** Every failed or in-flight row, newest first. Covers movies, shows, and episodes. */
-	listQueueRows(organizationId: string): QueueRow[] {
+	listQueueRows(organizationId: string, allowed: readonly string[] | null): QueueRow[] {
+		const allowedRating = ratingConditions(allowed);
 		const queuedDownloadExists = db
 			.select({ id: downloadsTable.id })
 			.from(downloadsTable)
@@ -115,7 +150,8 @@ export const mediaDb = {
 			.where(
 				and(
 					eq(mediaTable.organizationId, organizationId),
-					inArray(downloadsTable.status, [...QUEUED_DOWNLOAD_STATUSES])
+					inArray(downloadsTable.status, [...QUEUED_DOWNLOAD_STATUSES]),
+					...allowedRating
 				)
 			)
 			.orderBy(desc(downloadsTable.addedAt))
@@ -130,7 +166,8 @@ export const mediaDb = {
 				and(
 					eq(mediaTable.organizationId, organizationId),
 					inArray(mediaTable.status, [...QUEUE_STATUSES]),
-					notExists(queuedDownloadExists)
+					notExists(queuedDownloadExists),
+					...allowedRating
 				)
 			)
 			.orderBy(desc(mediaTable.addedAt))
@@ -153,8 +190,15 @@ export const mediaDb = {
 			.orderBy(desc(mediaTable.addedAt))
 			.all();
 	},
-	search(organizationId: string, query: string, filters: CatalogFilters, limit = 21, offset = 0): Media[] {
-		const conditions = getCatalogMediaConditions(organizationId, query, filters);
+	search(
+		organizationId: string,
+		allowed: readonly string[] | null,
+		query: string,
+		filters: CatalogFilters,
+		limit = 21,
+		offset = 0
+	): Media[] {
+		const conditions = getCatalogMediaConditions(organizationId, allowed, query, filters);
 
 		const boundedLimit = Math.min(2000, Math.max(1, limit));
 		const boundedOffset = Math.max(0, offset);
@@ -238,7 +282,7 @@ export const mediaDb = {
 				imdbId: mediaTable.imdbId,
 			})
 			.from(mediaTable)
-			.where(and(...getCatalogMediaConditions(organizationId, query, filters), candidateFilter))
+			.where(and(...getCatalogMediaConditions(organizationId, null, query, filters), candidateFilter))
 			.groupBy(mediaTable.type, mediaTable.title, mediaTable.year, mediaTable.tmdbId, mediaTable.imdbId)
 			.limit(candidates.length * 3)
 			.all();
@@ -429,17 +473,20 @@ export const mediaDb = {
 			.run();
 	},
 
-	getRecentlyWatched(organizationId: string, limit = 20): Media[] {
+	/** The rating filter runs before the limit, so titles above it never push allowed ones out. */
+	getRecentlyWatched(organizationId: string, allowed: readonly string[] | null, limit = 20): Media[] {
 		return db
-			.select()
+			.select(getTableColumns(mediaTable))
 			.from(mediaTable)
+			.leftJoin(parentMediaTable, eq(mediaTable.parentId, parentMediaTable.id))
 			.where(
 				and(
 					eq(mediaTable.organizationId, organizationId),
 					sql`${mediaTable.type} IN ('movie', 'episode')`,
 					sql`${mediaTable.lastPlayedAt} IS NOT NULL`,
 					sql`${mediaTable.playPosition} > 0`,
-					sql`(${mediaTable.playDuration} IS NULL OR ${mediaTable.playPosition} < ${mediaTable.playDuration} * 0.95)`
+					sql`(${mediaTable.playDuration} IS NULL OR ${mediaTable.playPosition} < ${mediaTable.playDuration} * 0.95)`,
+					...ratingConditions(allowed)
 				)
 			)
 			.orderBy(desc(mediaTable.lastPlayedAt))

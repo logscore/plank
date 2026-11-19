@@ -1,5 +1,6 @@
 import type { CatalogSearchRequest, CatalogSearchResponse } from "$lib/data/search";
 import { mediaDb, seasonsDb } from "$lib/server/db";
+import { filterAllowedTitles } from "$lib/server/rating-limit";
 import type { BrowseItem } from "$lib/server/tmdb";
 import { searchTmdbCatalog } from "$lib/server/tmdb";
 import type { Media } from "$lib/types";
@@ -9,12 +10,13 @@ type LibraryResponse = Extract<CatalogSearchResponse, { scope: "library" }>;
 /** A pageSize of null returns the whole library in one response. */
 function searchLibrary(
 	organizationId: string,
+	allowed: readonly string[] | null,
 	request: CatalogSearchRequest,
 	pageSize: number | null
 ): LibraryResponse {
 	const limit = pageSize === null ? 2000 : pageSize + 1;
 	const offset = pageSize === null ? 0 : (request.page - 1) * pageSize;
-	const pageItems = mediaDb.search(organizationId, request.query, request.filters, limit, offset);
+	const pageItems = mediaDb.search(organizationId, allowed, request.query, request.filters, limit, offset);
 	const hasNextPage = pageSize !== null && pageItems.length > pageSize;
 	const items = hasNextPage ? pageItems.slice(0, pageSize) : pageItems;
 	const seasonsByMediaId = Object.fromEntries(
@@ -56,29 +58,31 @@ function isInLibrary(keys: Set<string>, item: BrowseItem): boolean {
 
 export async function searchCatalog(
 	organizationId: string,
+	allowed: readonly string[] | null,
 	request: CatalogSearchRequest
 ): Promise<CatalogSearchResponse> {
 	if (request.filters.scope === "catalog") {
-		const result = await searchTmdbCatalog(request);
+		const result = await searchTmdbCatalog(request, allowed);
 		return {
 			scope: "catalog",
-			items: result.items,
+			items: allowed ? await filterAllowedTitles(result.items, allowed) : result.items,
 			nextPage: result.totalPages > request.page ? request.page + 1 : null,
 		};
 	}
 
 	if (request.filters.scope === "library") {
-		return searchLibrary(organizationId, request, null);
+		return searchLibrary(organizationId, allowed, request, null);
 	}
 
-	const library = searchLibrary(organizationId, request, 20);
-	const catalog = await searchTmdbCatalog(request);
+	const library = searchLibrary(organizationId, allowed, request, 20);
+	const catalog = await searchTmdbCatalog(request, allowed);
 	const identities = mediaDb.searchIdentities(organizationId, request.query, request.filters, catalog.items);
 	const libraryKeys = new Set<string>();
 	for (const identity of identities) {
 		addLibraryIdentityKeys(libraryKeys, identity);
 	}
-	const catalogItems = catalog.items.filter((item) => !isInLibrary(libraryKeys, item));
+	const unownedItems = catalog.items.filter((item) => !isInLibrary(libraryKeys, item));
+	const catalogItems = allowed ? await filterAllowedTitles(unownedItems, allowed) : unownedItems;
 	const hasNextPage = library.nextPage !== null || catalog.totalPages > request.page;
 
 	return {
